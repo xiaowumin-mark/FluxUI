@@ -1,0 +1,121 @@
+package internal
+
+import (
+	"image"
+	"image/color"
+	"strconv"
+	"time"
+
+	"fluxui/theme"
+
+	gioLayout "gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/widget/material"
+)
+
+// Context 是每一帧传递给组件树的执行上下文。
+type Context struct {
+	Gtx        gioLayout.Context
+	runtime    *Runtime
+	path       string
+	hookIndex  int
+	foreground color.NRGBA
+}
+
+// NewContext 创建 frame 级上下文。
+func NewContext(gtx gioLayout.Context, runtime *Runtime) *Context {
+	return &Context{
+		Gtx:        gtx,
+		runtime:    runtime,
+		path:       "root",
+		foreground: runtime.Theme().TextColor,
+	}
+}
+
+// Runtime 返回运行时实例。
+func (c *Context) Runtime() *Runtime {
+	return c.runtime
+}
+
+// Theme 返回当前主题。
+func (c *Context) Theme() *theme.Theme {
+	return c.runtime.Theme()
+}
+
+// MaterialTheme 返回内部 Gio 主题。
+func (c *Context) MaterialTheme() *material.Theme {
+	return c.runtime.MaterialTheme()
+}
+
+// Foreground 返回当前默认前景色。
+func (c *Context) Foreground() color.NRGBA {
+	return c.foreground
+}
+
+// Now 返回当前 frame 时间。
+func (c *Context) Now() time.Time {
+	return c.Gtx.Now
+}
+
+// MinConstraints 返回当前最小约束。
+func (c *Context) MinConstraints() image.Point {
+	return c.Gtx.Constraints.Min
+}
+
+// MaxConstraints 返回当前最大约束。
+func (c *Context) MaxConstraints() image.Point {
+	return c.Gtx.Constraints.Max
+}
+
+// RequestRedraw 请求下一帧刷新。
+func (c *Context) RequestRedraw() {
+	c.Gtx.Execute(op.InvalidateCmd{})
+	c.runtime.RequestRedraw()
+}
+
+// NextKey 生成当前作用域下稳定的 hook key。
+func (c *Context) NextKey(namespace string) string {
+	key := c.path + "/" + namespace + ":" + strconv.Itoa(c.hookIndex)
+	c.hookIndex++
+	return key
+}
+
+// Persistent 读取或创建稳定对象。
+func (c *Context) Persistent(key string, factory func() any) any {
+	return c.runtime.remember(key, factory)
+}
+
+// Memo 使用稳定 hook key 读取或创建对象。
+func (c *Context) Memo(namespace string, factory func() any) any {
+	return c.Persistent(c.NextKey(namespace), factory)
+}
+
+// Child 为子组件创建独立作用域。
+func (c *Context) Child(index int) *Context {
+	return c.childWithGtx(c.Gtx, strconv.Itoa(index))
+}
+
+// Scope 创建命名作用域。
+func (c *Context) Scope(name string) *Context {
+	return c.childWithGtx(c.Gtx, name)
+}
+
+// WithForeground 覆盖当前默认前景色。
+func (c *Context) WithForeground(col color.NRGBA) *Context {
+	next := c.sameScope(c.Gtx)
+	next.foreground = col
+	return next
+}
+
+func (c *Context) sameScope(gtx gioLayout.Context) *Context {
+	next := *c
+	next.Gtx = gtx
+	return &next
+}
+
+func (c *Context) childWithGtx(gtx gioLayout.Context, segment string) *Context {
+	next := c.sameScope(gtx)
+	next.path = c.path + "/" + segment
+	next.hookIndex = 0
+	return next
+}
