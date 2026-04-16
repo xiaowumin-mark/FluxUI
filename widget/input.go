@@ -1,0 +1,264 @@
+package widget
+
+import (
+	"image/color"
+
+	"fluxui/internal"
+	"fluxui/layout"
+	"fluxui/style"
+
+	gioWidget "gioui.org/widget"
+)
+
+type InputOption func(*inputConfig)
+
+type inputConfig struct {
+	disabled       bool
+	padding        style.Insets
+	radius         float32
+	border         color.NRGBA
+	borderFocus    color.NRGBA
+	background     color.NRGBA
+	foreground     color.NRGBA
+	placeholder    string
+	hasBorder      bool
+	hasBorderFocus bool
+	hasBackground  bool
+	hasForeground  bool
+	hasValue       bool
+	value          string
+	textSize       float32
+	maxLen         int
+	password       bool
+	singleLine     bool
+	onChange       func(ctx *internal.Context, value string)
+	onFocus        func(ctx *internal.Context, focused bool)
+}
+
+type inputWidget struct {
+	value  string
+	config inputConfig
+}
+
+type inputState struct {
+	editor      *gioWidget.Editor
+	initialized bool
+	focused     bool
+}
+
+func inputStateFor(ctx *internal.Context) *inputState {
+	value := ctx.Memo("input", func() any {
+		return &inputState{
+			editor: &gioWidget.Editor{
+				SingleLine: true,
+			},
+		}
+	})
+
+	state, ok := value.(*inputState)
+	if !ok {
+		panic("fluxui/widget: input state type mismatch")
+	}
+	return state
+}
+
+func TextField(value string, opts ...InputOption) Widget {
+	cfg := inputConfig{
+		padding:     style.Symmetric(10, 12),
+		radius:      8,
+		border:      color.NRGBA{R: 200, G: 200, B: 200, A: 255},
+		borderFocus: color.NRGBA{R: 66, G: 133, B: 244, A: 255},
+		background:  color.NRGBA{R: 255, G: 255, B: 255, A: 255},
+		foreground:  color.NRGBA{R: 0, G: 0, B: 0, A: 255},
+		placeholder: "Enter text...",
+		textSize:    16,
+		maxLen:      0,
+		password:    false,
+		singleLine:  true,
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	if cfg.hasValue {
+		value = cfg.value
+	}
+
+	return &inputWidget{
+		value:  value,
+		config: cfg,
+	}
+}
+
+func InputValue(value string) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.value = value
+		cfg.hasValue = true
+	}
+}
+
+func InputPlaceholder(text string) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.placeholder = text
+	}
+}
+
+func InputPadding(insets style.Insets) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.padding = insets
+	}
+}
+
+func InputRadius(radius float32) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.radius = radius
+	}
+}
+
+func InputBorder(color color.NRGBA) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.border = color
+		cfg.hasBorder = true
+	}
+}
+
+func InputBorderFocus(color color.NRGBA) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.borderFocus = color
+		cfg.hasBorderFocus = true
+	}
+}
+
+func InputBackground(color color.NRGBA) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.background = color
+		cfg.hasBackground = true
+	}
+}
+
+func InputForeground(color color.NRGBA) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.foreground = color
+		cfg.hasForeground = true
+	}
+}
+
+func InputTextSize(size float32) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.textSize = size
+	}
+}
+
+func InputMaxLen(maxLen int) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.maxLen = maxLen
+	}
+}
+
+func InputPassword(password bool) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.password = password
+	}
+}
+
+func InputSingleLine(singleLine bool) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.singleLine = singleLine
+	}
+}
+
+func InputDisabled(disabled bool) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.disabled = disabled
+	}
+}
+
+func InputOnChange(fn func(ctx *internal.Context, value string)) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.onChange = fn
+	}
+}
+
+func InputOnFocus(fn func(ctx *internal.Context, focused bool)) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.onFocus = fn
+	}
+}
+
+func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	state := inputStateFor(ctx)
+	editor := state.editor
+	if editor == nil {
+		return layout.Dimensions{}
+	}
+
+	if !state.initialized {
+		editor.SetText(t.value)
+		state.initialized = true
+	} else if t.config.onChange != nil && editor.Text() != t.value {
+		editor.SetText(t.value)
+	}
+
+	editor.SingleLine = t.config.singleLine
+	editor.ReadOnly = t.config.disabled
+	editor.MaxLen = t.config.maxLen
+	if t.config.password {
+		editor.Mask = '*'
+	} else {
+		editor.Mask = 0
+	}
+
+	for {
+		ev, ok := editor.Update(ctx.Gtx)
+		if !ok {
+			break
+		}
+		if _, changed := ev.(gioWidget.ChangeEvent); changed && t.config.onChange != nil {
+			t.config.onChange(ctx, editor.Text())
+		}
+	}
+
+	focused := ctx.Gtx.Focused(editor)
+	if state.focused != focused {
+		state.focused = focused
+		if t.config.onFocus != nil {
+			t.config.onFocus(ctx, focused)
+		}
+	}
+
+	bg := t.config.background
+	if !t.config.hasBackground {
+		bg = ctx.Theme().Surface
+	}
+
+	fg := t.config.foreground
+	if !t.config.hasForeground {
+		fg = ctx.Theme().TextColor
+	}
+	if t.config.disabled {
+		fg = ctx.Theme().Disabled
+	}
+
+	border := t.config.border
+	if focused && t.config.hasBorderFocus {
+		border = t.config.borderFocus
+	}
+	if t.config.disabled {
+		border = ctx.Theme().Disabled
+	}
+
+	size := ctx.LayoutInput(editor, internal.InputSpec{
+		Background:  bg,
+		Foreground:  fg,
+		Border:      border,
+		Radius:      t.config.radius,
+		Padding:     toInternalInsets(t.config.padding),
+		TextSize:    t.config.textSize,
+		Placeholder: t.config.placeholder,
+		Password:    t.config.password,
+		MaxLen:      t.config.maxLen,
+		SingleLine:  t.config.singleLine,
+	})
+
+	return layout.Dimensions{Size: size}
+}
