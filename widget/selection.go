@@ -2,11 +2,16 @@ package widget
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 
+	"fluxui/event"
 	"fluxui/internal"
 	"fluxui/layout"
 	"fluxui/style"
+
+	gioLayout "gioui.org/layout"
+	"gioui.org/op"
 )
 
 // RadioItem 单选项。
@@ -90,30 +95,54 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if r.config.hasColor {
 		mainColor = r.config.color
 	}
+	labelColor := ctx.Theme().TextColor
+	if r.config.disabled {
+		labelColor = ctx.Theme().Disabled
+	}
 
 	children := make([]Widget, 0, len(r.items))
 	for idx := range r.items {
 		item := r.items[idx]
 		checked := item.Value == r.value
 
-		row := Row(
-			Checkbox(
-				"",
-				checked,
-				CheckboxSize(r.config.size),
-				CheckboxColor(mainColor),
-				CheckboxDisabled(r.config.disabled),
-				CheckboxOnChange(func(ctx *internal.Context, checked bool) {
-					if r.config.disabled || !checked {
-						return
+		row := layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
+			clickable := event.UseClickable(rowCtx)
+			if !r.config.disabled {
+				for clickable.Clicked(rowCtx) {
+					if r.config.onChange != nil && item.Value != r.value {
+						r.config.onChange(rowCtx, item.Value)
 					}
-					if r.config.onChange != nil {
-						r.config.onChange(ctx, item.Value)
-					}
+				}
+			}
+
+			dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(rowCtx.Gtx,
+				gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+					next := *rowCtx
+					next.Gtx = gtx
+					size := next.LayoutRadio(clickable.Handle(), checked, internal.RadioSpec{
+						Size:     r.config.size,
+						Color:    mainColor,
+						Disabled: r.config.disabled,
+					})
+					return gioLayout.Dimensions{Size: size}
 				}),
-			),
-			Padding(style.Insets{Left: 6}, Text(item.Label)),
-		)
+				gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+					next := *rowCtx
+					next.Gtx = gtx
+					next.Gtx.Constraints.Min = image.Point{}
+					size := next.LayoutInset(internal.Insets{Left: 8}, func(contentCtx *internal.Context) image.Point {
+						return contentCtx.LayoutText(internal.TextSpec{
+							Content:   item.Label,
+							Size:      contentCtx.Theme().TextSize,
+							Color:     labelColor,
+							Alignment: internal.AlignStart,
+						})
+					})
+					return gioLayout.Dimensions{Size: size}
+				}),
+			)
+			return layout.Dimensions{Size: dims.Size}
+		})
 
 		if r.config.direction == Horizontal {
 			children = append(children, Padding(style.Insets{Right: 12}, row))
@@ -218,9 +247,9 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	state := selectStateFor(ctx)
 	label, currentIndex := s.resolveCurrentLabel()
 
-	arrow := "▼"
+	arrow := "v"
 	if state.opened {
-		arrow = "▲"
+		arrow = "^"
 	}
 
 	toggle := Button(
@@ -241,83 +270,106 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	)
 	toggle = expandWidth(toggle)
 
-	optionsBody := layoutWidgetFunc(func(ctx *internal.Context) layout.Dimensions {
-		if !state.opened || len(s.options) == 0 {
-			return layout.Dimensions{}
+	toggleDims := toggle.Layout(ctx.Child(0))
+	if !state.opened || len(s.options) == 0 {
+		return toggleDims
+	}
+
+	items := make([]Widget, 0, len(s.options))
+	for idx := range s.options {
+		item := s.options[idx]
+		itemLabel := item.Label
+		if itemLabel == "" {
+			itemLabel = fmt.Sprintf("%v", item.Value)
+		}
+		isActive := idx == currentIndex
+		bg := color.NRGBA{}
+		if isActive {
+			p := ctx.Theme().Primary
+			bg = color.NRGBA{R: p.R, G: p.G, B: p.B, A: 30}
 		}
 
-		items := make([]Widget, 0, len(s.options))
-		for idx := range s.options {
-			item := s.options[idx]
-			itemLabel := item.Label
-			if itemLabel == "" {
-				itemLabel = fmt.Sprintf("%v", item.Value)
-			}
-			isActive := idx == currentIndex
-			bg := color.NRGBA{}
-			if isActive {
-				p := ctx.Theme().Primary
-				bg = color.NRGBA{R: p.R, G: p.G, B: p.B, A: 30}
-			}
-
-			row := Button(
-				Row(
-					Text(itemLabel),
-					Padding(style.Insets{Left: 8}, Text(selectMark(isActive), TextColor(ctx.Theme().Primary))),
-				),
-				ButtonBackground(bg),
-				ButtonForeground(ctx.Theme().TextColor),
-				ButtonPadding(style.Symmetric(8, 10)),
-				ButtonRadius(6),
-				OnClick(func(ctx *internal.Context) {
-					if s.config.onChange != nil {
-						s.config.onChange(ctx, item.Value)
-					}
-					if state.opened {
-						state.opened = false
-						if s.config.onOpen != nil {
-							s.config.onOpen(ctx, false)
-						}
-					}
-				}),
-			)
-			row = expandWidth(row)
-
-			items = append(items, row)
-		}
-
-		list := ListView(
-			len(items),
-			func(ctx *internal.Context, index int) Widget {
-				return items[index]
-			},
-			ListItemSpacing(4),
-			ListVirtualized(true),
-		)
-
-		maxH := s.config.maxHeight
-		if maxH <= 0 {
-			maxH = 240
-		}
-		return (&fixedSizeWidget{
-			height: maxH,
-			child: expandWidth(
-				Container(
-					style.Style{
-						Background: ctx.Theme().Surface,
-						Padding:    style.All(6),
-						Radius:     8,
-					},
-					list,
-				),
+		row := Button(
+			Row(
+				Text(itemLabel),
+				Padding(style.Insets{Left: 8}, Text(selectMark(isActive), TextColor(ctx.Theme().Primary))),
 			),
-		}).Layout(ctx.Child(0))
-	})
+			ButtonBackground(bg),
+			ButtonForeground(ctx.Theme().TextColor),
+			ButtonPadding(style.Symmetric(8, 10)),
+			ButtonRadius(6),
+			OnClick(func(ctx *internal.Context) {
+				if s.config.onChange != nil {
+					s.config.onChange(ctx, item.Value)
+				}
+				if state.opened {
+					state.opened = false
+					if s.config.onOpen != nil {
+						s.config.onOpen(ctx, false)
+					}
+				}
+			}),
+		)
+		row = expandWidth(row)
+		items = append(items, row)
+	}
 
-	return Column(
-		toggle,
-		Padding(style.Insets{Top: 6}, optionsBody),
-	).Layout(ctx.Child(0))
+	list := ListView(
+		len(items),
+		func(ctx *internal.Context, index int) Widget {
+			return items[index]
+		},
+		ListItemSpacing(4),
+		ListVirtualized(true),
+	)
+	panel := expandWidth(
+		Container(
+			style.Style{
+				Background: ctx.Theme().Surface,
+				Padding:    style.All(6),
+				Radius:     8,
+			},
+			list,
+		),
+	)
+
+	maxH := s.config.maxHeight
+	if maxH <= 0 {
+		maxH = 240
+	}
+	maxHPx := ctx.Gtx.Dp(safeDp(maxH))
+	if maxHPx <= 0 {
+		maxHPx = 1
+	}
+
+	popupYOffset := toggleDims.Size.Y + ctx.Gtx.Dp(safeDp(6))
+	availableY := ctx.Gtx.Constraints.Max.Y - popupYOffset
+	if availableY <= 0 {
+		availableY = maxHPx
+	}
+	if availableY > maxHPx {
+		availableY = maxHPx
+	}
+	popupW := toggleDims.Size.X
+	if popupW <= 0 {
+		popupW = ctx.Gtx.Constraints.Max.X
+	}
+	if popupW <= 0 {
+		popupW = 1
+	}
+
+	popupMacro := op.Record(ctx.Gtx.Ops)
+	offset := op.Offset(image.Point{Y: popupYOffset}).Push(ctx.Gtx.Ops)
+	popupCtx := *ctx
+	popupCtx.Gtx = ctx.Gtx
+	popupCtx.Gtx.Constraints.Min = image.Point{}
+	popupCtx.Gtx.Constraints.Max = image.Point{X: popupW, Y: availableY}
+	_ = panel.Layout(popupCtx.Child(1))
+	offset.Pop()
+	popupCall := popupMacro.Stop()
+	op.Defer(ctx.Gtx.Ops, popupCall)
+
+	return toggleDims
 }
 
 func (s *selectWidget[T]) resolveCurrentLabel() (string, int) {
@@ -349,7 +401,7 @@ func selectStateFor(ctx *internal.Context) *selectState {
 
 func selectMark(active bool) string {
 	if active {
-		return "●"
+		return "✓"
 	}
-	return "○"
+	return ""
 }

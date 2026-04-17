@@ -22,6 +22,15 @@ type Context = internal.Context
 // AppOption 是应用配置项。
 type AppOption = fluxapp.Option
 
+// WindowSpec 是多窗口启动配置。
+type WindowSpec = fluxapp.WindowSpec
+
+// WindowID 是窗口唯一标识。
+type WindowID = fluxapp.WindowID
+
+// WindowHandle 是运行中的窗口句柄。
+type WindowHandle = fluxapp.WindowHandle
+
 // Insets 是公开的边距类型。
 type Insets = style.Insets
 
@@ -78,6 +87,28 @@ func Run(root func(ctx *Context) Widget, opts ...AppOption) error {
 	}, opts...)
 }
 
+// Window 创建多窗口启动中的单个窗口定义。
+func Window(root func(ctx *Context) Widget, opts ...AppOption) WindowSpec {
+	return fluxapp.Window(func(ctx *internal.Context) widget.Widget {
+		return root(ctx)
+	}, opts...)
+}
+
+// RunMulti 同时启动多个窗口（桌面端）。
+func RunMulti(windows ...WindowSpec) error {
+	return fluxapp.RunMulti(windows...)
+}
+
+// ListWindows 返回当前所有存活窗口。
+func ListWindows() []WindowHandle {
+	return fluxapp.ListWindows()
+}
+
+// GetWindow 按 ID 查询窗口句柄。
+func GetWindow(id WindowID) (WindowHandle, bool) {
+	return fluxapp.GetWindow(id)
+}
+
 // Title 设置窗口标题。
 func Title(value string) AppOption {
 	return fluxapp.Title(value)
@@ -96,6 +127,66 @@ func WithTheme(th *Theme) AppOption {
 // UseTheme 返回当前主题。
 func UseTheme(ctx *Context) *Theme {
 	return ctx.Theme()
+}
+
+// CurrentWindowID 返回当前窗口 ID。
+func CurrentWindowID(ctx *Context) WindowID {
+	return WindowID(ctx.WindowID())
+}
+
+// WindowClose 请求关闭当前窗口。
+func WindowClose(ctx *Context) bool {
+	return ctx.WindowClose()
+}
+
+// WindowMinimize 请求最小化当前窗口。
+func WindowMinimize(ctx *Context) bool {
+	return ctx.WindowMinimize()
+}
+
+// WindowMaximize 请求最大化当前窗口。
+func WindowMaximize(ctx *Context) bool {
+	return ctx.WindowMaximize()
+}
+
+// WindowRestore 请求还原当前窗口。
+func WindowRestore(ctx *Context) bool {
+	return ctx.WindowRestore()
+}
+
+// WindowFullscreen 请求全屏当前窗口。
+func WindowFullscreen(ctx *Context) bool {
+	return ctx.WindowFullscreen()
+}
+
+// WindowRaise 请求将当前窗口置顶。
+func WindowRaise(ctx *Context) bool {
+	return ctx.WindowRaise()
+}
+
+// WindowCenter 请求将当前窗口居中。
+func WindowCenter(ctx *Context) bool {
+	return ctx.WindowCenter()
+}
+
+// WindowSetTitle 更新当前窗口标题。
+func WindowSetTitle(ctx *Context, title string) bool {
+	return ctx.WindowSetTitle(title)
+}
+
+// WindowSetSize 更新当前窗口尺寸（单位 dp）。
+func WindowSetSize(ctx *Context, width, height int) bool {
+	return ctx.WindowSetSize(width, height)
+}
+
+// WindowInvalidate 请求当前窗口立即重绘。
+func WindowInvalidate(ctx *Context) bool {
+	return ctx.WindowInvalidate()
+}
+
+// WindowIsAlive 返回当前窗口是否仍然存活。
+func WindowIsAlive(ctx *Context) bool {
+	return ctx.WindowIsAlive()
 }
 
 // Column 创建纵向布局。

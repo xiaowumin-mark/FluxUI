@@ -527,15 +527,10 @@ func (f *fillWidgetDef) Layout(ctx *internal.Context) layout.Dimensions {
 		return layoutFill(ctx.Child(0))
 	}
 
-	btn := Button(
+	return ClickArea(
 		layoutWidgetFunc(func(btnCtx *internal.Context) layout.Dimensions {
 			return layoutFill(btnCtx.Child(0))
 		}),
-		ButtonBackground(color.NRGBA{}),
-		ButtonForeground(color.NRGBA{}),
-		ButtonPadding(style.All(0)),
-		ButtonRadius(0),
-		OnClick(f.onClick),
-	)
-	return btn.Layout(ctx.Child(0))
+		f.onClick,
+	).Layout(ctx.Child(0))
 }

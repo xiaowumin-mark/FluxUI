@@ -74,6 +74,10 @@ func Spacer(width, height float32) Widget {
 	return widget.Spacer(width, height)
 }
 
+func ClickArea(child Widget, onClick func(ctx *Context)) Widget {
+	return widget.ClickArea(child, onClick)
+}
+
 func FixedWidth(width float32, child Widget) Widget {
 	return widget.FixedWidth(width, child)
 }

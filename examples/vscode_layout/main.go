@@ -18,6 +18,19 @@ type sideTool struct {
 	Label string
 }
 
+type menuItem struct {
+	Key      string
+	Label    string
+	Command  string
+	Children []menuItem
+}
+
+type topMenu struct {
+	Key   string
+	Label string
+	Items []menuItem
+}
+
 func main() {
 	files := []fileItem{
 		{
@@ -80,23 +93,143 @@ func main() {
 		{Key: "run", Icon: "R", Label: "Run"},
 	}
 
+	menus := []topMenu{
+		{
+			Key:   "file",
+			Label: "File",
+			Items: []menuItem{
+				{Key: "file.new", Label: "New File", Command: "file.new"},
+				{
+					Key:   "file.open_recent",
+					Label: "Open Recent",
+					Children: []menuItem{
+						{Key: "recent.alpha", Label: "alpha-service", Command: "recent.alpha"},
+						{Key: "recent.beta", Label: "beta-admin", Command: "recent.beta"},
+						{Key: "recent.docs", Label: "docs-site", Command: "recent.docs"},
+					},
+				},
+				{Key: "file.save", Label: "Save", Command: "file.save"},
+				{Key: "file.exit", Label: "Exit", Command: "file.exit"},
+			},
+		},
+		{
+			Key:   "edit",
+			Label: "Edit",
+			Items: []menuItem{
+				{Key: "edit.undo", Label: "Undo", Command: "edit.undo"},
+				{Key: "edit.redo", Label: "Redo", Command: "edit.redo"},
+				{Key: "edit.find", Label: "Find", Command: "edit.find"},
+			},
+		},
+		{
+			Key:   "view",
+			Label: "View",
+			Items: []menuItem{
+				{
+					Key:   "view.appearance",
+					Label: "Appearance",
+					Children: []menuItem{
+						{Key: "view.zen", Label: "Zen Mode", Command: "view.zen"},
+						{Key: "view.sidebar", Label: "Toggle Side Bar", Command: "view.sidebar"},
+					},
+				},
+				{Key: "view.command_palette", Label: "Command Palette", Command: "view.command_palette"},
+			},
+		},
+		{
+			Key:   "terminal",
+			Label: "Terminal",
+			Items: []menuItem{
+				{Key: "terminal.new", Label: "New Terminal", Command: "terminal.new"},
+				{Key: "terminal.split", Label: "Split Terminal", Command: "terminal.split"},
+			},
+		},
+		{
+			Key:   "help",
+			Label: "Help",
+			Items: []menuItem{
+				{Key: "help.docs", Label: "Documentation", Command: "help.docs"},
+				{Key: "help.about", Label: "About", Command: "help.about"},
+			},
+		},
+	}
+
 	_ = ui.Run(func(ctx *ui.Context) ui.Widget {
 		th := ui.UseTheme(ctx)
 
 		activeTool := ui.State[string](ctx)
 		selectedFile := ui.State[string](ctx)
 		codeText := ui.State[string](ctx)
+		lastCommand := ui.State[string](ctx)
+		openTopMenu := ui.State[string](ctx)
+		openSubMenu := ui.State[string](ctx)
 
 		if activeTool.Value() == "" {
 			activeTool.Set("explorer")
 		}
-
 		if selectedFile.Value() == "" && len(files) > 0 {
 			selectedFile.Set(files[0].Name)
 			codeText.Set(files[0].Content)
 		}
+		if lastCommand.Value() == "" {
+			lastCommand.Set("Ready")
+		}
 
-		topMenu := ui.FixedHeight(
+		const brandWidth = float32(120)
+		const topMenuButtonWidth = float32(82)
+		const topMenuButtonGap = float32(4)
+
+		menuButtons := make([]ui.Widget, 0, len(menus))
+		for i := range menus {
+			menu := menus[i]
+			isOpen := openTopMenu.Value() == menu.Key
+
+			bg := ui.NRGBA(0, 0, 0, 0)
+			fg := ui.NRGBA(204, 204, 204, 255)
+			if isOpen {
+				bg = ui.NRGBA(63, 63, 70, 255)
+				fg = ui.NRGBA(255, 255, 255, 255)
+			}
+
+			right := float32(0)
+			if i < len(menus)-1 {
+				right = topMenuButtonGap
+			}
+
+			menuButtons = append(menuButtons,
+				ui.Padding(
+					ui.Insets{Right: right},
+					ui.FixedWidth(
+						topMenuButtonWidth,
+						ui.Button(
+							ui.FillWidth(
+								ui.Container(
+									ui.Style{
+										Background: bg,
+										Padding:    ui.Symmetric(7, 0),
+										Radius:     4,
+									},
+									ui.Center(ui.Text(menu.Label, ui.TextColor(fg), ui.TextSize(13))),
+								),
+							),
+							ui.ButtonBackground(ui.NRGBA(0, 0, 0, 0)),
+							ui.ButtonPadding(ui.All(0)),
+							ui.OnClick(func(ctx *ui.Context) {
+								if openTopMenu.Value() == menu.Key {
+									openTopMenu.Set("")
+									openSubMenu.Set("")
+									return
+								}
+								openTopMenu.Set(menu.Key)
+								openSubMenu.Set("")
+							}),
+						),
+					),
+				),
+			)
+		}
+
+		topMenuBar := ui.FixedHeight(
 			44,
 			ui.Container(
 				ui.Style{
@@ -104,13 +237,13 @@ func main() {
 					Padding:    ui.Symmetric(8, 10),
 				},
 				ui.Row(
-					ui.Text("FluxUI IDE", ui.TextColor(ui.NRGBA(229, 229, 229, 255)), ui.TextSize(14)),
-					ui.Padding(ui.Insets{Left: 18}, ui.Text("File", ui.TextColor(ui.NRGBA(204, 204, 204, 255)), ui.TextSize(13))),
-					ui.Padding(ui.Insets{Left: 12}, ui.Text("Edit", ui.TextColor(ui.NRGBA(204, 204, 204, 255)), ui.TextSize(13))),
-					ui.Padding(ui.Insets{Left: 12}, ui.Text("Selection", ui.TextColor(ui.NRGBA(204, 204, 204, 255)), ui.TextSize(13))),
-					ui.Padding(ui.Insets{Left: 12}, ui.Text("View", ui.TextColor(ui.NRGBA(204, 204, 204, 255)), ui.TextSize(13))),
-					ui.Padding(ui.Insets{Left: 12}, ui.Text("Terminal", ui.TextColor(ui.NRGBA(204, 204, 204, 255)), ui.TextSize(13))),
-					ui.Padding(ui.Insets{Left: 12}, ui.Text("Help", ui.TextColor(ui.NRGBA(204, 204, 204, 255)), ui.TextSize(13))),
+					ui.FixedWidth(
+						brandWidth,
+						ui.Text("FluxUI IDE", ui.TextColor(ui.NRGBA(229, 229, 229, 255)), ui.TextSize(14)),
+					),
+					ui.Row(menuButtons...),
+					ui.Expanded(ui.Spacer(0, 0)),
+					ui.Text("Workspace", ui.TextColor(ui.NRGBA(140, 140, 140, 255)), ui.TextSize(12)),
 				),
 			),
 		)
@@ -264,40 +397,216 @@ func main() {
 
 		statusBar := ui.FixedHeight(
 			28,
-			ui.Container(
-				ui.Style{
-					Background: ui.NRGBA(0, 122, 204, 255),
-					Padding:    ui.Symmetric(6, 10),
-				},
-				ui.Row(
-					ui.Text(
-						fmt.Sprintf("Tool: %s", activeToolLabel(activeTool.Value(), tools)),
-						ui.TextColor(ui.NRGBA(255, 255, 255, 255)),
-						ui.TextSize(12),
-					),
-					ui.Padding(
-						ui.Insets{Left: 14},
+			ui.FillWidth(
+				ui.Container(
+					ui.Style{
+						Background: ui.NRGBA(0, 122, 204, 255),
+						Padding:    ui.Symmetric(6, 10),
+					},
+					ui.Row(
 						ui.Text(
-							fmt.Sprintf("File: %s", selectedFile.Value()),
+							fmt.Sprintf("Tool: %s", activeToolLabel(activeTool.Value(), tools)),
 							ui.TextColor(ui.NRGBA(255, 255, 255, 255)),
 							ui.TextSize(12),
+						),
+						ui.Padding(
+							ui.Insets{Left: 14},
+							ui.Text(
+								fmt.Sprintf("File: %s", selectedFile.Value()),
+								ui.TextColor(ui.NRGBA(255, 255, 255, 255)),
+								ui.TextSize(12),
+							),
+						),
+						ui.Padding(
+							ui.Insets{Left: 14},
+							ui.Text(
+								fmt.Sprintf("Command: %s", lastCommand.Value()),
+								ui.TextColor(ui.NRGBA(255, 255, 255, 255)),
+								ui.TextSize(12),
+							),
 						),
 					),
 				),
 			),
 		)
 
-		return ui.Container(
+		page := ui.Container(
 			ui.Style{
 				Background: th.Surface,
 			},
 			ui.Column(
-				topMenu,
+				topMenuBar,
 				mainArea,
 				statusBar,
 			),
 		)
+
+		layers := []ui.Widget{page}
+		activeMenu, activeMenuIndex, hasActive := findTopMenu(menus, openTopMenu.Value())
+		if hasActive {
+			left := brandWidth + float32(activeMenuIndex)*(topMenuButtonWidth+topMenuButtonGap)
+
+			layers = append(layers,
+				ui.Padding(
+					ui.Insets{Top: 44},
+					ui.ClickArea(
+						ui.Fill(ui.Spacer(0, 0)),
+						func(ctx *ui.Context) {
+							openTopMenu.Set("")
+							openSubMenu.Set("")
+						},
+					),
+				),
+			)
+
+			layers = append(layers,
+				ui.Padding(
+					ui.Insets{Top: 44, Left: left},
+					buildMenuPanel(
+						activeMenu.Items,
+						openSubMenu.Value(),
+						func(item menuItem) {
+							if len(item.Children) > 0 {
+								if openSubMenu.Value() == item.Key {
+									openSubMenu.Set("")
+								} else {
+									openSubMenu.Set(item.Key)
+								}
+								return
+							}
+							openTopMenu.Set("")
+							openSubMenu.Set("")
+							execCommand(item.Command, selectedFile.Set, codeText.Set, lastCommand.Set)
+						},
+					),
+				),
+			)
+
+			if children, ok := findSubMenu(activeMenu.Items, openSubMenu.Value()); ok {
+				layers = append(layers,
+					ui.Padding(
+						ui.Insets{Top: 44, Left: left + 228},
+						buildMenuPanel(
+							children,
+							"",
+							func(item menuItem) {
+								openTopMenu.Set("")
+								openSubMenu.Set("")
+								execCommand(item.Command, selectedFile.Set, codeText.Set, lastCommand.Set)
+							},
+						),
+					),
+				)
+			}
+		}
+
+		return ui.Stack(layers...)
 	}, ui.Title("FluxUI VSCode Layout"), ui.Size(1200, 780))
+}
+
+func buildMenuPanel(items []menuItem, openedKey string, onClick func(item menuItem)) ui.Widget {
+	rows := make([]ui.Widget, 0, len(items))
+	for i := range items {
+		item := items[i]
+		hasChildren := len(item.Children) > 0
+		expanded := hasChildren && openedKey == item.Key
+
+		bg := ui.NRGBA(45, 45, 48, 255)
+		if expanded {
+			bg = ui.NRGBA(14, 99, 156, 255)
+		}
+
+		arrow := ""
+		if hasChildren {
+			arrow = ">"
+		}
+
+		row := ui.FillWidth(
+			ui.Button(
+				ui.FillWidth(
+					ui.Container(
+						ui.Style{
+							Background: bg,
+							Padding:    ui.Symmetric(8, 10),
+							Radius:     6,
+						},
+						ui.Row(
+							ui.Text(item.Label, ui.TextColor(ui.NRGBA(220, 220, 220, 255)), ui.TextSize(12)),
+							ui.Expanded(ui.Spacer(0, 0)),
+							ui.Text(arrow, ui.TextColor(ui.NRGBA(180, 180, 180, 255)), ui.TextSize(12)),
+						),
+					),
+				),
+				ui.ButtonBackground(ui.NRGBA(0, 0, 0, 0)),
+				ui.ButtonPadding(ui.All(0)),
+				ui.OnClick(func(ctx *ui.Context) {
+					onClick(item)
+				}),
+			),
+		)
+
+		if i < len(items)-1 {
+			row = ui.Padding(ui.Insets{Bottom: 6}, row)
+		}
+		rows = append(rows, row)
+	}
+
+	return ui.FixedWidth(
+		220,
+		ui.Container(
+			ui.Style{
+				Background: ui.NRGBA(37, 37, 38, 255),
+				Padding:    ui.All(8),
+				Radius:     8,
+			},
+			ui.Column(rows...),
+		),
+	)
+}
+
+func execCommand(command string, setSelectedFile, setCodeText, setLastCommand func(string)) {
+	switch command {
+	case "file.new":
+		setSelectedFile("untitled.txt")
+		setCodeText("")
+		setLastCommand("file.new")
+	case "file.save":
+		setLastCommand("file.save")
+	case "file.exit":
+		setLastCommand("file.exit")
+	case "recent.alpha":
+		setSelectedFile("alpha-service/main.go")
+		setCodeText("// opened recent workspace: alpha-service\n")
+		setLastCommand("recent.alpha")
+	case "recent.beta":
+		setSelectedFile("beta-admin/app.go")
+		setCodeText("// opened recent workspace: beta-admin\n")
+		setLastCommand("recent.beta")
+	case "recent.docs":
+		setSelectedFile("docs-site/README.md")
+		setCodeText("# docs-site\n")
+		setLastCommand("recent.docs")
+	default:
+		setLastCommand(command)
+	}
+}
+
+func findTopMenu(menus []topMenu, key string) (topMenu, int, bool) {
+	for i := range menus {
+		if menus[i].Key == key {
+			return menus[i], i, true
+		}
+	}
+	return topMenu{}, -1, false
+}
+
+func findSubMenu(items []menuItem, key string) ([]menuItem, bool) {
+	for i := range items {
+		if items[i].Key == key && len(items[i].Children) > 0 {
+			return items[i].Children, true
+		}
+	}
+	return nil, false
 }
 
 func activeToolLabel(key string, tools []sideTool) string {

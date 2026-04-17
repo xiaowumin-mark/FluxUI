@@ -7,10 +7,13 @@ import (
 
 	"fluxui/internal"
 	"fluxui/layout"
-	"fluxui/style"
 
+	gioLayout "gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/unit"
+	"gioui.org/widget/material"
 )
 
 // ProgressOption 定义进度条配置。
@@ -141,23 +144,46 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		if sizePx <= 0 {
 			sizePx = ctx.Gtx.Dp(safeDp(64))
 		}
+		if sizePx < ctx.Gtx.Dp(unit.Dp(24)) {
+			sizePx = ctx.Gtx.Dp(unit.Dp(24))
+		}
 
-		box := Container(
-			style.Style{
-				Background: track,
-				Padding:    style.All(8),
-				Radius:     float32(sizePx / 2),
-			},
-			Column(
-				Text(fmt.Sprintf("%.0f%%", progress*100), TextColor(fill), TextAlign(AlignCenter)),
-			),
-		)
+		gtx := ctx.Gtx
+		drawCtx := gtx
+		drawCtx.Constraints = gioLayout.Exact(image.Point{X: sizePx, Y: sizePx})
 
-		return (&fixedSizeWidget{
-			width:  float32(sizePx),
-			height: float32(sizePx),
-			child:  box,
-		}).Layout(ctx.Child(0))
+		trackStyle := material.ProgressCircle(ctx.MaterialTheme(), 1)
+		trackStyle.Color = track
+		_ = trackStyle.Layout(drawCtx)
+
+		fillStyle := material.ProgressCircle(ctx.MaterialTheme(), progress)
+		fillStyle.Color = fill
+		_ = fillStyle.Layout(drawCtx)
+
+		percent := fmt.Sprintf("%.0f%%", progress*100)
+		label := material.Label(ctx.MaterialTheme(), unit.Sp(12), percent)
+		label.Color = fill
+		labelCtx := gtx
+		labelCtx.Constraints.Min = image.Point{}
+		labelCtx.Constraints.Max = image.Point{X: sizePx, Y: sizePx}
+
+		labelMacro := op.Record(gtx.Ops)
+		labelDims := label.Layout(labelCtx)
+		labelCall := labelMacro.Stop()
+
+		labelX := (sizePx - labelDims.Size.X) / 2
+		labelY := (sizePx - labelDims.Size.Y) / 2
+		if labelX < 0 {
+			labelX = 0
+		}
+		if labelY < 0 {
+			labelY = 0
+		}
+		stack := op.Offset(image.Point{X: labelX, Y: labelY}).Push(gtx.Ops)
+		labelCall.Add(gtx.Ops)
+		stack.Pop()
+
+		return layout.Dimensions{Size: image.Point{X: sizePx, Y: sizePx}}
 	}
 
 	thickness := ctx.Gtx.Dp(safeDp(p.config.thickness))
@@ -179,7 +205,7 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			return image.Point{}
 		}
 
-		paint.FillShape(contentCtx.Gtx.Ops, track, clip.Rect(image.Rectangle{Max: total}).Op())
+		paint.FillShape(contentCtx.Gtx.Ops, track, clip.UniformRRect(image.Rectangle{Max: total}, total.Y/2).Op(contentCtx.Gtx.Ops))
 
 		fillW := int(float32(total.X) * progress)
 		if fillW < 0 {
@@ -190,7 +216,7 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 		if fillW > 0 {
 			fillRect := image.Rectangle{Max: image.Point{X: fillW, Y: total.Y}}
-			paint.FillShape(contentCtx.Gtx.Ops, fill, clip.Rect(fillRect).Op())
+			paint.FillShape(contentCtx.Gtx.Ops, fill, clip.UniformRRect(fillRect, total.Y/2).Op(contentCtx.Gtx.Ops))
 		}
 
 		return total

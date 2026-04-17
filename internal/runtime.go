@@ -15,6 +15,7 @@ type Runtime struct {
 	theme      *theme.Theme
 	material   *material.Theme
 	invalidate func()
+	windowCtrl WindowController
 }
 
 // NewRuntime 创建运行时。
@@ -58,6 +59,16 @@ func (r *Runtime) RequestRedraw() {
 	if r.invalidate != nil {
 		r.invalidate()
 	}
+}
+
+// SetWindowController 绑定当前窗口控制器。
+func (r *Runtime) SetWindowController(controller WindowController) {
+	r.windowCtrl = controller
+}
+
+// WindowController 返回当前窗口控制器。
+func (r *Runtime) WindowController() WindowController {
+	return r.windowCtrl
 }
 
 func (r *Runtime) remember(key string, factory func() any) any {

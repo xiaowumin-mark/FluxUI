@@ -44,6 +44,7 @@ type inputState struct {
 	editor      *gioWidget.Editor
 	initialized bool
 	focused     bool
+	syncedValue string
 }
 
 func inputStateFor(ctx *internal.Context) *inputState {
@@ -64,7 +65,7 @@ func inputStateFor(ctx *internal.Context) *inputState {
 
 func TextField(value string, opts ...InputOption) Widget {
 	cfg := inputConfig{
-		padding:     style.Symmetric(10, 12),
+		padding:     style.Symmetric(8, 12),
 		radius:      8,
 		border:      color.NRGBA{R: 200, G: 200, B: 200, A: 255},
 		borderFocus: color.NRGBA{R: 66, G: 133, B: 244, A: 255},
@@ -192,11 +193,22 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 
+	controlled := t.config.onChange != nil
+
 	if !state.initialized {
 		editor.SetText(t.value)
+		state.syncedValue = t.value
 		state.initialized = true
-	} else if t.config.onChange != nil && editor.Text() != t.value {
+	} else if controlled && t.value != state.syncedValue {
+		if shouldRecreateEditorForMemory(state.syncedValue, t.value) {
+			state.editor = &gioWidget.Editor{
+				SingleLine: t.config.singleLine,
+			}
+			editor = state.editor
+			state.focused = false
+		}
 		editor.SetText(t.value)
+		state.syncedValue = t.value
 	}
 
 	editor.SingleLine = t.config.singleLine
@@ -214,7 +226,9 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			break
 		}
 		if _, changed := ev.(gioWidget.ChangeEvent); changed && t.config.onChange != nil {
-			t.config.onChange(ctx, editor.Text())
+			text := editor.Text()
+			state.syncedValue = text
+			t.config.onChange(ctx, text)
 		}
 	}
 
@@ -261,4 +275,15 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	})
 
 	return layout.Dimensions{Size: size}
+}
+
+func shouldRecreateEditorForMemory(prev, next string) bool {
+	const heavyTextBytes = 512 * 1024
+	if len(prev) < heavyTextBytes {
+		return false
+	}
+	if len(next) == 0 {
+		return true
+	}
+	return len(next) <= len(prev)/8
 }

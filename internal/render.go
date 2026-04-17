@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"strconv"
 
+	"gioui.org/f32"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	gioText "gioui.org/text"
@@ -98,6 +99,13 @@ type CheckboxSpec struct {
 	Disabled bool
 }
 
+// RadioSpec 描述单选框样式。
+type RadioSpec struct {
+	Size     float32
+	Color    color.NRGBA
+	Disabled bool
+}
+
 // SwitchSpec 描述开关样式。
 type SwitchSpec struct {
 	Width      float32
@@ -163,6 +171,11 @@ func (c *Context) LayoutSurface(spec SurfaceSpec, child func(*Context) image.Poi
 // LayoutButton 绘制按钮并注册点击区域。
 func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child func(*Context) image.Point) image.Point {
 	gtx := c.Gtx
+	// 按钮默认不继承父级的最小高度，避免在 Expanded/Stack 场景被意外拉满。
+	gtx.Constraints.Min.Y = 0
+	if gtx.Constraints.Min.Y > gtx.Constraints.Max.Y {
+		gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
+	}
 	if spec.Disabled {
 		gtx = gtx.Disabled()
 	}
@@ -185,13 +198,29 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 	return dims.Size
 }
 
+// LayoutClickArea 注册无样式点击区域，不附带任何视觉反馈。
+func (c *Context) LayoutClickArea(clickable *ClickableState, child func(*Context) image.Point) image.Point {
+	if child == nil {
+		return image.Point{}
+	}
+	if clickable == nil {
+		return child(c.sameScope(c.Gtx))
+	}
+
+	dims := clickable.raw().Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
+		next := c.sameScope(gtx)
+		return gioLayout.Dimensions{Size: child(next)}
+	})
+	return dims.Size
+}
+
 // LayoutInput 绘制输入框。
 func (c *Context) LayoutInput(editor *widget.Editor, spec InputSpec) image.Point {
 	gtx := c.Gtx
 
 	editor.SingleLine = spec.SingleLine
 
-	minSize := gtx.Dp(unit.Dp(40))
+	minSize := gtx.Dp(unit.Dp(36))
 	if gtx.Constraints.Min.Y < minSize {
 		gtx.Constraints.Min.Y = minSize
 	}
@@ -236,6 +265,7 @@ func (c *Context) LayoutInput(editor *widget.Editor, spec InputSpec) image.Point
 // LayoutCheckbox 绘制复选框。
 func (c *Context) LayoutCheckbox(clickable *ClickableState, checked bool, spec CheckboxSpec) image.Point {
 	baseCtx := c.Gtx
+	baseCtx.Constraints.Min = image.Point{}
 	if spec.Disabled {
 		baseCtx = baseCtx.Disabled()
 	}
@@ -245,22 +275,128 @@ func (c *Context) LayoutCheckbox(clickable *ClickableState, checked bool, spec C
 		if size <= 0 {
 			size = gtx.Dp(unit.Dp(20))
 		}
-
-		radius := size / 5
-		if radius < 2 {
-			radius = 2
+		if size < 14 {
+			size = 14
 		}
 
 		rect := image.Rectangle{Max: image.Point{X: size, Y: size}}
-		offColor := color.NRGBA{R: 220, G: 220, B: 220, A: 255}
 		onColor := spec.Color
+		if onColor.A == 0 {
+			onColor = c.Theme().Primary
+		}
+		fillColor := c.Theme().Surface
+		borderColor := c.Theme().SurfaceMuted
 		if spec.Disabled {
 			onColor = c.Theme().Disabled
+			borderColor = c.Theme().Disabled
+		}
+		if checked {
+			fillColor = onColor
+			borderColor = onColor
 		}
 
-		paint.FillShape(gtx.Ops, offColor, clip.UniformRRect(rect, radius).Op(gtx.Ops))
+		radius := size / 5
+		if radius < 3 {
+			radius = 3
+		}
+		paint.FillShape(gtx.Ops, fillColor, clip.UniformRRect(rect, radius).Op(gtx.Ops))
+		strokeWidth := gtx.Dp(unit.Dp(1))
+		if strokeWidth < 1 {
+			strokeWidth = 1
+		}
+		whalf := (strokeWidth + 1) / 2
+		strokeRect := rect
+		strokeRect.Min = strokeRect.Min.Add(image.Point{X: whalf, Y: whalf})
+		strokeRect.Max = strokeRect.Max.Sub(image.Point{X: whalf, Y: whalf})
+		if strokeRect.Dx() <= 0 || strokeRect.Dy() <= 0 {
+			strokeRect = rect
+		}
+		paint.FillShape(gtx.Ops, borderColor, clip.Stroke{
+			Path:  clip.UniformRRect(strokeRect, radius).Path(gtx.Ops),
+			Width: float32(strokeWidth),
+		}.Op())
 		if checked {
-			paint.FillShape(gtx.Ops, onColor, clip.UniformRRect(rect, radius).Op(gtx.Ops))
+			mark := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+			if spec.Disabled {
+				mark = c.Theme().Surface
+			}
+			drawCheckMark(gtx, size, mark)
+		}
+		return gioLayout.Dimensions{Size: rect.Max}
+	}
+
+	if clickable == nil {
+		return draw(baseCtx).Size
+	}
+	return clickable.raw().Layout(baseCtx, draw).Size
+}
+
+// LayoutRadio 绘制单选框。
+func (c *Context) LayoutRadio(clickable *ClickableState, checked bool, spec RadioSpec) image.Point {
+	baseCtx := c.Gtx
+	baseCtx.Constraints.Min = image.Point{}
+	if spec.Disabled {
+		baseCtx = baseCtx.Disabled()
+	}
+
+	draw := func(gtx gioLayout.Context) gioLayout.Dimensions {
+		size := gtx.Dp(unit.Dp(spec.Size))
+		if size <= 0 {
+			size = gtx.Dp(unit.Dp(20))
+		}
+		if size < 14 {
+			size = 14
+		}
+
+		rect := image.Rectangle{Max: image.Point{X: size, Y: size}}
+		radius := size / 2
+		onColor := spec.Color
+		if onColor.A == 0 {
+			onColor = c.Theme().Primary
+		}
+		borderColor := c.Theme().SurfaceMuted
+		if spec.Disabled {
+			onColor = c.Theme().Disabled
+			borderColor = c.Theme().Disabled
+		}
+		if checked {
+			borderColor = onColor
+		}
+
+		bg := c.Theme().Surface
+		paint.FillShape(gtx.Ops, bg, clip.UniformRRect(rect, radius).Op(gtx.Ops))
+		strokeWidth := gtx.Dp(unit.Dp(1))
+		if strokeWidth < 1 {
+			strokeWidth = 1
+		}
+		whalf := (strokeWidth + 1) / 2
+		strokeRect := rect
+		strokeRect.Min = strokeRect.Min.Add(image.Point{X: whalf, Y: whalf})
+		strokeRect.Max = strokeRect.Max.Sub(image.Point{X: whalf, Y: whalf})
+		if strokeRect.Dx() <= 0 || strokeRect.Dy() <= 0 {
+			strokeRect = rect
+		}
+		paint.FillShape(gtx.Ops, borderColor, clip.Stroke{
+			Path:  clip.UniformRRect(strokeRect, radius).Path(gtx.Ops),
+			Width: float32(strokeWidth),
+		}.Op())
+
+		if checked {
+			dotSize := int(float32(size) * 0.42)
+			if dotSize < 4 {
+				dotSize = 4
+			}
+			if dotSize > size-6 {
+				dotSize = size - 6
+			}
+			if dotSize > 0 {
+				inset := (size - dotSize + 1) / 2
+				dotRect := image.Rectangle{
+					Min: image.Point{X: inset, Y: inset},
+					Max: image.Point{X: inset + dotSize, Y: inset + dotSize},
+				}
+				paint.FillShape(gtx.Ops, onColor, clip.UniformRRect(dotRect, dotSize/2).Op(gtx.Ops))
+			}
 		}
 
 		return gioLayout.Dimensions{Size: rect.Max}
@@ -299,19 +435,22 @@ func (c *Context) LayoutSwitch(clickable *ClickableState, checked bool, spec Swi
 			thumbColor = c.Theme().Surface
 		}
 
-		thumbOffset := height / 4
-		if checked {
-			thumbOffset = width - height + height/4
-		}
-
 		rr := height / 2
 		trackRect := image.Rectangle{Max: image.Point{X: width, Y: height}}
 		paint.FillShape(gtx.Ops, trackColor, clip.UniformRRect(trackRect, rr).Op(gtx.Ops))
 
-		thumbSize := height - 4
+		thumbPadding := 2
+		thumbSize := height - thumbPadding*2
+		if thumbSize < 2 {
+			thumbSize = 2
+		}
+		thumbOffset := thumbPadding
+		if checked {
+			thumbOffset = width - thumbSize - thumbPadding
+		}
 		thumbRect := image.Rectangle{
-			Min: image.Point{X: thumbOffset, Y: 2},
-			Max: image.Point{X: thumbOffset + thumbSize, Y: height - 2},
+			Min: image.Point{X: thumbOffset, Y: thumbPadding},
+			Max: image.Point{X: thumbOffset + thumbSize, Y: thumbPadding + thumbSize},
 		}
 		thumbRR := thumbSize / 2
 		paint.FillShape(gtx.Ops, thumbColor, clip.UniformRRect(thumbRect, thumbRR).Op(gtx.Ops))
@@ -367,8 +506,20 @@ func (c *Context) LayoutSlider(slider *widget.Float, spec SliderSpec) image.Poin
 		progress = 1
 	}
 
-	trackWidth := width - thumbSize
-	progressWidth := int(float32(trackWidth) * progress)
+	thumbTravel := width - thumbSize
+	if thumbTravel < 0 {
+		thumbTravel = 0
+	}
+	thumbLeft := int(float32(thumbTravel)*progress + 0.5)
+	thumbCenter := thumbLeft + thumbSize/2
+
+	trackStart := thumbSize / 2
+	trackEnd := width - thumbSize/2
+	if trackEnd < trackStart {
+		trackEnd = trackStart
+	}
+	trackWidth := trackEnd - trackStart
+	progressX := trackStart + int(float32(trackWidth)*progress+0.5)
 	centerY := thumbSize / 2
 	rr := trackHeight / 2
 
@@ -380,30 +531,50 @@ func (c *Context) LayoutSlider(slider *widget.Float, spec SliderSpec) image.Poin
 		thumbColor = c.Theme().Disabled
 	}
 
-	if progressWidth > 0 {
+	if trackWidth > 0 {
+		trackRect := image.Rectangle{
+			Min: image.Point{X: trackStart, Y: centerY - trackHeight/2},
+			Max: image.Point{X: trackEnd, Y: centerY + trackHeight/2},
+		}
+		paint.FillShape(gtx.Ops, trackColor, clip.UniformRRect(trackRect, rr).Op(gtx.Ops))
+	}
+
+	if progressX > trackStart {
 		progressRect := image.Rectangle{
-			Min: image.Point{X: 0, Y: centerY - trackHeight/2},
-			Max: image.Point{X: progressWidth, Y: centerY + trackHeight/2},
+			Min: image.Point{X: trackStart, Y: centerY - trackHeight/2},
+			Max: image.Point{X: progressX, Y: centerY + trackHeight/2},
 		}
 		paint.FillShape(gtx.Ops, progressColor, clip.UniformRRect(progressRect, rr).Op(gtx.Ops))
 	}
 
-	if progressWidth < trackWidth {
-		remainingRect := image.Rectangle{
-			Min: image.Point{X: progressWidth, Y: centerY - trackHeight/2},
-			Max: image.Point{X: trackWidth, Y: centerY + trackHeight/2},
-		}
-		paint.FillShape(gtx.Ops, trackColor, clip.UniformRRect(remainingRect, rr).Op(gtx.Ops))
-	}
-
 	thumbRect := image.Rectangle{
-		Min: image.Point{X: progressWidth, Y: 0},
-		Max: image.Point{X: progressWidth + thumbSize, Y: thumbSize},
+		Min: image.Point{X: thumbCenter - thumbSize/2, Y: 0},
+		Max: image.Point{X: thumbCenter + thumbSize/2, Y: thumbSize},
 	}
 	thumbRR := thumbSize / 2
 	paint.FillShape(gtx.Ops, thumbColor, clip.UniformRRect(thumbRect, thumbRR).Op(gtx.Ops))
 
 	return image.Point{X: width, Y: thumbSize}
+}
+
+func drawCheckMark(gtx gioLayout.Context, size int, col color.NRGBA) {
+	if size <= 0 || col.A == 0 {
+		return
+	}
+	w := float32(size)
+	stroke := w * 0.14
+	if stroke < 2 {
+		stroke = 2
+	}
+	var path clip.Path
+	path.Begin(gtx.Ops)
+	path.MoveTo(f32.Pt(w*0.24, w*0.55))
+	path.LineTo(f32.Pt(w*0.43, w*0.73))
+	path.LineTo(f32.Pt(w*0.76, w*0.35))
+	paint.FillShape(gtx.Ops, col, clip.Stroke{
+		Path:  path.End(),
+		Width: stroke,
+	}.Op())
 }
 
 // LayoutFlex 执行 Flex 布局。

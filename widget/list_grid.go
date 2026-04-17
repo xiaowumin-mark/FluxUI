@@ -1,11 +1,21 @@
 package widget
 
 import (
+	"image"
+	"image/color"
+	"math"
+
 	"fluxui/internal"
 	"fluxui/layout"
 	"fluxui/style"
 
+	"gioui.org/io/pointer"
 	gioLayout "gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
+	"gioui.org/unit"
+	gioWidget "gioui.org/widget"
 )
 
 // ScrollOption 定义滚动配置。
@@ -25,6 +35,7 @@ type scrollWidget struct {
 
 type scrollState struct {
 	list      gioLayout.List
+	bar       gioWidget.Scrollbar
 	lastFirst int
 	lastOff   int
 }
@@ -84,6 +95,10 @@ func (s *scrollWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return gioLayout.Dimensions{Size: childDims.Size}
 	})
 
+	if s.config.barVisible {
+		s.drawScrollBar(ctx, state, dims.Size)
+	}
+
 	if s.config.onChange != nil {
 		first := state.list.Position.First
 		off := state.list.Position.Offset
@@ -99,6 +114,230 @@ func (s *scrollWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	return layout.Dimensions{Size: dims.Size}
+}
+
+func (s *scrollWidget) drawScrollBar(ctx *internal.Context, state *scrollState, size image.Point) {
+	if ctx == nil || state == nil || size.X <= 0 || size.Y <= 0 {
+		return
+	}
+
+	pos := state.list.Position
+	viewport := size.Y
+	if state.list.Axis == gioLayout.Horizontal {
+		viewport = size.X
+	}
+	if viewport <= 0 || pos.Length <= viewport {
+		return
+	}
+
+	thickness := ctx.Gtx.Dp(unit.Dp(6))
+	margin := ctx.Gtx.Dp(unit.Dp(2))
+	minThumb := ctx.Gtx.Dp(unit.Dp(24))
+	if thickness <= 0 {
+		thickness = 6
+	}
+	if margin < 0 {
+		margin = 0
+	}
+	if minThumb <= 0 {
+		minThumb = 12
+	}
+
+	trackColor := setAlpha(ctx.Theme().SurfaceMuted, 120)
+	thumbColor := setAlpha(ctx.Theme().TextColor, 180)
+	if state.bar.TrackHovered() {
+		trackColor = setAlpha(ctx.Theme().SurfaceMuted, 150)
+	}
+	if state.bar.IndicatorHovered() || state.bar.Dragging() {
+		thumbColor = setAlpha(ctx.Theme().TextColor, 220)
+	}
+
+	viewportStart, viewportEnd := viewportFromListPosition(pos, 1, viewport)
+	if viewportEnd <= viewportStart {
+		return
+	}
+
+	if state.list.Axis == gioLayout.Horizontal {
+		track := image.Rectangle{
+			Min: image.Point{X: margin, Y: size.Y - margin - thickness},
+			Max: image.Point{X: size.X - margin, Y: size.Y - margin},
+		}
+		s.handleScrollBarInput(ctx, state, track, viewportStart, viewportEnd)
+		if delta := state.bar.ScrollDistance(); delta != 0 {
+			state.list.ScrollBy(delta)
+			viewportStart = clampFloat32(viewportStart+delta, 0, 1)
+			viewportEnd = clampFloat32(viewportEnd+delta, 0, 1)
+			ctx.RequestRedraw()
+		}
+		if state.bar.Dragging() {
+			ctx.RequestRedraw()
+		}
+		drawScrollbarOnAxis(ctx, state, track, viewportStart, viewportEnd, minThumb, trackColor, thumbColor, true)
+		return
+	}
+
+	track := image.Rectangle{
+		Min: image.Point{X: size.X - margin - thickness, Y: margin},
+		Max: image.Point{X: size.X - margin, Y: size.Y - margin},
+	}
+	s.handleScrollBarInput(ctx, state, track, viewportStart, viewportEnd)
+	if delta := state.bar.ScrollDistance(); delta != 0 {
+		state.list.ScrollBy(delta)
+		viewportStart = clampFloat32(viewportStart+delta, 0, 1)
+		viewportEnd = clampFloat32(viewportEnd+delta, 0, 1)
+		ctx.RequestRedraw()
+	}
+	if state.bar.Dragging() {
+		ctx.RequestRedraw()
+	}
+	drawScrollbarOnAxis(ctx, state, track, viewportStart, viewportEnd, minThumb, trackColor, thumbColor, false)
+}
+
+func (s *scrollWidget) handleScrollBarInput(
+	ctx *internal.Context,
+	state *scrollState,
+	track image.Rectangle,
+	viewportStart float32,
+	viewportEnd float32,
+) {
+	if ctx == nil || state == nil || track.Dx() <= 0 || track.Dy() <= 0 {
+		return
+	}
+
+	local := ctx.Gtx
+	local.Constraints = gioLayout.Exact(image.Point{X: track.Dx(), Y: track.Dy()})
+	state.bar.Update(local, state.list.Axis, viewportStart, viewportEnd)
+}
+
+func drawScrollbarOnAxis(
+	ctx *internal.Context,
+	state *scrollState,
+	track image.Rectangle,
+	viewportStart float32,
+	viewportEnd float32,
+	minThumb int,
+	trackColor color.NRGBA,
+	thumbColor color.NRGBA,
+	horizontal bool,
+) {
+	if ctx == nil || state == nil || track.Dx() <= 0 || track.Dy() <= 0 {
+		return
+	}
+	if viewportEnd <= viewportStart {
+		return
+	}
+
+	trackLen := track.Dy()
+	if horizontal {
+		trackLen = track.Dx()
+	}
+	if trackLen <= 0 {
+		return
+	}
+
+	thumbLen := int(math.Round(float64((viewportEnd - viewportStart) * float32(trackLen))))
+	if thumbLen < minThumb {
+		thumbLen = minThumb
+	}
+	if thumbLen > trackLen {
+		thumbLen = trackLen
+	}
+
+	thumbOffset := int(math.Round(float64(viewportStart * float32(trackLen))))
+	travel := trackLen - thumbLen
+	if thumbOffset > travel {
+		thumbOffset = travel
+	}
+	if thumbOffset < 0 {
+		thumbOffset = 0
+	}
+
+	radius := track.Dx()
+	if track.Dy() < radius {
+		radius = track.Dy()
+	}
+	radius /= 2
+	if radius < 1 {
+		radius = 1
+	}
+
+	paint.FillShape(ctx.Gtx.Ops, trackColor, clip.UniformRRect(track, radius).Op(ctx.Gtx.Ops))
+
+	thumb := track
+	if horizontal {
+		thumb.Min.X = track.Min.X + thumbOffset
+		thumb.Max.X = thumb.Min.X + thumbLen
+	} else {
+		thumb.Min.Y = track.Min.Y + thumbOffset
+		thumb.Max.Y = thumb.Min.Y + thumbLen
+	}
+	paint.FillShape(ctx.Gtx.Ops, thumbColor, clip.UniformRRect(thumb, radius).Op(ctx.Gtx.Ops))
+
+	trackOffset := op.Offset(track.Min).Push(ctx.Gtx.Ops)
+	passDrag := pointer.PassOp{}.Push(ctx.Gtx.Ops)
+	trackArea := clip.Rect(image.Rectangle{Max: image.Point{X: track.Dx(), Y: track.Dy()}}).Push(ctx.Gtx.Ops)
+	state.bar.AddDrag(ctx.Gtx.Ops)
+	trackArea.Pop()
+	passDrag.Pop()
+
+	passTrack := pointer.PassOp{}.Push(ctx.Gtx.Ops)
+	trackArea = clip.Rect(image.Rectangle{Max: image.Point{X: track.Dx(), Y: track.Dy()}}).Push(ctx.Gtx.Ops)
+	state.bar.AddTrack(ctx.Gtx.Ops)
+	trackArea.Pop()
+	passTrack.Pop()
+	trackOffset.Pop()
+
+	thumbOffsetOp := op.Offset(thumb.Min).Push(ctx.Gtx.Ops)
+	thumbArea := clip.Rect(image.Rectangle{Max: image.Point{X: thumb.Dx(), Y: thumb.Dy()}}).Push(ctx.Gtx.Ops)
+	passIndicator := pointer.PassOp{}.Push(ctx.Gtx.Ops)
+	state.bar.AddIndicator(ctx.Gtx.Ops)
+	passIndicator.Pop()
+	thumbArea.Pop()
+	thumbOffsetOp.Pop()
+}
+
+func viewportFromListPosition(lp gioLayout.Position, elements int, majorAxisSize int) (start, end float32) {
+	if elements <= 0 || majorAxisSize <= 0 || lp.Length <= 0 {
+		return 0, 0
+	}
+
+	lengthEstPx := float32(lp.Length)
+	elementLenEstPx := lengthEstPx / float32(elements)
+
+	listOffsetF := float32(lp.Offset)
+	listOffsetL := float32(lp.OffsetLast)
+
+	viewportStart := clampFloat32((float32(lp.First)*elementLenEstPx+listOffsetF)/lengthEstPx, 0, 1)
+	viewportEnd := clampFloat32((float32(lp.First+lp.Count)*elementLenEstPx+listOffsetL)/lengthEstPx, 0, 1)
+	viewportFraction := viewportEnd - viewportStart
+
+	visiblePx := float32(majorAxisSize)
+	visibleFraction := visiblePx / lengthEstPx
+
+	err := visibleFraction - viewportFraction
+	adjStart := viewportStart
+	adjEnd := viewportEnd
+	if viewportFraction < 1 {
+		startShare := viewportStart / (1 - viewportFraction)
+		endShare := (1 - viewportEnd) / (1 - viewportFraction)
+		startErr := startShare * err
+		endErr := endShare * err
+
+		adjStart -= startErr
+		adjEnd += endErr
+	}
+
+	start = clampFloat32(adjStart, 0, 1)
+	end = clampFloat32(adjEnd, 0, 1)
+	if end < start {
+		end = start
+	}
+	return start, end
+}
+
+func setAlpha(col color.NRGBA, alpha uint8) color.NRGBA {
+	col.A = alpha
+	return col
 }
 
 func scrollStateFor(ctx *internal.Context) *scrollState {
@@ -133,6 +372,7 @@ type listViewWidget struct {
 
 type listViewState struct {
 	list        gioLayout.List
+	viewportMaj int
 	reachCalled bool
 }
 
@@ -209,6 +449,7 @@ func (l *listViewWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			childDims := child.Layout(next.Child(index))
 			return gioLayout.Dimensions{Size: childDims.Size}
 		})
+		state.viewportMaj = toGioAxis(l.config.axis).Convert(dims.Size).X
 		return layout.Dimensions{Size: dims.Size}
 	})
 
@@ -233,7 +474,20 @@ func (l *listViewWidget) dispatchReachEnd(ctx *internal.Context, state *listView
 		return
 	}
 	pos := state.list.Position
-	atEnd := pos.First+pos.Count >= l.count && pos.OffsetLast >= 0
+	if pos.Count <= 0 {
+		state.reachCalled = false
+		return
+	}
+
+	// Gio 的 Position.BeforeEnd 会在真正触达末尾时置为 false。
+	atEnd := !pos.BeforeEnd && pos.First+pos.Count >= l.count
+
+	// 兜底：部分场景 BeforeEnd 变化会滞后，用视口比例再做一次判定。
+	if !atEnd && state.viewportMaj > 0 && pos.Length > 0 {
+		_, viewportEnd := viewportFromListPosition(pos, l.count, state.viewportMaj)
+		atEnd = viewportEnd >= 0.999
+	}
+
 	if atEnd && !state.reachCalled {
 		state.reachCalled = true
 		l.config.onReachEnd(ctx)

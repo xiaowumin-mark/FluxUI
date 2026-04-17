@@ -73,6 +73,81 @@ func (c *Context) RequestRedraw() {
 	c.runtime.RequestRedraw()
 }
 
+// WindowID 返回当前窗口 ID。
+func (c *Context) WindowID() WindowID {
+	ctrl := c.runtime.WindowController()
+	if ctrl == nil {
+		return 0
+	}
+	return ctrl.WindowID()
+}
+
+// WindowClose 请求关闭当前窗口。
+func (c *Context) WindowClose() bool {
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.Close()
+}
+
+// WindowMinimize 请求最小化当前窗口。
+func (c *Context) WindowMinimize() bool {
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.Minimize()
+}
+
+// WindowMaximize 请求最大化当前窗口。
+func (c *Context) WindowMaximize() bool {
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.Maximize()
+}
+
+// WindowRestore 请求还原当前窗口。
+func (c *Context) WindowRestore() bool {
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.Restore()
+}
+
+// WindowFullscreen 请求全屏当前窗口。
+func (c *Context) WindowFullscreen() bool {
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.Fullscreen()
+}
+
+// WindowRaise 请求将当前窗口置顶。
+func (c *Context) WindowRaise() bool {
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.Raise()
+}
+
+// WindowCenter 请求将当前窗口居中。
+func (c *Context) WindowCenter() bool {
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.Center()
+}
+
+// WindowSetTitle 更新当前窗口标题。
+func (c *Context) WindowSetTitle(title string) bool {
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.SetTitle(title)
+}
+
+// WindowSetSize 更新当前窗口尺寸（单位 dp）。
+func (c *Context) WindowSetSize(width, height int) bool {
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.SetSize(width, height)
+}
+
+// WindowInvalidate 请求当前窗口立即重绘。
+func (c *Context) WindowInvalidate() bool {
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.Invalidate()
+}
+
+// WindowIsAlive 返回当前窗口是否仍然存活。
+func (c *Context) WindowIsAlive() bool {
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.IsAlive()
+}
+
 // NextKey 生成当前作用域下稳定的 hook key。
 func (c *Context) NextKey(namespace string) string {
 	key := c.path + "/" + namespace + ":" + strconv.Itoa(c.hookIndex)

@@ -8,6 +8,8 @@ import (
 	"fluxui/internal"
 	"fluxui/layout"
 	"fluxui/style"
+
+	gioLayout "gioui.org/layout"
 )
 
 type CheckboxOption func(*checkboxConfig)
@@ -86,7 +88,7 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		checkColor = c.config.color
 	}
 
-	box := layout.Rigid(func(childCtx *internal.Context) layout.Dimensions {
+	boxWidget := layoutWidgetFunc(func(childCtx *internal.Context) layout.Dimensions {
 		size := childCtx.LayoutCheckbox(clickable.Handle(), c.value, internal.CheckboxSpec{
 			Size:     c.config.size,
 			Color:    checkColor,
@@ -96,7 +98,7 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	})
 
 	if c.label == "" {
-		return layout.Flex(ctx, layout.Horizontal, box)
+		return boxWidget.Layout(ctx.Child(0))
 	}
 
 	labelColor := ctx.Theme().TextColor
@@ -104,17 +106,26 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		labelColor = ctx.Theme().Disabled
 	}
 
-	label := layout.Rigid(func(childCtx *internal.Context) layout.Dimensions {
-		size := childCtx.LayoutInset(internal.Insets{Left: 8}, func(contentCtx *internal.Context) image.Point {
-			return contentCtx.LayoutText(internal.TextSpec{
-				Content:   c.label,
-				Size:      contentCtx.Theme().TextSize,
-				Color:     labelColor,
-				Alignment: internal.AlignStart,
+	dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(ctx.Gtx,
+		gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+			next := *ctx
+			next.Gtx = gtx
+			return gioLayout.Dimensions{Size: boxWidget.Layout(next.Child(0)).Size}
+		}),
+		gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+			next := *ctx
+			next.Gtx = gtx
+			next.Gtx.Constraints.Min = image.Point{}
+			size := next.LayoutInset(internal.Insets{Left: 8}, func(contentCtx *internal.Context) image.Point {
+				return contentCtx.LayoutText(internal.TextSpec{
+					Content:   c.label,
+					Size:      contentCtx.Theme().TextSize,
+					Color:     labelColor,
+					Alignment: internal.AlignStart,
+				})
 			})
-		})
-		return layout.Dimensions{Size: size}
-	})
-
-	return layout.Flex(ctx, layout.Horizontal, box, label)
+			return gioLayout.Dimensions{Size: size}
+		}),
+	)
+	return layout.Dimensions{Size: dims.Size}
 }

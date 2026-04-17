@@ -41,16 +41,6 @@ func Stack(children ...Widget) Widget {
 }
 
 func (s *stackWidget) Layout(ctx *internal.Context) layout.Dimensions {
-	baseCtx := ctx
-	max := ctx.MaxConstraints()
-	if max.X > 0 && max.Y > 0 {
-		gtx := ctx.Gtx
-		gtx.Constraints = gioLayout.Exact(max)
-		next := *ctx
-		next.Gtx = gtx
-		baseCtx = &next
-	}
-
 	stackChildren := make([]layout.StackChild, 0, len(s.children))
 	for idx := range s.children {
 		child := s.children[idx]
@@ -59,12 +49,6 @@ func (s *stackWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 		current := child
 		childIndex := idx
-		if len(stackChildren) == 0 {
-			stackChildren = append(stackChildren, layout.Expanded(func(childCtx *internal.Context) layout.Dimensions {
-				return current.Layout(childCtx.Child(childIndex))
-			}))
-			continue
-		}
 		stackChildren = append(stackChildren, layout.Stacked(func(childCtx *internal.Context) layout.Dimensions {
 			return current.Layout(childCtx.Child(childIndex))
 		}))
@@ -72,5 +56,5 @@ func (s *stackWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if len(stackChildren) == 0 {
 		return layout.Dimensions{}
 	}
-	return layout.Stack(baseCtx, stackChildren...)
+	return layout.Stack(ctx, stackChildren...)
 }
