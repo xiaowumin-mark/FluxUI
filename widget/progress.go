@@ -161,18 +161,19 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		_ = fillStyle.Layout(drawCtx)
 
 		percent := fmt.Sprintf("%.0f%%", progress*100)
-		label := material.Label(ctx.MaterialTheme(), unit.Sp(12), percent)
-		label.Color = fill
+		labelWidget := Text(percent, TextSize(12), TextColor(fill))
 		labelCtx := gtx
 		labelCtx.Constraints.Min = image.Point{}
 		labelCtx.Constraints.Max = image.Point{X: sizePx, Y: sizePx}
 
 		labelMacro := op.Record(gtx.Ops)
-		labelDims := label.Layout(labelCtx)
+		next := *ctx
+		next.Gtx = labelCtx
+		labelSize := labelWidget.Layout(&next).Size
 		labelCall := labelMacro.Stop()
 
-		labelX := (sizePx - labelDims.Size.X) / 2
-		labelY := (sizePx - labelDims.Size.Y) / 2
+		labelX := (sizePx - labelSize.X) / 2
+		labelY := (sizePx - labelSize.Y) / 2
 		if labelX < 0 {
 			labelX = 0
 		}

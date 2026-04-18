@@ -12,7 +12,10 @@
     "TabsScrollable(scrollable bool) TabsOption",
     "TabsIndicatorColor(col color.NRGBA) TabsOption",
     "TabsTextColor(col color.NRGBA) TabsOption",
-    "TabsActiveTextColor(col color.NRGBA) TabsOption"
+    "TabsActiveTextColor(col color.NRGBA) TabsOption",
+    "NewTabsRef() *TabsRef",
+    "TabsAttachRef(ref *TabsRef) TabsOption",
+    "(*TabsRef).SetActive(key string)"
   ]
 }
 -->
@@ -26,6 +29,7 @@ Tabs 用于在同一层级内容中切换不同子页面，适合文档页、设
 - `active` 标识当前选中标签 key。
 - `items` 定义可切换标签集合。
 - 通过 `TabsOnChange` 回写状态。
+- 需要外部命令式切换标签时，使用 `TabsAttachRef` + `SetActive`。
 
 ## 使用示例
 ```go

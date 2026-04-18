@@ -21,6 +21,7 @@ type switchConfig struct {
 	hasTrackColor bool
 	hasThumbColor bool
 	onChange      func(ctx *internal.Context, checked bool)
+	ref           *SwitchRef
 }
 
 type switchWidget struct {
@@ -48,6 +49,13 @@ func Switch(checked bool, opts ...SwitchOption) Widget {
 func SwitchOnChange(fn func(ctx *internal.Context, checked bool)) SwitchOption {
 	return func(cfg *switchConfig) {
 		cfg.onChange = fn
+	}
+}
+
+// SwitchAttachRef 绑定命令型引用，用于外部主动设置值。
+func SwitchAttachRef(ref *SwitchRef) SwitchOption {
+	return func(cfg *switchConfig) {
+		cfg.ref = ref
 	}
 }
 
@@ -92,6 +100,24 @@ func SwitchThumbColor(color color.NRGBA) SwitchOption {
 
 func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
+	if s.config.ref != nil {
+		s.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		for _, cmd := range s.config.ref.drainCommands() {
+			if s.config.disabled {
+				continue
+			}
+			next := s.value
+			switch cmd.kind {
+			case boolCmdSet:
+				next = cmd.value
+			case boolCmdToggle:
+				next = !s.value
+			}
+			if next != s.value && s.config.onChange != nil {
+				s.config.onChange(ctx, next)
+			}
+		}
+	}
 	if !s.config.disabled {
 		for clickable.Clicked(ctx) {
 			next := !s.value

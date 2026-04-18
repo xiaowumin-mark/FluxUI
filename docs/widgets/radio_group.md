@@ -12,7 +12,10 @@
     "RadioGroupDisabled(disabled bool) RadioGroupOption",
     "RadioGroupOnChange(fn func(ctx *Context, value string)) RadioGroupOption",
     "RadioGroupSize(size float32) RadioGroupOption",
-    "RadioGroupColor(col color.NRGBA) RadioGroupOption"
+    "RadioGroupColor(col color.NRGBA) RadioGroupOption",
+    "NewRadioGroupRef() *RadioGroupRef",
+    "RadioGroupAttachRef(ref *RadioGroupRef) RadioGroupOption",
+    "(*RadioGroupRef).SetValue(value string)"
   ]
 }
 -->
@@ -26,6 +29,7 @@ RadioGroup 用于“多个选项中只能选一个”的场景，例如排序模
 - 当前值通过 `value` 传入。
 - 所有候选项放在 `[]RadioItem` 中。
 - 变化回调用 `RadioGroupOnChange`。
+- 若需外部主动切换选项，使用 `RadioGroupAttachRef` + `SetValue`。
 
 ## 使用示例
 ```go

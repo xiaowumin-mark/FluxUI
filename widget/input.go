@@ -2,11 +2,14 @@ package widget
 
 import (
 	"image/color"
+	"strings"
 
 	"fluxui/internal"
 	"fluxui/layout"
 	"fluxui/style"
+	"fluxui/theme"
 
+	"gioui.org/io/key"
 	gioWidget "gioui.org/widget"
 )
 
@@ -31,8 +34,13 @@ type inputConfig struct {
 	maxLen         int
 	password       bool
 	singleLine     bool
+	font           theme.FontSpec
+	hasFamily      bool
+	hasStyle       bool
+	hasWeight      bool
 	onChange       func(ctx *internal.Context, value string)
 	onFocus        func(ctx *internal.Context, focused bool)
+	ref            *InputRef
 }
 
 type inputWidget struct {
@@ -168,6 +176,42 @@ func InputSingleLine(singleLine bool) InputOption {
 	}
 }
 
+// InputFont 设置输入框字体（局部覆盖）。
+func InputFont(spec theme.FontSpec) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.font = spec
+		cfg.hasStyle = true
+		cfg.hasWeight = true
+		if strings.TrimSpace(spec.Family) != "" {
+			cfg.hasFamily = true
+		}
+	}
+}
+
+// InputFontFamily 设置输入框字体族（局部覆盖）。
+func InputFontFamily(family string) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.font.Family = strings.TrimSpace(family)
+		cfg.hasFamily = true
+	}
+}
+
+// InputFontStyle 设置输入框字体样式（局部覆盖）。
+func InputFontStyle(style theme.FontStyle) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.font.Style = style
+		cfg.hasStyle = true
+	}
+}
+
+// InputFontWeight 设置输入框字体字重（局部覆盖）。
+func InputFontWeight(weight theme.FontWeight) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.font.Weight = weight
+		cfg.hasWeight = true
+	}
+}
+
 func InputDisabled(disabled bool) InputOption {
 	return func(cfg *inputConfig) {
 		cfg.disabled = disabled
@@ -183,6 +227,13 @@ func InputOnChange(fn func(ctx *internal.Context, value string)) InputOption {
 func InputOnFocus(fn func(ctx *internal.Context, focused bool)) InputOption {
 	return func(cfg *inputConfig) {
 		cfg.onFocus = fn
+	}
+}
+
+// InputAttachRef 绑定命令型引用，用于外部主动操作输入框。
+func InputAttachRef(ref *InputRef) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.ref = ref
 	}
 }
 
@@ -220,6 +271,36 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		editor.Mask = 0
 	}
 
+	if t.config.ref != nil {
+		t.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		for _, cmd := range t.config.ref.drainCommands() {
+			switch cmd.kind {
+			case inputCmdSetText:
+				editor.SetText(cmd.text)
+				state.syncedValue = editor.Text()
+				if t.config.onChange != nil {
+					t.config.onChange(ctx, state.syncedValue)
+				}
+			case inputCmdAppend:
+				editor.SetText(editor.Text() + cmd.text)
+				state.syncedValue = editor.Text()
+				if t.config.onChange != nil {
+					t.config.onChange(ctx, state.syncedValue)
+				}
+			case inputCmdClear:
+				editor.SetText("")
+				state.syncedValue = ""
+				if t.config.onChange != nil {
+					t.config.onChange(ctx, "")
+				}
+			case inputCmdFocus:
+				ctx.Gtx.Execute(key.FocusCmd{Tag: editor})
+			case inputCmdBlur:
+				ctx.Gtx.Execute(key.FocusCmd{Tag: nil})
+			}
+		}
+	}
+
 	for {
 		ev, ok := editor.Update(ctx.Gtx)
 		if !ok {
@@ -227,8 +308,10 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 		if _, changed := ev.(gioWidget.ChangeEvent); changed && t.config.onChange != nil {
 			text := editor.Text()
-			state.syncedValue = text
-			t.config.onChange(ctx, text)
+			if text != state.syncedValue {
+				state.syncedValue = text
+				t.config.onChange(ctx, text)
+			}
 		}
 	}
 
@@ -261,6 +344,18 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		border = ctx.Theme().Disabled
 	}
 
+	font := ctx.Font()
+	if t.config.hasFamily && strings.TrimSpace(t.config.font.Family) != "" {
+		font.Family = strings.TrimSpace(t.config.font.Family)
+	}
+	if t.config.hasStyle {
+		font.Style = t.config.font.Style
+	}
+	if t.config.hasWeight {
+		font.Weight = t.config.font.Weight
+	}
+	font = font.Normalize()
+
 	size := ctx.LayoutInput(editor, internal.InputSpec{
 		Background:  bg,
 		Foreground:  fg,
@@ -272,6 +367,7 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		Password:    t.config.password,
 		MaxLen:      t.config.maxLen,
 		SingleLine:  t.config.singleLine,
+		Font:        font,
 	})
 
 	return layout.Dimensions{Size: size}

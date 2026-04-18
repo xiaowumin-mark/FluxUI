@@ -40,6 +40,18 @@ type Style = style.Style
 // Theme 是公开主题类型。
 type Theme = theme.Theme
 
+// FontSpec 是公开字体规格。
+type FontSpec = theme.FontSpec
+
+// FontFace 是公开字体面。
+type FontFace = theme.FontFace
+
+// FontStyle 是字体样式枚举。
+type FontStyle = theme.FontStyle
+
+// FontWeight 是字体字重枚举。
+type FontWeight = theme.FontWeight
+
 // TextOption 是文本配置项。
 type TextOption = widget.TextOption
 
@@ -57,6 +69,12 @@ type SwitchOption = widget.SwitchOption
 
 // SliderOption 是滑块配置项。
 type SliderOption = widget.SliderOption
+type ButtonRef = widget.ButtonRef
+type ClickAreaRef = widget.ClickAreaRef
+type InputRef = widget.InputRef
+type CheckboxRef = widget.CheckboxRef
+type SwitchRef = widget.SwitchRef
+type SliderRef = widget.SliderRef
 
 // TextAlignment 是文本对齐枚举。
 type TextAlignment = widget.TextAlignment
@@ -71,6 +89,23 @@ var (
 	Linear    anim.Easing = anim.Linear
 	EaseOut   anim.Easing = anim.EaseOut
 	EaseInOut anim.Easing = anim.EaseInOut
+)
+
+const (
+	FontStyleRegular = theme.FontStyleRegular
+	FontStyleItalic  = theme.FontStyleItalic
+)
+
+const (
+	FontWeightThin       = theme.FontWeightThin
+	FontWeightExtraLight = theme.FontWeightExtraLight
+	FontWeightLight      = theme.FontWeightLight
+	FontWeightNormal     = theme.FontWeightNormal
+	FontWeightMedium     = theme.FontWeightMedium
+	FontWeightSemiBold   = theme.FontWeightSemiBold
+	FontWeightBold       = theme.FontWeightBold
+	FontWeightExtraBold  = theme.FontWeightExtraBold
+	FontWeightBlack      = theme.FontWeightBlack
 )
 
 // App 创建应用对象。
@@ -124,9 +159,84 @@ func WithTheme(th *Theme) AppOption {
 	return fluxapp.WithTheme(th)
 }
 
+// WithFonts 追加全局字体集合。
+func WithFonts(faces ...FontFace) AppOption {
+	return fluxapp.WithFonts(faces...)
+}
+
+// WithDefaultFont 设置全局默认字体。
+func WithDefaultFont(spec FontSpec) AppOption {
+	return fluxapp.WithDefaultFont(spec)
+}
+
+// WithSystemFonts 控制是否启用系统字体回退。
+func WithSystemFonts(enabled bool) AppOption {
+	return fluxapp.WithSystemFonts(enabled)
+}
+
+// FontFamily 创建字体规格。
+func FontFamily(family string) FontSpec {
+	return theme.FontFamily(family)
+}
+
+// FontStyleOf 创建仅带样式的字体规格。
+func FontStyleOf(style FontStyle) FontSpec {
+	return theme.FontStyleOf(style)
+}
+
+// FontWeightOf 创建仅带字重的字体规格。
+func FontWeightOf(weight FontWeight) FontSpec {
+	return theme.FontWeightOf(weight)
+}
+
+// ListFontFamilies 返回去重后的字体族名称。
+func ListFontFamilies(faces []FontFace) []string {
+	return theme.ListFontFamilies(faces)
+}
+
+// DefaultFontSpec 返回默认字体规格。
+func DefaultFontSpec() FontSpec {
+	return theme.DefaultFontSpec()
+}
+
+// ParseFontFile 解析单个字体文件。
+func ParseFontFile(path string) ([]FontFace, error) {
+	return theme.ParseFontFile(path)
+}
+
+// LoadFontsFromPaths 加载多个字体文件。
+func LoadFontsFromPaths(paths ...string) ([]FontFace, error) {
+	return theme.LoadFontsFromPaths(paths...)
+}
+
+// LoadFontsFromDir 递归加载目录下字体文件。
+func LoadFontsFromDir(dir string) ([]FontFace, error) {
+	return theme.LoadFontsFromDir(dir)
+}
+
+// DiscoverSystemFonts 扫描系统字体。
+func DiscoverSystemFonts() ([]FontFace, error) {
+	return theme.DiscoverSystemFonts()
+}
+
+// DiscoverSystemFontFamilies 扫描系统字体族名。
+func DiscoverSystemFontFamilies() ([]string, error) {
+	return theme.DiscoverSystemFontFamilies()
+}
+
+// SystemFontDirs 返回常见系统字体目录。
+func SystemFontDirs() []string {
+	return theme.SystemFontDirs()
+}
+
 // UseTheme 返回当前主题。
 func UseTheme(ctx *Context) *Theme {
 	return ctx.Theme()
+}
+
+// UseFont 返回当前作用域默认字体。
+func UseFont(ctx *Context) FontSpec {
+	return ctx.Font()
 }
 
 // CurrentWindowID 返回当前窗口 ID。
@@ -254,6 +364,11 @@ func Container(st Style, child Widget) Widget {
 	return widget.Container(st, child)
 }
 
+// WithFont 在子树中覆盖默认字体。
+func WithFont(font FontSpec, child Widget) Widget {
+	return widget.WithFont(font, child)
+}
+
 // Padding 创建带边距的容器。
 func Padding(insets Insets, child Widget) Widget {
 	return widget.Padding(insets, child)
@@ -304,6 +419,26 @@ func TextAlign(alignment TextAlignment) TextOption {
 	return widget.TextAlign(alignment)
 }
 
+// TextFont 设置文本字体（局部覆盖）。
+func TextFont(font FontSpec) TextOption {
+	return widget.TextFont(font)
+}
+
+// TextFontFamily 设置文本字体族（局部覆盖）。
+func TextFontFamily(family string) TextOption {
+	return widget.TextFontFamily(family)
+}
+
+// TextFontStyle 设置文本字体样式（局部覆盖）。
+func TextFontStyle(style FontStyle) TextOption {
+	return widget.TextFontStyle(style)
+}
+
+// TextFontWeight 设置文本字体字重（局部覆盖）。
+func TextFontWeight(weight FontWeight) TextOption {
+	return widget.TextFontWeight(weight)
+}
+
 // OnClick 绑定按钮点击事件。
 func OnClick(fn func(ctx *Context)) ButtonOption {
 	return widget.OnClick(fn)
@@ -337,6 +472,14 @@ func ButtonBackground(value color.NRGBA) ButtonOption {
 // ButtonForeground 设置按钮前景色。
 func ButtonForeground(value color.NRGBA) ButtonOption {
 	return widget.ButtonForeground(value)
+}
+
+func NewButtonRef() *ButtonRef {
+	return widget.NewButtonRef()
+}
+
+func ButtonAttachRef(ref *ButtonRef) ButtonOption {
+	return widget.ButtonAttachRef(ref)
 }
 
 // All 创建统一边距。
@@ -409,6 +552,26 @@ func InputSingleLine(singleLine bool) InputOption {
 	return widget.InputSingleLine(singleLine)
 }
 
+// InputFont 设置输入框字体（局部覆盖）。
+func InputFont(font FontSpec) InputOption {
+	return widget.InputFont(font)
+}
+
+// InputFontFamily 设置输入框字体族（局部覆盖）。
+func InputFontFamily(family string) InputOption {
+	return widget.InputFontFamily(family)
+}
+
+// InputFontStyle 设置输入框字体样式（局部覆盖）。
+func InputFontStyle(style FontStyle) InputOption {
+	return widget.InputFontStyle(style)
+}
+
+// InputFontWeight 设置输入框字体字重（局部覆盖）。
+func InputFontWeight(weight FontWeight) InputOption {
+	return widget.InputFontWeight(weight)
+}
+
 // InputDisabled 设置输入框禁用状态。
 func InputDisabled(disabled bool) InputOption {
 	return widget.InputDisabled(disabled)
@@ -422,6 +585,14 @@ func InputOnChange(fn func(ctx *Context, value string)) InputOption {
 // InputOnFocus 绑定输入框焦点变化事件。
 func InputOnFocus(fn func(ctx *Context, focused bool)) InputOption {
 	return widget.InputOnFocus(fn)
+}
+
+func NewInputRef() *InputRef {
+	return widget.NewInputRef()
+}
+
+func InputAttachRef(ref *InputRef) InputOption {
+	return widget.InputAttachRef(ref)
 }
 
 // CheckboxOnChange 绑定复选框变化事件。
@@ -442,6 +613,14 @@ func CheckboxSize(size float32) CheckboxOption {
 // CheckboxColor 设置复选框颜色。
 func CheckboxColor(color color.NRGBA) CheckboxOption {
 	return widget.CheckboxColor(color)
+}
+
+func NewCheckboxRef() *CheckboxRef {
+	return widget.NewCheckboxRef()
+}
+
+func CheckboxAttachRef(ref *CheckboxRef) CheckboxOption {
+	return widget.CheckboxAttachRef(ref)
 }
 
 // SwitchDisabled 设置开关禁用状态。
@@ -477,6 +656,14 @@ func SwitchThumbColor(color color.NRGBA) SwitchOption {
 // SwitchOnChange 绑定开关变化事件。
 func SwitchOnChange(fn func(ctx *Context, checked bool)) SwitchOption {
 	return widget.SwitchOnChange(fn)
+}
+
+func NewSwitchRef() *SwitchRef {
+	return widget.NewSwitchRef()
+}
+
+func SwitchAttachRef(ref *SwitchRef) SwitchOption {
+	return widget.SwitchAttachRef(ref)
 }
 
 // SliderDisabled 设置滑块禁用状态。
@@ -522,4 +709,12 @@ func SliderProgressColor(color color.NRGBA) SliderOption {
 // SliderOnChange 绑定滑块变化事件。
 func SliderOnChange(fn func(ctx *Context, value float32)) SliderOption {
 	return widget.SliderOnChange(fn)
+}
+
+func NewSliderRef() *SliderRef {
+	return widget.NewSliderRef()
+}
+
+func SliderAttachRef(ref *SliderRef) SliderOption {
+	return widget.SliderAttachRef(ref)
 }

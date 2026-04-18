@@ -16,7 +16,11 @@
     "SliderWidth(width float32) SliderOption",
     "SliderTrackColor(color color.NRGBA) SliderOption",
     "SliderThumbColor(color color.NRGBA) SliderOption",
-    "SliderProgressColor(color color.NRGBA) SliderOption"
+    "SliderProgressColor(color color.NRGBA) SliderOption",
+    "NewSliderRef() *SliderRef",
+    "SliderAttachRef(ref *SliderRef) SliderOption",
+    "(*SliderRef).SetValue(value float32)",
+    "(*SliderRef).StepBy(delta float32)"
   ]
 }
 -->
@@ -30,6 +34,7 @@ Slider 适用于音量、进度、阈值等连续数值场景。
 - 设定取值范围：`SliderMin` + `SliderMax`。
 - 离散步进：`SliderStep`。
 - 与进度条联动时建议统一状态源。
+- 外部程序调整值可使用 `SliderAttachRef`，通过 `SetValue/StepBy` 下发命令。
 
 ## 使用示例
 ```go

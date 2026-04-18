@@ -89,6 +89,9 @@ func main() {
 		clickCount := ui.State[int](ctx)
 		appbarActionCount := ui.State[int](ctx)
 		listReachEndCount := ui.State[int](ctx)
+		hookDemoCount := ui.State[int](ctx)
+		hookDemoShowChild := ui.State[bool](ctx)
+		hookDemoLogs := ui.State[[]string](ctx)
 
 		if !demoInit.Value() {
 			inputValue.Set("FluxUI")
@@ -384,7 +387,7 @@ func main() {
 			case "card_basic":
 				return ui.Card(
 					ui.Column(
-						ui.Text("Card 标题", ui.TextSize(15)),
+						ui.Text("Card 鏍囬", ui.TextSize(15)),
 						ui.Padding(
 							ui.Insets{Top: 6},
 							ui.Text("点击卡片会增加计数。", ui.TextSize(13), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
@@ -402,8 +405,8 @@ func main() {
 				return ui.RadioGroup(
 					radioValue.Value(),
 					[]ui.RadioItem{
-						{Label: "布局", Value: "layout"},
-						{Label: "输入", Value: "input"},
+						{Label: "甯冨眬", Value: "layout"},
+						{Label: "杈撳叆", Value: "input"},
 						{Label: "反馈", Value: "feedback"},
 					},
 					ui.RadioGroupOnChange(func(ctx *ui.Context, value string) {
@@ -414,9 +417,9 @@ func main() {
 				return ui.Select(
 					selectValue.Value(),
 					[]ui.SelectOptionItem[string]{
-						{Label: "低优先级", Value: "low"},
-						{Label: "中优先级", Value: "medium"},
-						{Label: "高优先级", Value: "high"},
+						{Label: "浣庝紭鍏堢骇", Value: "low"},
+						{Label: "涓紭鍏堢骇", Value: "medium"},
+						{Label: "楂樹紭鍏堢骇", Value: "high"},
 					},
 					ui.SelectPlaceholder[string]("请选择优先级"),
 					ui.SelectOnChange[string](func(ctx *ui.Context, value string) {
@@ -645,6 +648,60 @@ func main() {
 						),
 					),
 				)
+			case "hooks_lifecycle_basic":
+				hookScope := ctx.Scope("docs-hooks-demo")
+				ui.UseMount(hookScope, func() func() {
+					appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Demo mount")
+					return func() {
+						appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Demo unmount")
+					}
+				})
+				ui.UseEffectWithDeps(hookScope, []any{hookDemoCount.Value()}, func() func() {
+					appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, fmt.Sprintf("count changed -> %d", hookDemoCount.Value()))
+					return nil
+				})
+
+				content := []ui.Widget{
+					ui.Text(fmt.Sprintf("count = %d", hookDemoCount.Value())),
+					ui.Row(
+						ui.Padding(ui.All(4), ui.Button(ui.Text("+1"), ui.OnClick(func(ctx *ui.Context) {
+							hookDemoCount.Set(hookDemoCount.Value() + 1)
+						}))),
+						ui.Padding(ui.All(4), ui.Button(ui.Text("切换子组件"), ui.OnClick(func(ctx *ui.Context) {
+							hookDemoShowChild.Set(!hookDemoShowChild.Value())
+						}))),
+					),
+				}
+
+				if hookDemoShowChild.Value() {
+					childScope := hookScope.Scope("child")
+					ui.UseLifecycle(childScope, func() {
+						appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Child mount")
+					}, func() {
+						appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Child unmount")
+					})
+					content = append(content,
+						ui.Container(
+							ui.Style{
+								Background: ui.NRGBA(226, 232, 240, 255),
+								Padding:    ui.All(8),
+								Radius:     6,
+							},
+							ui.Text("子组件已挂载"),
+						),
+					)
+				}
+
+				logItems := hookDemoLogs.Value()
+				if len(logItems) == 0 {
+					content = append(content, ui.Text("(暂无日志)", ui.TextSize(12), ui.TextColor(ui.NRGBA(100, 116, 139, 255))))
+				} else {
+					for _, item := range logItems {
+						content = append(content, ui.Text(item, ui.TextSize(12), ui.TextColor(ui.NRGBA(51, 65, 85, 255))))
+					}
+				}
+
+				return ui.Column(content...)
 			default:
 				return ui.Text("该文档未配置可执行示例。")
 			}
@@ -1141,4 +1198,16 @@ func rowColor(index int) color.NRGBA {
 		return ui.NRGBA(241, 245, 249, 255)
 	}
 	return ui.NRGBA(226, 232, 240, 255)
+}
+
+func appendDemoLog(getLogs func() []string, setLogs func([]string), message string) {
+	if getLogs == nil || setLogs == nil {
+		return
+	}
+	items := append([]string{}, getLogs()...)
+	items = append(items, fmt.Sprintf("%s  %s", time.Now().Format("15:04:05"), message))
+	if len(items) > 8 {
+		items = items[len(items)-8:]
+	}
+	setLogs(items)
 }

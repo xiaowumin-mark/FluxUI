@@ -10,7 +10,8 @@
     "Icon(name string, opts ...IconOption) Widget",
     "IconSize(size float32) IconOption",
     "IconColor(col color.NRGBA) IconOption",
-    "IconOnClick(fn func(ctx *Context)) IconOption"
+    "IconOnClick(fn func(ctx *Context)) IconOption",
+    "IconAttachRef(ref *ButtonRef) IconOption"
   ]
 }
 -->
@@ -23,6 +24,7 @@ Icon 用于表达操作和状态语义。当前实现为轻量占位图标，后
 ## 使用方法
 - 通过 `name` 传入图标语义标识。
 - 调整大小和颜色时优先使用 Option，不要直接包额外文本样式。
+- 有外部触发需求时，可通过 `IconAttachRef` 复用按钮 ref 行为。
 
 ## 使用示例
 ```go

@@ -22,6 +22,7 @@ type buttonConfig struct {
 	foreground    color.NRGBA
 	hasBackground bool
 	hasForeground bool
+	ref           *ButtonRef
 }
 
 type buttonWidget struct {
@@ -95,8 +96,24 @@ func ButtonForeground(value color.NRGBA) ButtonOption {
 	}
 }
 
+// ButtonAttachRef 绑定命令型引用，用于外部主动触发点击。
+func ButtonAttachRef(ref *ButtonRef) ButtonOption {
+	return func(cfg *buttonConfig) {
+		cfg.ref = ref
+	}
+}
+
 func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
+	if b.config.ref != nil {
+		b.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		commands := b.config.ref.drainCommands()
+		if !b.config.disabled {
+			for range commands {
+				b.config.dispatcher.DispatchClick(ctx)
+			}
+		}
+	}
 	if !b.config.disabled {
 		for clickable.Clicked(ctx) {
 			b.config.dispatcher.DispatchClick(ctx)

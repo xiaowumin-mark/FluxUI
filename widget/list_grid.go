@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"reflect"
 
 	"fluxui/internal"
 	"fluxui/layout"
@@ -26,6 +27,10 @@ type scrollConfig struct {
 	horizontal bool
 	barVisible bool
 	onChange   func(ctx *internal.Context, x, y float32)
+	autoToEnd  bool
+	autoKey    any
+	hasAutoKey bool
+	ref        *ScrollRef
 }
 
 type scrollWidget struct {
@@ -34,10 +39,12 @@ type scrollWidget struct {
 }
 
 type scrollState struct {
-	list      gioLayout.List
-	bar       gioWidget.Scrollbar
-	lastFirst int
-	lastOff   int
+	list        gioLayout.List
+	bar         gioWidget.Scrollbar
+	lastFirst   int
+	lastOff     int
+	autoInited  bool
+	lastAutoKey any
 }
 
 // ScrollView 创建滚动容器。
@@ -80,12 +87,69 @@ func ScrollOnChange(fn func(ctx *internal.Context, x, y float32)) ScrollOption {
 	}
 }
 
+// ScrollAttachRef 绑定一个命令型引用，用于外部主动控制 ScrollView。
+func ScrollAttachRef(ref *ScrollRef) ScrollOption {
+	return func(cfg *scrollConfig) {
+		cfg.ref = ref
+	}
+}
+
+// ScrollAutoToEnd 控制是否启用“自动贴底”能力。
+// 启用后建议搭配 ScrollAutoToEndKey 使用，以便仅在数据新增时滚到底部。
+func ScrollAutoToEnd(enabled bool) ScrollOption {
+	return func(cfg *scrollConfig) {
+		cfg.autoToEnd = enabled
+	}
+}
+
+// ScrollAutoToEndKey 设置自动贴底触发键。
+// 当 key 变化时，滚动区域会自动跳转到底部。
+func ScrollAutoToEndKey(key any) ScrollOption {
+	return func(cfg *scrollConfig) {
+		cfg.autoToEnd = true
+		cfg.autoKey = key
+		cfg.hasAutoKey = true
+	}
+}
+
 func (s *scrollWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if s.child == nil {
 		return layout.Dimensions{}
 	}
 
 	state := scrollStateFor(ctx)
+	forceToEnd := false
+	if s.config.ref != nil {
+		s.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		for _, cmd := range s.config.ref.drainCommands() {
+			switch cmd.kind {
+			case scrollCmdToStart:
+				state.list.Position.First = 0
+				state.list.Position.Offset = 0
+				state.list.Position.BeforeEnd = true
+			case scrollCmdToEnd:
+				forceToEnd = true
+				state.list.Position.BeforeEnd = false
+			case scrollCmdToOffset:
+				state.list.Position.First = 0
+				state.list.Position.Offset = cmd.offset
+				state.list.Position.BeforeEnd = true
+			case scrollCmdBy:
+				state.list.ScrollBy(cmd.delta)
+			}
+		}
+	}
+	state.list.ScrollToEnd = s.config.autoToEnd || forceToEnd
+	if s.config.autoToEnd {
+		if !state.autoInited {
+			state.autoInited = true
+			state.lastAutoKey = s.config.autoKey
+			state.list.Position.BeforeEnd = false
+		} else if s.config.hasAutoKey && !reflect.DeepEqual(state.lastAutoKey, s.config.autoKey) {
+			state.lastAutoKey = s.config.autoKey
+			state.list.Position.BeforeEnd = false
+		}
+	}
 	state.list.Axis = resolveAxis(s.config.vertical, s.config.horizontal)
 
 	dims := state.list.Layout(ctx.Gtx, 1, func(gtx gioLayout.Context, index int) gioLayout.Dimensions {

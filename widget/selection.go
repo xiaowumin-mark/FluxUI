@@ -30,6 +30,7 @@ type radioGroupConfig struct {
 	size      float32
 	color     color.NRGBA
 	hasColor  bool
+	ref       *RadioGroupRef
 }
 
 type radioGroupWidget struct {
@@ -90,7 +91,28 @@ func RadioGroupColor(col color.NRGBA) RadioGroupOption {
 	}
 }
 
+// RadioGroupAttachRef 绑定命令型引用，用于外部主动设置值。
+func RadioGroupAttachRef(ref *RadioGroupRef) RadioGroupOption {
+	return func(cfg *radioGroupConfig) {
+		cfg.ref = ref
+	}
+}
+
 func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	currentValue := r.value
+	if r.config.ref != nil {
+		r.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		for _, next := range r.config.ref.drainCommands() {
+			if next == currentValue {
+				continue
+			}
+			currentValue = next
+			if r.config.onChange != nil {
+				r.config.onChange(ctx, next)
+			}
+		}
+	}
+
 	mainColor := ctx.Theme().Primary
 	if r.config.hasColor {
 		mainColor = r.config.color
@@ -103,13 +125,17 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	children := make([]Widget, 0, len(r.items))
 	for idx := range r.items {
 		item := r.items[idx]
-		checked := item.Value == r.value
+		checked := item.Value == currentValue
 
 		row := layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
 			clickable := event.UseClickable(rowCtx)
 			if !r.config.disabled {
 				for clickable.Clicked(rowCtx) {
-					if r.config.onChange != nil && item.Value != r.value {
+					if item.Value == currentValue {
+						continue
+					}
+					currentValue = item.Value
+					if r.config.onChange != nil {
 						r.config.onChange(rowCtx, item.Value)
 					}
 				}
@@ -173,6 +199,7 @@ type selectConfig[T comparable] struct {
 	maxHeight   float32
 	onChange    func(ctx *internal.Context, value T)
 	onOpen      func(ctx *internal.Context, opened bool)
+	ref         *SelectRef[T]
 }
 
 type selectWidget[T comparable] struct {
@@ -243,9 +270,49 @@ func SelectOnOpenChange[T comparable](fn func(ctx *internal.Context, opened bool
 	}
 }
 
+// SelectAttachRef 绑定命令型引用，用于外部主动控制值与展开状态。
+func SelectAttachRef[T comparable](ref *SelectRef[T]) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.ref = ref
+	}
+}
+
 func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	state := selectStateFor(ctx)
-	label, currentIndex := s.resolveCurrentLabel()
+	currentValue := s.value
+	if s.config.ref != nil {
+		s.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		for _, cmd := range s.config.ref.drainCommands() {
+			switch cmd.kind {
+			case selectCmdSetValue:
+				if cmd.value != currentValue && s.config.onChange != nil {
+					s.config.onChange(ctx, cmd.value)
+				}
+				currentValue = cmd.value
+			case selectCmdOpen:
+				if !state.opened {
+					state.opened = true
+					if s.config.onOpen != nil {
+						s.config.onOpen(ctx, true)
+					}
+				}
+			case selectCmdClose:
+				if state.opened {
+					state.opened = false
+					if s.config.onOpen != nil {
+						s.config.onOpen(ctx, false)
+					}
+				}
+			case selectCmdToggle:
+				state.opened = !state.opened
+				if s.config.onOpen != nil {
+					s.config.onOpen(ctx, state.opened)
+				}
+			}
+		}
+	}
+
+	label, currentIndex := s.resolveCurrentLabel(currentValue)
 
 	arrow := "v"
 	if state.opened {
@@ -299,6 +366,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			ButtonPadding(style.Symmetric(8, 10)),
 			ButtonRadius(6),
 			OnClick(func(ctx *internal.Context) {
+				currentValue = item.Value
 				if s.config.onChange != nil {
 					s.config.onChange(ctx, item.Value)
 				}
@@ -372,18 +440,18 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	return toggleDims
 }
 
-func (s *selectWidget[T]) resolveCurrentLabel() (string, int) {
+func (s *selectWidget[T]) resolveCurrentLabel(value T) (string, int) {
 	label := s.config.placeholder
 	currentIndex := -1
 	for idx := range s.options {
-		if s.options[idx].Value == s.value {
+		if s.options[idx].Value == value {
 			label = s.options[idx].Label
 			currentIndex = idx
 			break
 		}
 	}
 	if label == "" {
-		label = fmt.Sprintf("%v", s.value)
+		label = fmt.Sprintf("%v", value)
 	}
 	return label, currentIndex
 }

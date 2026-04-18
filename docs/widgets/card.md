@@ -13,7 +13,8 @@
     "CardBackground(col color.NRGBA) CardOption",
     "CardBorder(col color.NRGBA, width float32) CardOption",
     "CardShadow(level int) CardOption",
-    "CardOnClick(fn func(ctx *Context)) CardOption"
+    "CardOnClick(fn func(ctx *Context)) CardOption",
+    "CardAttachRef(ref *ButtonRef) CardOption"
   ]
 }
 -->
@@ -27,6 +28,7 @@ Card 适合信息摘要、列表条目、统计块等场景。它是“有视觉
 - 内容区域直接作为 child 传入。
 - 可按场景配置圆角、边框和背景。
 - 有交互时使用 `CardOnClick`。
+- 需要业务层外部触发卡片点击时，使用 `CardAttachRef`。
 
 ## 使用示例
 ```go

@@ -32,6 +32,7 @@ type tabsConfig struct {
 	hasTextColor    bool
 	activeTextColor color.NRGBA
 	hasActiveColor  bool
+	ref             *TabsRef
 }
 
 type tabsWidget struct {
@@ -86,7 +87,28 @@ func TabsActiveTextColor(col color.NRGBA) TabsOption {
 	}
 }
 
+// TabsAttachRef 绑定命令型引用，用于外部主动切换标签页。
+func TabsAttachRef(ref *TabsRef) TabsOption {
+	return func(cfg *tabsConfig) {
+		cfg.ref = ref
+	}
+}
+
 func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	activeKey := t.active
+	if t.config.ref != nil {
+		t.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		for _, key := range t.config.ref.drainCommands() {
+			if key == activeKey {
+				continue
+			}
+			activeKey = key
+			if t.config.onChange != nil {
+				t.config.onChange(ctx, key)
+			}
+		}
+	}
+
 	normalText := ctx.Theme().TextColor
 	if t.config.hasTextColor {
 		normalText = t.config.textColor
@@ -103,7 +125,7 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	children := make([]Widget, 0, len(t.items))
 	for idx := range t.items {
 		item := t.items[idx]
-		active := item.Key == t.active
+		active := item.Key == activeKey
 
 		txtColor := normalText
 		indicatorBar := color.NRGBA{A: 0}
@@ -135,6 +157,7 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			ButtonRadius(8),
 			ButtonPadding(style.Symmetric(8, 10)),
 			OnClick(func(ctx *internal.Context) {
+				activeKey = item.Key
 				if t.config.onChange != nil {
 					t.config.onChange(ctx, item.Key)
 				}
@@ -165,6 +188,7 @@ type dialogConfig struct {
 	onOpenChange func(ctx *internal.Context, open bool)
 	onConfirm    func(ctx *internal.Context)
 	onCancel     func(ctx *internal.Context)
+	ref          *DialogRef
 }
 
 type dialogWidget struct {
@@ -235,13 +259,35 @@ func DialogOnCancel(fn func(ctx *internal.Context)) DialogOption {
 	}
 }
 
-func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
-	state := dialogStateFor(ctx)
-	if d.config.onOpenChange != nil && state.wasOpen != d.open {
-		state.wasOpen = d.open
-		d.config.onOpenChange(ctx, d.open)
+// DialogAttachRef 绑定命令型引用，用于外部主动打开/关闭对话框。
+func DialogAttachRef(ref *DialogRef) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.ref = ref
 	}
-	if !d.open {
+}
+
+func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	open := d.open
+	if d.config.ref != nil {
+		d.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		for _, cmd := range d.config.ref.drainCommands() {
+			next := open
+			switch cmd.kind {
+			case boolCmdSet:
+				next = cmd.value
+			case boolCmdToggle:
+				next = !open
+			}
+			open = next
+		}
+	}
+
+	state := dialogStateFor(ctx)
+	if d.config.onOpenChange != nil && state.wasOpen != open {
+		state.wasOpen = open
+		d.config.onOpenChange(ctx, open)
+	}
+	if !open {
 		return layout.Dimensions{}
 	}
 

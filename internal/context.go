@@ -20,6 +20,8 @@ type Context struct {
 	path       string
 	hookIndex  int
 	foreground color.NRGBA
+	font       theme.FontSpec
+	hasFont    bool
 }
 
 // NewContext 创建 frame 级上下文。
@@ -50,6 +52,18 @@ func (c *Context) MaterialTheme() *material.Theme {
 // Foreground 返回当前默认前景色。
 func (c *Context) Foreground() color.NRGBA {
 	return c.foreground
+}
+
+// Font 返回当前默认字体。
+func (c *Context) Font() theme.FontSpec {
+	if c.hasFont {
+		return c.font.Normalize()
+	}
+	th := c.Theme()
+	if th == nil {
+		return theme.DefaultFontSpec()
+	}
+	return th.DefaultFont.Normalize()
 }
 
 // Now 返回当前 frame 时间。
@@ -179,6 +193,14 @@ func (c *Context) Scope(name string) *Context {
 func (c *Context) WithForeground(col color.NRGBA) *Context {
 	next := c.sameScope(c.Gtx)
 	next.foreground = col
+	return next
+}
+
+// WithFont 覆盖当前作用域默认字体。
+func (c *Context) WithFont(spec theme.FontSpec) *Context {
+	next := c.sameScope(c.Gtx)
+	next.font = spec.Normalize()
+	next.hasFont = true
 	return next
 }
 

@@ -17,9 +17,7 @@ import (
 	gioLayout "gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/unit"
 	gioWidget "gioui.org/widget"
-	"gioui.org/widget/material"
 	_ "golang.org/x/image/bmp"
 	_ "golang.org/x/image/webp"
 )
@@ -51,6 +49,7 @@ type imageConfig struct {
 	background    color.NRGBA
 	hasBackground bool
 	onClick       func(ctx *internal.Context)
+	ref           *ButtonRef
 }
 
 type imageWidget struct {
@@ -130,20 +129,35 @@ func ImageOnClick(fn func(ctx *internal.Context)) ImageOption {
 	}
 }
 
+// ImageAttachRef 绑定命令型引用，用于外部主动触发点击。
+func ImageAttachRef(ref *ButtonRef) ImageOption {
+	return func(cfg *imageConfig) {
+		cfg.ref = ref
+	}
+}
+
 func (i *imageWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	var root Widget = &fixedSizeWidget{
 		width:  i.config.width,
 		height: i.config.height,
 		child:  &imageRenderWidget{owner: i},
 	}
-	if i.config.onClick != nil {
-		root = Button(
-			root,
+	if i.config.onClick != nil || i.config.ref != nil {
+		opts := []ButtonOption{
 			ButtonBackground(color.NRGBA{}),
 			ButtonForeground(ctx.Theme().TextColor),
 			ButtonPadding(style.All(0)),
 			ButtonRadius(i.config.radius),
-			OnClick(i.config.onClick),
+		}
+		if i.config.onClick != nil {
+			opts = append(opts, OnClick(i.config.onClick))
+		}
+		if i.config.ref != nil {
+			opts = append(opts, ButtonAttachRef(i.config.ref))
+		}
+		root = Button(
+			root,
+			opts...,
 		)
 	}
 	return root.Layout(ctx.Child(0))
@@ -307,13 +321,15 @@ func (i *imageWidget) layoutFallback(ctx *internal.Context, size image.Point, st
 		label = "Image"
 	}
 
-	fallback := material.Label(ctx.MaterialTheme(), unit.Sp(12), label)
-	fallback.Color = ctx.Theme().TextColor
+	fallback := Text(label, TextSize(12), TextColor(ctx.Theme().TextColor))
 
 	gtx := ctx.Gtx
 	gtx.Constraints = gioLayout.Exact(size)
 	_ = gioLayout.Center.Layout(gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
-		return fallback.Layout(gtx)
+		next := *ctx
+		next.Gtx = gtx
+		dims := fallback.Layout(&next)
+		return gioLayout.Dimensions{Size: dims.Size}
 	})
 }
 
@@ -338,6 +354,7 @@ type iconConfig struct {
 	color    color.NRGBA
 	hasColor bool
 	onClick  func(ctx *internal.Context)
+	ref      *ButtonRef
 }
 
 type iconWidget struct {
@@ -381,6 +398,13 @@ func IconOnClick(fn func(ctx *internal.Context)) IconOption {
 	}
 }
 
+// IconAttachRef 绑定命令型引用，用于外部主动触发点击。
+func IconAttachRef(ref *ButtonRef) IconOption {
+	return func(cfg *iconConfig) {
+		cfg.ref = ref
+	}
+}
+
 func (i *iconWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	col := ctx.Theme().TextColor
 	if i.config.hasColor {
@@ -394,13 +418,21 @@ func (i *iconWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	label := Text(name, TextSize(i.config.size), TextColor(col))
 	root := Widget(label)
-	if i.config.onClick != nil {
-		root = Button(
-			label,
+	if i.config.onClick != nil || i.config.ref != nil {
+		opts := []ButtonOption{
 			ButtonBackground(color.NRGBA{}),
 			ButtonForeground(col),
 			ButtonPadding(style.All(0)),
-			OnClick(i.config.onClick),
+		}
+		if i.config.onClick != nil {
+			opts = append(opts, OnClick(i.config.onClick))
+		}
+		if i.config.ref != nil {
+			opts = append(opts, ButtonAttachRef(i.config.ref))
+		}
+		root = Button(
+			label,
+			opts...,
 		)
 	}
 	return root.Layout(ctx.Child(0))
@@ -419,6 +451,7 @@ type cardConfig struct {
 	borderWidth    float32
 	shadowLevel    int
 	onClick        func(ctx *internal.Context)
+	ref            *ButtonRef
 }
 
 type cardWidget struct {
@@ -486,6 +519,13 @@ func CardOnClick(fn func(ctx *internal.Context)) CardOption {
 	}
 }
 
+// CardAttachRef 绑定命令型引用，用于外部主动触发点击。
+func CardAttachRef(ref *ButtonRef) CardOption {
+	return func(cfg *cardConfig) {
+		cfg.ref = ref
+	}
+}
+
 func (c *cardWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	bg := ctx.Theme().Surface
 	if c.config.hasBackground {
@@ -524,14 +564,22 @@ func (c *cardWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		)
 	}
 
-	if c.config.onClick != nil {
-		root = Button(
-			root,
+	if c.config.onClick != nil || c.config.ref != nil {
+		opts := []ButtonOption{
 			ButtonBackground(color.NRGBA{}),
 			ButtonForeground(ctx.Theme().TextColor),
 			ButtonPadding(style.All(0)),
 			ButtonRadius(c.config.radius),
-			OnClick(c.config.onClick),
+		}
+		if c.config.onClick != nil {
+			opts = append(opts, OnClick(c.config.onClick))
+		}
+		if c.config.ref != nil {
+			opts = append(opts, ButtonAttachRef(c.config.ref))
+		}
+		root = Button(
+			root,
+			opts...,
 		)
 	}
 

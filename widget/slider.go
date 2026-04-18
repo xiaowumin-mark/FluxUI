@@ -26,6 +26,7 @@ type sliderConfig struct {
 	hasThumbColor    bool
 	hasProgressColor bool
 	onChange         func(ctx *internal.Context, value float32)
+	ref              *SliderRef
 }
 
 type sliderWidget struct {
@@ -54,6 +55,13 @@ func Slider(value float32, opts ...SliderOption) Widget {
 func SliderOnChange(fn func(ctx *internal.Context, value float32)) SliderOption {
 	return func(cfg *sliderConfig) {
 		cfg.onChange = fn
+	}
+}
+
+// SliderAttachRef 绑定命令型引用，用于外部主动设置值。
+func SliderAttachRef(ref *SliderRef) SliderOption {
+	return func(cfg *sliderConfig) {
+		cfg.ref = ref
 	}
 }
 
@@ -110,7 +118,22 @@ func SliderProgressColor(color color.NRGBA) SliderOption {
 
 func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	sliderState := sliderStateFor(ctx)
-	progress := toSliderProgress(s.config.value, s.config.min, s.config.max)
+	currentValue := applySliderStep(s.config.value, s.config.min, s.config.max, s.config.step)
+	if s.config.ref != nil {
+		s.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		for _, cmd := range s.config.ref.drainCommands() {
+			switch cmd.kind {
+			case sliderCmdSet:
+				currentValue = applySliderStep(cmd.value, s.config.min, s.config.max, s.config.step)
+			case sliderCmdStep:
+				currentValue = applySliderStep(currentValue+cmd.delta, s.config.min, s.config.max, s.config.step)
+			}
+		}
+		if currentValue != s.config.value && s.config.onChange != nil {
+			s.config.onChange(ctx, currentValue)
+		}
+	}
+	progress := toSliderProgress(currentValue, s.config.min, s.config.max)
 	sliderState.Value = progress
 	before := sliderState.Value
 

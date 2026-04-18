@@ -39,6 +39,12 @@ type ToastOption = widget.ToastOption
 type ToastType = widget.ToastType
 type ToastPosition = widget.ToastPosition
 type ScrollOption = widget.ScrollOption
+type ScrollRef = widget.ScrollRef
+type ClickAreaOption = widget.ClickAreaOption
+type RadioGroupRef = widget.RadioGroupRef
+type TabsRef = widget.TabsRef
+type DialogRef = widget.DialogRef
+type BottomNavRef = widget.BottomNavRef
 type ListOption = widget.ListOption
 type GridOption = widget.GridOption
 type AppBarOption = widget.AppBarOption
@@ -69,13 +75,22 @@ const (
 
 type SelectOptionItem[T comparable] = widget.SelectOptionItem[T]
 type SelectOption[T comparable] = widget.SelectOption[T]
+type SelectRef[T comparable] = widget.SelectRef[T]
 
 func Spacer(width, height float32) Widget {
 	return widget.Spacer(width, height)
 }
 
-func ClickArea(child Widget, onClick func(ctx *Context)) Widget {
-	return widget.ClickArea(child, onClick)
+func ClickArea(child Widget, onClick func(ctx *Context), opts ...ClickAreaOption) Widget {
+	return widget.ClickArea(child, onClick, opts...)
+}
+
+func NewClickAreaRef() *ClickAreaRef {
+	return widget.NewClickAreaRef()
+}
+
+func ClickAreaAttachRef(ref *ClickAreaRef) ClickAreaOption {
+	return widget.ClickAreaAttachRef(ref)
 }
 
 func FixedWidth(width float32, child Widget) Widget {
@@ -162,6 +177,10 @@ func ImageOnClick(fn func(ctx *Context)) ImageOption {
 	return widget.ImageOnClick(fn)
 }
 
+func ImageAttachRef(ref *ButtonRef) ImageOption {
+	return widget.ImageAttachRef(ref)
+}
+
 func Icon(name string, opts ...IconOption) Widget {
 	return widget.Icon(name, opts...)
 }
@@ -176,6 +195,10 @@ func IconColor(col color.NRGBA) IconOption {
 
 func IconOnClick(fn func(ctx *Context)) IconOption {
 	return widget.IconOnClick(fn)
+}
+
+func IconAttachRef(ref *ButtonRef) IconOption {
+	return widget.IconAttachRef(ref)
 }
 
 func Card(child Widget, opts ...CardOption) Widget {
@@ -206,6 +229,10 @@ func CardOnClick(fn func(ctx *Context)) CardOption {
 	return widget.CardOnClick(fn)
 }
 
+func CardAttachRef(ref *ButtonRef) CardOption {
+	return widget.CardAttachRef(ref)
+}
+
 func RadioGroup(value string, items []RadioItem, opts ...RadioGroupOption) Widget {
 	return widget.RadioGroup(value, items, opts...)
 }
@@ -228,6 +255,14 @@ func RadioGroupSize(size float32) RadioGroupOption {
 
 func RadioGroupColor(col color.NRGBA) RadioGroupOption {
 	return widget.RadioGroupColor(col)
+}
+
+func NewRadioGroupRef() *RadioGroupRef {
+	return widget.NewRadioGroupRef()
+}
+
+func RadioGroupAttachRef(ref *RadioGroupRef) RadioGroupOption {
+	return widget.RadioGroupAttachRef(ref)
 }
 
 func Select[T comparable](value T, options []SelectOptionItem[T], opts ...SelectOption[T]) Widget {
@@ -256,6 +291,14 @@ func SelectOnChange[T comparable](fn func(ctx *Context, value T)) SelectOption[T
 
 func SelectOnOpenChange[T comparable](fn func(ctx *Context, opened bool)) SelectOption[T] {
 	return widget.SelectOnOpenChange[T](fn)
+}
+
+func NewSelectRef[T comparable]() *SelectRef[T] {
+	return widget.NewSelectRef[T]()
+}
+
+func SelectAttachRef[T comparable](ref *SelectRef[T]) SelectOption[T] {
+	return widget.SelectAttachRef[T](ref)
 }
 
 func ProgressBar(value float32, opts ...ProgressOption) Widget {
@@ -318,6 +361,14 @@ func TabsActiveTextColor(col color.NRGBA) TabsOption {
 	return widget.TabsActiveTextColor(col)
 }
 
+func NewTabsRef() *TabsRef {
+	return widget.NewTabsRef()
+}
+
+func TabsAttachRef(ref *TabsRef) TabsOption {
+	return widget.TabsAttachRef(ref)
+}
+
 func Dialog(open bool, child Widget, opts ...DialogOption) Widget {
 	return widget.Dialog(open, child, opts...)
 }
@@ -348,6 +399,14 @@ func DialogOnConfirm(fn func(ctx *Context)) DialogOption {
 
 func DialogOnCancel(fn func(ctx *Context)) DialogOption {
 	return widget.DialogOnCancel(fn)
+}
+
+func NewDialogRef() *DialogRef {
+	return widget.NewDialogRef()
+}
+
+func DialogAttachRef(ref *DialogRef) DialogOption {
+	return widget.DialogAttachRef(ref)
 }
 
 func Toast(message string, opts ...ToastOption) Widget {
@@ -388,6 +447,22 @@ func ScrollBarVisible(visible bool) ScrollOption {
 
 func ScrollOnChange(fn func(ctx *Context, x, y float32)) ScrollOption {
 	return widget.ScrollOnChange(fn)
+}
+
+func NewScrollRef() *ScrollRef {
+	return widget.NewScrollRef()
+}
+
+func ScrollAttachRef(ref *ScrollRef) ScrollOption {
+	return widget.ScrollAttachRef(ref)
+}
+
+func ScrollAutoToEnd(enabled bool) ScrollOption {
+	return widget.ScrollAutoToEnd(enabled)
+}
+
+func ScrollAutoToEndKey(key any) ScrollOption {
+	return widget.ScrollAutoToEndKey(key)
 }
 
 func ListView(count int, itemBuilder func(ctx *Context, index int) Widget, opts ...ListOption) Widget {
@@ -480,4 +555,12 @@ func BottomNavInactiveColor(col color.NRGBA) BottomNavOption {
 
 func BottomNavAlignmentOf(alignment BottomNavAlignment) BottomNavOption {
 	return widget.BottomNavAlignmentOf(alignment)
+}
+
+func NewBottomNavRef() *BottomNavRef {
+	return widget.NewBottomNavRef()
+}
+
+func BottomNavAttachRef(ref *BottomNavRef) BottomNavOption {
+	return widget.BottomNavAttachRef(ref)
 }

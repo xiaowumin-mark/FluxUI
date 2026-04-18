@@ -21,7 +21,14 @@
     "InputSingleLine(singleLine bool) InputOption",
     "InputDisabled(disabled bool) InputOption",
     "InputOnChange(fn func(ctx *Context, value string)) InputOption",
-    "InputOnFocus(fn func(ctx *Context, focused bool)) InputOption"
+    "InputOnFocus(fn func(ctx *Context, focused bool)) InputOption",
+    "NewInputRef() *InputRef",
+    "InputAttachRef(ref *InputRef) InputOption",
+    "(*InputRef).SetText(value string)",
+    "(*InputRef).Append(value string)",
+    "(*InputRef).Clear()",
+    "(*InputRef).Focus()",
+    "(*InputRef).Blur()"
   ]
 }
 -->
@@ -35,6 +42,7 @@ TextField 是受控输入组件，值由外部状态提供，输入变化通过 
 - 受控绑定：`value -> TextField(value)`，`InputOnChange -> state.Set(value)`。
 - 密码场景使用 `InputPassword(true)`。
 - 长文本场景建议关闭单行模式。
+- 命令式控制（聚焦/清空/追加）建议通过 `InputAttachRef` + `InputRef` 方法完成。
 
 ## 使用示例
 ```go

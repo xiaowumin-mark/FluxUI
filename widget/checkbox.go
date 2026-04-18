@@ -24,6 +24,7 @@ type checkboxConfig struct {
 	hasColor      bool
 	hasBackground bool
 	onChange      func(ctx *internal.Context, checked bool)
+	ref           *CheckboxRef
 }
 
 type checkboxWidget struct {
@@ -72,8 +73,33 @@ func CheckboxColor(color color.NRGBA) CheckboxOption {
 	}
 }
 
+// CheckboxAttachRef 绑定命令型引用，用于外部主动设置值。
+func CheckboxAttachRef(ref *CheckboxRef) CheckboxOption {
+	return func(cfg *checkboxConfig) {
+		cfg.ref = ref
+	}
+}
+
 func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
+	if c.config.ref != nil {
+		c.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		for _, cmd := range c.config.ref.drainCommands() {
+			if c.config.disabled {
+				continue
+			}
+			next := c.value
+			switch cmd.kind {
+			case boolCmdSet:
+				next = cmd.value
+			case boolCmdToggle:
+				next = !c.value
+			}
+			if next != c.value && c.config.onChange != nil {
+				c.config.onChange(ctx, next)
+			}
+		}
+	}
 	if !c.config.disabled {
 		for clickable.Clicked(ctx) {
 			next := !c.value

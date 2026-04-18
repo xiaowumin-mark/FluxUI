@@ -4,8 +4,12 @@ import (
 	"image"
 	"image/color"
 	"strconv"
+	"strings"
+
+	"fluxui/theme"
 
 	"gioui.org/f32"
+	gioFont "gioui.org/font"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	gioText "gioui.org/text"
@@ -60,6 +64,7 @@ type TextSpec struct {
 	Size      float32
 	Color     color.NRGBA
 	Alignment Alignment
+	Font      theme.FontSpec
 }
 
 // SurfaceSpec 描述容器样式。
@@ -90,6 +95,7 @@ type InputSpec struct {
 	Password    bool
 	MaxLen      int
 	SingleLine  bool
+	Font        theme.FontSpec
 }
 
 // CheckboxSpec 描述复选框样式。
@@ -130,7 +136,17 @@ func (c *Context) LayoutText(spec TextSpec) image.Point {
 	if size <= 0 {
 		size = c.Theme().TextSize
 	}
+	font := spec.Font
+	if strings.TrimSpace(font.Family) == "" {
+		font = c.Font()
+	}
+	font = font.Normalize()
 	label := material.Label(c.MaterialTheme(), unit.Sp(size), spec.Content)
+	label.Font = gioFont.Font{
+		Typeface: gioFont.Typeface(font.Family),
+		Style:    toGioFontStyle(font.Style),
+		Weight:   gioFont.Weight(font.Weight),
+	}
 	label.Color = spec.Color
 	label.Alignment = toTextAlignment(spec.Alignment)
 	dims := label.Layout(c.Gtx)
@@ -251,7 +267,17 @@ func (c *Context) LayoutInput(editor *widget.Editor, spec InputSpec) image.Point
 				Bottom: unit.Dp(spec.Padding.Bottom),
 				Left:   unit.Dp(spec.Padding.Left),
 			}.Layout(gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
+				font := spec.Font
+				if strings.TrimSpace(font.Family) == "" {
+					font = c.Font()
+				}
+				font = font.Normalize()
 				ed := material.Editor(c.MaterialTheme(), editor, spec.Placeholder)
+				ed.Font = gioFont.Font{
+					Typeface: gioFont.Typeface(font.Family),
+					Style:    toGioFontStyle(font.Style),
+					Weight:   gioFont.Weight(font.Weight),
+				}
 				ed.Color = textColor
 				ed.TextSize = unit.Sp(size)
 				return ed.Layout(gtx)
@@ -656,6 +682,15 @@ func toTextAlignment(alignment Alignment) gioText.Alignment {
 		return gioText.End
 	default:
 		return gioText.Start
+	}
+}
+
+func toGioFontStyle(style theme.FontStyle) gioFont.Style {
+	switch style {
+	case theme.FontStyleItalic:
+		return gioFont.Italic
+	default:
+		return gioFont.Regular
 	}
 }
 

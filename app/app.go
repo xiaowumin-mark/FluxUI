@@ -196,6 +196,39 @@ func WithTheme(th *theme.Theme) Option {
 	}
 }
 
+// WithFonts 追加全局字体集合。
+func WithFonts(faces ...theme.FontFace) Option {
+	return func(app *Application) {
+		if len(faces) == 0 {
+			return
+		}
+		if app.Theme == nil {
+			app.Theme = theme.Default()
+		}
+		app.Theme.AddFonts(faces...)
+	}
+}
+
+// WithDefaultFont 设置全局默认字体。
+func WithDefaultFont(spec theme.FontSpec) Option {
+	return func(app *Application) {
+		if app.Theme == nil {
+			app.Theme = theme.Default()
+		}
+		app.Theme.SetDefaultFont(spec)
+	}
+}
+
+// WithSystemFonts 控制是否启用系统字体回退。
+func WithSystemFonts(enabled bool) Option {
+	return func(app *Application) {
+		if app.Theme == nil {
+			app.Theme = theme.Default()
+		}
+		app.Theme.SetUseSystemFonts(enabled)
+	}
+}
+
 // ListWindows 返回当前仍然存活的窗口句柄列表。
 func ListWindows() []WindowHandle {
 	windowRegistryMu.RLock()
@@ -268,6 +301,7 @@ func (a *Application) Run() error {
 	rt.SetWindowController(&windowController{
 		handle: WindowHandle{id: windowID},
 	})
+	defer rt.Dispose()
 
 	var ops op.Ops
 	for {
@@ -277,6 +311,7 @@ func (a *Application) Run() error {
 			return evt.Err
 		case gioApp.FrameEvent:
 			gtx := gioApp.NewContext(&ops, evt)
+			rt.BeginFrame()
 			ctx := rt.Frame(gtx)
 			buildCtx := ctx.Scope("build")
 			treeCtx := ctx.Scope("tree")
@@ -286,6 +321,7 @@ func (a *Application) Run() error {
 					root.Layout(treeCtx.Child(0))
 				}
 			}
+			rt.EndFrame()
 
 			evt.Frame(gtx.Ops)
 		}

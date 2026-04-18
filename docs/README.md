@@ -32,3 +32,24 @@
 - `apis`: 需要重点展示的 API 列表
 
 示例应用：`examples/docs_browser/main.go`
+
+## 编码与终端显示说明
+
+- 文档文件统一使用 UTF-8 编码保存。
+- 在 Windows PowerShell 默认编码下，中文可能显示为“乱码样式”（例如 `鏄`、`鍙`），这通常是终端解码问题，不代表文件内容损坏。
+- 建议使用支持 UTF-8 的终端或在读取时显式指定 UTF-8。
+
+## Ref 能力约定
+
+框架中的命令式 Ref 能力用于“外部主动调用组件行为”，例如：
+
+- `ButtonRef.Click()`
+- `InputRef.SetText/Append/Clear/Focus/Blur`
+- `SliderRef.SetValue/StepBy`
+- `DialogRef.Open/Close/Toggle`
+
+文档中若组件支持 Ref，需要在 `apis` 列表中显式列出：
+
+- `NewXxxRef() *XxxRef`
+- `XxxAttachRef(ref *XxxRef) XxxOption`
+- `(*XxxRef).Method(...)`

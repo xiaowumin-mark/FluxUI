@@ -2,9 +2,11 @@ package widget
 
 import (
 	"image/color"
+	"strings"
 
 	"fluxui/internal"
 	"fluxui/layout"
+	"fluxui/theme"
 )
 
 // TextAlignment 表示文本对齐。
@@ -20,10 +22,14 @@ const (
 type TextOption func(*textConfig)
 
 type textConfig struct {
-	size     float32
-	color    color.NRGBA
-	hasColor bool
-	align    TextAlignment
+	size      float32
+	color     color.NRGBA
+	hasColor  bool
+	align     TextAlignment
+	font      theme.FontSpec
+	hasFamily bool
+	hasStyle  bool
+	hasWeight bool
 }
 
 type textWidget struct {
@@ -65,6 +71,42 @@ func TextAlign(alignment TextAlignment) TextOption {
 	}
 }
 
+// TextFont 设置文本字体（局部覆盖）。
+func TextFont(spec theme.FontSpec) TextOption {
+	return func(cfg *textConfig) {
+		cfg.font = spec
+		cfg.hasStyle = true
+		cfg.hasWeight = true
+		if strings.TrimSpace(spec.Family) != "" {
+			cfg.hasFamily = true
+		}
+	}
+}
+
+// TextFontFamily 设置文本字体族（局部覆盖）。
+func TextFontFamily(family string) TextOption {
+	return func(cfg *textConfig) {
+		cfg.font.Family = strings.TrimSpace(family)
+		cfg.hasFamily = true
+	}
+}
+
+// TextFontStyle 设置文本字体样式（局部覆盖）。
+func TextFontStyle(style theme.FontStyle) TextOption {
+	return func(cfg *textConfig) {
+		cfg.font.Style = style
+		cfg.hasStyle = true
+	}
+}
+
+// TextFontWeight 设置文本字体字重（局部覆盖）。
+func TextFontWeight(weight theme.FontWeight) TextOption {
+	return func(cfg *textConfig) {
+		cfg.font.Weight = weight
+		cfg.hasWeight = true
+	}
+}
+
 func (t *textWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	color := ctx.Foreground()
 	if t.config.hasColor {
@@ -75,6 +117,17 @@ func (t *textWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if size <= 0 {
 		size = ctx.Theme().TextSize
 	}
+	font := ctx.Font()
+	if t.config.hasFamily && strings.TrimSpace(t.config.font.Family) != "" {
+		font.Family = strings.TrimSpace(t.config.font.Family)
+	}
+	if t.config.hasStyle {
+		font.Style = t.config.font.Style
+	}
+	if t.config.hasWeight {
+		font.Weight = t.config.font.Weight
+	}
+	font = font.Normalize()
 
 	return layout.Dimensions{
 		Size: ctx.LayoutText(internal.TextSpec{
@@ -82,6 +135,7 @@ func (t *textWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			Size:      size,
 			Color:     color,
 			Alignment: toInternalAlignment(t.config.align),
+			Font:      font,
 		}),
 	}
 }

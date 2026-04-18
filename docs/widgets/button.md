@@ -14,7 +14,10 @@
     "ButtonPadding(insets Insets) ButtonOption",
     "ButtonRadius(radius float32) ButtonOption",
     "ButtonBackground(value color.NRGBA) ButtonOption",
-    "ButtonForeground(value color.NRGBA) ButtonOption"
+    "ButtonForeground(value color.NRGBA) ButtonOption",
+    "NewButtonRef() *ButtonRef",
+    "ButtonAttachRef(ref *ButtonRef) ButtonOption",
+    "(*ButtonRef).Click()"
   ]
 }
 -->
@@ -28,6 +31,7 @@ Button 是最基础交互组件。点击、悬停、禁用状态全部通过 Opt
 - 点击逻辑放在 `OnClick` 中。
 - 禁用状态统一用 `Disabled(true)`，避免仅靠颜色模拟禁用。
 - 样式统一在 Option 层声明，不要在业务中散落魔法数。
+- 需要外部主动触发时，使用 `ButtonAttachRef` 并调用 `ref.Click()`。
 
 ## 使用示例
 ```go

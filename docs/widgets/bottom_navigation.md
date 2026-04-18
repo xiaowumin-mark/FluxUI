@@ -12,7 +12,10 @@
     "BottomNavBackground(col color.NRGBA) BottomNavOption",
     "BottomNavActiveColor(col color.NRGBA) BottomNavOption",
     "BottomNavInactiveColor(col color.NRGBA) BottomNavOption",
-    "BottomNavAlignmentOf(alignment BottomNavAlignment) BottomNavOption"
+    "BottomNavAlignmentOf(alignment BottomNavAlignment) BottomNavOption",
+    "NewBottomNavRef() *BottomNavRef",
+    "BottomNavAttachRef(ref *BottomNavRef) BottomNavOption",
+    "(*BottomNavRef).SetActive(key string)"
   ]
 }
 -->
@@ -26,6 +29,7 @@ BottomNavigation 适用于移动端或工具型应用的一级页面切换。
 - `active` 保存当前页面 key。
 - `items` 定义导航项。
 - 在 `BottomNavOnChange` 中回写状态并切换页面内容。
+- 外部程序切页可通过 `BottomNavAttachRef` 绑定后调用 `SetActive`。
 
 ## 使用示例
 ```go

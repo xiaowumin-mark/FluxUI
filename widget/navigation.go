@@ -143,6 +143,7 @@ type bottomNavConfig struct {
 	inactiveColor color.NRGBA
 	hasInactive   bool
 	alignment     BottomNavAlignment
+	ref           *BottomNavRef
 }
 
 type bottomNavWidget struct {
@@ -199,7 +200,28 @@ func BottomNavAlignmentOf(alignment BottomNavAlignment) BottomNavOption {
 	}
 }
 
+// BottomNavAttachRef 绑定命令型引用，用于外部主动切换当前项。
+func BottomNavAttachRef(ref *BottomNavRef) BottomNavOption {
+	return func(cfg *bottomNavConfig) {
+		cfg.ref = ref
+	}
+}
+
 func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	activeKey := b.active
+	if b.config.ref != nil {
+		b.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		for _, key := range b.config.ref.drainCommands() {
+			if key == activeKey {
+				continue
+			}
+			activeKey = key
+			if b.config.onChange != nil {
+				b.config.onChange(ctx, key)
+			}
+		}
+	}
+
 	bg := ctx.Theme().Surface
 	if b.config.hasBG {
 		bg = b.config.background
@@ -216,7 +238,7 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	tabs := make([]Widget, 0, len(b.items))
 	for idx := range b.items {
 		item := b.items[idx]
-		isActive := item.Key == b.active
+		isActive := item.Key == activeKey
 		col := inactiveColor
 		if isActive {
 			col = activeColor
@@ -234,6 +256,7 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			ButtonBackground(color.NRGBA{}),
 			ButtonPadding(style.Symmetric(6, 10)),
 			OnClick(func(ctx *internal.Context) {
+				activeKey = item.Key
 				if b.config.onChange != nil {
 					b.config.onChange(ctx, item.Key)
 				}

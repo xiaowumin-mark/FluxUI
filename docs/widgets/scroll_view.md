@@ -11,7 +11,11 @@
     "ScrollVertical(vertical bool) ScrollOption",
     "ScrollHorizontal(horizontal bool) ScrollOption",
     "ScrollBarVisible(visible bool) ScrollOption",
-    "ScrollOnChange(fn func(ctx *Context, x, y float32)) ScrollOption"
+    "ScrollOnChange(fn func(ctx *Context, x, y float32)) ScrollOption",
+    "NewScrollRef() *ScrollRef",
+    "ScrollAttachRef(ref *ScrollRef) ScrollOption",
+    "ScrollAutoToEnd(enabled bool) ScrollOption",
+    "ScrollAutoToEndKey(key any) ScrollOption"
   ]
 }
 -->
@@ -28,6 +32,8 @@ ScrollView 用于承载超出可视区的内容。常见于文档区、表单区
 
 ## 使用示例
 ```go
+ref := ui.NewScrollRef()
+
 ui.FixedHeight(
     220,
     ui.ScrollView(
@@ -36,6 +42,13 @@ ui.FixedHeight(
             ui.Text("长内容 2"),
         ),
         ui.ScrollVertical(true),
+        ui.ScrollAttachRef(ref),
     ),
 )
+
+// 外部主动控制
+ref.ScrollToBottom()
+ref.ScrollToTop()
+ref.ScrollToOffset(120)
+ref.ScrollBy(2.0)
 ```
