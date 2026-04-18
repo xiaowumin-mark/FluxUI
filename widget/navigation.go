@@ -3,9 +3,9 @@ package widget
 import (
 	"image/color"
 
-	"fluxui/internal"
-	"fluxui/layout"
-	"fluxui/style"
+	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
+	"github.com/xiaowumin-mark/FluxUI/style"
 )
 
 // AppBarOption 顶栏配置。

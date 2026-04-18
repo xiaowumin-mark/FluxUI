@@ -3,9 +3,9 @@ package widget
 import (
 	"image"
 
-	"fluxui/event"
-	"fluxui/internal"
-	"fluxui/layout"
+	"github.com/xiaowumin-mark/FluxUI/event"
+	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
 )
 
 type ClickAreaOption func(*clickAreaConfig)

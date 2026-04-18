@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"fluxui/ui"
+	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
 func main() {

@@ -9,9 +9,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"fluxui/internal"
-	"fluxui/theme"
-	"fluxui/widget"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	theme "github.com/xiaowumin-mark/FluxUI/theme"
+	widget "github.com/xiaowumin-mark/FluxUI/widget"
 
 	gioApp "gioui.org/app"
 	"gioui.org/io/system"

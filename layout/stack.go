@@ -3,7 +3,7 @@ package layout
 import (
 	"image"
 
-	"fluxui/internal"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
 )
 
 // StackChild 描述 Stack 子项。

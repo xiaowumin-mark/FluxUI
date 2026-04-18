@@ -4,9 +4,9 @@ import (
 	"image"
 	"image/color"
 
-	"fluxui/internal"
-	"fluxui/layout"
-	"fluxui/style"
+	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
+	"github.com/xiaowumin-mark/FluxUI/style"
 
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"

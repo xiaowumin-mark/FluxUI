@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"fluxui/theme"
+	theme "github.com/xiaowumin-mark/FluxUI/theme"
 
 	"gioui.org/f32"
 	gioFont "gioui.org/font"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"fluxui/internal"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
 )
 
 // Option 定义动画配置项。
@@ -81,7 +81,7 @@ func (a *Animation) Value(ctx *internal.Context) float32 {
 
 	timeline, ok := value.(*track)
 	if !ok {
-		panic(fmt.Sprintf("fluxui/anim: key %q 的动画轨道类型错误", ctx.TreePath()))
+		panic(fmt.Sprintf("github.com/xiaowumin-mark/FluxUIanim: key %q 的动画轨道类型错误", ctx.TreePath()))
 	}
 
 	now := ctx.Now()

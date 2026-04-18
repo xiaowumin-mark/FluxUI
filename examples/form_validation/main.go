@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"fluxui/ui"
+	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
 type FormData struct {

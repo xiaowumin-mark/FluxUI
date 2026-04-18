@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"fluxui/ui"
+	"github.com/xiaowumin-mark/FluxUI/ui"
 )
 
 func main() {

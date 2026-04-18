@@ -1,6 +1,6 @@
 package state
 
-import "fluxui/internal"
+import internal "github.com/xiaowumin-mark/FluxUI/internal"
 
 // Effect 表示渲染后执行的副作用函数，返回 cleanup（可选）。
 type Effect func() (cleanup func())

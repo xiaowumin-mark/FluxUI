@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"fluxui/internal"
-	"fluxui/layout"
-	"fluxui/style"
+	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
+	"github.com/xiaowumin-mark/FluxUI/style"
 
 	gioLayout "gioui.org/layout"
 	"gioui.org/op/clip"
@@ -213,7 +213,7 @@ func imageStateFor(ctx *internal.Context) *decodedImageState {
 	})
 	state, ok := value.(*decodedImageState)
 	if !ok {
-		panic("fluxui/widget: image state type mismatch")
+		panic("github.com/xiaowumin-mark/FluxUIwidget: image state type mismatch")
 	}
 	return state
 }

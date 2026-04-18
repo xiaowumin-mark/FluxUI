@@ -6,9 +6,9 @@ import (
 	"math"
 	"reflect"
 
-	"fluxui/internal"
-	"fluxui/layout"
-	"fluxui/style"
+	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
+	"github.com/xiaowumin-mark/FluxUI/style"
 
 	"gioui.org/io/pointer"
 	gioLayout "gioui.org/layout"
@@ -412,7 +412,7 @@ func scrollStateFor(ctx *internal.Context) *scrollState {
 	})
 	state, ok := value.(*scrollState)
 	if !ok {
-		panic("fluxui/widget: scroll state type mismatch")
+		panic("github.com/xiaowumin-mark/FluxUIwidget: scroll state type mismatch")
 	}
 	return state
 }
@@ -569,7 +569,7 @@ func listViewStateFor(ctx *internal.Context) *listViewState {
 	})
 	state, ok := value.(*listViewState)
 	if !ok {
-		panic("fluxui/widget: list view state type mismatch")
+		panic("github.com/xiaowumin-mark/FluxUIwidget: list view state type mismatch")
 	}
 	return state
 }

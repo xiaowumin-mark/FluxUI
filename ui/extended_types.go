@@ -4,8 +4,8 @@ import (
 	"image/color"
 	"time"
 
-	"fluxui/internal"
-	"fluxui/widget"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	widget "github.com/xiaowumin-mark/FluxUI/widget"
 )
 
 type Axis = widget.Axis

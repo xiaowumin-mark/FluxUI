@@ -1,9 +1,9 @@
 package widget
 
 import (
-	"fluxui/internal"
-	"fluxui/layout"
-	"fluxui/theme"
+	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
+	"github.com/xiaowumin-mark/FluxUI/theme"
 )
 
 type fontScopeWidget struct {

@@ -3,7 +3,7 @@ package state
 import (
 	"fmt"
 
-	"fluxui/internal"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
 )
 
 // State 是稳定绑定到组件上下文的泛型状态。
@@ -22,7 +22,7 @@ func Use[T any](ctx *internal.Context) *State[T] {
 
 	cell, ok := value.(*slot[T])
 	if !ok {
-		panic(fmt.Sprintf("fluxui/state: key %q 的状态类型发生变化", key))
+		panic(fmt.Sprintf("github.com/xiaowumin-mark/FluxUIstate: key %q 的状态类型发生变化", key))
 	}
 
 	return &State[T]{

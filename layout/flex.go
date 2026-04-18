@@ -3,7 +3,7 @@ package layout
 import (
 	"image"
 
-	"fluxui/internal"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
 )
 
 // Axis 表示 Flex 主轴。

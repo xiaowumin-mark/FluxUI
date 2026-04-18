@@ -1,8 +1,8 @@
 package widget
 
 import (
-	"fluxui/internal"
-	"fluxui/layout"
+	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
 )
 
 // Widget 是所有 FluxUI 组件的统一接口。

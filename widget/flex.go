@@ -1,8 +1,8 @@
 package widget
 
 import (
-	"fluxui/internal"
-	"fluxui/layout"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	layout "github.com/xiaowumin-mark/FluxUI/layout"
 )
 
 type flexWidget struct {

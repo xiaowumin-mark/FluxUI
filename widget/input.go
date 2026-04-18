@@ -4,10 +4,10 @@ import (
 	"image/color"
 	"strings"
 
-	"fluxui/internal"
-	"fluxui/layout"
-	"fluxui/style"
-	"fluxui/theme"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	layout "github.com/xiaowumin-mark/FluxUI/layout"
+	style "github.com/xiaowumin-mark/FluxUI/style"
+	theme "github.com/xiaowumin-mark/FluxUI/theme"
 
 	"gioui.org/io/key"
 	gioWidget "gioui.org/widget"
@@ -66,7 +66,7 @@ func inputStateFor(ctx *internal.Context) *inputState {
 
 	state, ok := value.(*inputState)
 	if !ok {
-		panic("fluxui/widget: input state type mismatch")
+		panic("github.com/xiaowumin-mark/FluxUIwidget: input state type mismatch")
 	}
 	return state
 }

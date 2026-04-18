@@ -3,7 +3,7 @@ package layout
 import (
 	"image"
 
-	"fluxui/internal"
+	"github.com/xiaowumin-mark/FluxUI/internal"
 )
 
 // Constraints 是 FluxUI 的约束抽象。

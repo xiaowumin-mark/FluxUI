@@ -5,10 +5,10 @@ import (
 	"image"
 	"image/color"
 
-	"fluxui/event"
-	"fluxui/internal"
-	"fluxui/layout"
-	"fluxui/style"
+	event "github.com/xiaowumin-mark/FluxUI/event"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	layout "github.com/xiaowumin-mark/FluxUI/layout"
+	style "github.com/xiaowumin-mark/FluxUI/style"
 
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"
@@ -462,7 +462,7 @@ func selectStateFor(ctx *internal.Context) *selectState {
 	})
 	state, ok := value.(*selectState)
 	if !ok {
-		panic("fluxui/widget: select state type mismatch")
+		panic("github.com/xiaowumin-mark/FluxUIwidget: select state type mismatch")
 	}
 	return state
 }

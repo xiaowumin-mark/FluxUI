@@ -1,4 +1,4 @@
-module fluxui
+module github.com/xiaowumin-mark/FluxUI
 
 go 1.25.0
 

@@ -1,6 +1,6 @@
 package ui
 
-import "fluxui/state"
+import state "github.com/xiaowumin-mark/FluxUI/state"
 
 // Effect 表示渲染后执行的副作用函数，返回 cleanup（可选）。
 type Effect = state.Effect

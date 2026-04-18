@@ -4,9 +4,9 @@ import (
 	"image/color"
 	"strings"
 
-	"fluxui/internal"
-	"fluxui/layout"
-	"fluxui/theme"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	layout "github.com/xiaowumin-mark/FluxUI/layout"
+	theme "github.com/xiaowumin-mark/FluxUI/theme"
 )
 
 // TextAlignment 表示文本对齐。

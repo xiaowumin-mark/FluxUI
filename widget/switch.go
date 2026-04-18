@@ -3,9 +3,9 @@ package widget
 import (
 	"image/color"
 
-	"fluxui/event"
-	"fluxui/internal"
-	"fluxui/layout"
+	event "github.com/xiaowumin-mark/FluxUI/event"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	layout "github.com/xiaowumin-mark/FluxUI/layout"
 )
 
 type SwitchOption func(*switchConfig)

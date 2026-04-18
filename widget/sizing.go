@@ -1,8 +1,8 @@
 package widget
 
 import (
-	"fluxui/internal"
-	"fluxui/layout"
+	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
 )
 
 // FixedWidth 固定子组件宽度。

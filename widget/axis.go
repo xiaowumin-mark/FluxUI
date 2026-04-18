@@ -1,6 +1,6 @@
 package widget
 
-import "fluxui/layout"
+import "github.com/xiaowumin-mark/FluxUI/layout"
 
 // Axis 表示方向。
 type Axis = layout.Axis

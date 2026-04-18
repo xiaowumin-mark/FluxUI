@@ -52,7 +52,7 @@ Minimal app:
 ```go
 package main
 
-import "fluxui/ui"
+import "github.com/xiaowumin-mark/FluxUI"
 
 func main() {
 	_ = ui.Run(func(ctx *ui.Context) ui.Widget {

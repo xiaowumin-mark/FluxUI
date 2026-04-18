@@ -4,8 +4,8 @@ import (
 	"image/color"
 	"math"
 
-	"fluxui/internal"
-	"fluxui/layout"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	layout "github.com/xiaowumin-mark/FluxUI/layout"
 
 	gioWidget "gioui.org/widget"
 )
@@ -167,7 +167,7 @@ func sliderStateFor(ctx *internal.Context) *gioWidget.Float {
 	})
 	state, ok := value.(*gioWidget.Float)
 	if !ok {
-		panic("fluxui/widget: slider state type mismatch")
+		panic("github.com/xiaowumin-mark/FluxUIwidget: slider state type mismatch")
 	}
 	return state
 }

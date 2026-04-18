@@ -3,7 +3,7 @@ package event
 import (
 	"fmt"
 
-	"fluxui/internal"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
 )
 
 // ClickHandler 处理点击事件。
@@ -27,7 +27,7 @@ func UseClickable(ctx *internal.Context) *Clickable {
 
 	clickable, ok := value.(*Clickable)
 	if !ok {
-		panic(fmt.Sprintf("fluxui/event: key %q 的点击状态类型错误", ctx.TreePath()))
+		panic(fmt.Sprintf("github.com/xiaowumin-mark/FluxUIevent: key %q 的点击状态类型错误", ctx.TreePath()))
 	}
 
 	return clickable

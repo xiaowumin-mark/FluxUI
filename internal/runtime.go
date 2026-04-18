@@ -3,7 +3,7 @@ package internal
 import (
 	"reflect"
 
-	"fluxui/theme"
+	theme "github.com/xiaowumin-mark/FluxUI/theme"
 
 	giofont "gioui.org/font"
 	"gioui.org/font/gofont"

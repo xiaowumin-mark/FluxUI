@@ -3,8 +3,8 @@ package main
 import (
 	"image/color"
 
-	"fluxui/theme"
-	"fluxui/ui"
+	theme "github.com/xiaowumin-mark/FluxUI/theme"
+	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
 func main() {

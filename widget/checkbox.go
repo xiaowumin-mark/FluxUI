@@ -4,10 +4,10 @@ import (
 	"image"
 	"image/color"
 
-	"fluxui/event"
-	"fluxui/internal"
-	"fluxui/layout"
-	"fluxui/style"
+	event "github.com/xiaowumin-mark/FluxUI/event"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	layout "github.com/xiaowumin-mark/FluxUI/layout"
+	style "github.com/xiaowumin-mark/FluxUI/style"
 
 	gioLayout "gioui.org/layout"
 )

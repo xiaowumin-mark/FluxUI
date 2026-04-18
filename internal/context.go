@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"fluxui/theme"
+	theme "github.com/xiaowumin-mark/FluxUI/theme"
 
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"fluxui/ui"
+	"github.com/xiaowumin-mark/FluxUI/ui"
 )
 
 type docMeta struct {
@@ -387,7 +387,7 @@ func main() {
 			case "card_basic":
 				return ui.Card(
 					ui.Column(
-						ui.Text("Card 鏍囬", ui.TextSize(15)),
+						ui.Text("Card 卡片", ui.TextSize(15)),
 						ui.Padding(
 							ui.Insets{Top: 6},
 							ui.Text("点击卡片会增加计数。", ui.TextSize(13), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
@@ -405,8 +405,8 @@ func main() {
 				return ui.RadioGroup(
 					radioValue.Value(),
 					[]ui.RadioItem{
-						{Label: "甯冨眬", Value: "layout"},
-						{Label: "杈撳叆", Value: "input"},
+						{Label: "布局", Value: "layout"},
+						{Label: "输入", Value: "input"},
 						{Label: "反馈", Value: "feedback"},
 					},
 					ui.RadioGroupOnChange(func(ctx *ui.Context, value string) {
@@ -417,9 +417,9 @@ func main() {
 				return ui.Select(
 					selectValue.Value(),
 					[]ui.SelectOptionItem[string]{
-						{Label: "浣庝紭鍏堢骇", Value: "low"},
-						{Label: "涓紭鍏堢骇", Value: "medium"},
-						{Label: "楂樹紭鍏堢骇", Value: "high"},
+						{Label: "低优先级", Value: "low"},
+						{Label: "中优先级", Value: "medium"},
+						{Label: "高优先级", Value: "high"},
 					},
 					ui.SelectPlaceholder[string]("请选择优先级"),
 					ui.SelectOnChange[string](func(ctx *ui.Context, value string) {

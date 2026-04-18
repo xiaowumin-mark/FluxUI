@@ -5,9 +5,9 @@ import (
 	"image/color"
 	"time"
 
-	"fluxui/internal"
-	"fluxui/layout"
-	"fluxui/style"
+	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
+	"github.com/xiaowumin-mark/FluxUI/style"
 
 	gioLayout "gioui.org/layout"
 	"gioui.org/op/clip"
@@ -348,7 +348,7 @@ func dialogStateFor(ctx *internal.Context) *dialogState {
 	})
 	state, ok := value.(*dialogState)
 	if !ok {
-		panic("fluxui/widget: dialog state type mismatch")
+		panic("github.com/xiaowumin-mark/FluxUIwidget: dialog state type mismatch")
 	}
 	return state
 }
@@ -499,7 +499,7 @@ func toastStateFor(ctx *internal.Context) *toastState {
 	})
 	state, ok := value.(*toastState)
 	if !ok {
-		panic("fluxui/widget: toast state type mismatch")
+		panic("github.com/xiaowumin-mark/FluxUIwidget: toast state type mismatch")
 	}
 	return state
 }

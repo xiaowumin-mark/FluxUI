@@ -1,6 +1,6 @@
 package event
 
-import "fluxui/internal"
+import "github.com/xiaowumin-mark/FluxUI/internal"
 
 // Dispatcher 统一管理组件事件分发。
 type Dispatcher struct {

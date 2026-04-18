@@ -4,13 +4,13 @@ import (
 	"image/color"
 	"time"
 
-	"fluxui/anim"
-	fluxapp "fluxui/app"
-	"fluxui/internal"
-	"fluxui/state"
-	"fluxui/style"
-	"fluxui/theme"
-	"fluxui/widget"
+	anim "github.com/xiaowumin-mark/FluxUI/anim"
+	fluxapp "github.com/xiaowumin-mark/FluxUI/app"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	state "github.com/xiaowumin-mark/FluxUI/state"
+	style "github.com/xiaowumin-mark/FluxUI/style"
+	theme "github.com/xiaowumin-mark/FluxUI/theme"
+	widget "github.com/xiaowumin-mark/FluxUI/widget"
 )
 
 // Widget 是对外暴露的统一组件接口。

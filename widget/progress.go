@@ -5,8 +5,8 @@ import (
 	"image"
 	"image/color"
 
-	"fluxui/internal"
-	"fluxui/layout"
+	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
 
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"

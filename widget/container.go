@@ -3,9 +3,9 @@ package widget
 import (
 	"image"
 
-	"fluxui/internal"
-	"fluxui/layout"
-	"fluxui/style"
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	layout "github.com/xiaowumin-mark/FluxUI/layout"
+	style "github.com/xiaowumin-mark/FluxUI/style"
 )
 
 type containerWidget struct {

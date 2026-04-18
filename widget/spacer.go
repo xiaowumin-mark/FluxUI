@@ -3,8 +3,8 @@ package widget
 import (
 	"image"
 
-	"fluxui/internal"
-	"fluxui/layout"
+	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
 )
 
 type spacerWidget struct {
