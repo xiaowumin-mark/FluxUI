@@ -52,7 +52,7 @@ Minimal app:
 ```go
 package main
 
-import "github.com/xiaowumin-mark/FluxUI"
+import ui "github.com/xiaowumin-mark/FluxUI/ui"
 
 func main() {
 	_ = ui.Run(func(ctx *ui.Context) ui.Widget {
@@ -84,6 +84,7 @@ go run ./examples/hooks_lifecycle
 go run ./examples/multi_window
 go run ./examples/vscode_layout
 go run ./examples/docs_browser
+go run ./examples/network_request
 ```
 
 ## Docs
@@ -110,6 +111,20 @@ fluxui/
 └── docs/       # framework docs
 ```
 
+## Build
+
+> Before Building, please install `gogio cmd` `go install gioui.org/cmd/gogio@latest`
+
+```bash
+gogio -target [platform] -o [output] [package]
+```
+
+Example:
+
+```bash
+gogio -target windows -o example.exe ./examples/counter
+```
+
 ## Test
 
 ```bash
@@ -125,4 +140,3 @@ Before submitting:
 1. Keep module boundaries clean
 2. Add docs and examples for new features
 3. Run `go test ./...` and ensure it passes
-

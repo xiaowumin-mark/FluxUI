@@ -52,7 +52,7 @@ go run ./examples/counter
 ```go
 package main
 
-import "github.com/xiaowumin-mark/FluxUI"
+import ui "github.com/xiaowumin-mark/FluxUI/ui"
 
 func main() {
 	_ = ui.Run(func(ctx *ui.Context) ui.Widget {
@@ -84,7 +84,23 @@ go run ./examples/hooks_lifecycle
 go run ./examples/multi_window
 go run ./examples/vscode_layout
 go run ./examples/docs_browser
+go run ./examples/network_request
 ```
+
+## 构建项目
+
+> 需要先安装gogio cmd `go install gioui.org/cmd/gogio@latest`
+
+```bash
+gogio -target [platform] -o [output] [package]
+```
+
+示例：
+
+```bash
+gogio -target windows -o example.exe ./examples/counter
+```
+
 
 ## 文档
 
@@ -124,4 +140,3 @@ go test ./...
 1. 保持模块边界清晰，不跨层依赖
 2. 为新增能力补充示例与文档
 3. 运行 `go test ./...` 确保通过
-

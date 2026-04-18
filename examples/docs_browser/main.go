@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"image/color"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -41,34 +43,61 @@ type menuEntry struct {
 	Doc        *widgetDoc
 }
 
+type remoteLoadResult struct {
+	Docs []widgetDoc
+	Err  error
+}
+
+type githubContentEntry struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	DownloadURL string `json:"download_url"`
+}
+
+const (
+	githubWidgetsAPIURL = "https://api.github.com/repos/xiaowumin-mark/FluxUI/contents/docs/widgets?ref=main"
+	githubWidgetsRawURL = "https://raw.githubusercontent.com/xiaowumin-mark/FluxUI/main/docs/widgets/"
+)
+
 func main() {
 	docs, loadErr := loadWidgetDocs()
+	docsSource := "local"
+	onlineLoading := false
+	var onlineErr error
+	onlineResultCh := make(chan remoteLoadResult, 1)
 	if len(docs) == 0 {
-		docs = []widgetDoc{
-			{
-				Meta: docMeta{
-					ID:       "load_error",
-					Title:    "文档加载失败",
-					Category: "系统",
-					Order:    1,
-					Summary:  "未能读取 docs/widgets 下的组件文档。",
-					Example:  docDemo{ID: "fallback"},
-				},
-				Content: strings.Join([]string{
-					"# 文档加载失败",
-					"",
-					"请检查以下内容：",
-					"- `docs/widgets` 目录是否存在",
-					"- 组件文档是否包含 `fluxui-doc-meta` 元数据块",
-					"- Markdown 文件是否为 UTF-8 编码",
-					"",
-					"你可以先查看 `docs/README.md` 中定义的文档格式。",
-				}, "\n"),
-			},
-		}
+		docsSource = "online"
+		onlineLoading = true
+		docs = []widgetDoc{buildOnlineLoadingDoc(loadErr)}
+		go func() {
+			remoteDocs, err := loadWidgetDocsFromGitHub()
+			onlineResultCh <- remoteLoadResult{Docs: remoteDocs, Err: err}
+		}()
 	}
 
 	_ = ui.Run(func(ctx *ui.Context) ui.Widget {
+		if onlineLoading {
+			select {
+			case result := <-onlineResultCh:
+				onlineLoading = false
+				onlineErr = result.Err
+				if len(result.Docs) > 0 {
+					docs = result.Docs
+					loadErr = nil
+				} else {
+					docs = []widgetDoc{buildOnlineLoadFailedDoc(loadErr, onlineErr)}
+					if loadErr != nil && onlineErr != nil {
+						loadErr = fmt.Errorf("本地加载失败: %v；在线加载失败: %v", loadErr, onlineErr)
+					} else if onlineErr != nil {
+						loadErr = fmt.Errorf("在线加载失败: %w", onlineErr)
+					}
+				}
+			default:
+				// 在线请求在后台进行；加载期间持续请求下一帧，确保结果到达后立即刷新 UI。
+				ctx.RequestRedraw()
+			}
+		}
+
 		th := ui.UseTheme(ctx)
 
 		selectedDocID := ui.State[string](ctx)
@@ -759,6 +788,14 @@ func main() {
 			)
 		}
 
+		docCountText := fmt.Sprintf("已加载 %d 个控件文档（%s）", len(docs), map[string]string{
+			"online": "在线",
+			"local":  "本地",
+		}[docsSource])
+		if onlineLoading {
+			docCountText = "本地文档不可用，正在异步加载在线文档..."
+		}
+
 		leftPanel := ui.FixedWidth(
 			300,
 			ui.Container(
@@ -771,7 +808,7 @@ func main() {
 					ui.Padding(
 						ui.Insets{Top: 8},
 						ui.Text(
-							fmt.Sprintf("已加载 %d 个控件文档", len(docs)),
+							docCountText,
 							ui.TextSize(12),
 							ui.TextColor(ui.NRGBA(100, 116, 139, 255)),
 						),
@@ -800,6 +837,20 @@ func main() {
 						),
 					),
 					func() ui.Widget {
+						if onlineLoading {
+							msg := "本地文档读取失败，正在加载 GitHub 在线文档..."
+							if loadErr != nil {
+								msg += " 原因: " + loadErr.Error()
+							}
+							return ui.Padding(
+								ui.Insets{Top: 8},
+								ui.Text(
+									msg,
+									ui.TextSize(11),
+									ui.TextColor(ui.NRGBA(180, 83, 9, 255)),
+								),
+							)
+						}
 						if loadErr == nil {
 							return ui.Spacer(0, 0)
 						}
@@ -1103,6 +1154,171 @@ func loadWidgetDocs() ([]widgetDoc, error) {
 	})
 
 	return docs, nil
+}
+
+func loadWidgetDocsFromGitHub() ([]widgetDoc, error) {
+	client := &http.Client{Timeout: 15 * time.Second}
+	entries, err := fetchGitHubDocsEntries(client)
+	if err != nil {
+		return nil, err
+	}
+
+	docs := make([]widgetDoc, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Type != "file" {
+			continue
+		}
+		if !strings.HasSuffix(strings.ToLower(entry.Name), ".md") {
+			continue
+		}
+
+		url := strings.TrimSpace(entry.DownloadURL)
+		if url == "" {
+			url = githubWidgetsRawURL + entry.Name
+		}
+
+		text, err := fetchHTTPText(client, url)
+		if err != nil {
+			continue
+		}
+		doc, err := parseWidgetDoc(url, text)
+		if err != nil {
+			continue
+		}
+		docs = append(docs, doc)
+	}
+
+	if len(docs) == 0 {
+		return nil, errors.New("GitHub docs/widgets 下没有可解析的组件文档")
+	}
+
+	sort.Slice(docs, func(i, j int) bool {
+		a := docs[i].Meta
+		b := docs[j].Meta
+		if a.Category != b.Category {
+			return a.Category < b.Category
+		}
+		if a.Order != b.Order {
+			return a.Order < b.Order
+		}
+		return a.Title < b.Title
+	})
+
+	return docs, nil
+}
+
+func fetchGitHubDocsEntries(client *http.Client) ([]githubContentEntry, error) {
+	body, err := fetchHTTPBytes(client, githubWidgetsAPIURL, true)
+	if err != nil {
+		return nil, err
+	}
+	var entries []githubContentEntry
+	if err := json.Unmarshal(body, &entries); err != nil {
+		return nil, fmt.Errorf("解析 GitHub 文档目录失败: %w", err)
+	}
+	return entries, nil
+}
+
+func fetchHTTPText(client *http.Client, url string) (string, error) {
+	data, err := fetchHTTPBytes(client, url, false)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func fetchHTTPBytes(client *http.Client, url string, api bool) ([]byte, error) {
+	if client == nil {
+		client = &http.Client{Timeout: 15 * time.Second}
+	}
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "FluxUI-DocsBrowser")
+	if api {
+		req.Header.Set("Accept", "application/vnd.github+json")
+	} else {
+		req.Header.Set("Accept", "text/plain, */*")
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		snippet := strings.TrimSpace(string(data))
+		if len(snippet) > 160 {
+			snippet = snippet[:160] + "..."
+		}
+		if snippet != "" {
+			return nil, fmt.Errorf("请求 %s 失败: HTTP %d, %s", url, resp.StatusCode, snippet)
+		}
+		return nil, fmt.Errorf("请求 %s 失败: HTTP %d", url, resp.StatusCode)
+	}
+	return data, nil
+}
+
+func buildOnlineLoadingDoc(localErr error) widgetDoc {
+	lines := []string{
+		"# 正在加载在线文档",
+		"",
+		"本地 `docs/widgets` 不可用，正在从 GitHub 拉取在线 Markdown 文档。",
+		"",
+		"在线来源：",
+		"- https://github.com/xiaowumin-mark/FluxUI/tree/main/docs/widgets",
+	}
+	if localErr != nil {
+		lines = append(lines, "", "本地错误："+localErr.Error())
+	}
+	return widgetDoc{
+		Meta: docMeta{
+			ID:       "loading_online_docs",
+			Title:    "在线文档加载中",
+			Category: "系统",
+			Order:    1,
+			Summary:  "本地文档不可用，正在异步加载在线文档。",
+			Example:  docDemo{ID: "fallback"},
+		},
+		Content: strings.Join(lines, "\n"),
+		Path:    githubWidgetsAPIURL,
+	}
+}
+
+func buildOnlineLoadFailedDoc(localErr, onlineErr error) widgetDoc {
+	lines := []string{
+		"# 文档加载失败",
+		"",
+		"本地与在线文档都未能加载，请检查：",
+		"- 本地 `docs/widgets` 目录是否存在且可读",
+		"- 网络连接是否可访问 GitHub",
+		"- 文档文件是否包含 `fluxui-doc-meta` 元数据块",
+	}
+	if localErr != nil {
+		lines = append(lines, "", "本地错误："+localErr.Error())
+	}
+	if onlineErr != nil {
+		lines = append(lines, "在线错误："+onlineErr.Error())
+	}
+	return widgetDoc{
+		Meta: docMeta{
+			ID:       "load_error",
+			Title:    "文档加载失败",
+			Category: "系统",
+			Order:    1,
+			Summary:  "本地与在线文档均不可用。",
+			Example:  docDemo{ID: "fallback"},
+		},
+		Content: strings.Join(lines, "\n"),
+		Path:    githubWidgetsAPIURL,
+	}
 }
 
 func resolveDocsWidgetsDir() (string, error) {
