@@ -179,7 +179,7 @@ func (r *imageRenderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		bg = r.owner.config.background
 	}
 
-	radius := gtx.Dp(safeDp(r.owner.config.radius))
+	radius := clampRRectRadiusPx(size, gtx.Dp(safeDp(r.owner.config.radius)))
 	clipArea := clip.UniformRRect(image.Rectangle{Max: size}, radius).Push(gtx.Ops)
 	paint.Fill(gtx.Ops, bg)
 

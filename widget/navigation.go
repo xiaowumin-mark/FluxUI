@@ -84,13 +84,13 @@ func (a *appBarWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	content := Row(
 		left,
-		Padding(style.Insets{Left: 12, Right: 12}, center),
+		Expanded(Padding(style.Insets{Left: 12, Right: 12}, center)),
 		right,
 	)
 	if len(a.config.actions) > 0 {
 		content = Row(
 			left,
-			Padding(style.Insets{Left: 12, Right: 12}, center),
+			Expanded(Padding(style.Insets{Left: 12, Right: 12}, center)),
 			ScrollView(
 				right,
 				ScrollHorizontal(true),

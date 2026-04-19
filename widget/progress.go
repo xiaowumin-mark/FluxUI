@@ -124,6 +124,18 @@ func ProgressSize(size float32) ProgressOption {
 }
 
 func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	gtx := ctx.Gtx
+	// 线性进度条不应继承父级强制最小尺寸，否则在某些 Flex/List 场景会被拉成整行高度。
+	gtx.Constraints.Min = image.Point{}
+	if gtx.Constraints.Min.X > gtx.Constraints.Max.X {
+		gtx.Constraints.Min.X = gtx.Constraints.Max.X
+	}
+	if gtx.Constraints.Min.Y > gtx.Constraints.Max.Y {
+		gtx.Constraints.Min.Y = gtx.Constraints.Max.Y
+	}
+	ctx = ctx.Scope("progress")
+	ctx.Gtx = gtx
+
 	track := ctx.Theme().SurfaceMuted
 	fill := ctx.Theme().Primary
 	if p.config.hasTrackColor {
@@ -206,7 +218,14 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			return image.Point{}
 		}
 
-		paint.FillShape(contentCtx.Gtx.Ops, track, clip.UniformRRect(image.Rectangle{Max: total}, total.Y/2).Op(contentCtx.Gtx.Ops))
+		trackRadius := total.Y / 2
+		if maxTrackRadius := total.X / 2; maxTrackRadius < trackRadius {
+			trackRadius = maxTrackRadius
+		}
+		if trackRadius < 0 {
+			trackRadius = 0
+		}
+		paint.FillShape(contentCtx.Gtx.Ops, track, clip.UniformRRect(image.Rectangle{Max: total}, trackRadius).Op(contentCtx.Gtx.Ops))
 
 		fillW := int(float32(total.X) * progress)
 		if fillW < 0 {
@@ -217,7 +236,14 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 		if fillW > 0 {
 			fillRect := image.Rectangle{Max: image.Point{X: fillW, Y: total.Y}}
-			paint.FillShape(contentCtx.Gtx.Ops, fill, clip.UniformRRect(fillRect, total.Y/2).Op(contentCtx.Gtx.Ops))
+			fillRadius := total.Y / 2
+			if maxFillRadius := fillW / 2; maxFillRadius < fillRadius {
+				fillRadius = maxFillRadius
+			}
+			if fillRadius < 0 {
+				fillRadius = 0
+			}
+			paint.FillShape(contentCtx.Gtx.Ops, fill, clip.UniformRRect(fillRect, fillRadius).Op(contentCtx.Gtx.Ops))
 		}
 
 		return total

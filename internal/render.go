@@ -645,7 +645,7 @@ func fillRoundedRect(gtx gioLayout.Context, size image.Point, background color.N
 	if size.X <= 0 || size.Y <= 0 || background.A == 0 {
 		return
 	}
-	rr := gtx.Dp(unit.Dp(radius))
+	rr := clampRoundedRadiusPx(size, gtx.Dp(unit.Dp(radius)))
 	defer clip.UniformRRect(image.Rectangle{Max: size}, rr).Push(gtx.Ops).Pop()
 	paint.Fill(gtx.Ops, background)
 }
@@ -667,11 +667,29 @@ func drawBorder(gtx gioLayout.Context, size image.Point, borderColor color.NRGBA
 		return
 	}
 
-	rr := gtx.Dp(unit.Dp(radius))
+	rr := clampRoundedRadiusPx(image.Point{X: rect.Dx(), Y: rect.Dy()}, gtx.Dp(unit.Dp(radius)))
 	paint.FillShape(gtx.Ops, borderColor, clip.Stroke{
 		Path:  clip.UniformRRect(rect, rr).Path(gtx.Ops),
 		Width: float32(width),
 	}.Op())
+}
+
+func clampRoundedRadiusPx(size image.Point, rr int) int {
+	if rr <= 0 || size.X <= 0 || size.Y <= 0 {
+		return 0
+	}
+	limit := size.X
+	if size.Y < limit {
+		limit = size.Y
+	}
+	limit /= 2
+	if limit < 0 {
+		return 0
+	}
+	if rr > limit {
+		return limit
+	}
+	return rr
 }
 
 func toTextAlignment(alignment Alignment) gioText.Alignment {

@@ -127,12 +127,22 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	trackColor := s.config.trackColor
+	trackColor := ctx.Theme().SurfaceMuted
+	if s.config.hasTrackColor {
+		trackColor = s.config.trackColor
+	}
 	if s.value {
-		trackColor = s.config.color
+		if s.config.hasColor {
+			trackColor = s.config.color
+		} else {
+			trackColor = ctx.Theme().Primary
+		}
 	}
 
-	thumbColor := s.config.thumbColor
+	thumbColor := ctx.Theme().Surface
+	if s.config.hasThumbColor {
+		thumbColor = s.config.thumbColor
+	}
 
 	size := ctx.LayoutSwitch(clickable.Handle(), s.value, internal.SwitchSpec{
 		Width:      s.config.width,

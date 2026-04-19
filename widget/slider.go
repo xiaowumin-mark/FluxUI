@@ -137,9 +137,18 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	sliderState.Value = progress
 	before := sliderState.Value
 
-	trackColor := s.config.trackColor
-	thumbColor := s.config.thumbColor
-	progressColor := s.config.progressColor
+	trackColor := ctx.Theme().SurfaceMuted
+	if s.config.hasTrackColor {
+		trackColor = s.config.trackColor
+	}
+	thumbColor := ctx.Theme().Primary
+	if s.config.hasThumbColor {
+		thumbColor = s.config.thumbColor
+	}
+	progressColor := ctx.Theme().Primary
+	if s.config.hasProgressColor {
+		progressColor = s.config.progressColor
+	}
 
 	size := ctx.LayoutSlider(sliderState, internal.SliderSpec{
 		Width:         s.config.width,

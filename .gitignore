@@ -1,3 +1,11 @@
 /refs
 draft.md
 project_structure.md
+/build
+/out
+
+*.log
+*.exe
+*.syso
+*.dll
+*.so

@@ -73,17 +73,18 @@ func inputStateFor(ctx *internal.Context) *inputState {
 
 func TextField(value string, opts ...InputOption) Widget {
 	cfg := inputConfig{
-		padding:     style.Symmetric(8, 12),
-		radius:      8,
-		border:      color.NRGBA{R: 200, G: 200, B: 200, A: 255},
-		borderFocus: color.NRGBA{R: 66, G: 133, B: 244, A: 255},
-		background:  color.NRGBA{R: 255, G: 255, B: 255, A: 255},
-		foreground:  color.NRGBA{R: 0, G: 0, B: 0, A: 255},
-		placeholder: "Enter text...",
-		textSize:    16,
-		maxLen:      0,
-		password:    false,
-		singleLine:  true,
+		padding:        style.Symmetric(8, 12),
+		radius:         8,
+		border:         color.NRGBA{R: 200, G: 200, B: 200, A: 255},
+		borderFocus:    color.NRGBA{R: 66, G: 133, B: 244, A: 255},
+		background:     color.NRGBA{R: 255, G: 255, B: 255, A: 255},
+		foreground:     color.NRGBA{R: 0, G: 0, B: 0, A: 255},
+		placeholder:    "Enter text...",
+		textSize:       16,
+		maxLen:         0,
+		password:       false,
+		singleLine:     true,
+		hasBorderFocus: true,
 	}
 	for _, opt := range opts {
 		opt(&cfg)

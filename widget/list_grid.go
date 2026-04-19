@@ -338,11 +338,9 @@ func drawScrollbarOnAxis(
 	paint.FillShape(ctx.Gtx.Ops, thumbColor, clip.UniformRRect(thumb, radius).Op(ctx.Gtx.Ops))
 
 	trackOffset := op.Offset(track.Min).Push(ctx.Gtx.Ops)
-	passDrag := pointer.PassOp{}.Push(ctx.Gtx.Ops)
 	trackArea := clip.Rect(image.Rectangle{Max: image.Point{X: track.Dx(), Y: track.Dy()}}).Push(ctx.Gtx.Ops)
 	state.bar.AddDrag(ctx.Gtx.Ops)
 	trackArea.Pop()
-	passDrag.Pop()
 
 	passTrack := pointer.PassOp{}.Push(ctx.Gtx.Ops)
 	trackArea = clip.Rect(image.Rectangle{Max: image.Point{X: track.Dx(), Y: track.Dy()}}).Push(ctx.Gtx.Ops)

@@ -42,6 +42,24 @@ func clampPointToConstraints(size image.Point, min, max image.Point) image.Point
 	return size
 }
 
+func clampRRectRadiusPx(size image.Point, rr int) int {
+	if rr <= 0 || size.X <= 0 || size.Y <= 0 {
+		return 0
+	}
+	limit := size.X
+	if size.Y < limit {
+		limit = size.Y
+	}
+	limit /= 2
+	if limit < 0 {
+		return 0
+	}
+	if rr > limit {
+		return limit
+	}
+	return rr
+}
+
 type expandWidthWidget struct {
 	child Widget
 }
