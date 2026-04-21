@@ -24,3 +24,21 @@ func UseMount(ctx *Context, effect Effect) {
 func UseLifecycle(ctx *Context, onMount func(), onUnmount func()) {
 	state.UseLifecycle(ctx, onMount, onUnmount)
 }
+
+// AsyncStatus 表示异步操作的状态。
+type AsyncStatus = state.AsyncStatus
+
+// AsyncHandle 是异步操作的句柄。
+type AsyncHandle[T any] = state.AsyncHandle[T]
+
+const (
+	AsyncIdle    = state.AsyncIdle
+	AsyncLoading = state.AsyncLoading
+	AsyncSuccess = state.AsyncSuccess
+	AsyncError   = state.AsyncError
+)
+
+// UseAsync 创建或读取当前作用域下的异步状态。
+func UseAsync[T any](ctx *Context) *AsyncHandle[T] {
+	return state.UseAsync[T](ctx)
+}

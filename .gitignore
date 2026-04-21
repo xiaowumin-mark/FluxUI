@@ -3,6 +3,7 @@ draft.md
 project_structure.md
 /build
 /out
+/.claude
 
 *.log
 *.exe

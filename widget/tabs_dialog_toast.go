@@ -185,6 +185,8 @@ type dialogConfig struct {
 	width        float32
 	radius       float32
 	maskClosable bool
+	confirmText  string
+	cancelText   string
 	onOpenChange func(ctx *internal.Context, open bool)
 	onConfirm    func(ctx *internal.Context)
 	onCancel     func(ctx *internal.Context)
@@ -206,6 +208,8 @@ func Dialog(open bool, child Widget, opts ...DialogOption) Widget {
 	cfg := dialogConfig{
 		radius:       12,
 		maskClosable: true,
+		confirmText:  "确定",
+		cancelText:   "取消",
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -256,6 +260,20 @@ func DialogOnConfirm(fn func(ctx *internal.Context)) DialogOption {
 func DialogOnCancel(fn func(ctx *internal.Context)) DialogOption {
 	return func(cfg *dialogConfig) {
 		cfg.onCancel = fn
+	}
+}
+
+// DialogConfirmText 自定义确认按钮文案。
+func DialogConfirmText(text string) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.confirmText = text
+	}
+}
+
+// DialogCancelText 自定义取消按钮文案。
+func DialogCancelText(text string) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.cancelText = text
 	}
 }
 
@@ -310,10 +328,10 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	actions := make([]Widget, 0, 2)
 	if d.config.onCancel != nil {
-		actions = append(actions, Button(Text("取消"), OnClick(d.config.onCancel)))
+		actions = append(actions, Button(Text(d.config.cancelText), OnClick(d.config.onCancel)))
 	}
 	if d.config.onConfirm != nil {
-		actions = append(actions, Padding(style.Insets{Left: 8}, Button(Text("确定"), OnClick(d.config.onConfirm))))
+		actions = append(actions, Padding(style.Insets{Left: 8}, Button(Text(d.config.confirmText), OnClick(d.config.onConfirm))))
 	}
 	if len(actions) > 0 {
 		parts = append(parts, Padding(style.Insets{Top: 12}, Row(actions...)))
@@ -579,4 +597,174 @@ func (f *fillWidgetDef) Layout(ctx *internal.Context) layout.Dimensions {
 		}),
 		f.onClick,
 	).Layout(ctx.Child(0))
+}
+
+// PopupOption 弹窗配置。
+type PopupOption func(*popupConfig)
+
+type popupConfig struct {
+	width        float32
+	radius       float32
+	maskClosable bool
+	background   color.NRGBA
+	hasBackground bool
+	padding      style.Insets
+	hasPadding   bool
+	onOpenChange func(ctx *internal.Context, open bool)
+	ref          *DialogRef
+}
+
+type popupWidget struct {
+	open   bool
+	child  Widget
+	config popupConfig
+}
+
+// Popup 创建自定义内容弹窗，内部内容完全由用户定义。
+func Popup(open bool, child Widget, opts ...PopupOption) Widget {
+	cfg := popupConfig{
+		radius:       12,
+		maskClosable: true,
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	return &popupWidget{
+		open:   open,
+		child:  child,
+		config: cfg,
+	}
+}
+
+// PopupWidth 设置弹窗宽度。
+func PopupWidth(width float32) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.width = width
+	}
+}
+
+// PopupRadius 设置弹窗圆角。
+func PopupRadius(radius float32) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.radius = radius
+	}
+}
+
+// PopupMaskClosable 设置点击遮罩是否关闭弹窗。
+func PopupMaskClosable(maskClosable bool) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.maskClosable = maskClosable
+	}
+}
+
+// PopupBackground 设置弹窗背景色。
+func PopupBackground(bg color.NRGBA) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.background = bg
+		cfg.hasBackground = true
+	}
+}
+
+// PopupPadding 设置弹窗内边距。
+func PopupPadding(insets style.Insets) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.padding = insets
+		cfg.hasPadding = true
+	}
+}
+
+// PopupOnOpenChange 监听弹窗打开/关闭。
+func PopupOnOpenChange(fn func(ctx *internal.Context, open bool)) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.onOpenChange = fn
+	}
+}
+
+// PopupAttachRef 绑定命令型引用，用于外部主动打开/关闭弹窗。
+func PopupAttachRef(ref *DialogRef) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.ref = ref
+	}
+}
+
+func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	open := p.open
+	if p.config.ref != nil {
+		p.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		for _, cmd := range p.config.ref.drainCommands() {
+			next := open
+			switch cmd.kind {
+			case boolCmdSet:
+				next = cmd.value
+			case boolCmdToggle:
+				next = !open
+			}
+			open = next
+		}
+	}
+
+	state := popupStateFor(ctx)
+	if p.config.onOpenChange != nil && state.wasOpen != open {
+		state.wasOpen = open
+		p.config.onOpenChange(ctx, open)
+	}
+	if !open {
+		return layout.Dimensions{}
+	}
+
+	mask := fillWidget(func(maskCtx *internal.Context, size image.Point) {
+		if size.X <= 0 || size.Y <= 0 {
+			return
+		}
+		paint.FillShape(maskCtx.Gtx.Ops, color.NRGBA{A: 120}, clip.Rect(image.Rectangle{Max: size}).Op())
+	}, p.config.maskClosable && p.config.onOpenChange != nil, func(maskCtx *internal.Context) {
+		p.config.onOpenChange(maskCtx, false)
+	})
+
+	bg := ctx.Theme().Surface
+	if p.config.hasBackground {
+		bg = p.config.background
+	}
+	padding := style.All(0)
+	if p.config.hasPadding {
+		padding = p.config.padding
+	}
+
+	var panel Widget
+	panel = Container(
+		style.Style{
+			Background: bg,
+			Padding:    padding,
+			Radius:     p.config.radius,
+		},
+		p.child,
+	)
+	if p.config.width > 0 {
+		panel = &fixedSizeWidget{
+			width: p.config.width,
+			child: panel,
+		}
+	}
+
+	content := anchoredOverlayWidget(panel, gioLayout.Center)
+
+	return Stack(
+		mask,
+		content,
+	).Layout(ctx.Child(0))
+}
+
+type popupState struct {
+	wasOpen bool
+}
+
+func popupStateFor(ctx *internal.Context) *popupState {
+	value := ctx.Memo("popup", func() any {
+		return &popupState{}
+	})
+	state, ok := value.(*popupState)
+	if !ok {
+		panic("github.com/xiaowumin-mark/FluxUIwidget: popup state type mismatch")
+	}
+	return state
 }

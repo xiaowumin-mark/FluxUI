@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"math"
 	"reflect"
+	"strconv"
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
@@ -572,6 +573,21 @@ func listViewStateFor(ctx *internal.Context) *listViewState {
 	return state
 }
 
+type gridViewState struct {
+	list        gioLayout.List
+	viewportMaj int
+	reachCalled bool
+}
+
+func gridViewStateFor(ctx *internal.Context) *gridViewState {
+	value := ctx.Memo("grid-view", func() any {
+		return &gridViewState{
+			list: gioLayout.List{Axis: gioLayout.Vertical},
+		}
+	})
+	return value.(*gridViewState)
+}
+
 // GridOption 定义网格配置。
 type GridOption func(*gridConfig)
 
@@ -580,6 +596,7 @@ type gridConfig struct {
 	colGap       float32
 	padding      style.Insets
 	minItemWidth float32
+	onReachEnd   func(ctx *internal.Context)
 }
 
 type gridWidget struct {
@@ -643,6 +660,12 @@ func GridMinItemWidth(width float32) GridOption {
 	}
 }
 
+func GridOnReachEnd(fn func(ctx *internal.Context)) GridOption {
+	return func(cfg *gridConfig) {
+		cfg.onReachEnd = fn
+	}
+}
+
 func (g *gridWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	cols := g.resolveColumns(ctx)
 	return buildGrid(cols, g.children, g.config).Layout(ctx.Child(0))
@@ -652,15 +675,94 @@ func (g *gridViewWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if g.builder == nil || g.count <= 0 {
 		return layout.Dimensions{}
 	}
-	items := make([]Widget, 0, g.count)
-	for i := 0; i < g.count; i++ {
-		w := g.builder(ctx.Child(i), i)
-		if w != nil {
-			items = append(items, w)
-		}
-	}
+
 	cols := g.resolveColumns(ctx)
-	return buildGrid(cols, items, g.config).Layout(ctx.Child(0))
+	rowCount := (g.count + cols - 1) / cols
+
+	state := gridViewStateFor(ctx)
+	state.list.Axis = gioLayout.Vertical
+
+	listChild := layoutWidgetFunc(func(listCtx *internal.Context) layout.Dimensions {
+		dims := state.list.Layout(listCtx.Gtx, rowCount, func(gtx gioLayout.Context, rowIndex int) gioLayout.Dimensions {
+			startIdx := rowIndex * cols
+			endIdx := startIdx + cols
+			if endIdx > g.count {
+				endIdx = g.count
+			}
+
+			next := *listCtx
+			next.Gtx = gtx
+			rowCtx := next.Scope(strconv.Itoa(rowIndex))
+
+			rowChildren := make([]Widget, 0, cols)
+			for i := startIdx; i < endIdx; i++ {
+				cell := g.builder(rowCtx.Child(i-startIdx), i)
+				if cell == nil {
+					cell = layoutWidgetFunc(func(_ *internal.Context) layout.Dimensions {
+						return layout.Dimensions{}
+					})
+				}
+				if g.config.colGap > 0 && i < endIdx-1 {
+					cell = Padding(style.Insets{Right: g.config.colGap}, cell)
+				}
+				rowChildren = append(rowChildren, cell)
+			}
+
+			for i := endIdx - startIdx; i < cols; i++ {
+				empty := layoutWidgetFunc(func(_ *internal.Context) layout.Dimensions {
+					return layout.Dimensions{}
+				})
+				if g.config.colGap > 0 && i < cols-1 {
+					rowChildren = append(rowChildren, Padding(style.Insets{Right: g.config.colGap}, empty))
+				} else {
+					rowChildren = append(rowChildren, empty)
+				}
+			}
+
+			row := Row(rowChildren...)
+			if g.config.rowGap > 0 && rowIndex < rowCount-1 {
+				row = Padding(style.Insets{Bottom: g.config.rowGap}, row)
+			}
+
+			childDims := row.Layout(rowCtx.Child(cols))
+			return gioLayout.Dimensions{Size: childDims.Size}
+		})
+		state.viewportMaj = dims.Size.Y
+		return layout.Dimensions{Size: dims.Size}
+	})
+
+	var root Widget = expandWidth(listChild)
+	if !g.config.padding.IsZero() {
+		root = Padding(g.config.padding, root)
+		root = expandWidth(root)
+	}
+
+	dims := root.Layout(ctx.Child(0))
+	g.dispatchReachEnd(ctx, state, rowCount)
+	return dims
+}
+
+func (g *gridViewWidget) dispatchReachEnd(ctx *internal.Context, state *gridViewState, rowCount int) {
+	if g.config.onReachEnd == nil || state == nil || rowCount <= 0 {
+		return
+	}
+	pos := state.list.Position
+	if pos.Count <= 0 {
+		state.reachCalled = false
+		return
+	}
+	atEnd := !pos.BeforeEnd && pos.First+pos.Count >= rowCount
+	if !atEnd && state.viewportMaj > 0 && pos.Length > 0 {
+		_, viewportEnd := viewportFromListPosition(pos, rowCount, state.viewportMaj)
+		atEnd = viewportEnd >= 0.999
+	}
+	if atEnd && !state.reachCalled {
+		state.reachCalled = true
+		g.config.onReachEnd(ctx)
+	}
+	if !atEnd {
+		state.reachCalled = false
+	}
 }
 
 func (g *gridWidget) resolveColumns(ctx *internal.Context) int {

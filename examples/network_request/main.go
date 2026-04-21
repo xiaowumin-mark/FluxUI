@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
@@ -22,33 +21,14 @@ type githubRepo struct {
 	UpdatedAt   string `json:"updated_at"`
 }
 
-type fetchState struct {
-	mu      sync.Mutex
-	loading bool
-	result  *githubRepo
-	errMsg  string
-	doneAt  time.Time
-}
-
 func main() {
-	fetcher := &fetchState{}
-
 	_ = ui.Run(func(ctx *ui.Context) ui.Widget {
 		th := ui.UseTheme(ctx)
 
 		owner := ui.State[string](ctx)
 		repo := ui.State[string](ctx)
 		inited := ui.State[bool](ctx)
-
-		loading := ui.State[bool](ctx)
-		errorMsg := ui.State[string](ctx)
-		lastUpdated := ui.State[string](ctx)
-		fullName := ui.State[string](ctx)
-		description := ui.State[string](ctx)
-		language := ui.State[string](ctx)
-		stars := ui.State[int](ctx)
-		forks := ui.State[int](ctx)
-		openIssues := ui.State[int](ctx)
+		fetch := ui.UseAsync[*githubRepo](ctx)
 
 		if !inited.Value() {
 			owner.Set("xiaowumin-mark")
@@ -60,191 +40,111 @@ func main() {
 			o := strings.TrimSpace(owner.Value())
 			r := strings.TrimSpace(repo.Value())
 			if o == "" || r == "" {
-				errorMsg.Set("仓库 owner/repo 不能为空")
 				return
 			}
-			if !fetcher.start(o, r) {
-				return
-			}
-			loading.Set(true)
-			errorMsg.Set("")
+			fetch.Run(func() (*githubRepo, error) {
+				return fetchRepo(o, r)
+			})
 		}
-
-		if loading.Value() {
-			done, result, errMsg, doneAt := fetcher.poll()
-			if done {
-				loading.Set(false)
-				if errMsg != "" {
-					errorMsg.Set(errMsg)
-				} else if result != nil {
-					errorMsg.Set("")
-					fullName.Set(result.FullName)
-					description.Set(strings.TrimSpace(result.Description))
-					language.Set(strings.TrimSpace(result.Language))
-					stars.Set(result.Stars)
-					forks.Set(result.Forks)
-					openIssues.Set(result.OpenIssues)
-
-					displayTime := doneAt
-					if displayTime.IsZero() {
-						displayTime = time.Now()
-					}
-					lastUpdated.Set(displayTime.Format("2006-01-02 15:04:05"))
-				}
-			} else {
-				ctx.RequestRedraw()
-			}
-		}
-
-		infoLines := []ui.Widget{
-			ui.Text("网络请求示例（异步，不阻塞 UI）", ui.TextSize(22)),
-			ui.Padding(
-				ui.Insets{Top: 8},
-				ui.Text("输入 GitHub 仓库 owner/repo，点击“请求仓库信息”后在后台加载。", ui.TextSize(13), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
-			),
-		}
-
-		form := ui.Column(
-			ui.Padding(
-				ui.Insets{Top: 14},
-				ui.Text("Owner", ui.TextSize(13)),
-			),
-			ui.TextField(
-				owner.Value(),
-				ui.InputPlaceholder("例如：xiaowumin-mark"),
-				ui.InputOnChange(func(ctx *ui.Context, value string) {
-					owner.Set(value)
-				}),
-			),
-			ui.Padding(
-				ui.Insets{Top: 10},
-				ui.Text("Repo", ui.TextSize(13)),
-			),
-			ui.TextField(
-				repo.Value(),
-				ui.InputPlaceholder("例如：FluxUI"),
-				ui.InputOnChange(func(ctx *ui.Context, value string) {
-					repo.Set(value)
-				}),
-			),
-		)
 
 		statusText := "空闲"
 		statusColor := ui.NRGBA(51, 65, 85, 255)
-		if loading.Value() {
+		switch fetch.Status() {
+		case ui.AsyncLoading:
 			statusText = "加载中..."
 			statusColor = ui.NRGBA(2, 132, 199, 255)
-		} else if errorMsg.Value() != "" {
+		case ui.AsyncError:
 			statusText = "请求失败"
 			statusColor = ui.NRGBA(220, 38, 38, 255)
-		} else if fullName.Value() != "" {
+		case ui.AsyncSuccess:
 			statusText = "请求成功"
 			statusColor = ui.NRGBA(22, 163, 74, 255)
 		}
 
-		actions := ui.Row(
-			ui.Button(
-				ui.Text("请求仓库信息"),
-				ui.Disabled(loading.Value()),
-				ui.OnClick(func(ctx *ui.Context) {
-					startFetch()
-				}),
-			),
-			ui.Padding(
-				ui.Insets{Left: 10, Top: 8},
-				ui.Text("状态: "+statusText, ui.TextSize(13), ui.TextColor(statusColor)),
-			),
-		)
-
-		resultPanel := ui.Container(
-			ui.Style{
-				Background: ui.NRGBA(248, 250, 252, 255),
-				Padding:    ui.All(12),
-				Radius:     10,
-			},
-			ui.Column(
-				ui.Text("结果", ui.TextSize(16)),
-				ui.Padding(ui.Insets{Top: 8}, ui.Text("仓库: "+withFallback(fullName.Value(), "-"), ui.TextSize(13))),
-				ui.Padding(ui.Insets{Top: 4}, ui.Text("描述: "+withFallback(description.Value(), "-"), ui.TextSize(13))),
-				ui.Padding(ui.Insets{Top: 4}, ui.Text("语言: "+withFallback(language.Value(), "-"), ui.TextSize(13))),
-				ui.Padding(ui.Insets{Top: 4}, ui.Text(fmt.Sprintf("Star: %d  Fork: %d  Open Issues: %d", stars.Value(), forks.Value(), openIssues.Value()), ui.TextSize(13))),
-				ui.Padding(ui.Insets{Top: 4}, ui.Text("更新时间: "+withFallback(lastUpdated.Value(), "-"), ui.TextSize(12), ui.TextColor(ui.NRGBA(100, 116, 139, 255)))),
-				func() ui.Widget {
-					if strings.TrimSpace(errorMsg.Value()) == "" {
-						return ui.Spacer(0, 0)
-					}
-					return ui.Padding(
-						ui.Insets{Top: 8},
-						ui.Text("错误: "+errorMsg.Value(), ui.TextSize(12), ui.TextColor(ui.NRGBA(220, 38, 38, 255))),
-					)
-				}(),
-			),
-		)
+		result := fetch.Data()
 
 		return ui.Container(
-			ui.Style{
-				Background: th.Surface,
-				Padding:    ui.All(16),
-			},
+			ui.Style{Background: th.Surface, Padding: ui.All(16)},
 			ui.ScrollView(
-				ui.Column(append(
-					infoLines,
-					ui.Padding(ui.Insets{Top: 12}, form),
-					ui.Padding(ui.Insets{Top: 12}, actions),
-					ui.Padding(ui.Insets{Top: 12}, resultPanel),
-				)...),
+				ui.Column(
+					ui.Text("网络请求示例（异步，不阻塞 UI）", ui.TextSize(22)),
+					ui.Padding(
+						ui.Insets{Top: 8},
+						ui.Text("输入 GitHub 仓库 owner/repo，点击「请求仓库信息」后在后台加载。",
+							ui.TextSize(13), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
+					),
+					ui.Padding(ui.Insets{Top: 14}, ui.Text("Owner", ui.TextSize(13))),
+					ui.TextField(owner.Value(),
+						ui.InputPlaceholder("例如：xiaowumin-mark"),
+						ui.InputOnChange(func(ctx *ui.Context, v string) { owner.Set(v) }),
+					),
+					ui.Padding(ui.Insets{Top: 10}, ui.Text("Repo", ui.TextSize(13))),
+					ui.TextField(repo.Value(),
+						ui.InputPlaceholder("例如：FluxUI"),
+						ui.InputOnChange(func(ctx *ui.Context, v string) { repo.Set(v) }),
+					),
+					ui.Padding(
+						ui.Insets{Top: 12},
+						ui.Row(
+							ui.Button(
+								ui.Text("请求仓库信息"),
+								ui.Disabled(fetch.Loading()),
+								ui.OnClick(func(ctx *ui.Context) { startFetch() }),
+							),
+							ui.Padding(
+								ui.Insets{Left: 10, Top: 8},
+								ui.Text("状态: "+statusText, ui.TextSize(13), ui.TextColor(statusColor)),
+							),
+						),
+					),
+					ui.Padding(
+						ui.Insets{Top: 12},
+						ui.Container(
+							ui.Style{
+								Background: ui.NRGBA(248, 250, 252, 255),
+								Padding:    ui.All(12),
+								Radius:     10,
+							},
+							ui.Column(
+								ui.Text("结果", ui.TextSize(16)),
+								ui.Padding(ui.Insets{Top: 8}, ui.Text("仓库: "+repoField(result, func(r *githubRepo) string { return r.FullName }), ui.TextSize(13))),
+								ui.Padding(ui.Insets{Top: 4}, ui.Text("描述: "+repoField(result, func(r *githubRepo) string { return r.Description }), ui.TextSize(13))),
+								ui.Padding(ui.Insets{Top: 4}, ui.Text("语言: "+repoField(result, func(r *githubRepo) string { return r.Language }), ui.TextSize(13))),
+								ui.Padding(ui.Insets{Top: 4}, ui.Text(repoStats(result), ui.TextSize(13))),
+								func() ui.Widget {
+									if fetch.Error() == nil {
+										return ui.Spacer(0, 0)
+									}
+									return ui.Padding(
+										ui.Insets{Top: 8},
+										ui.Text("错误: "+fetch.Error().Error(), ui.TextSize(12), ui.TextColor(ui.NRGBA(220, 38, 38, 255))),
+									)
+								}(),
+							),
+						),
+					),
+				),
 			),
 		)
 	}, ui.Title("FluxUI Network Request"), ui.Size(760, 520))
 }
 
-func withFallback(value, fallback string) string {
-	if strings.TrimSpace(value) == "" {
-		return fallback
+func repoField(r *githubRepo, fn func(*githubRepo) string) string {
+	if r == nil {
+		return "-"
 	}
-	return value
+	v := strings.TrimSpace(fn(r))
+	if v == "" {
+		return "-"
+	}
+	return v
 }
 
-func (f *fetchState) start(owner, repo string) bool {
-	if f == nil {
-		return false
+func repoStats(r *githubRepo) string {
+	if r == nil {
+		return "Star: 0  Fork: 0  Open Issues: 0"
 	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.loading {
-		return false
-	}
-	f.loading = true
-	f.result = nil
-	f.errMsg = ""
-	f.doneAt = time.Time{}
-
-	go func() {
-		result, err := fetchRepo(owner, repo)
-
-		f.mu.Lock()
-		defer f.mu.Unlock()
-		if err != nil {
-			f.errMsg = err.Error()
-		} else {
-			f.result = result
-		}
-		f.doneAt = time.Now()
-		f.loading = false
-	}()
-	return true
-}
-
-func (f *fetchState) poll() (done bool, result *githubRepo, errMsg string, doneAt time.Time) {
-	if f == nil {
-		return true, nil, "fetchState is nil", time.Now()
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.loading {
-		return false, nil, "", time.Time{}
-	}
-	return true, f.result, f.errMsg, f.doneAt
+	return fmt.Sprintf("Star: %d  Fork: %d  Open Issues: %d", r.Stars, r.Forks, r.OpenIssues)
 }
 
 func fetchRepo(owner, repo string) (*githubRepo, error) {

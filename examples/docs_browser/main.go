@@ -113,6 +113,7 @@ func main() {
 		selectValue := ui.State[string](ctx)
 		tabValue := ui.State[string](ctx)
 		dialogOpen := ui.State[bool](ctx)
+		popupOpen := ui.State[bool](ctx)
 		toastMessage := ui.State[string](ctx)
 		bottomNavValue := ui.State[string](ctx)
 		clickCount := ui.State[int](ctx)
@@ -547,6 +548,49 @@ func main() {
 						}),
 						ui.DialogOnConfirm(func(ctx *ui.Context) {
 							dialogOpen.Set(false)
+						}),
+					),
+				)
+			case "popup_basic":
+				return ui.Stack(
+					ui.FillWidth(
+						ui.Column(
+							ui.Button(
+								ui.Text("打开 Popup"),
+								ui.OnClick(func(ctx *ui.Context) {
+									popupOpen.Set(true)
+								}),
+							),
+							ui.Padding(
+								ui.Insets{Top: 8},
+								ui.Text("Popup 演示：弹窗内容完全自定义，无预置标题和按钮。", ui.TextSize(13)),
+							),
+						),
+					),
+					ui.Popup(
+						popupOpen.Value(),
+						ui.Column(
+							ui.Text("自定义弹窗内容", ui.TextSize(16)),
+							ui.Padding(
+								ui.Insets{Top: 8},
+								ui.Text("这里可以放置任意组件。", ui.TextSize(13)),
+							),
+							ui.Padding(
+								ui.Insets{Top: 12},
+								ui.Button(
+									ui.Text("关闭"),
+									ui.OnClick(func(ctx *ui.Context) {
+										popupOpen.Set(false)
+									}),
+								),
+							),
+						),
+						ui.PopupWidth(300),
+						ui.PopupPadding(ui.All(16)),
+						ui.PopupRadius(12),
+						ui.PopupMaskClosable(true),
+						ui.PopupOnOpenChange(func(ctx *ui.Context, open bool) {
+							popupOpen.Set(open)
 						}),
 					),
 				)

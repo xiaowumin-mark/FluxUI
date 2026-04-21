@@ -15,6 +15,8 @@
     "DialogOnOpenChange(fn func(ctx *Context, open bool)) DialogOption",
     "DialogOnConfirm(fn func(ctx *Context)) DialogOption",
     "DialogOnCancel(fn func(ctx *Context)) DialogOption",
+    "DialogConfirmText(text string) DialogOption",
+    "DialogCancelText(text string) DialogOption",
     "NewDialogRef() *DialogRef",
     "DialogAttachRef(ref *DialogRef) DialogOption",
     "(*DialogRef).Open()",

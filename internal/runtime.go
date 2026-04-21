@@ -1,7 +1,9 @@
 package internal
 
 import (
+	"fmt"
 	"reflect"
+	"sync"
 
 	theme "github.com/xiaowumin-mark/FluxUI/theme"
 
@@ -14,14 +16,17 @@ import (
 
 // Runtime 持有跨 frame 的稳定数据。
 type Runtime struct {
+	mu         sync.Mutex
 	memory     map[string]any
 	theme      *theme.Theme
 	material   *material.Theme
 	invalidate func()
 	windowCtrl WindowController
-	effects    map[string]*effectSlot
-	activeFx   map[string]struct{}
-	pendingFx  []func()
+	effects        map[string]*effectSlot
+	activeFx       map[string]struct{}
+	pendingFx      []func()
+	hookCounts     map[string]int
+	prevHookCounts map[string]int
 }
 
 type effectSlot struct {
@@ -54,11 +59,12 @@ func NewRuntime(th *theme.Theme) *Runtime {
 	mt.Face = giofont.Typeface(th.DefaultFont.Normalize().Family)
 
 	return &Runtime{
-		memory:   make(map[string]any),
-		theme:    th,
-		material: mt,
-		effects:  make(map[string]*effectSlot),
-		activeFx: make(map[string]struct{}),
+		memory:     make(map[string]any),
+		theme:      th,
+		material:   mt,
+		effects:    make(map[string]*effectSlot),
+		activeFx:   make(map[string]struct{}),
+		hookCounts: make(map[string]int),
 	}
 }
 
@@ -74,13 +80,18 @@ func (r *Runtime) MaterialTheme() *material.Theme {
 
 // SetInvalidator 绑定窗口重绘函数。
 func (r *Runtime) SetInvalidator(fn func()) {
+	r.mu.Lock()
 	r.invalidate = fn
+	r.mu.Unlock()
 }
 
-// RequestRedraw 请求窗口重绘。
+// RequestRedraw 请求窗口重绘。可从任意 goroutine 安全调用。
 func (r *Runtime) RequestRedraw() {
-	if r.invalidate != nil {
-		r.invalidate()
+	r.mu.Lock()
+	fn := r.invalidate
+	r.mu.Unlock()
+	if fn != nil {
+		fn()
 	}
 }
 
@@ -99,6 +110,8 @@ func (r *Runtime) BeginFrame() {
 	if r == nil {
 		return
 	}
+	r.prevHookCounts = r.hookCounts
+	r.hookCounts = make(map[string]int)
 	clear(r.activeFx)
 	r.pendingFx = r.pendingFx[:0]
 }
@@ -107,6 +120,16 @@ func (r *Runtime) BeginFrame() {
 func (r *Runtime) EndFrame() {
 	if r == nil {
 		return
+	}
+
+	for path, count := range r.hookCounts {
+		if prev, ok := r.prevHookCounts[path]; ok && prev != count {
+			panic(fmt.Sprintf(
+				"FluxUI: path %q rendered %d hooks this frame but %d last frame — "+
+					"hooks must not be called conditionally",
+				path, count, prev,
+			))
+		}
 	}
 
 	for key, slot := range r.effects {
@@ -175,6 +198,14 @@ func (r *Runtime) UseEffect(key string, hasDeps bool, deps []any, setup EffectSe
 		slot.deps = nextDeps
 		slot.cleanup = setup()
 	})
+}
+
+// RecordHookCount 记录指定 path 的 hook 调用次数。
+func (r *Runtime) RecordHookCount(path string, count int) {
+	if r == nil {
+		return
+	}
+	r.hookCounts[path] = count
 }
 
 func (r *Runtime) remember(key string, factory func() any) any {

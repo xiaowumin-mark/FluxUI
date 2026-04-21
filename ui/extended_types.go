@@ -35,6 +35,7 @@ type ProgressOption = widget.ProgressOption
 type TabsOption = widget.TabsOption
 type TabItem = widget.TabItem
 type DialogOption = widget.DialogOption
+type PopupOption = widget.PopupOption
 type ToastOption = widget.ToastOption
 type ToastType = widget.ToastType
 type ToastPosition = widget.ToastPosition
@@ -409,6 +410,46 @@ func DialogAttachRef(ref *DialogRef) DialogOption {
 	return widget.DialogAttachRef(ref)
 }
 
+func DialogConfirmText(text string) DialogOption {
+	return widget.DialogConfirmText(text)
+}
+
+func DialogCancelText(text string) DialogOption {
+	return widget.DialogCancelText(text)
+}
+
+func Popup(open bool, child Widget, opts ...PopupOption) Widget {
+	return widget.Popup(open, child, opts...)
+}
+
+func PopupWidth(width float32) PopupOption {
+	return widget.PopupWidth(width)
+}
+
+func PopupRadius(radius float32) PopupOption {
+	return widget.PopupRadius(radius)
+}
+
+func PopupMaskClosable(maskClosable bool) PopupOption {
+	return widget.PopupMaskClosable(maskClosable)
+}
+
+func PopupBackground(bg color.NRGBA) PopupOption {
+	return widget.PopupBackground(bg)
+}
+
+func PopupPadding(insets Insets) PopupOption {
+	return widget.PopupPadding(insets)
+}
+
+func PopupOnOpenChange(fn func(ctx *Context, open bool)) PopupOption {
+	return widget.PopupOnOpenChange(fn)
+}
+
+func PopupAttachRef(ref *DialogRef) PopupOption {
+	return widget.PopupAttachRef(ref)
+}
+
 func Toast(message string, opts ...ToastOption) Widget {
 	return widget.Toast(message, opts...)
 }
@@ -511,6 +552,10 @@ func GridPadding(insets Insets) GridOption {
 
 func GridMinItemWidth(width float32) GridOption {
 	return widget.GridMinItemWidth(width)
+}
+
+func GridOnReachEnd(fn func(ctx *Context)) GridOption {
+	return widget.GridOnReachEnd(fn)
 }
 
 func AppBar(title Widget, opts ...AppBarOption) Widget {

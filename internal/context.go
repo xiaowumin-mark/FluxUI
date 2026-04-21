@@ -166,6 +166,9 @@ func (c *Context) WindowIsAlive() bool {
 func (c *Context) NextKey(namespace string) string {
 	key := c.path + "/" + namespace + ":" + strconv.Itoa(c.hookIndex)
 	c.hookIndex++
+	if c.runtime != nil {
+		c.runtime.RecordHookCount(c.path, c.hookIndex)
+	}
 	return key
 }
 

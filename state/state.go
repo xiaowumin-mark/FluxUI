@@ -46,15 +46,20 @@ func (s *State[T]) Value() T {
 		var zero T
 		return zero
 	}
-	return s.cell.value
+	s.cell.mu.Lock()
+	v := s.cell.value
+	s.cell.mu.Unlock()
+	return v
 }
 
-// Set 更新状态并请求重绘。
+// Set 更新状态并请求重绘。可从任意 goroutine 安全调用。
 func (s *State[T]) Set(v T) {
 	if s == nil || s.cell == nil {
 		return
 	}
+	s.cell.mu.Lock()
 	s.cell.value = v
+	s.cell.mu.Unlock()
 	if s.runtime != nil {
 		s.runtime.RequestRedraw()
 	}
