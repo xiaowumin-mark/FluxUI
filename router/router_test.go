@@ -161,3 +161,15 @@ func TestReverseTransition(t *testing.T) {
 		t.Fatal("None should reverse to None")
 	}
 }
+
+func TestNormalizePathForGuard(t *testing.T) {
+	if got := normalizePathForGuard("/users/42?tab=posts&sort=asc"); got != "/users/42" {
+		t.Fatalf("expected /users/42, got %s", got)
+	}
+	if got := normalizePathForGuard("/settings"); got != "/settings" {
+		t.Fatalf("expected /settings, got %s", got)
+	}
+	if got := normalizePathForGuard(""); got != "" {
+		t.Fatalf("expected empty path, got %s", got)
+	}
+}

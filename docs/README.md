@@ -53,3 +53,9 @@
 - `NewXxxRef() *XxxRef`
 - `XxxAttachRef(ref *XxxRef) XxxOption`
 - `(*XxxRef).Method(...)`
+
+## Router 文档补充
+
+- 路由能力文档：`docs/widgets/router.md`
+- 路由独立示例：`examples/router/main.go`
+- 文档浏览器示例ID：`router_basic`

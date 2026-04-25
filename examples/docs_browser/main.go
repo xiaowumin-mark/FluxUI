@@ -122,6 +122,9 @@ func main() {
 		hookDemoCount := ui.State[int](ctx)
 		hookDemoShowChild := ui.State[bool](ctx)
 		hookDemoLogs := ui.State[[]string](ctx)
+		routerDemoAllowSettings := ui.State[bool](ctx)
+		routerDemoUserID := ui.State[string](ctx)
+		routerDemoLog := ui.State[string](ctx)
 
 		if !demoInit.Value() {
 			inputValue.Set("FluxUI")
@@ -132,6 +135,9 @@ func main() {
 			selectValue.Set("medium")
 			tabValue.Set("overview")
 			bottomNavValue.Set("home")
+			routerDemoAllowSettings.Set(true)
+			routerDemoUserID.Set("u1001")
+			routerDemoLog.Set("Router demo ready")
 			demoInit.Set(true)
 		}
 
@@ -718,6 +724,206 @@ func main() {
 							ui.BottomNavOnChange(func(ctx *ui.Context, key string) {
 								bottomNavValue.Set(key)
 							}),
+						),
+					),
+				)
+			case "router_basic":
+				routerUsers := []struct {
+					ID   string
+					Name string
+				}{
+					{ID: "u1001", Name: "Ava"},
+					{ID: "u1002", Name: "Noah"},
+					{ID: "u1003", Name: "Mia"},
+				}
+				findUserName := func(id string) string {
+					for _, item := range routerUsers {
+						if item.ID == id {
+							return item.Name
+						}
+					}
+					return "unknown"
+				}
+
+				routes := []ui.Route{
+					{
+						Path: "/",
+						Builder: func(routeCtx *ui.Context) ui.Widget {
+							return ui.Column(
+								ui.Text("Home", ui.TextSize(14)),
+								ui.Padding(
+									ui.Insets{Top: 6},
+									ui.TextField(
+										routerDemoUserID.Value(),
+										ui.InputPlaceholder("user id, e.g. u1002"),
+										ui.InputOnChange(func(ctx *ui.Context, value string) {
+											routerDemoUserID.Set(value)
+										}),
+									),
+								),
+								ui.Padding(
+									ui.Insets{Top: 6},
+									ui.Row(
+										ui.Button(
+											ui.Text("Detail"),
+											ui.ButtonPadding(ui.Symmetric(4, 8)),
+											ui.OnClick(func(ctx *ui.Context) {
+												id := strings.TrimSpace(routerDemoUserID.Value())
+												if id == "" {
+													routerDemoLog.Set("empty user id")
+													return
+												}
+												ui.Navigate(ctx, "/user/"+id+"?tab=profile")
+											}),
+										),
+										ui.Padding(
+											ui.Insets{Left: 6},
+											ui.Button(
+												ui.Text("Settings"),
+												ui.ButtonPadding(ui.Symmetric(4, 8)),
+												ui.OnClick(func(ctx *ui.Context) {
+													ui.Navigate(ctx, "/settings")
+												}),
+											),
+										),
+										ui.Padding(
+											ui.Insets{Left: 6},
+											ui.Button(
+												ui.Text("404"),
+												ui.ButtonPadding(ui.Symmetric(4, 8)),
+												ui.OnClick(func(ctx *ui.Context) {
+													ui.Navigate(ctx, "/not-found")
+												}),
+											),
+										),
+									),
+								),
+							)
+						},
+					},
+					{
+						Path: "/user/:id",
+						Builder: func(routeCtx *ui.Context) ui.Widget {
+							params := ui.RouteParams(routeCtx)
+							id := params.Path("id")
+							tab := params.Query("tab")
+							if tab == "" {
+								tab = "overview"
+							}
+							return ui.Column(
+								ui.Text("User Detail", ui.TextSize(14)),
+								ui.Padding(ui.Insets{Top: 6}, ui.Text("id: "+id)),
+								ui.Padding(ui.Insets{Top: 4}, ui.Text("name: "+findUserName(id))),
+								ui.Padding(ui.Insets{Top: 4}, ui.Text("tab: "+tab)),
+								ui.Padding(
+									ui.Insets{Top: 8},
+									ui.Row(
+										ui.Button(
+											ui.Text("Replace tab=activity"),
+											ui.ButtonPadding(ui.Symmetric(4, 8)),
+											ui.OnClick(func(ctx *ui.Context) {
+												ui.NavigateReplace(ctx, "/user/"+id+"?tab=activity", ui.WithNavTransition(ui.TransitionFade))
+											}),
+										),
+										ui.Padding(
+											ui.Insets{Left: 6},
+											ui.Button(
+												ui.Text("Back"),
+												ui.ButtonPadding(ui.Symmetric(4, 8)),
+												ui.OnClick(func(ctx *ui.Context) {
+													ui.NavigateBack(ctx)
+												}),
+											),
+										),
+									),
+								),
+							)
+						},
+					},
+					{
+						Path: "/settings",
+						Builder: func(routeCtx *ui.Context) ui.Widget {
+							return ui.Column(
+								ui.Text("Settings", ui.TextSize(14)),
+								ui.Padding(ui.Insets{Top: 6}, ui.Text("guard 通过后才可进入")),
+								ui.Padding(
+									ui.Insets{Top: 8},
+									ui.Button(
+										ui.Text("Back"),
+										ui.ButtonPadding(ui.Symmetric(4, 8)),
+										ui.OnClick(func(ctx *ui.Context) {
+											ui.NavigateBack(ctx)
+										}),
+									),
+								),
+							)
+						},
+					},
+				}
+
+				routerDemo := ui.Router(
+					ctx,
+					routes,
+					ui.RouterTransition(ui.TransitionSlideLeft),
+					ui.RouterTransitionDuration(220*time.Millisecond),
+					ui.RouterBeforeEach(func(ctx *ui.Context, from, to string) bool {
+						if to == "/settings" && !routerDemoAllowSettings.Value() {
+							routerDemoLog.Set("guard blocked: " + from + " -> " + to)
+							return false
+						}
+						routerDemoLog.Set("navigated: " + from + " -> " + to)
+						return true
+					}),
+					ui.RouterNotFound(func(routeCtx *ui.Context) ui.Widget {
+						return ui.Column(
+							ui.Text("404", ui.TextSize(16), ui.TextColor(ui.NRGBA(220, 38, 38, 255))),
+							ui.Padding(ui.Insets{Top: 6}, ui.Text("path: "+ui.CurrentPath(routeCtx), ui.TextSize(12))),
+							ui.Padding(
+								ui.Insets{Top: 8},
+								ui.Button(
+									ui.Text("Go Home"),
+									ui.ButtonPadding(ui.Symmetric(4, 8)),
+									ui.OnClick(func(ctx *ui.Context) {
+										ui.NavigateReplace(ctx, "/")
+									}),
+								),
+							),
+						)
+					}),
+				)
+
+				current := ui.CurrentPath(ctx)
+				if current == "" {
+					current = "/"
+				}
+
+				return ui.Column(
+					ui.Text(fmt.Sprintf("path=%s | depth=%d", current, ui.StackDepth(ctx)), ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
+					ui.Padding(
+						ui.Insets{Top: 6},
+						ui.Checkbox(
+							"allow settings",
+							routerDemoAllowSettings.Value(),
+							ui.CheckboxOnChange(func(ctx *ui.Context, checked bool) {
+								routerDemoAllowSettings.Set(checked)
+							}),
+						),
+					),
+					ui.Padding(
+						ui.Insets{Top: 6},
+						ui.Text(routerDemoLog.Value(), ui.TextSize(12), ui.TextColor(ui.NRGBA(51, 65, 85, 255))),
+					),
+					ui.Padding(
+						ui.Insets{Top: 8},
+						ui.Expanded(
+							ui.Container(
+								ui.Style{
+									Background: ui.NRGBA(241, 245, 249, 255),
+									Padding:    ui.All(8),
+									Radius:     6,
+								},
+								routerDemo,
+							),
 						),
 					),
 				)

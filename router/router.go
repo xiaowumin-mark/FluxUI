@@ -2,7 +2,6 @@ package router
 
 import (
 	"image"
-	"image/color"
 	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
@@ -79,9 +78,9 @@ func WithTransition(t Transition) NavigateOption {
 
 // stackEntry 导航栈条目。
 type stackEntry struct {
-	path        string
-	params      Params
-	routeIndex  int // 对应 routes 数组下标，-1 为未匹配
+	path       string
+	params     Params
+	routeIndex int // 对应 routes 数组下标，-1 为未匹配
 }
 
 // routerState 路由器持久化状态。
@@ -91,13 +90,13 @@ type routerState struct {
 	config     routerConfig
 	transition transitionState
 	// 挂起的导航操作
-	pendingNav    *pendingNavigation
+	pendingNav *pendingNavigation
 }
 
 type pendingNavigation struct {
-	path       string
-	action     navAction
-	opts       navigateOpts
+	path   string
+	action navAction
+	opts   navigateOpts
 }
 
 type navAction int
@@ -187,12 +186,13 @@ func (s *routerState) navigate(ctx *internal.Context, fullPath string, action na
 		currentPath = current.path
 	}
 
-	// 纯路径用于守卫
-	cleanPath, _ := extractQueryParams(fullPath)
+	// 守卫统一使用纯路径，避免 from/to 一个带 query 一个不带 query 的不一致。
+	currentCleanPath := normalizePathForGuard(currentPath)
+	targetCleanPath := normalizePathForGuard(fullPath)
 
 	// 路由守卫
 	if s.config.beforeEach != nil {
-		if !s.config.beforeEach(ctx, currentPath, cleanPath) {
+		if !s.config.beforeEach(ctx, currentCleanPath, targetCleanPath) {
 			return
 		}
 	}
@@ -245,6 +245,11 @@ func (s *routerState) navigate(ctx *internal.Context, fullPath string, action na
 	ctx.RequestRedraw()
 }
 
+func normalizePathForGuard(fullPath string) string {
+	path, _ := extractQueryParams(fullPath)
+	return path
+}
+
 // Layout 实现 Widget 接口。
 func (w *routerWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	next := ctx.Scope("router")
@@ -279,90 +284,202 @@ func (w *routerWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	// 构建当前页面
+	// 构建当前页面（transition.to）
+	toPage, toView, ok := resolvePageForPath(routerCtx, st, w.routes, w.config.notFound, entryPath(st))
+	if !ok {
+		return layout.Dimensions{}
+	}
+
+	// 过渡期：同时渲染旧页面和新页面，旧页面做透明度递减，避免突兀消失。
+	if st.transition.active {
+		fromPage, fromView, _ := resolvePageForPath(routerCtx, st, w.routes, w.config.notFound, st.transition.from)
+		return layoutWithTransition(routerCtx, fromPage, fromView, toPage, toView, st.transition)
+	}
+
+	return layoutPageWithRouteView(routerCtx, toPage, toView)
+}
+
+func entryPath(st *routerState) string {
+	if st == nil {
+		return ""
+	}
 	entry := st.currentEntry()
 	if entry == nil {
-		if w.config.notFound != nil {
-			page := w.config.notFound(routerCtx)
-			return page.Layout(routerCtx)
+		return ""
+	}
+	return entry.path
+}
+
+func resolvePageForPath(
+	ctx *internal.Context,
+	base *routerState,
+	routes []Route,
+	notFound func(ctx *internal.Context) widget.Widget,
+	fullPath string,
+) (widget.Widget, *routeView, bool) {
+	if ctx == nil || base == nil {
+		return nil, nil, false
+	}
+	idx, params := base.matchRoute(fullPath)
+	view := &routeView{
+		path:       fullPath,
+		params:     params,
+		canGoBack:  len(base.stack) > 1,
+		stackDepth: len(base.stack),
+	}
+
+	if idx >= 0 && idx < len(routes) {
+		var page widget.Widget
+		withRouteView(ctx, view, func() {
+			scopeCtx := ctx.Scope(fullPath)
+			page = routes[idx].Builder(scopeCtx)
+		})
+		if page != nil {
+			return page, view, true
 		}
-		return layout.Dimensions{}
 	}
 
-	var page widget.Widget
-	if entry.routeIndex >= 0 && entry.routeIndex < len(w.routes) {
-		scopeCtx := routerCtx.Scope(entry.path)
-		page = w.routes[entry.routeIndex].Builder(scopeCtx)
-	} else if w.config.notFound != nil {
-		page = w.config.notFound(routerCtx)
-	} else {
-		return layout.Dimensions{}
+	if notFound != nil {
+		var page widget.Widget
+		withRouteView(ctx, view, func() {
+			page = notFound(ctx.Scope("not-found"))
+		})
+		if page != nil {
+			return page, view, true
+		}
 	}
 
-	// 应用过渡动画
-	if st.transition.active {
-		return layoutWithTransition(routerCtx, page, st.transition)
-	}
-
-	return page.Layout(routerCtx)
+	return nil, nil, false
 }
 
-// layoutWithTransition 在过渡期间布局页面。
-func layoutWithTransition(ctx *internal.Context, page widget.Widget, ts transitionState) layout.Dimensions {
-	gtx := ctx.Gtx
-	constraints := gtx.Constraints
-	maxWidth := float32(constraints.Max.X)
-
-	switch ts.transition {
-	case TransitionFade:
-		// 淡入效果
-		alpha := uint8(ts.progress * 255)
-		return layoutWithAlpha(ctx, page, alpha)
-
-	case TransitionSlideLeft:
-		// 从右向左滑入
-		offset := int(maxWidth * (1 - ts.progress))
-		return layoutWithOffset(ctx, page, offset, 0)
-
-	case TransitionSlideRight:
-		// 从左向右滑入
-		offset := int(-maxWidth * (1 - ts.progress))
-		return layoutWithOffset(ctx, page, offset, 0)
-
-	default:
-		return page.Layout(ctx)
+func withRouteView(ctx *internal.Context, view *routeView, fn func()) {
+	if fn == nil {
+		return
 	}
+	if ctx == nil {
+		fn()
+		return
+	}
+	value := ctx.Persistent(routeViewKey, func() any {
+		return &routeViewHolder{}
+	})
+	holder, ok := value.(*routeViewHolder)
+	if !ok {
+		fn()
+		return
+	}
+	prev := holder.view
+	holder.view = view
+	defer func() {
+		holder.view = prev
+	}()
+	fn()
 }
 
-// layoutWithAlpha 带透明度渲染。
-// 在目标位置画一层半透明白色遮罩模拟淡入。
-func layoutWithAlpha(ctx *internal.Context, page widget.Widget, alpha uint8) layout.Dimensions {
-	gtx := ctx.Gtx
-	dims := page.Layout(ctx)
-
-	if alpha < 255 {
-		// 用白色遮罩模拟淡入
-		maskAlpha := 255 - alpha
-		sz := dims.Size
-		defer clip.Rect{Max: sz}.Push(gtx.Ops).Pop()
-		paint.ColorOp{Color: color.NRGBA{R: 255, G: 255, B: 255, A: maskAlpha}}.Add(gtx.Ops)
-		paint.PaintOp{}.Add(gtx.Ops)
+func routeLayoutScope(path string) string {
+	if path == "" {
+		return "route:__empty__"
 	}
+	return "route:" + path
+}
 
+func layoutPageWithRouteView(ctx *internal.Context, page widget.Widget, view *routeView) layout.Dimensions {
+	if page == nil {
+		return layout.Dimensions{}
+	}
+	var dims layout.Dimensions
+	withRouteView(ctx, view, func() {
+		pageCtx := ctx
+		if ctx != nil {
+			scopeName := "route:default"
+			if view != nil {
+				scopeName = routeLayoutScope(view.path)
+			}
+			pageCtx = ctx.Scope(scopeName)
+		}
+		dims = page.Layout(pageCtx)
+	})
 	return dims
 }
 
+// layoutWithTransition 在过渡期间布局页面。
+// 旧页面透明度从 1 递减到 0，新页面按过渡类型入场。
+func layoutWithTransition(
+	ctx *internal.Context,
+	fromPage widget.Widget,
+	fromView *routeView,
+	toPage widget.Widget,
+	toView *routeView,
+	ts transitionState,
+) layout.Dimensions {
+	var merged layout.Dimensions
+
+	oldOpacity := 1 - ts.progress
+	if oldOpacity < 0 {
+		oldOpacity = 0
+	}
+	if oldOpacity > 1 {
+		oldOpacity = 1
+	}
+
+	if fromPage != nil && oldOpacity > 0 {
+		opacityLayer := paint.PushOpacity(ctx.Gtx.Ops, oldOpacity)
+		merged = layoutPageWithRouteView(ctx, fromPage, fromView)
+		opacityLayer.Pop()
+	}
+
+	incoming := layoutIncomingPage(ctx, toPage, toView, ts)
+	if incoming.Size.X > merged.Size.X {
+		merged.Size.X = incoming.Size.X
+	}
+	if incoming.Size.Y > merged.Size.Y {
+		merged.Size.Y = incoming.Size.Y
+	}
+
+	return merged
+}
+
+func layoutIncomingPage(ctx *internal.Context, page widget.Widget, view *routeView, ts transitionState) layout.Dimensions {
+	gtx := ctx.Gtx
+	maxWidth := float32(gtx.Constraints.Max.X)
+
+	switch ts.transition {
+	case TransitionFade:
+		opacity := ts.progress
+		if opacity < 0 {
+			opacity = 0
+		}
+		if opacity > 1 {
+			opacity = 1
+		}
+		layer := paint.PushOpacity(gtx.Ops, opacity)
+		dims := layoutPageWithRouteView(ctx, page, view)
+		layer.Pop()
+		return dims
+
+	case TransitionSlideLeft:
+		offset := int(maxWidth * (1 - ts.progress))
+		return layoutWithOffset(ctx, view, page, offset, 0)
+
+	case TransitionSlideRight:
+		offset := int(-maxWidth * (1 - ts.progress))
+		return layoutWithOffset(ctx, view, page, offset, 0)
+
+	default:
+		return layoutPageWithRouteView(ctx, page, view)
+	}
+}
+
 // layoutWithOffset 带偏移量渲染。
-func layoutWithOffset(ctx *internal.Context, page widget.Widget, dx, dy int) layout.Dimensions {
+func layoutWithOffset(ctx *internal.Context, view *routeView, page widget.Widget, dx, dy int) layout.Dimensions {
 	gtx := ctx.Gtx
 	constraints := gtx.Constraints
 
 	defer op.Offset(image.Pt(dx, dy)).Push(gtx.Ops).Pop()
-
 	// 裁剪到原始约束范围
 	defer clip.Rect{Max: constraints.Max}.Push(gtx.Ops).Pop()
 
-	return page.Layout(ctx)
+	return layoutPageWithRouteView(ctx, page, view)
 }
 
 // ──────────────────────────────
@@ -380,14 +497,57 @@ func setRouterState(ctx *internal.Context, st *routerState) {
 
 // getRouterState 从 context 获取路由状态。
 func getRouterState(ctx *internal.Context) *routerState {
+	if ctx == nil {
+		return nil
+	}
 	value := ctx.Persistent(routerStateKey, func() any {
 		return &routerStateHolder{}
 	})
-	return value.(*routerStateHolder).state
+	holder, ok := value.(*routerStateHolder)
+	if !ok {
+		return nil
+	}
+	return holder.state
 }
 
 type routerStateHolder struct {
 	state *routerState
+}
+
+type routeView struct {
+	path       string
+	params     Params
+	canGoBack  bool
+	stackDepth int
+}
+
+const routeViewKey = "__fluxui_router_view__"
+
+type routeViewHolder struct {
+	view *routeView
+}
+
+func setRouteView(ctx *internal.Context, view *routeView) {
+	if ctx == nil {
+		return
+	}
+	ctx.Persistent(routeViewKey, func() any {
+		return &routeViewHolder{}
+	}).(*routeViewHolder).view = view
+}
+
+func getRouteView(ctx *internal.Context) *routeView {
+	if ctx == nil {
+		return nil
+	}
+	value := ctx.Persistent(routeViewKey, func() any {
+		return &routeViewHolder{}
+	})
+	holder, ok := value.(*routeViewHolder)
+	if !ok {
+		return nil
+	}
+	return holder.view
 }
 
 // Navigate 导航到指定路径（push 到栈）。
@@ -448,6 +608,9 @@ func NavigateBack(ctx *internal.Context, opts ...NavigateOption) {
 
 // CurrentPath 返回当前路由路径。
 func CurrentPath(ctx *internal.Context) string {
+	if view := getRouteView(ctx); view != nil {
+		return view.path
+	}
 	st := getRouterState(ctx)
 	if st == nil {
 		return ""
@@ -461,6 +624,10 @@ func CurrentPath(ctx *internal.Context) string {
 
 // RouteParams 返回当前路由的参数。
 func RouteParams(ctx *internal.Context) *Params {
+	if view := getRouteView(ctx); view != nil {
+		params := view.params
+		return &params
+	}
 	st := getRouterState(ctx)
 	if st == nil {
 		return &Params{}
@@ -474,6 +641,9 @@ func RouteParams(ctx *internal.Context) *Params {
 
 // CanGoBack 返回是否可以返回上一页。
 func CanGoBack(ctx *internal.Context) bool {
+	if view := getRouteView(ctx); view != nil {
+		return view.canGoBack
+	}
 	st := getRouterState(ctx)
 	if st == nil {
 		return false
@@ -483,6 +653,9 @@ func CanGoBack(ctx *internal.Context) bool {
 
 // StackDepth 返回导航栈深度。
 func StackDepth(ctx *internal.Context) int {
+	if view := getRouteView(ctx); view != nil {
+		return view.stackDepth
+	}
 	st := getRouterState(ctx)
 	if st == nil {
 		return 0
