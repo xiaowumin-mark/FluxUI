@@ -1229,3 +1229,201 @@ D1.4 完成标准：
 - legacy example id 保持稳定。
 - docs_browser runtime 映射保持不变。
 - 新的 React-style 对照示例仅作为独立 example 暴露。
+
+## Batch 2 prep
+
+Batch 2 将从输入交互类文档开始，范围锁定为 `button`、`click_area`、`checkbox`、`switch`。这批文档会继续保留 legacy 示例，并在 Markdown 中增加 React-style 对照写法。
+
+### 推荐任务拆分
+
+- D2.1 Batch 2 scope lock and docs plan prep
+- D2.2 Update `button.md` and `click_area.md` with React-style snippets
+- D2.3 Update `checkbox.md` and `switch.md` with React-style snippets
+- D2.4 Batch 2 compatibility check
+
+### 约束
+
+- 不修改 `examples/docs_browser` runtime 映射。
+- 不新增独立交互示例除非后续发现文档对照不足。
+- `examples/react_counter` 继续作为 `Button + UseState` 的 canonical example。
+
+### D2.2 Button / ClickArea docs
+
+D2.2 先更新 `docs/widgets/button.md` 和 `docs/widgets/click_area.md`，补充 React-style 对照写法与 Element API metadata。
+
+完成标准：
+
+- 两份文档同时保留 legacy 与 React-style 示例。
+- metadata 中补齐 `ButtonElement` / `ClickAreaElement` 条目。
+- legacy example id 仍保持 `button_basic` / `click_area_basic`。
+- docs_browser runtime 映射不变。
+
+### D2.3 Checkbox / Switch docs
+
+D2.3 更新 `docs/widgets/checkbox.md` 和 `docs/widgets/switch.md`，补充 React-style 对照写法与 Element API metadata。
+
+完成标准：
+
+- 两份文档同时保留 legacy 与 React-style 示例。
+- metadata 中补齐 `CheckboxElement` / `SwitchElement` 条目。
+- legacy example id 仍保持 `checkbox_basic` / `switch_basic`。
+- docs_browser runtime 映射不变。
+
+### D2.4 Batch 2 compatibility check
+
+D2.4 确认 Batch 2 文档更新不会影响 docs_browser 的旧示例映射。
+
+验证结果：
+
+- `examples/docs_browser` 仍然匹配 `button_basic`、`click_area_basic`、`checkbox_basic`、`switch_basic`。
+- docs metadata 的 legacy example id 没有变化。
+- `go test ./...` 继续通过。
+
+D2.4 完成标准：
+
+- Batch 2 docs 更新后，旧 docs_browser 仍正常工作。
+- 没有引入新的 runtime 映射改动。
+
+## Batch 3 prep
+
+Batch 3 将进入 Router 文档迁移，聚焦 `docs/widgets/router.md` 的 React-style 对照写法，而不是更改 router runtime 本身。
+
+### 推荐任务拆分
+
+- D3.1 Batch 3 scope lock and docs plan prep
+- D3.2 Update `router.md` with React-style API metadata and snippets
+- D3.3 Add route identity and compatibility notes
+- D3.4 Batch 3 compatibility check
+
+### D3.2 Router docs
+
+D3.2 更新 `docs/widgets/router.md`，补充 React-style RouterElement 说明与 snippet，同时保留 legacy Router 文档内容。
+
+完成标准：
+
+- metadata 中补齐 `RouterElement` / `RouteElement` / `RouteKey` / `UseNavigate` / `UseLocation` / `UseParams` 条目。
+- 文档保留 legacy Router 的基础用法和导航说明。
+- `examples/router_element` 被引用为 React-style 对照示例，`examples/router` 保持不变。
+- docs_browser runtime 映射不变。
+
+### D3.3 Route identity and compatibility
+
+D3.3 统一收束 Router 文档中的 route identity 和兼容性说明，确保文档描述与现有测试一致。
+
+确认点：
+
+- `RouteElement` 默认按 pattern 复用页面实例。
+- `RouteKey` 会触发 remount。
+- legacy `Router` / `Navigate` / `RouteParams` 保持稳定。
+- `examples/router` 与 `router_basic` 不受影响。
+
+D3.3 完成标准：
+
+- 文档中明确 route identity 规则。
+- 文档中明确 legacy / React-style 兼容边界。
+- `go test ./...` 继续通过。
+
+### D3.4 Batch 3 compatibility check
+
+D3.4 做最终兼容性检查，确认 Batch 3 的 Router 文档迁移没有影响旧 docs_browser 入口或 legacy Router 文档行为。
+
+验证结论：
+
+- `examples/docs_browser` 仍然只解析 `router_basic`。
+- `examples/router` 仍然作为 legacy 对照。
+- `examples/router_element` 仍然作为独立 React-style 对照示例。
+- `go test ./...` 继续通过。
+
+D3.4 完成标准：
+
+- Batch 3 文档迁移完成后，旧 Router 文档和 docs_browser 行为不变。
+- 没有引入新的 runtime 映射改动。
+
+## Batch 4 prep
+
+Batch 4 是第一个明确依赖 host-state / ref 边界的 docs batch，覆盖复杂输入和表单：`textfield`、`select`、`radio_group`、`slider`。`examples/form_validation` 作为整合参考例保留 legacy 写法，不在 host-state 设计未定时强行转写。
+
+### 推荐任务拆分
+
+- D4.1 Batch 4 scope lock and host-state boundary prep
+- D4.2 Update `textfield.md` and `slider.md` strategy notes
+- D4.3 Update `select.md` and `radio_group.md` strategy notes
+- D4.4 Form validation example compatibility note
+- D4.5 Batch 4 compatibility check
+
+### D4.2 TextField / Slider strategy notes
+
+D4.2 更新 `docs/widgets/textfield.md` 和 `docs/widgets/slider.md`，补充 Batch 4 host-state 策略说明，保持 legacy-first，不冻结 React-style API 名称。
+
+完成标准：
+
+- 文档明确 `InputRef` / `SliderRef` 仍是当前兼容路径。
+- 不冻结 `TextFieldElement` / `SliderElement` 名称。
+- `examples/form_validation` 保持 legacy 对照。
+- docs_browser runtime 映射不变。
+
+### D4.3 Select / RadioGroup strategy notes
+
+D4.3 更新 `docs/widgets/select.md` 和 `docs/widgets/radio_group.md`，补充 Batch 4 host-state 策略说明，保持 legacy-first，不冻结 React-style API 名称。
+
+完成标准：
+
+- 文档明确 `SelectRef[T]` / `RadioGroupRef` 仍是当前兼容路径。
+- 不冻结 `SelectElement` / `RadioGroupElement` 名称。
+- 泛型 Select 的 Element API、展开生命周期和 ref 命令归属留待 host-state 设计阶段处理。
+- docs_browser runtime 映射不变。
+
+### D4.4 Form validation compatibility note
+
+D4.4 为 `examples/form_validation` 补充兼容性说明，明确它在 Batch 4 阶段继续作为 legacy `Run` / `Widget` 对照示例。
+
+完成标准：
+
+- 示例目录包含说明文档，解释为什么暂不迁移到 `RunElement`。
+- 说明中明确复杂输入 Element API 需要等待 host-state / ref 策略冻结。
+- 不修改 `examples/form_validation/main.go` 行为。
+- `go test ./...` 继续通过。
+
+### D4.5 Batch 4 compatibility check
+
+D4.5 做最终兼容性检查，确认 Batch 4 的复杂输入文档策略说明没有影响旧 docs_browser 入口或示例行为。
+
+验证结论：
+
+- `examples/docs_browser` 仍然解析 `textfield_basic`、`slider_basic`、`radio_group_basic`、`select_basic`。
+- Batch 4 没有新增 `TextFieldElement` / `SliderElement` / `SelectElement` / `RadioGroupElement` metadata。
+- `examples/form_validation/main.go` 未修改，`examples/form_validation/README.md` 只记录兼容策略。
+- `go test ./...` 继续通过。
+
+D4.5 完成标准：
+
+- Batch 4 以 host-state / ref strategy notes 收尾。
+- 复杂输入 React-style snippet 迁移延后到 host-state component migration 阶段。
+- 没有引入新的 runtime 映射改动。
+
+## Batch 5 prep
+
+Batch 5 是下一个更偏 lifecycle 的 docs batch，覆盖滚动、列表、网格、弹层和通知：`scroll_view`、`list_view`、`grid`、`dialog`、`popup`、`toast`。这一批涉及虚拟滚动、refs、overlay 生命周期和短时通知状态，建议继续采用策略说明优先、legacy-first 的方式推进。
+
+### 推荐任务拆分
+
+- D5.1 Batch 5 scope lock and lifecycle prep
+- D5.2 Update `scroll_view.md` and `list_view.md` strategy notes
+- D5.3 Update `grid.md` strategy notes
+- D5.4 Update `dialog.md` and `popup.md` strategy notes
+- D5.5 Update `toast.md` and `examples/virtual_scroll` compatibility note
+- D5.6 Batch 5 compatibility check
+
+### 约束
+
+- 不修改 `examples/docs_browser` runtime 映射。
+- 不在 Element wrapper 与 overlay lifecycle 未冻结前强行定义这批控件的 React-style API 名称。
+- `examples/virtual_scroll` 保持 legacy 对照参考，必要时只补文档说明，不直接改写为新 runtime。
+- 如果后续要引入 `ScrollViewElement` / `ListViewElement` / `DialogElement` 等 API，必须先完成 host-state / overlay lifecycle 设计收束。
+
+### 约束
+
+- 不修改 `examples/docs_browser` runtime 映射。
+- 不在 Element wrapper 未冻结前强行定义这批控件的 React-style API 名称。
+- `examples/form_validation` 保持 legacy 对照参考，必要时只补文档说明，不直接改写为新 runtime。
+- 如果后续要引入 `TextFieldElement` / `SelectElement` 等 API，必须先完成 host-state / ref 设计收束。

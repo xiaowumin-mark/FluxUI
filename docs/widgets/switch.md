@@ -8,6 +8,7 @@
   "example": { "id": "switch_basic" },
   "apis": [
     "Switch(checked bool, opts ...SwitchOption) Widget",
+    "SwitchElement(checked bool, opts ...SwitchOption) Element",
     "SwitchOnChange(fn func(ctx *Context, checked bool)) SwitchOption",
     "SwitchDisabled(disabled bool) SwitchOption",
     "SwitchWidth(width float32) SwitchOption",
@@ -35,6 +36,10 @@ Switch 常用于“立即生效”的开关项，比如通知开关、实验特�
 - 需要外部主动切换时，使用 `SwitchAttachRef` 与 `SwitchRef` 方法。
 
 ## 使用示例
+
+### Legacy Widget
+旧 `ui.Switch` / `Widget` 写法继续可用：
+
 ```go
 enabled := ui.State[bool](ctx)
 ui.Switch(
@@ -43,4 +48,23 @@ ui.Switch(
         enabled.Set(checked)
     }),
 )
+```
+
+### React-style Element
+新代码可在 `RunElement` root 下返回 `SwitchElement`：
+
+```go
+func FeatureToggle(ctx *ui.Context) ui.Element {
+    enabled := ui.UseState(ctx, true)
+    return ui.RowElement(
+        ui.SwitchElement(
+            enabled.Value(),
+            ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
+                enabled.Set(checked)
+            }),
+        ),
+        ui.SpacerElement(8, 0),
+        ui.TextElement(fmt.Sprintf("功能开关: %v", enabled.Value())),
+    )
+}
 ```

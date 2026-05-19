@@ -9,6 +9,15 @@
   "apis": [
     "Router(ctx *Context, routes []Route, opts ...RouterOption) Widget",
     "type Route struct { Path string; Builder func(ctx *Context) Widget }",
+    "type Location struct { Path string; Pathname string; QueryParams map[string]string }",
+    "(*Location).Query(name string) string",
+    "(*Location).AllQueryParams() map[string]string",
+    "RouterElement(routes ...RouteElementSpec) Element",
+    "RouteElement(path string, component Component, opts ...RouteElementOption) RouteElementSpec",
+    "RouteKey(key string) RouteElementOption",
+    "UseNavigate(ctx *Context) NavigateFunc",
+    "UseLocation(ctx *Context) *Location",
+    "UseParams(ctx *Context) *RouteParamsType",
     "RouterTransition(t Transition) RouterOption",
     "RouterTransitionDuration(d time.Duration) RouterOption",
     "RouterBeforeEach(fn func(ctx *Context, from, to string) bool) RouterOption",
@@ -69,6 +78,70 @@ router := ui.Router(
 )
 ```
 
+## React-style 用法
+
+新代码推荐使用 `RunElement` + `RouterElement` 组合：
+
+```go
+func App(ctx *ui.Context) ui.Element {
+    return ui.RouterElement(
+        ui.RouteElement("/", HomePage),
+        ui.RouteElement("/users/:id", UserPage),
+        ui.RouteElement("/settings", SettingsPage),
+    )
+}
+
+func HomePage(ctx *ui.Context) ui.Element {
+    navigate := ui.UseNavigate(ctx)
+    location := ui.UseLocation(ctx)
+
+    return ui.ColumnElement(
+        ui.TextElement("Home"),
+        ui.TextElement("Pathname: "+location.Pathname),
+        ui.ButtonElement(
+            ui.TextElement("Open user u1001"),
+            ui.OnClick(func(ctx *ui.Context) {
+                navigate("/users/u1001?tab=profile", ui.WithNavTransition(ui.TransitionSlideLeft))
+            }),
+        ),
+    )
+}
+
+func UserPage(ctx *ui.Context) ui.Element {
+    navigate := ui.UseNavigate(ctx)
+    location := ui.UseLocation(ctx)
+    params := ui.UseParams(ctx)
+
+    return ui.ColumnElement(
+        ui.TextElement("User detail"),
+        ui.TextElement("id: "+params.Get("id")),
+        ui.TextElement("tab: "+location.Query("tab")),
+        ui.TextElement("Route identity follows the pattern unless RouteKey changes."),
+        ui.ButtonElement(
+            ui.TextElement("Home"),
+            ui.OnClick(func(ctx *ui.Context) {
+                navigate("/")
+            }),
+        ),
+    )
+}
+```
+
+如果需要强制重建某个页面实例，可以给 `RouteElement` 加 `RouteKey`：
+
+```go
+ui.RouteElement("/users/:id", UserPage, ui.RouteKey("user-42"))
+```
+
+## 路由身份与兼容性
+
+- 默认情况下，`RouteElement` 的组件身份按路由 pattern 复用，而不是按具体参数值重建。
+- 这意味着 `/users/1`、`/users/2` 这类同 pattern 路由会复用同一个页面实例，除非显式传入 `RouteKey`。
+- `RouteKey` 适合用于需要按业务对象强制重建页面的场景，例如切换不同用户详情页时需要清空局部状态。
+- 这个行为与现有路由测试保持一致：pattern identity 复用、显式 key 变化 remount。
+- 旧的 `Router` / `Navigate` / `RouteParams` API 仍然保留，适合作为 legacy 兼容路径。
+- `RouterElement` 目前是 React-style 对照入口，不改变 `examples/router` 和 `router_basic` 的既有行为。
+
 ## 导航操作
 
 - `Navigate`: 入栈跳转，保留当前页作为返回栈
@@ -108,6 +181,7 @@ tab := params.Query("tab")
 ## 实战示例
 
 - 独立示例：`examples/router/main.go`
+- React-style 对照示例：`examples/router_element/main.go`
 - 文档浏览器示例：`router_basic`
 
 该示例覆盖了动态参数、query、守卫、404、`NavigateReplace`、`NavigateBack` 以及过渡动画切换。

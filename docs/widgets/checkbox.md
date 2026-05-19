@@ -8,6 +8,7 @@
   "example": { "id": "checkbox_basic" },
   "apis": [
     "Checkbox(label string, checked bool, opts ...CheckboxOption) Widget",
+    "CheckboxElement(label string, checked bool, opts ...CheckboxOption) Element",
     "CheckboxOnChange(fn func(ctx *Context, checked bool)) CheckboxOption",
     "CheckboxDisabled(disabled bool) CheckboxOption",
     "CheckboxSize(size float32) CheckboxOption",
@@ -32,6 +33,10 @@ Checkbox 适用于“可多选”或“布尔开关”场景，常见于表单�
 - 需要外部命令式切换时，使用 `CheckboxAttachRef` + `SetChecked/Toggle`。
 
 ## 使用示例
+
+### Legacy Widget
+旧 `ui.Checkbox` / `Widget` 写法继续可用：
+
 ```go
 agree := ui.State[bool](ctx)
 ui.Checkbox(
@@ -41,4 +46,24 @@ ui.Checkbox(
         agree.Set(checked)
     }),
 )
+```
+
+### React-style Element
+新代码可在 `RunElement` root 下返回 `CheckboxElement`：
+
+```go
+func AgreementRow(ctx *ui.Context) ui.Element {
+    agree := ui.UseState(ctx, false)
+    return ui.RowElement(
+        ui.CheckboxElement(
+            "同意服务协议",
+            agree.Value(),
+            ui.CheckboxOnChange(func(ctx *ui.Context, checked bool) {
+                agree.Set(checked)
+            }),
+        ),
+        ui.SpacerElement(8, 0),
+        ui.TextElement(fmt.Sprintf("协议状态: %v", agree.Value())),
+    )
+}
 ```

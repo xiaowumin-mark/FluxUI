@@ -31,6 +31,13 @@ RadioGroup 用于“多个选项中只能选一个”的场景，例如排序模
 - 变化回调用 `RadioGroupOnChange`。
 - 若需外部主动切换选项，使用 `RadioGroupAttachRef` + `SetValue`。
 
+## Host-state / React-style 说明
+
+- 当前仍以 legacy `Widget` + `RadioGroupRef` 作为兼容实现。
+- `RadioGroup` 的 Element wrapper 名称与 host-state 边界尚未冻结，不在本批次文档中作为稳定公开 API 推荐。
+- 在 Batch 4 期间，文档保持 legacy-first，只保留受控 value、items、direction 和 ref 操作说明，不引入新的 React-style snippet。
+- 如果后续引入 `RadioGroupElement`，需要先确认选项 identity、value 更新和 ref 命令如何归属到 host fiber。
+
 ## 使用示例
 ```go
 mode := ui.State[string](ctx)

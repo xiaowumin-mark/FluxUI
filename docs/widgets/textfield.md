@@ -44,6 +44,13 @@ TextField 是受控输入组件，值由外部状态提供，输入变化通过 
 - 长文本场景建议关闭单行模式。
 - 命令式控制（聚焦/清空/追加）建议通过 `InputAttachRef` + `InputRef` 方法完成。
 
+## Host-state / React-style 说明
+
+- 当前仍以 legacy `Widget` + `InputRef` 作为兼容实现。
+- `TextField` 的 Element wrapper 名称与 host-state 边界尚未冻结，不在本批次文档中作为稳定公开 API 推荐。
+- 在 Batch 4 期间，文档保持 legacy-first，只保留受控输入和命令式 ref 用法，不引入新的 React-style snippet。
+- 更完整的表单组合可参考 `examples/form_validation`，它仍然是 legacy 组合示例。
+
 ## 使用示例
 ```go
 name := ui.State[string](ctx)

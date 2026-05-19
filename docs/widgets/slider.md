@@ -36,6 +36,13 @@ Slider 适用于音量、进度、阈值等连续数值场景。
 - 与进度条联动时建议统一状态源。
 - 外部程序调整值可使用 `SliderAttachRef`，通过 `SetValue/StepBy` 下发命令。
 
+## Host-state / React-style 说明
+
+- 当前仍以 legacy `Widget` + `SliderRef` 作为兼容实现。
+- `Slider` 的 Element wrapper 名称与 host-state 边界尚未冻结，不在本批次文档中作为稳定公开 API 推荐。
+- 在 Batch 4 期间，文档保持 legacy-first，只保留受控 value、range、step 和 ref 操作说明，不引入新的 React-style snippet。
+- 与其他复杂输入一起迁移时，先保证命令式 ref 行为和旧示例兼容。
+
 ## 使用示例
 ```go
 value := ui.State[float32](ctx)
