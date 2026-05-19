@@ -277,6 +277,40 @@ func TestHookCountConsistentAcrossFrames(t *testing.T) {
 	}
 }
 
+func TestStateIsolatedAcrossScopes(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	gtx := gioLayout.Context{Ops: &ops}
+
+	rt.BeginFrame()
+	root := internal.NewContext(gtx, rt)
+	child := root.Child(0)
+
+	rootState := state.Use[int](root)
+	childState := state.Use[int](child)
+	rootState.Set(11)
+	childState.Set(22)
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	root2 := internal.NewContext(gtx, rt)
+	child2 := root2.Child(0)
+
+	rootState2 := state.Use[int](root2)
+	childState2 := state.Use[int](child2)
+	rt.EndFrame()
+
+	if rootState2.Value() != 11 {
+		t.Fatalf("expected root state to persist as 11, got %d", rootState2.Value())
+	}
+	if childState2.Value() != 22 {
+		t.Fatalf("expected child state to persist as 22, got %d", childState2.Value())
+	}
+	if rootState2.Key() == childState2.Key() {
+		t.Fatal("expected root and child states to use different keys")
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && searchString(s, substr)
 }

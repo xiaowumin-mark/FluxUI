@@ -13,6 +13,36 @@ import (
 	"gioui.org/op/paint"
 )
 
+// NavigateFunc 是实验性路由导航函数签名。
+type NavigateFunc func(path string, opts ...NavigateOption)
+
+// Location 描述当前路由位置。
+type Location struct {
+	Path        string
+	Pathname    string
+	QueryParams map[string]string
+}
+
+// Query 返回查询参数值。
+func (l *Location) Query(name string) string {
+	if l == nil || l.QueryParams == nil {
+		return ""
+	}
+	return l.QueryParams[name]
+}
+
+// AllQueryParams 返回查询参数副本。
+func (l *Location) AllQueryParams() map[string]string {
+	if l == nil || l.QueryParams == nil {
+		return nil
+	}
+	out := make(map[string]string, len(l.QueryParams))
+	for k, v := range l.QueryParams {
+		out[k] = v
+	}
+	return out
+}
+
 // Route 定义一条路由规则。
 type Route struct {
 	Path    string
@@ -604,6 +634,49 @@ func NavigateBack(ctx *internal.Context, opts ...NavigateOption) {
 		opts:   navOpts,
 	}
 	ctx.RequestRedraw()
+}
+
+// UseNavigate 返回绑定当前上下文的导航函数。
+func UseNavigate(ctx *internal.Context) NavigateFunc {
+	return func(path string, opts ...NavigateOption) {
+		Navigate(ctx, path, opts...)
+	}
+}
+
+// UseLocation 返回当前路由位置。
+func UseLocation(ctx *internal.Context) *Location {
+	if view := getRouteView(ctx); view != nil {
+		return locationFromPath(view.path)
+	}
+	st := getRouterState(ctx)
+	if st == nil {
+		return &Location{}
+	}
+	entry := st.currentEntry()
+	if entry == nil {
+		return &Location{}
+	}
+	return locationFromPath(entry.path)
+}
+
+// UseParams 返回当前路由参数。
+func UseParams(ctx *internal.Context) *Params {
+	return RouteParams(ctx)
+}
+
+func locationFromPath(fullPath string) *Location {
+	path, query := extractQueryParams(fullPath)
+	loc := &Location{
+		Path:     fullPath,
+		Pathname: path,
+	}
+	if len(query) > 0 {
+		loc.QueryParams = make(map[string]string, len(query))
+		for k, v := range query {
+			loc.QueryParams[k] = v
+		}
+	}
+	return loc
 }
 
 // CurrentPath 返回当前路由路径。

@@ -7,17 +7,17 @@ type Effect = state.Effect
 
 // UseEffect 在每次渲染后执行副作用，并在下一次执行前清理。
 func UseEffect(ctx *Context, effect Effect) {
-	state.UseEffect(ctx, effect)
+	useEffect(ctx, false, nil, effect)
 }
 
 // UseEffectWithDeps 在首次渲染和依赖变化时执行副作用。
 func UseEffectWithDeps(ctx *Context, deps []any, effect Effect) {
-	state.UseEffectWithDeps(ctx, deps, effect)
+	useEffect(ctx, true, deps, effect)
 }
 
 // UseMount 在组件挂载时执行一次，卸载时执行 cleanup（如果存在）。
 func UseMount(ctx *Context, effect Effect) {
-	state.UseMount(ctx, effect)
+	UseEffectWithDeps(ctx, []any{}, effect)
 }
 
 // UseLifecycle 绑定组件挂载/卸载生命周期。

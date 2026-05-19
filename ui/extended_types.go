@@ -82,6 +82,71 @@ func Spacer(width, height float32) Widget {
 	return widget.Spacer(width, height)
 }
 
+// TextElement 创建可参与 reconciler 的静态文本 Element。
+func TextElement(content string, opts ...TextOption) Element {
+	return FromWidget(widget.Text(content, opts...))
+}
+
+// SpacerElement 创建可参与 reconciler 的静态空白 Element。
+func SpacerElement(width, height float32) Element {
+	return FromWidget(widget.Spacer(width, height))
+}
+
+// DividerElement 创建可参与 reconciler 的静态分割线 Element。
+func DividerElement(opts ...DividerOption) Element {
+	return FromWidget(widget.Divider(opts...))
+}
+
+// ColumnElement 创建可参与 reconciler 的纵向布局 Element。
+func ColumnElement(children ...Element) Element {
+	return &layoutElement{kind: "column", children: append([]Element(nil), children...)}
+}
+
+// RowElement 创建可参与 reconciler 的横向布局 Element。
+func RowElement(children ...Element) Element {
+	return &layoutElement{kind: "row", children: append([]Element(nil), children...)}
+}
+
+// StackElement 创建可参与 reconciler 的堆叠布局 Element。
+func StackElement(children ...Element) Element {
+	return &layoutElement{kind: "stack", children: append([]Element(nil), children...)}
+}
+
+// CenterElement 创建可参与 reconciler 的居中布局 Element。
+func CenterElement(child Element) Element {
+	return &layoutElement{kind: "center", child: child}
+}
+
+// PaddingElement 创建可参与 reconciler 的内边距布局 Element。
+func PaddingElement(insets Insets, child Element) Element {
+	return &layoutElement{kind: "padding", insets: insets, child: child}
+}
+
+// ContainerElement 创建可参与 reconciler 的容器布局 Element。
+func ContainerElement(st Style, child Element) Element {
+	return &layoutElement{kind: "container", style: st, child: child}
+}
+
+// ButtonElement 创建可参与 reconciler 的按钮 Element。
+func ButtonElement(child Element, opts ...ButtonOption) Element {
+	return FromWidget(widget.Button(renderElement(child), opts...))
+}
+
+// ClickAreaElement 创建可参与 reconciler 的可点击区域 Element。
+func ClickAreaElement(child Element, onClick func(ctx *Context), opts ...ClickAreaOption) Element {
+	return FromWidget(widget.ClickArea(renderElement(child), onClick, opts...))
+}
+
+// CheckboxElement 创建可参与 reconciler 的复选框 Element。
+func CheckboxElement(label string, checked bool, opts ...CheckboxOption) Element {
+	return FromWidget(widget.Checkbox(label, checked, opts...))
+}
+
+// SwitchElement 创建可参与 reconciler 的开关 Element。
+func SwitchElement(checked bool, opts ...SwitchOption) Element {
+	return FromWidget(widget.Switch(checked, opts...))
+}
+
 func ClickArea(child Widget, onClick func(ctx *Context), opts ...ClickAreaOption) Widget {
 	return widget.ClickArea(child, onClick, opts...)
 }
@@ -148,6 +213,78 @@ func DividerLength(length float32) DividerOption {
 
 func DividerMargin(insets Insets) DividerOption {
 	return widget.DividerMargin(insets)
+}
+
+type layoutElement struct {
+	kind     string
+	style    Style
+	insets   Insets
+	child    Element
+	children []Element
+}
+
+func (e *layoutElement) render() widget.Widget {
+	switch e.kind {
+	case "column":
+		return widget.Column(renderElements(e.children)...)
+	case "row":
+		return widget.Row(renderElements(e.children)...)
+	case "stack":
+		return widget.Stack(renderElements(e.children)...)
+	case "center":
+		return widget.Center(renderElement(e.child))
+	case "padding":
+		return widget.Padding(e.insets, renderElement(e.child))
+	case "container":
+		return widget.Container(e.style, renderElement(e.child))
+	default:
+		return nil
+	}
+}
+
+func (e *layoutElement) renderWithContext(ctx *Context) widget.Widget {
+	switch e.kind {
+	case "column":
+		return widget.Column(renderElementsWithContext(ctx, e.children)...)
+	case "row":
+		return widget.Row(renderElementsWithContext(ctx, e.children)...)
+	case "stack":
+		return widget.Stack(renderElementsWithContext(ctx, e.children)...)
+	case "center":
+		return widget.Center(renderElementWithContext(ctx, e.child))
+	case "padding":
+		return widget.Padding(e.insets, renderElementWithContext(ctx, e.child))
+	case "container":
+		return widget.Container(e.style, renderElementWithContext(ctx, e.child))
+	default:
+		return nil
+	}
+}
+
+func renderElements(children []Element) []Widget {
+	widgets := make([]Widget, 0, len(children))
+	for _, child := range children {
+		if child == nil {
+			continue
+		}
+		if w := renderElement(child); w != nil {
+			widgets = append(widgets, w)
+		}
+	}
+	return widgets
+}
+
+func renderElementsWithContext(ctx *Context, children []Element) []Widget {
+	widgets := make([]Widget, 0, len(children))
+	for _, child := range children {
+		if child == nil {
+			continue
+		}
+		if w := renderElementWithContext(ctx, child); w != nil {
+			widgets = append(widgets, w)
+		}
+	}
+	return widgets
 }
 
 func Image(src ImageSource, opts ...ImageOption) Widget {

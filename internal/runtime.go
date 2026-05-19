@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"reflect"
 	"sync"
 
 	theme "github.com/xiaowumin-mark/FluxUI/theme"
@@ -16,17 +15,18 @@ import (
 
 // Runtime 持有跨 frame 的稳定数据。
 type Runtime struct {
-	mu         sync.Mutex
-	memory     map[string]any
-	theme      *theme.Theme
-	material   *material.Theme
-	invalidate func()
-	windowCtrl WindowController
+	mu             sync.Mutex
+	memory         map[string]any
+	theme          *theme.Theme
+	material       *material.Theme
+	invalidate     func()
+	windowCtrl     WindowController
 	effects        map[string]*effectSlot
 	activeFx       map[string]struct{}
 	pendingFx      []func()
 	hookCounts     map[string]int
 	prevHookCounts map[string]int
+	hookStore      *HookStore
 }
 
 type effectSlot struct {
@@ -65,6 +65,7 @@ func NewRuntime(th *theme.Theme) *Runtime {
 		effects:    make(map[string]*effectSlot),
 		activeFx:   make(map[string]struct{}),
 		hookCounts: make(map[string]int),
+		hookStore:  NewHookStore(),
 	}
 }
 
@@ -110,6 +111,9 @@ func (r *Runtime) BeginFrame() {
 	if r == nil {
 		return
 	}
+	if r.hookStore != nil {
+		r.hookStore.BeginFrame()
+	}
 	r.prevHookCounts = r.hookCounts
 	r.hookCounts = make(map[string]int)
 	clear(r.activeFx)
@@ -120,6 +124,9 @@ func (r *Runtime) BeginFrame() {
 func (r *Runtime) EndFrame() {
 	if r == nil {
 		return
+	}
+	if r.hookStore != nil {
+		r.hookStore.EndFrame()
 	}
 
 	for path, count := range r.hookCounts {
@@ -156,6 +163,9 @@ func (r *Runtime) Dispose() {
 	if r == nil {
 		return
 	}
+	if r.hookStore != nil {
+		r.hookStore.Dispose()
+	}
 	for key, slot := range r.effects {
 		if slot != nil && slot.cleanup != nil {
 			slot.cleanup()
@@ -165,6 +175,14 @@ func (r *Runtime) Dispose() {
 	}
 	r.pendingFx = nil
 	clear(r.activeFx)
+}
+
+// HookStore returns the experimental component hook slot store.
+func (r *Runtime) HookStore() *HookStore {
+	if r == nil {
+		return nil
+	}
+	return r.hookStore
 }
 
 // UseEffect registers a post-frame side effect bound to a stable key.
@@ -182,7 +200,7 @@ func (r *Runtime) UseEffect(key string, hasDeps bool, deps []any, setup EffectSe
 
 	r.activeFx[key] = struct{}{}
 
-	nextDeps := cloneDeps(deps)
+	nextDeps := CloneDeps(deps)
 	shouldRun := shouldRunEffect(slot, hasDeps, nextDeps)
 	if !shouldRun {
 		return
@@ -227,26 +245,13 @@ func shouldRunEffect(slot *effectSlot, hasDeps bool, nextDeps []any) bool {
 	if !slot.hasDeps {
 		return true
 	}
-	return !depsEqual(slot.deps, nextDeps)
+	return !DepsEqual(slot.deps, nextDeps)
 }
 
 func depsEqual(a, b []any) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !reflect.DeepEqual(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
+	return DepsEqual(a, b)
 }
 
 func cloneDeps(deps []any) []any {
-	if len(deps) == 0 {
-		return nil
-	}
-	out := make([]any, len(deps))
-	copy(out, deps)
-	return out
+	return CloneDeps(deps)
 }

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/anim"
-	"github.com/xiaowumin-mark/FluxUI/ui"
+	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
 func main() {

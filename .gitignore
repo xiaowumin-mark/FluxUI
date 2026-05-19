@@ -4,6 +4,10 @@ project_structure.md
 /build
 /out
 /.claude
+/.opencode
+saga.db
+saga.db-shm
+saga.db-wal
 
 *.log
 *.exe

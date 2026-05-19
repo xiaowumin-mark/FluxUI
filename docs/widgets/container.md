@@ -8,6 +8,7 @@
   "example": { "id": "container_basic" },
   "apis": [
     "Container(st Style, child Widget) Widget",
+    "ContainerElement(st Style, child Element) Element",
     "type Style struct { Background color.NRGBA; Padding Insets; Margin Insets; Radius float32 }"
   ]
 }
@@ -23,6 +24,10 @@ Container 是样式容器，负责背景色、内外边距、圆角等视觉外�
 - 卡片、面板、状态块都建议由 `Container` 或 `Card` 承载。
 
 ## 使用示例
+
+### Legacy Widget
+旧 `ui.Container` / `Widget` 写法继续可用：
+
 ```go
 ui.Container(
     ui.Style{
@@ -32,4 +37,20 @@ ui.Container(
     },
     ui.Text("容器内容", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
 )
+```
+
+### React-style Element
+新代码可在 `RunElement` root 下返回 `ContainerElement`：
+
+```go
+func App(ctx *ui.Context) ui.Element {
+    return ui.ContainerElement(
+        ui.Style{
+            Background: ui.NRGBA(30, 136, 229, 255),
+            Padding:    ui.All(12),
+            Radius:     8,
+        },
+        ui.TextElement("容器内容", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
+    )
+}
 ```

@@ -379,6 +379,11 @@ func State[T any](ctx *Context) *state.State[T] {
 	return state.Use[T](ctx)
 }
 
+// StateWithInitial 返回当前作用域的稳定状态，并在首次创建时写入初始值。
+func StateWithInitial[T any](ctx *Context, initial T) *state.State[T] {
+	return state.UseWithInitial[T](ctx, initial)
+}
+
 // Animate 创建动画定义。
 func Animate(opts ...anim.Option) *anim.Animation {
 	return anim.New(opts...)

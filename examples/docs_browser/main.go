@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xiaowumin-mark/FluxUI/ui"
+	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
 type docMeta struct {

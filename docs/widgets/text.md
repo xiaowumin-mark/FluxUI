@@ -8,6 +8,7 @@
   "example": { "id": "text_basic" },
   "apis": [
     "Text(content string, opts ...TextOption) Widget",
+    "TextElement(content string, opts ...TextOption) Element",
     "TextSize(size float32) TextOption",
     "TextColor(value color.NRGBA) TextOption",
     "TextAlign(alignment TextAlignment) TextOption"
@@ -25,10 +26,27 @@ Text 是最基础展示组件，支持字号、颜色和对齐控制。所有文
 - 强调文本建议结合主题色，而不是硬编码随机颜色。
 
 ## 使用示例
+
+### Legacy Widget
+旧 `ui.Text` / `Widget` 写法继续可用：
+
 ```go
 ui.Text(
     "Hello FluxUI",
     ui.TextSize(18),
     ui.TextColor(ui.NRGBA(30, 41, 59, 255)),
 )
+```
+
+### React-style Element
+新代码可在 `RunElement` root 下返回 `TextElement`：
+
+```go
+func App(ctx *ui.Context) ui.Element {
+    return ui.TextElement(
+        "Hello FluxUI",
+        ui.TextSize(18),
+        ui.TextColor(ui.NRGBA(30, 41, 59, 255)),
+    )
+}
 ```

@@ -7,7 +7,8 @@
   "summary": "Center 将子组件在可用区域中居中显示。",
   "example": { "id": "center_basic" },
   "apis": [
-    "Center(child Widget) Widget"
+    "Center(child Widget) Widget",
+    "CenterElement(child Element) Element"
   ]
 }
 -->
@@ -22,6 +23,10 @@ Center 用于快速做居中布局，不负责背景和边距。常用于空状�
 - 与 `Container`、`FixedHeight` 组合可形成稳定的展示区域。
 
 ## 使用示例
+
+### Legacy Widget
+旧 `ui.Center` / `Widget` 写法继续可用：
+
 ```go
 ui.FixedHeight(
     120,
@@ -32,4 +37,20 @@ ui.FixedHeight(
         ),
     ),
 )
+```
+
+### React-style Element
+新代码可在 `RunElement` root 下返回 `CenterElement`：
+
+```go
+func App(ctx *ui.Context) ui.Element {
+    return ui.ContainerElement(
+        ui.Style{
+            Background: ui.NRGBA(240, 244, 248, 255),
+            Padding:    ui.All(24),
+            Radius:     8,
+        },
+        ui.CenterElement(ui.TextElement("居中内容")),
+    )
+}
 ```

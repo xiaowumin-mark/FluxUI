@@ -8,6 +8,7 @@
   "example": { "id": "row_basic" },
   "apis": [
     "Row(children ...Widget) Widget",
+    "RowElement(children ...Element) Element",
     "Flexed(weight float32, child Widget) Widget",
     "Expanded(child Widget) Widget"
   ]
@@ -25,6 +26,10 @@ Row 是 FluxUI 最常用的横向布局容器。你可以把标题、工具按�
 - 组件间距推荐通过 `Padding` 或 `HSpacer` 明确声明。
 
 ## 使用示例
+
+### Legacy Widget
+旧 `ui.Row` / `Widget` 写法继续可用：
+
 ```go
 ui.Row(
     ui.Text("标题"),
@@ -32,4 +37,18 @@ ui.Row(
     ui.Expanded(ui.Spacer(0, 0)),
     ui.Button(ui.Text("操作")),
 )
+```
+
+### React-style Element
+新代码可在 `RunElement` root 下返回 `RowElement`。当前阶段 `Expanded` / `Flexed` 的原生 Element wrapper 尚未冻结，基础横向布局优先用 Element wrapper：
+
+```go
+func Toolbar(ctx *ui.Context) ui.Element {
+    return ui.RowElement(
+        ui.TextElement("标题"),
+        ui.PaddingElement(ui.Insets{Left: 8}, ui.TextElement("副标题")),
+        ui.SpacerElement(16, 0),
+        ui.TextElement("操作"),
+    )
+}
 ```

@@ -3,6 +3,7 @@ package internal
 import (
 	"image"
 	"image/color"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -22,6 +23,8 @@ type Context struct {
 	foreground color.NRGBA
 	font       theme.FontSpec
 	hasFont    bool
+	instance   *ComponentInstance
+	providers  map[reflect.Type]any
 }
 
 // NewContext 创建 frame 级上下文。
@@ -182,6 +185,53 @@ func (c *Context) Memo(namespace string, factory func() any) any {
 	return c.Persistent(c.NextKey(namespace), factory)
 }
 
+// WithComponentInstance binds this context to a component hook instance.
+func (c *Context) WithComponentInstance(instance *ComponentInstance) *Context {
+	next := c.sameScope(c.Gtx)
+	next.instance = instance
+	return next
+}
+
+// ComponentInstance returns the currently bound experimental component instance.
+func (c *Context) ComponentInstance() *ComponentInstance {
+	if c == nil {
+		return nil
+	}
+	return c.instance
+}
+
+// NextHookSlot returns the next component-owned hook slot, if this context is
+// currently rendering inside an experimental component instance.
+func (c *Context) NextHookSlot(kind HookKind) *HookSlot {
+	if c == nil || c.instance == nil {
+		return nil
+	}
+	return c.instance.NextHook(kind)
+}
+
+// WithProviderValue returns a context with one provider value overridden.
+func WithProviderValue[T any](c *Context, value T) *Context {
+	if c == nil {
+		return nil
+	}
+	next := c.sameScope(c.Gtx)
+	next.providers = cloneProviders(c.providers)
+	next.providers[contextKeyType[T]()] = value
+	return next
+}
+
+// ProviderValue reads a provider value from context, or fallback when absent.
+func ProviderValue[T any](c *Context, fallback T) T {
+	if c == nil || c.providers == nil {
+		return fallback
+	}
+	value, ok := c.providers[contextKeyType[T]()].(T)
+	if !ok {
+		return fallback
+	}
+	return value
+}
+
 // Child 为子组件创建独立作用域。
 func (c *Context) Child(index int) *Context {
 	return c.childWithGtx(c.Gtx, strconv.Itoa(index))
@@ -211,6 +261,18 @@ func (c *Context) sameScope(gtx gioLayout.Context) *Context {
 	next := *c
 	next.Gtx = gtx
 	return &next
+}
+
+func cloneProviders(providers map[reflect.Type]any) map[reflect.Type]any {
+	next := make(map[reflect.Type]any, len(providers)+1)
+	for key, value := range providers {
+		next[key] = value
+	}
+	return next
+}
+
+func contextKeyType[T any]() reflect.Type {
+	return reflect.TypeOf((*T)(nil)).Elem()
 }
 
 func (c *Context) childWithGtx(gtx gioLayout.Context, segment string) *Context {

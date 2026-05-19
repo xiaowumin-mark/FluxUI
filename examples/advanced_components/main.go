@@ -5,7 +5,7 @@ import (
 	"image/color"
 	"time"
 
-	"github.com/xiaowumin-mark/FluxUI/ui"
+	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
 func main() {

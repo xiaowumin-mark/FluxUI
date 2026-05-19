@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"image/color"
 
-	"github.com/xiaowumin-mark/FluxUI/ui"
+	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
 const (
@@ -93,9 +93,9 @@ func gridDemo(ctx *ui.Context, th *ui.Theme) ui.Widget {
 		gridItemCount,
 		gridColumns,
 		func(ctx *ui.Context, index int) ui.Widget {
-			r := uint8((index * 7) % 200 + 55)
-			g := uint8((index * 13) % 180 + 75)
-			b := uint8((index * 3) % 160 + 95)
+			r := uint8((index*7)%200 + 55)
+			g := uint8((index*13)%180 + 75)
+			b := uint8((index*3)%160 + 95)
 			bg := color.NRGBA{R: r, G: g, B: b, A: 255}
 
 			return ui.Container(

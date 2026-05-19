@@ -21,6 +21,12 @@ type RouterOption = router.Option
 // NavigateOption 定义单次导航配置项。
 type NavigateOption = router.NavigateOption
 
+// NavigateFunc 定义实验性导航函数。
+type NavigateFunc = router.NavigateFunc
+
+// Location 描述当前路由位置。
+type Location = router.Location
+
 // Transition 定义页面切换动画类型。
 type Transition = router.Transition
 
@@ -111,6 +117,21 @@ func NavigateReplace(ctx *Context, path string, opts ...NavigateOption) {
 // NavigateBack 返回上一页。
 func NavigateBack(ctx *Context, opts ...NavigateOption) {
 	router.NavigateBack(ctx, opts...)
+}
+
+// UseNavigate 返回绑定当前上下文的导航函数。
+func UseNavigate(ctx *Context) NavigateFunc {
+	return router.UseNavigate(ctx)
+}
+
+// UseLocation 返回当前路由位置。
+func UseLocation(ctx *Context) *Location {
+	return router.UseLocation(ctx)
+}
+
+// UseParams 返回当前路由参数。
+func UseParams(ctx *Context) *RouteParamsType {
+	return router.UseParams(ctx)
 }
 
 // ──────────────────────────────
