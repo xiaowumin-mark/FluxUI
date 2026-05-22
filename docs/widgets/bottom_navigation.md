@@ -8,6 +8,7 @@
   "example": { "id": "bottom_navigation_basic" },
   "apis": [
     "BottomNavigation(active string, items []NavItem, opts ...BottomNavOption) Widget",
+    "FromWidget(w Widget) Element",
     "BottomNavOnChange(fn func(ctx *Context, key string)) BottomNavOption",
     "BottomNavBackground(col color.NRGBA) BottomNavOption",
     "BottomNavActiveColor(col color.NRGBA) BottomNavOption",
@@ -45,3 +46,10 @@ ui.BottomNavigation(
     }),
 )
 ```
+
+## Host-state / React-style 状态
+
+- 当前 `BottomNavigation` 仍以 legacy `Widget` + `BottomNavRef` 作为稳定实现。
+- React-style root 中可先使用 `FromWidget(ui.BottomNavigation(...))` 桥接到底层 legacy navigation。
+- `active` key、`BottomNavOnChange`、`BottomNavAttachRef` 和页面切换状态仍由调用方/legacy path 管理，不自动迁入 component HookSlot。
+- 本阶段不冻结 `BottomNavigationElement` API 名称；后续如引入 Element wrapper，需要先明确 nav item identity、ref 命令、页面 subtree key/remount 和 host-state 归属。

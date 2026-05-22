@@ -8,6 +8,7 @@
   "example": { "id": "tabs_basic" },
   "apis": [
     "Tabs(active string, items []TabItem, opts ...TabsOption) Widget",
+    "FromWidget(w Widget) Element",
     "TabsOnChange(fn func(ctx *Context, key string)) TabsOption",
     "TabsScrollable(scrollable bool) TabsOption",
     "TabsIndicatorColor(col color.NRGBA) TabsOption",
@@ -46,3 +47,10 @@ ui.Tabs(
     }),
 )
 ```
+
+## Host-state / React-style 状态
+
+- 当前 `Tabs` 仍以 legacy `Widget` + `TabsRef` 作为稳定实现。
+- React-style root 中可先使用 `FromWidget(ui.Tabs(...))` 桥接到 Element 树。
+- `active` key、滚动标签栏状态、`TabsOnChange` 和 `TabsAttachRef` 仍由 legacy path / 调用方状态管理。
+- 本阶段不冻结 `TabsElement` API 名称；后续如引入 Element wrapper，需要先明确 tab item identity、ref 命令、切换页面 key/remount 和 scroll host-state 归属。

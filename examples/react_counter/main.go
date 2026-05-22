@@ -13,6 +13,7 @@ func main() {
 func Counter(ctx *ui.Context) ui.Element {
 	count := ui.UseState(ctx, 0)
 	th := ui.UseTheme(ctx)
+	fmt.Println("test")
 
 	return ui.ContainerElement(
 		ui.Style{

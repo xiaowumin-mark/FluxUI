@@ -8,6 +8,7 @@
   "example": { "id": "icon_basic" },
   "apis": [
     "Icon(name string, opts ...IconOption) Widget",
+    "FromWidget(w Widget) Element",
     "IconSize(size float32) IconOption",
     "IconColor(col color.NRGBA) IconOption",
     "IconOnClick(fn func(ctx *Context)) IconOption",
@@ -34,3 +35,10 @@ ui.Icon(
     ui.IconColor(ui.NRGBA(30, 136, 229, 255)),
 )
 ```
+
+## React-style 状态
+
+- 当前 `Icon` 仍以 legacy `Widget` 作为稳定实现。
+- React-style root 中可先使用 `FromWidget(ui.Icon(...))` 桥接到 Element 树。
+- `IconOnClick` / `IconAttachRef` 仍复用 legacy button-style 事件与 ref 行为。
+- 本阶段不冻结 `IconElement` API 名称；后续如引入 Element wrapper，需要先明确图标资源体系、点击命中和 ref 命令归属。

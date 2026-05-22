@@ -2,6 +2,21 @@
 
 当前文档已重构为“每个控件一个 Markdown 文件”，位于 `docs/widgets` 目录。
 
+## 当前状态入口
+
+- React-style runtime 和 docs/examples rollout 当前状态：`docs/react-style-status.md`
+- examples 保留 / 合并 / 清理清单：`docs/examples-inventory.md`
+- legacy API 定位：`docs/legacy-api-positioning.md`
+- `FromWidget` escape hatch 策略：`docs/escape-hatch-strategy.md`
+- deprecation 与版本节奏：`docs/deprecation-and-versioning.md`
+
+历史计划文档仍保留用于追溯，但不再作为当前执行入口：
+
+- `docs/react-style-refactor-plan.md`
+- `docs/docs-example-migration-plan.md`
+- `docs/phase6-root-element-plan.md`
+- `docs/phase7-legacy-api-plan.md`
+
 每个控件文档必须包含 `fluxui-doc-meta` 元数据块，格式如下：
 
 ```md

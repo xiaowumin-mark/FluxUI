@@ -8,6 +8,7 @@
   "example": { "id": "progress_bar_basic" },
   "apis": [
     "ProgressBar(value float32, opts ...ProgressOption) Widget",
+    "FromWidget(w Widget) Element",
     "ProgressMin(min float32) ProgressOption",
     "ProgressMax(max float32) ProgressOption",
     "ProgressIndeterminate(indeterminate bool) ProgressOption",
@@ -38,3 +39,10 @@ ui.ProgressBar(
     ui.ProgressFillColor(ui.NRGBA(30, 136, 229, 255)),
 )
 ```
+
+## React-style 状态
+
+- 当前 `ProgressBar` 仍以 legacy `Widget` 作为稳定实现。
+- React-style root 中可先使用 `FromWidget(ui.ProgressBar(...))` 桥接到 Element 树。
+- 进度值仍由调用方状态驱动；`ProgressIndeterminate` 和动画更新不自动迁入 component HookSlot。
+- 本阶段不冻结 `ProgressBarElement` API 名称；后续如引入 Element wrapper，需要先明确 progress value、indeterminate/animation 和 redraw lifecycle 归属。

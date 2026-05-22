@@ -154,6 +154,128 @@
 - `examples/virtual_scroll` 继续作为 integration/compatibility 参考，不在这个阶段强行迁移为 `RunElement`。
 - 推荐顺序：先做 scroll/list lifecycle 评审，再处理 grid，然后处理 dialog/popup，再处理 toast 与 virtual_scroll 兼容说明，最后做兼容性检查。
 
+### Batch 5 D5.1 lifecycle prep
+
+- D5.1 已锁定 Batch 5 范围：`scroll_view`、`list_view`、`grid`、`dialog`、`popup`、`toast`，以及 `examples/virtual_scroll` 的兼容说明。
+- Batch 5 继续采用 legacy-first 策略：先补 lifecycle / host-state 策略说明，不在本批次冻结 `ScrollViewElement`、`ListViewElement`、`GridElement`、`DialogElement`、`PopupElement`、`ToastElement` 等 API 名称。
+- `ScrollView` / `ListView` 优先处理，因为它们涉及 `ScrollRef` 命令队列、滚动偏移、auto-to-end key、虚拟窗口、触底回调和 item identity。
+- `Grid` 单独处理，区分固定 children 的 `Grid` 与动态/虚拟化的 `GridView`，避免提前承诺 keyed item 或 host-state 复用规则。
+- `Dialog` / `Popup` 后置处理，重点记录受控 open、mask close、imperative ref、overlay 挂载/卸载和可能的 stacking/focus 边界。
+- `Toast` 与 `examples/virtual_scroll` 最后处理，分别记录短时通知 timer/auto-close 生命周期和虚拟滚动示例继续 legacy 对照的原因。
+
+### Batch 5 进行中
+
+- D5.1 已完成 scope lock 和 lifecycle prep 记录。
+- D5.2 已完成 `docs/widgets/scroll_view.md` 和 `docs/widgets/list_view.md` 策略说明，继续保持 legacy-first。
+- `scroll_view` 已记录 `ScrollRef` 命令队列、滚动偏移、auto-to-end key 和 host-state 归属边界。
+- `list_view` 已记录虚拟窗口、触底回调去重、itemBuilder 调用时机和 item identity 边界。
+- 本步骤没有新增 `ScrollViewElement` / `ListViewElement` metadata，没有修改 examples 代码或 `examples/docs_browser` runtime 映射。
+- `go test ./...` 继续通过。
+- D5.3 已完成 `docs/widgets/grid.md` 策略说明，区分固定 children 的 `Grid` 与动态/列表承载的 `GridView`。
+- `grid` 已记录 row virtualization、触底回调去重、`GridMinItemWidth` 列数变化和 cell identity 边界。
+- 本步骤没有新增 `GridElement` / `GridViewElement` metadata，没有修改 examples 代码或 `examples/docs_browser` runtime 映射。
+- `go test ./...` 继续通过。
+- D5.4 已完成 `docs/widgets/dialog.md` 和 `docs/widgets/popup.md` overlay 生命周期说明。
+- `dialog` / `popup` 已记录受控 open、mask close、`DialogRef` 命令队列、overlay mount/unmount、stacking/focus 和事件拦截边界。
+- 本步骤没有新增 `DialogElement` / `PopupElement` metadata，没有修改 examples 代码或 `examples/docs_browser` runtime 映射。
+- `go test ./...` 继续通过。
+- D5.5 已完成 `docs/widgets/toast.md` 生命周期说明和 `examples/virtual_scroll/README.md` 兼容说明。
+- `toast` 已记录 timer / auto-close、`ToastOnClose` 清理、redraw 请求、重复 message 和 multiple toast stacking 边界。
+- `examples/virtual_scroll` 已明确继续作为 legacy `Run` / `Widget` integration reference，不在本阶段迁移到 `RunElement`。
+- 本步骤没有新增 `ToastElement` metadata，没有修改 examples 代码或 `examples/docs_browser` runtime 映射。
+- `go test ./...` 继续通过。
+- D5.6 已完成 Batch 5 最终兼容性检查。
+- 已确认 `examples/docs_browser` 仍使用 `scroll_view_basic`、`list_view_basic`、`grid_basic`、`dialog_basic`、`popup_basic`、`toast_basic` legacy 示例入口。
+- 已确认 Batch 5 文档没有新增稳定 Element wrapper metadata 或 React-style snippet；所有 Element 名称仅作为“不冻结 API 名称”的边界说明出现。
+- 已确认 `examples/virtual_scroll/main.go` 仍使用 legacy `ui.Run` / `Widget` 路径，未改写为 `RunElement`。
+- `go test ./...` 继续通过。
+
+### Batch 5 完成
+
+- Batch 5 的 D5.1-D5.6 已全部完成。
+- 本批次只补 strategy / compatibility notes，没有修改 runtime、examples 代码或 docs_browser runtime 映射。
+- 本批次没有冻结 `ScrollViewElement`、`ListViewElement`、`GridElement`、`GridViewElement`、`DialogElement`、`PopupElement`、`ToastElement` API 名称。
+- 后续如果要为这些控件补 React-style wrapper，需要先完成 host-state、overlay lifecycle、notification cleanup 和 virtual item identity 设计收束。
+
+### Batch 6 准备
+
+- Batch 6 覆盖综合 showcase 示例：`examples/docs_browser`、`examples/team_workspace`、`examples/advanced_components`、`examples/animation_showcase`、`examples/vscode_layout`。
+- Batch 6 是 integration showcase planning，不是原地迁移批次；这些示例继续保留 legacy `Run` / `Widget` 路径。
+- 本批次不修改 `examples/docs_browser` runtime 映射，不改写现有 showcase 代码，不新增或冻结综合示例专用的 React-style API 名称。
+- 如果后续要迁移综合 showcase，优先新增 parallel React-style showcase，再评估是否替换 legacy 示例，避免打断现有集成演示。
+- 推荐顺序：先锁定 scope 和风险清单，再处理 `docs_browser`，然后处理 `team_workspace`，再处理 `advanced_components` / `vscode_layout`，最后处理 `animation_showcase` 与兼容性检查。
+
+### Batch 6 D6.1 integration inventory
+
+- D6.1 已锁定 Batch 6 范围：`docs_browser`、`team_workspace`、`advanced_components`、`animation_showcase`、`vscode_layout`。
+- `docs_browser` 是文档运行时和 legacy example id host，承担 Markdown 加载、metadata 解析、示例映射和预览职责，后续必须单独设计迁移路径。
+- `team_workspace` 是最复杂业务 dashboard showcase，组合复杂输入、筛选状态、滚动/列表、弹层、toast、app bar、bottom navigation 和大量共享状态。
+- `advanced_components` 是组件综合展示，组合 tabs、select、image、list、dialog、toast、bottom navigation，适合作为后续 parallel React-style showcase 的候选。
+- `vscode_layout` 主要覆盖复杂布局、菜单、文件列表和 textfield 状态，风险低于 `docs_browser` / `team_workspace`，但仍不适合在未规划前原地改写。
+- `animation_showcase` 依赖 time-based `anim.New(...).Value(ctx)`、redraw 和 frame lifecycle，迁移前需要 animation lifecycle / effect cleanup 设计收束。
+- D6.1 没有修改 examples 代码、没有新增 README、没有修改 docs_browser runtime 映射。
+- 后续 D6.2 从 `examples/docs_browser` 兼容说明开始。
+
+### Batch 6 D6.2 docs_browser compatibility note
+
+- `examples/docs_browser/README.md` 已补充兼容说明，明确 docs browser 继续作为 legacy `Run` / `Widget` integration reference。
+- 该示例承担 Markdown 加载、metadata 解析、legacy example id 映射、交互式 preview host 和在线 docs fallback，不能作为普通 showcase 原地迁移。
+- D6.2 明确不把 `examples/docs_browser` 改写为 `RunElement`，也不修改 runtime 示例映射。
+- 后续若要迁移 docs browser，应作为独立 runtime project 设计，先定义 legacy id 保留、React-style preview 并存、local/remote docs loading 和 preview state 稳定性规则。
+- `examples/docs_browser/main.go` 未修改，现有 docs_browser 仍用于验证迁移后的 Markdown 文档能被旧浏览器正常承载。
+- `go test ./...` 继续通过。
+- 后续 D6.3 可以进入 `examples/team_workspace` 兼容说明。
+
+### Batch 6 D6.3 team_workspace compatibility note
+
+- `examples/team_workspace/README.md` 已补充兼容说明，明确 team workspace 继续作为 legacy `Run` / `Widget` integration reference。
+- 该示例是 Batch 6 中最复杂的业务 dashboard showcase，组合 shared task state、selected item、search/filter/sort、tabs、responsive layout、多个 scroll regions、virtual lists、dialogs、toasts、app bar、bottom navigation 和 settings controls。
+- D6.3 明确不把 `examples/team_workspace` 原地改写为 `RunElement`，也不冻结 dashboard 专用 React-style API 名称。
+- 该示例依赖复杂输入和 host-state-heavy 控件：`TextField`、`Select`、`RadioGroup`、`Slider`、`ScrollView`、`ListView`、`Dialog`、`Toast` 等；迁移前需要 complex input、list identity、overlay lifecycle、toast cleanup 和 shared state 策略稳定。
+- 后续若要迁移 team workspace，应优先新增 parallel React-style dashboard 示例，验证等价后再讨论是否替换 legacy 示例。
+- `examples/team_workspace/main.go` 未修改，现有示例继续作为多控件集成回归参考。
+- `go test ./...` 继续通过。
+- 后续 D6.4 可以进入 `examples/advanced_components` 和 `examples/vscode_layout` 兼容说明。
+
+### Batch 6 D6.4 advanced_components and vscode_layout compatibility notes
+
+- `examples/advanced_components/README.md` 已补充兼容说明，明确 advanced components 继续作为 legacy `Run` / `Widget` integration reference。
+- `examples/advanced_components` 组合 `AppBar`、`Tabs`、`Select`、`Image`、`ListView`、`ScrollView`、`BottomNavigation`、`Dialog` 和 `Toast`，适合作为未来 parallel React-style advanced showcase 候选，但不在本批次原地迁移。
+- advanced components 迁移前需要先稳定 select popup state、list reach-end、scroll offset、dialog mount/open state 和 toast cleanup 等 lifecycle / host-state 边界。
+- `examples/vscode_layout/README.md` 已补充兼容说明，明确 VSCode layout 继续作为 legacy `Run` / `Widget` integration reference。
+- `examples/vscode_layout` 覆盖 IDE-style layout、top menus、nested menu panels、sidebar tools、file list、editor-like `TextField` state、status bar 和 layered click-away handling；风险低于 `docs_browser` / `team_workspace`，但仍不适合未规划原地改写。
+- VSCode layout 迁移前需要先稳定 text input host-state、list selection identity、menu overlay lifecycle、command-driven updates 和 click-away event handling。
+- D6.4 明确不改写这两个示例的 `main.go`，不改交互行为，不新增或冻结 showcase 专用 React-style API 名称。
+- `go test ./...` 继续通过。
+- 后续 D6.5 可以进入 `examples/animation_showcase` lifecycle 说明。
+
+### Batch 6 D6.5 animation_showcase lifecycle note
+
+- `examples/animation_showcase/README.md` 已补充 lifecycle 说明，明确 animation showcase 继续作为 legacy `Run` / `Widget` integration reference。
+- 该示例覆盖 easing comparison、pulse transition、staggered entrance、color interpolation 和 progress indicators，核心依赖 `anim.New(...).Value(ctx)`、frame time、redraw scheduling 和 legacy `ui.State` target state。
+- `examples/animation_showcase` 还依赖 tab-scoped context path，例如 `ctx.Scope("easing")`、`ctx.Scope("pulse")`、`ctx.Scope("stagger")`，用来隔离不同动画 panel 的状态身份。
+- D6.5 明确不把该示例原地改写为 `RunElement`，不改动画 track 逻辑，不新增或冻结 animation showcase 专用 React-style API 名称。
+- 后续迁移前需要明确 React-style animation lifecycle：animation tracks 如何绑定 component instance、`UseEffect` cleanup 如何停止或重置动画、key/remount 如何影响 in-flight animation、redraw 如何调度。
+- `examples/animation_showcase/main.go` 未修改，现有示例继续作为 frame-driven animation 兼容回归参考。
+- `go test ./...` 继续通过。
+- 后续 D6.6 可以进入 Batch 6 最终兼容性检查。
+
+### Batch 6 D6.6 compatibility check
+
+- D6.6 已完成 Batch 6 最终兼容性检查，确认本批次只补 integration inventory、compatibility notes 和 lifecycle note。
+- `examples/docs_browser/main.go`、`examples/team_workspace/main.go`、`examples/advanced_components/main.go`、`examples/animation_showcase/main.go`、`examples/vscode_layout/main.go` 均继续使用 legacy `ui.Run` / `Widget` 路径，未改写为 `RunElement`。
+- `examples/docs_browser` runtime 示例映射保持不变，仍包含 legacy entries：`row_basic`、`button_basic`、`textfield_basic`、`slider_basic`、`radio_group_basic`、`select_basic`、`dialog_basic`、`popup_basic`、`toast_basic`、`scroll_view_basic`、`list_view_basic`、`grid_basic`、`router_basic`。
+- Batch 6 已新增兼容说明文件：`examples/docs_browser/README.md`、`examples/team_workspace/README.md`、`examples/advanced_components/README.md`、`examples/vscode_layout/README.md`、`examples/animation_showcase/README.md`。
+- Batch 6 没有新增或冻结综合 showcase 专用 React-style API 名称，没有修改示例交互行为，没有修改 docs_browser runtime mapping。
+- `examples/react_counter` 和 `examples/router_element` 仍是当前仅有的 React-style standalone examples；Batch 6 candidate examples 保持 legacy integration references。
+- `go test ./...` 继续通过。
+
+### Batch 6 完成
+
+- Batch 6 的 D6.1-D6.6 已全部完成。
+- 本批次以 compatibility/planning notes 收尾，不做综合 showcase 原地迁移。
+- 后续如需迁移综合 showcase，应优先新增 parallel React-style showcase，并在 host-state、overlay lifecycle、animation lifecycle、list identity 和 docs_browser runtime 设计收束后再评估替换 legacy 示例。
+
 ## 回退策略
 
 - Element wrapper 行为不一致时，保留 legacy 示例为主，React-style 示例标注为实验。

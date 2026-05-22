@@ -8,6 +8,7 @@
   "example": { "id": "card_basic" },
   "apis": [
     "Card(child Widget, opts ...CardOption) Widget",
+    "FromWidget(w Widget) Element",
     "CardPadding(insets Insets) CardOption",
     "CardRadius(radius float32) CardOption",
     "CardBackground(col color.NRGBA) CardOption",
@@ -39,3 +40,10 @@ ui.Card(
     ),
 )
 ```
+
+## React-style 状态
+
+- 当前 `Card` 仍以 legacy `Widget` 作为稳定实现。
+- React-style root 中可先使用 `FromWidget(ui.Card(...))` 桥接到 Element 树。
+- `CardOnClick` / `CardAttachRef` 仍走 legacy 事件与 ref 路径，不归入 component HookSlot。
+- 本阶段不冻结 `CardElement` API 名称；后续如引入 Element wrapper，需要先明确点击事件、ref 命令和 host-state 归属。
