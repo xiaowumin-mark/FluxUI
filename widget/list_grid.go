@@ -232,10 +232,10 @@ func (s *scrollWidget) drawScrollBar(ctx *internal.Context, state *scrollState, 
 			state.list.ScrollBy(delta)
 			viewportStart = clampFloat32(viewportStart+delta, 0, 1)
 			viewportEnd = clampFloat32(viewportEnd+delta, 0, 1)
-			ctx.RequestRedraw()
+			ctx.RequestFrameRedraw()
 		}
 		if state.bar.Dragging() {
-			ctx.RequestRedraw()
+			ctx.RequestFrameRedraw()
 		}
 		drawScrollbarOnAxis(ctx, state, track, viewportStart, viewportEnd, minThumb, trackColor, thumbColor, true)
 		return
@@ -250,10 +250,10 @@ func (s *scrollWidget) drawScrollBar(ctx *internal.Context, state *scrollState, 
 		state.list.ScrollBy(delta)
 		viewportStart = clampFloat32(viewportStart+delta, 0, 1)
 		viewportEnd = clampFloat32(viewportEnd+delta, 0, 1)
-		ctx.RequestRedraw()
+		ctx.RequestFrameRedraw()
 	}
 	if state.bar.Dragging() {
-		ctx.RequestRedraw()
+		ctx.RequestFrameRedraw()
 	}
 	drawScrollbarOnAxis(ctx, state, track, viewportStart, viewportEnd, minThumb, trackColor, thumbColor, false)
 }

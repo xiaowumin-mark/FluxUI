@@ -1,6 +1,10 @@
 package ui
 
-import state "github.com/xiaowumin-mark/FluxUI/state"
+import (
+	"time"
+
+	state "github.com/xiaowumin-mark/FluxUI/state"
+)
 
 // Effect 表示渲染后执行的副作用函数，返回 cleanup（可选）。
 type Effect = state.Effect
@@ -23,6 +27,11 @@ func UseMount(ctx *Context, effect Effect) {
 // UseLifecycle 绑定组件挂载/卸载生命周期。
 func UseLifecycle(ctx *Context, onMount func(), onUnmount func()) {
 	state.UseLifecycle(ctx, onMount, onUnmount)
+}
+
+// UseInterval 在组件挂载期间按固定间隔执行 fn，并在卸载时停止。
+func UseInterval(ctx *Context, interval time.Duration, fn func()) {
+	state.UseInterval(ctx, interval, fn)
 }
 
 // AsyncStatus 表示异步操作的状态。

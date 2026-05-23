@@ -2,7 +2,9 @@ package internal
 
 import (
 	"image/color"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/theme"
 
@@ -104,9 +106,9 @@ func TestPersistentCaches(t *testing.T) {
 func TestMemoUsesNextKey(t *testing.T) {
 	_, ctx := newTestContext()
 
-	ctx.NextKey("state") // hookIndex 0 → 1
+	ctx.NextKey("state")                       // hookIndex 0 → 1
 	ctx.Memo("memo", func() any { return 42 }) // hookIndex 1 → 2
-	k := ctx.NextKey("state") // should be index 2
+	k := ctx.NextKey("state")                  // should be index 2
 
 	if k != "root/state:2" {
 		t.Fatalf("expected root/state:2, got %s — Memo should consume a hookIndex", k)
@@ -190,6 +192,67 @@ func TestWindowMethodsNilController(t *testing.T) {
 	if ctx.WindowIsAlive() {
 		t.Fatal("expected false")
 	}
+}
+
+func TestRequestRedrawFromCapturedFrameContextUsesRuntimeInvalidator(t *testing.T) {
+	const frames = 5
+
+	rt := NewRuntime(nil)
+	var invalidates atomic.Int64
+	rt.SetInvalidator(func() {
+		invalidates.Add(1)
+	})
+
+	var ops op.Ops
+	started := make(chan *Context, frames)
+	done := make(chan struct{}, frames)
+	release := make(chan struct{})
+
+	legacyRoot := func(ctx *Context) {
+		go func() {
+			started <- ctx
+			<-release
+			ctx.RequestRedraw()
+			done <- struct{}{}
+		}()
+	}
+
+	for range frames {
+		rt.BeginFrame()
+		ctx := NewContext(gioLayout.Context{Ops: &ops}, rt)
+		legacyRoot(ctx)
+		rt.EndFrame()
+	}
+
+	seen := make(map[*Context]struct{}, frames)
+	for range frames {
+		select {
+		case ctx := <-started:
+			seen[ctx] = struct{}{}
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for redraw goroutine to start")
+		}
+	}
+	if len(seen) != frames {
+		t.Fatalf("expected one captured frame context per frame, got %d unique contexts", len(seen))
+	}
+
+	close(release)
+	for range frames {
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for redraw goroutine to finish")
+		}
+	}
+	if got := invalidates.Load(); got != frames {
+		t.Fatalf("expected one redraw request per captured context, got %d", got)
+	}
+}
+
+func TestRequestFrameRedrawNilSafety(t *testing.T) {
+	var ctx *Context
+	ctx.RequestFrameRedraw()
 }
 
 func TestTreePath(t *testing.T) {

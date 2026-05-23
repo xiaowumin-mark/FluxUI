@@ -180,6 +180,78 @@ func TestReverseTransition(t *testing.T) {
 	}
 }
 
+func TestTransitionPageFramesSlideLeft(t *testing.T) {
+	frames := transitionPageFrames(TransitionSlideLeft, 0.5, 400)
+	if len(frames) != 2 {
+		t.Fatalf("expected two transition frames, got %d", len(frames))
+	}
+
+	if frames[0].page != transitionFromPage {
+		t.Fatalf("expected old page to render below new page, got %v", frames[0].page)
+	}
+	if frames[0].dx != -100 {
+		t.Fatalf("expected old page to move left by half speed, got dx=%d", frames[0].dx)
+	}
+	if frames[0].opacity != 0.5 {
+		t.Fatalf("expected old page opacity 0.5, got %v", frames[0].opacity)
+	}
+
+	if frames[1].page != transitionToPage {
+		t.Fatalf("expected new page to render above old page, got %v", frames[1].page)
+	}
+	if frames[1].dx != 200 {
+		t.Fatalf("expected new page to move in from right, got dx=%d", frames[1].dx)
+	}
+	if frames[1].opacity != 1 {
+		t.Fatalf("expected new page opacity 1, got %v", frames[1].opacity)
+	}
+}
+
+func TestTransitionPageFramesSlideRight(t *testing.T) {
+	frames := transitionPageFrames(TransitionSlideRight, 0.5, 400)
+	if len(frames) != 2 {
+		t.Fatalf("expected two transition frames, got %d", len(frames))
+	}
+
+	if frames[0].page != transitionToPage {
+		t.Fatalf("expected new page to render below old page, got %v", frames[0].page)
+	}
+	if frames[0].dx != -100 {
+		t.Fatalf("expected new page to move from left by half speed, got dx=%d", frames[0].dx)
+	}
+	if frames[0].opacity != 0.5 {
+		t.Fatalf("expected new page opacity 0.5, got %v", frames[0].opacity)
+	}
+
+	if frames[1].page != transitionFromPage {
+		t.Fatalf("expected old page to render above new page, got %v", frames[1].page)
+	}
+	if frames[1].dx != 200 {
+		t.Fatalf("expected old page to move out to right, got dx=%d", frames[1].dx)
+	}
+	if frames[1].opacity != 1 {
+		t.Fatalf("expected old page opacity 1, got %v", frames[1].opacity)
+	}
+}
+
+func TestTransitionProgressUsesEaseOut(t *testing.T) {
+	progress, active := transitionProgress(500*time.Millisecond, time.Second)
+	if !active {
+		t.Fatal("expected transition to remain active before duration ends")
+	}
+	if progress != 0.75 {
+		t.Fatalf("expected ease-out progress 0.75 at half duration, got %v", progress)
+	}
+
+	progress, active = transitionProgress(time.Second, time.Second)
+	if active {
+		t.Fatal("expected transition to stop at duration end")
+	}
+	if progress != 1 {
+		t.Fatalf("expected completed progress 1, got %v", progress)
+	}
+}
+
 func TestNormalizePathForGuard(t *testing.T) {
 	if got := normalizePathForGuard("/users/42?tab=posts&sort=asc"); got != "/users/42" {
 		t.Fatalf("expected /users/42, got %s", got)

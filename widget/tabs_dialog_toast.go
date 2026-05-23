@@ -470,7 +470,7 @@ func (t *toastWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				t.config.onClose(ctx)
 			}
 		} else {
-			ctx.RequestRedraw()
+			ctx.RequestFrameRedraw()
 		}
 	}
 
@@ -603,15 +603,15 @@ func (f *fillWidgetDef) Layout(ctx *internal.Context) layout.Dimensions {
 type PopupOption func(*popupConfig)
 
 type popupConfig struct {
-	width        float32
-	radius       float32
-	maskClosable bool
-	background   color.NRGBA
+	width         float32
+	radius        float32
+	maskClosable  bool
+	background    color.NRGBA
 	hasBackground bool
-	padding      style.Insets
-	hasPadding   bool
-	onOpenChange func(ctx *internal.Context, open bool)
-	ref          *DialogRef
+	padding       style.Insets
+	hasPadding    bool
+	onOpenChange  func(ctx *internal.Context, open bool)
+	ref           *DialogRef
 }
 
 type popupWidget struct {

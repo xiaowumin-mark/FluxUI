@@ -84,10 +84,23 @@ func (c *Context) MaxConstraints() image.Point {
 	return c.Gtx.Constraints.Max
 }
 
-// RequestRedraw 请求下一帧刷新。
+// RequestRedraw 请求窗口重绘。
+// 该方法只依赖 Runtime，可安全用于事件回调或 goroutine；不要把 Context 长期保存。
 func (c *Context) RequestRedraw() {
-	c.Gtx.Execute(op.InvalidateCmd{})
+	if c == nil || c.runtime == nil {
+		return
+	}
 	c.runtime.RequestRedraw()
+}
+
+// RequestFrameRedraw 请求 frame 驱动的下一帧刷新。
+// 仅在当前 Layout/Render frame 内部使用；跨 goroutine 请使用 RequestRedraw。
+func (c *Context) RequestFrameRedraw() {
+	if c == nil {
+		return
+	}
+	c.Gtx.Execute(op.InvalidateCmd{})
+	c.RequestRedraw()
 }
 
 // WindowID 返回当前窗口 ID。

@@ -148,7 +148,7 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	progress := progressRatio(p.value, p.config.min, p.config.max)
 	if p.config.indeterminate {
 		progress = animProgress(ctx)
-		ctx.RequestRedraw()
+		ctx.RequestFrameRedraw()
 	}
 
 	if p.circular {

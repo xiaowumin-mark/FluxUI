@@ -104,8 +104,8 @@ func SettingsPage(snapshot workspaceSnapshot, controls settingsControls) ui.Comp
 			),
 			ui.SpacerElement(0, 12),
 			actionRow(
-				primaryButton(snapshot, "仪表盘", func() { navigate("/") }),
-				secondaryButton(snapshot, "桥接", func() { navigate("/bridge") }),
+				primaryButton(snapshot, "仪表盘", func() { navigate("/", ui.WithNavTransition(ui.TransitionSlideRight)) }),
+				secondaryButton(snapshot, "桥接", func() { navigate("/bridge", ui.WithNavTransition(ui.TransitionSlideRight)) }),
 			),
 		)
 	}
@@ -163,10 +163,10 @@ func DashboardPage(snapshot workspaceSnapshot) ui.Component {
 						navigate("/projects/docs", ui.WithNavTransition(ui.TransitionSlideLeft))
 					}),
 					secondaryButton(snapshot, "设置", func() {
-						navigate("/settings", ui.WithNavTransition(ui.TransitionFade))
+						navigate("/settings", ui.WithNavTransition(ui.TransitionSlideLeft))
 					}),
 					secondaryButton(snapshot, "桥接", func() {
-						navigate("/bridge", ui.WithNavTransition(ui.TransitionFade))
+						navigate("/bridge", ui.WithNavTransition(ui.TransitionSlideLeft))
 					}),
 				),
 			),
@@ -211,10 +211,10 @@ func ProjectPage(snapshot workspaceSnapshot) ui.Component {
 					navigate("/projects/docs", ui.WithNavTransition(ui.TransitionSlideLeft))
 				}),
 				secondaryButton(snapshot, "仪表盘", func() {
-					navigate("/")
+					navigate("/", ui.WithNavTransition(ui.TransitionSlideRight))
 				}),
 				secondaryButton(snapshot, "设置", func() {
-					navigate("/settings")
+					navigate("/settings", ui.WithNavTransition(ui.TransitionSlideLeft))
 				}),
 			),
 		)
@@ -268,8 +268,8 @@ func BridgePage(snapshot workspaceSnapshot) ui.Component {
 				secondaryButton(snapshot, "-12", func() {
 					progress.Set(clampProgress(progress.Value() - 12))
 				}),
-				secondaryButton(snapshot, "仪表盘", func() { navigate("/") }),
-				secondaryButton(snapshot, "设置", func() { navigate("/settings") }),
+				secondaryButton(snapshot, "仪表盘", func() { navigate("/", ui.WithNavTransition(ui.TransitionSlideLeft)) }),
+				secondaryButton(snapshot, "设置", func() { navigate("/settings", ui.WithNavTransition(ui.TransitionSlideLeft)) }),
 			),
 		)
 	}

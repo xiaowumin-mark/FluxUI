@@ -4,6 +4,7 @@ import (
 	"image"
 	"time"
 
+	"github.com/xiaowumin-mark/FluxUI/anim"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/widget"
@@ -272,7 +273,7 @@ func (s *routerState) navigate(ctx *internal.Context, fullPath string, action na
 		}
 	}
 
-	ctx.RequestRedraw()
+	ctx.RequestFrameRedraw()
 }
 
 func normalizePathForGuard(fullPath string) string {
@@ -302,15 +303,11 @@ func (w *routerWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	// 更新过渡进度
 	if st.transition.active {
 		elapsed := next.Now().Sub(st.transition.startTime)
-		if elapsed >= st.transition.duration {
-			st.transition.active = false
-			st.transition.progress = 1
-		} else {
-			st.transition.progress = float32(elapsed) / float32(st.transition.duration)
-			// EaseOut 缓动
-			p := st.transition.progress
-			st.transition.progress = 1 - (1-p)*(1-p)
-			next.RequestRedraw()
+		progress, active := transitionProgress(elapsed, st.transition.duration)
+		st.transition.progress = progress
+		st.transition.active = active
+		if active {
+			next.RequestFrameRedraw()
 		}
 	}
 
@@ -327,6 +324,13 @@ func (w *routerWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	return layoutPageWithRouteView(routerCtx, toPage, toView)
+}
+
+func transitionProgress(elapsed, duration time.Duration) (float32, bool) {
+	if duration <= 0 || elapsed >= duration {
+		return 1, false
+	}
+	return anim.EaseOut(float32(elapsed) / float32(duration)), true
 }
 
 func entryPath(st *routerState) string {
@@ -433,7 +437,7 @@ func layoutPageWithRouteView(ctx *internal.Context, page widget.Widget, view *ro
 }
 
 // layoutWithTransition 在过渡期间布局页面。
-// 旧页面透明度从 1 递减到 0，新页面按过渡类型入场。
+// 滑动过渡按移动端页面栈顺序绘制：前进时旧页在下，返回时新页在下。
 func layoutWithTransition(
 	ctx *internal.Context,
 	fromPage widget.Widget,
@@ -443,71 +447,107 @@ func layoutWithTransition(
 	ts transitionState,
 ) layout.Dimensions {
 	var merged layout.Dimensions
-
-	oldOpacity := 1 - ts.progress
-	if oldOpacity < 0 {
-		oldOpacity = 0
-	}
-	if oldOpacity > 1 {
-		oldOpacity = 1
+	width := 0
+	if ctx != nil {
+		width = ctx.Gtx.Constraints.Max.X
 	}
 
-	if fromPage != nil && oldOpacity > 0 {
-		opacityLayer := paint.PushOpacity(ctx.Gtx.Ops, oldOpacity)
-		merged = layoutPageWithRouteView(ctx, fromPage, fromView)
-		opacityLayer.Pop()
-	}
+	for _, frame := range transitionPageFrames(ts.transition, ts.progress, width) {
+		page := fromPage
+		view := fromView
+		if frame.page == transitionToPage {
+			page = toPage
+			view = toView
+		}
 
-	incoming := layoutIncomingPage(ctx, toPage, toView, ts)
-	if incoming.Size.X > merged.Size.X {
-		merged.Size.X = incoming.Size.X
-	}
-	if incoming.Size.Y > merged.Size.Y {
-		merged.Size.Y = incoming.Size.Y
+		dims := layoutTransitionPage(ctx, page, view, frame.dx, frame.opacity)
+		merged = mergeDimensions(merged, dims)
 	}
 
 	return merged
 }
 
-func layoutIncomingPage(ctx *internal.Context, page widget.Widget, view *routeView, ts transitionState) layout.Dimensions {
-	gtx := ctx.Gtx
-	maxWidth := float32(gtx.Constraints.Max.X)
+type transitionPage int
 
-	switch ts.transition {
+const (
+	transitionFromPage transitionPage = iota
+	transitionToPage
+)
+
+type transitionPageFrame struct {
+	page    transitionPage
+	dx      int
+	opacity float32
+}
+
+func transitionPageFrames(t Transition, progress float32, width int) []transitionPageFrame {
+	progress = clampProgress(progress)
+	maxWidth := float32(width)
+
+	switch t {
 	case TransitionFade:
-		opacity := ts.progress
-		if opacity < 0 {
-			opacity = 0
+		return []transitionPageFrame{
+			{page: transitionFromPage, opacity: 1 - progress},
+			{page: transitionToPage, opacity: progress},
 		}
-		if opacity > 1 {
-			opacity = 1
-		}
-		layer := paint.PushOpacity(gtx.Ops, opacity)
-		dims := layoutPageWithRouteView(ctx, page, view)
-		layer.Pop()
-		return dims
 
 	case TransitionSlideLeft:
-		offset := int(maxWidth * (1 - ts.progress))
-		return layoutWithOffset(ctx, view, page, offset, 0)
+		return []transitionPageFrame{
+			{page: transitionFromPage, dx: int(-maxWidth * progress / 2), opacity: 1 - progress},
+			{page: transitionToPage, dx: int(maxWidth * (1 - progress)), opacity: 1},
+		}
 
 	case TransitionSlideRight:
-		offset := int(-maxWidth * (1 - ts.progress))
-		return layoutWithOffset(ctx, view, page, offset, 0)
+		return []transitionPageFrame{
+			{page: transitionToPage, dx: int(-maxWidth * (1 - progress) / 2), opacity: progress},
+			{page: transitionFromPage, dx: int(maxWidth * progress), opacity: 1},
+		}
 
 	default:
-		return layoutPageWithRouteView(ctx, page, view)
+		return []transitionPageFrame{{page: transitionToPage, opacity: 1}}
 	}
 }
 
-// layoutWithOffset 带偏移量渲染。
-func layoutWithOffset(ctx *internal.Context, view *routeView, page widget.Widget, dx, dy int) layout.Dimensions {
-	gtx := ctx.Gtx
-	constraints := gtx.Constraints
+func clampProgress(progress float32) float32 {
+	if progress < 0 {
+		return 0
+	}
+	if progress > 1 {
+		return 1
+	}
+	return progress
+}
 
-	defer op.Offset(image.Pt(dx, dy)).Push(gtx.Ops).Pop()
-	// 裁剪到原始约束范围
-	defer clip.Rect{Max: constraints.Max}.Push(gtx.Ops).Pop()
+func mergeDimensions(a, b layout.Dimensions) layout.Dimensions {
+	if b.Size.X > a.Size.X {
+		a.Size.X = b.Size.X
+	}
+	if b.Size.Y > a.Size.Y {
+		a.Size.Y = b.Size.Y
+	}
+	return a
+}
+
+func layoutTransitionPage(ctx *internal.Context, page widget.Widget, view *routeView, dx int, opacity float32) layout.Dimensions {
+	if page == nil {
+		return layout.Dimensions{}
+	}
+	if ctx == nil {
+		return layoutPageWithRouteView(ctx, page, view)
+	}
+
+	gtx := ctx.Gtx
+	clipStack := clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops)
+	defer clipStack.Pop()
+
+	offsetStack := op.Offset(image.Pt(dx, 0)).Push(gtx.Ops)
+	defer offsetStack.Pop()
+
+	opacity = clampProgress(opacity)
+	if opacity < 1 {
+		opacityLayer := paint.PushOpacity(gtx.Ops, opacity)
+		defer opacityLayer.Pop()
+	}
 
 	return layoutPageWithRouteView(ctx, page, view)
 }

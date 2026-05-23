@@ -98,7 +98,7 @@ func (a *Animation) Value(ctx *internal.Context) float32 {
 
 	elapsed := now.Sub(timeline.startedAt)
 	if elapsed < a.duration {
-		ctx.RequestRedraw()
+		ctx.RequestFrameRedraw()
 	}
 
 	progress := clamp01(float32(elapsed) / float32(a.duration))
