@@ -418,26 +418,36 @@ func State[T any](ctx *Context) *state.State[T] {
 type Easing = anim.Easing
 
 // Animate 创建动画定义。
+//
+// Deprecated: Animate 是旧 Widget API 的动画构造器。新代码请使用 UseAnimatedValue 或 UseAnimatedDecoration。
 func Animate(opts ...anim.Option) *anim.Animation {
 	return anim.New(opts...)
 }
 
 // Duration 配置动画时长。
+//
+// Deprecated: 新代码请直接传 time.Duration 给 UseAnimatedValue / UseAnimatedDecoration。
 func Duration(duration time.Duration) anim.Option {
 	return anim.Duration(duration)
 }
 
 // From 配置动画起始值。
+//
+// Deprecated: 新代码请直接传 target 给 UseAnimatedValue / UseAnimatedDecoration。
 func From(value float32) anim.Option {
 	return anim.From(value)
 }
 
 // To 配置动画结束值。
+//
+// Deprecated: 新代码请直接传 target 给 UseAnimatedValue / UseAnimatedDecoration。
 func To(value float32) anim.Option {
 	return anim.To(value)
 }
 
 // Ease 配置动画缓动函数。
+//
+// Deprecated: 新代码请直接传 anim.Easing 给 UseAnimatedValue / UseAnimatedDecoration。
 func Ease(easing anim.Easing) anim.Option {
 	return anim.Ease(easing)
 }

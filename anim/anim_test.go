@@ -24,16 +24,16 @@ func TestClamp01(t *testing.T) {
 		{-1, 0}, {-0.1, 0}, {0, 0}, {0.5, 0.5}, {1, 1}, {1.5, 1}, {100, 1},
 	}
 	for _, c := range cases {
-		got := clamp01(c.in)
+		got := Clamp01(c.in)
 		if got != c.out {
-			t.Errorf("clamp01(%v) = %v, want %v", c.in, got, c.out)
+			t.Errorf("Clamp01(%v) = %v, want %v", c.in, got, c.out)
 		}
 	}
 }
 
 func TestClamp01HandlesNaN(t *testing.T) {
-	if got := clamp01(float32(math.NaN())); got != 0 {
-		t.Fatalf("clamp01(NaN) = %v, want 0", got)
+	if got := Clamp01(float32(math.NaN())); got != 0 {
+		t.Fatalf("Clamp01(NaN) = %v, want 0", got)
 	}
 }
 
@@ -253,15 +253,29 @@ func TestAnimationHandlesInvalidEasingOutput(t *testing.T) {
 	rt.EndFrame()
 }
 
-func TestDecorationTimelineUsesLinearWhenEasingNil(t *testing.T) {
-	from := style.Decoration{}.WithBg(color.NRGBA{A: 255})
-	to := style.Decoration{}.WithBg(color.NRGBA{R: 100, A: 255})
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	timeline := &decorationTimeline{startedAt: now, from: from, target: to, duration: 100 * time.Millisecond}
+func TestLerpDecorationBoundaries(t *testing.T) {
+	from := style.Decoration{}.WithBg(color.NRGBA{A: 255}).WithRad(4)
+	to := style.Decoration{}.WithBg(color.NRGBA{R: 100, A: 255}).WithRad(16)
 
-	got := timeline.value(now.Add(50*time.Millisecond), nil)
-	if got.Background == nil || got.Background.R != 50 {
-		t.Fatalf("expected linear midpoint red=50, got %#v", got.Background)
+	// t=0 → should equal from
+	got0 := LerpDecoration(from, to, 0)
+	if got0.Background == nil || got0.Background.R != 0 {
+		t.Fatalf("t=0 shoule give from background, got R=%d", got0.Background.R)
+	}
+
+	// t=1 → should equal to
+	got1 := LerpDecoration(from, to, 1)
+	if got1.Background == nil || got1.Background.R != 100 || *got1.Radius != 16 {
+		t.Fatalf("t=1 should give to background/radius, got R=%d rad=%.0f", got1.Background.R, *got1.Radius)
+	}
+
+	// t=0.5 → midpoint interpolation
+	got05 := LerpDecoration(from, to, 0.5)
+	if got05.Background == nil || got05.Background.R != 50 {
+		t.Fatalf("t=0.5 should lerp background to R=50, got %d", got05.Background.R)
+	}
+	if *got05.Radius != 10 {
+		t.Fatalf("t=0.5 should lerp radius to 10, got %.0f", *got05.Radius)
 	}
 }
 
@@ -272,5 +286,79 @@ func TestCubicBezierClampsNaNControlPoint(t *testing.T) {
 	}
 	if got := easing(1); got != 1 {
 		t.Fatalf("bezier at 1 = %v, want 1", got)
+	}
+}
+
+func TestEasingBoundaries(t *testing.T) {
+	curves := map[string]Easing{
+		"Linear":           Linear,
+		"EaseInQuad":       EaseInQuad,
+		"EaseOutQuad":      EaseOutQuad,
+		"EaseInOutQuad":    EaseInOutQuad,
+		"EaseInCubic":      EaseInCubic,
+		"EaseOutCubic":     EaseOutCubic,
+		"EaseInOutCubic":   EaseInOutCubic,
+		"EaseInQuart":      EaseInQuart,
+		"EaseOutQuart":     EaseOutQuart,
+		"EaseInOutQuart":   EaseInOutQuart,
+		"EaseInQuint":      EaseInQuint,
+		"EaseOutQuint":     EaseOutQuint,
+		"EaseInOutQuint":   EaseInOutQuint,
+		"EaseInSine":       EaseInSine,
+		"EaseOutSine":      EaseOutSine,
+		"EaseInOutSine":    EaseInOutSine,
+		"EaseInExpo":       EaseInExpo,
+		"EaseOutExpo":      EaseOutExpo,
+		"EaseInOutExpo":    EaseInOutExpo,
+		"EaseInCirc":       EaseInCirc,
+		"EaseOutCirc":      EaseOutCirc,
+		"EaseInOutCirc":    EaseInOutCirc,
+		"EaseInBack":       EaseInBack,
+		"EaseOutBack":      EaseOutBack,
+		"EaseInOutBack":    EaseInOutBack,
+		"EaseInElastic":    EaseInElastic,
+		"EaseOutElastic":   EaseOutElastic,
+		"EaseInOutElastic": EaseInOutElastic,
+		"EaseInBounce":     EaseInBounce,
+		"EaseOutBounce":    EaseOutBounce,
+		"EaseInOutBounce":  EaseInOutBounce,
+	}
+
+	for name, easing := range curves {
+		t.Run(name+"_0", func(t *testing.T) {
+			if got := easing(0); got != 0 {
+				t.Errorf("%s(0) = %v, want 0", name, got)
+			}
+		})
+		t.Run(name+"_1", func(t *testing.T) {
+			if got := easing(1); got != 1 {
+				t.Errorf("%s(1) = %v, want 1", name, got)
+			}
+		})
+		t.Run(name+"_range", func(t *testing.T) {
+			v := easing(0.5)
+			if math.IsNaN(float64(v)) || math.IsInf(float64(v), 0) {
+				t.Errorf("%s(0.5) = %v, must be finite", name, v)
+			}
+		})
+	}
+}
+
+func TestCubicBezierBoundaries(t *testing.T) {
+	ease := CubicBezier(0.25, 0.1, 0.25, 1)
+	if got := ease(0); got != 0 {
+		t.Errorf("CubicBezier(0) = %v, want 0", got)
+	}
+	if got := ease(1); got != 1 {
+		t.Errorf("CubicBezier(1) = %v, want 1", got)
+	}
+	if got := ease(0.5); got < 0 || got > 1 {
+		t.Errorf("CubicBezier(0.5) = %v, out of [0,1]", got)
+	}
+	if got := ease(-1); got != 0 {
+		t.Errorf("CubicBezier(-1) should clamp to 0, got %v", got)
+	}
+	if got := ease(2); got != 1 {
+		t.Errorf("CubicBezier(2) should clamp to 1, got %v", got)
 	}
 }

@@ -1005,6 +1005,73 @@ func TestUseAnimatedDecorationZeroDurationResetsHookState(t *testing.T) {
 	rt.EndFrame()
 }
 
+func TestUseAnimatedValueTargetChangeMidAnimation(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	gtx := gioLayout.Context{Ops: &ops, Now: now}
+	identity := internal.ComponentIdentity{ParentID: "root", TypeID: "AnimMid", Key: "main"}
+
+	// Frame 1: start animating 0→100 over 100ms
+	rt.BeginFrame()
+	ctx := internal.NewContext(gtx, rt)
+	inst := rt.HookStore().BeginInstance(identity)
+	_ = UseAnimatedValue(ctx.WithComponentInstance(inst), float32(0), 100*time.Millisecond, EaseOut)
+	rt.EndFrame()
+
+	// Frame 2: 50ms elapsed, value should be 0 (still same target)
+	rt.BeginFrame()
+	gtx.Now = now.Add(50 * time.Millisecond)
+	ctx = internal.NewContext(gtx, rt)
+	inst = rt.HookStore().BeginInstance(identity)
+	v := UseAnimatedValue(ctx.WithComponentInstance(inst), float32(0), 100*time.Millisecond, EaseOut)
+	if v != 0 {
+		t.Fatalf("at t=50ms same target, expected 0, got %v", v)
+	}
+	rt.EndFrame()
+
+	// Frame 3: change target to 100, animation starts
+	rt.BeginFrame()
+	gtx.Now = now.Add(60 * time.Millisecond)
+	ctx = internal.NewContext(gtx, rt)
+	inst = rt.HookStore().BeginInstance(identity)
+	v60 := UseAnimatedValue(ctx.WithComponentInstance(inst), float32(100), 100*time.Millisecond, EaseOut)
+	if v60 > 5 {
+		t.Fatalf("at start of new animation, expected near 0, got %v", v60)
+	}
+	rt.EndFrame()
+
+	// Frame 4: 50ms after target change (t=110ms total), easing progress
+	rt.BeginFrame()
+	gtx.Now = now.Add(110 * time.Millisecond)
+	ctx = internal.NewContext(gtx, rt)
+	inst = rt.HookStore().BeginInstance(identity)
+	v110 := UseAnimatedValue(ctx.WithComponentInstance(inst), float32(100), 100*time.Millisecond, EaseOut)
+	if v110 < 30 || v110 > 80 {
+		t.Fatalf("at t=110ms (50ms after switch), expected 30-80, got %v", v110)
+	}
+	rt.EndFrame()
+
+	// Frame 5: change target to 200 mid-animation, from should be current value
+	rt.BeginFrame()
+	gtx.Now = now.Add(130 * time.Millisecond)
+	ctx = internal.NewContext(gtx, rt)
+	inst = rt.HookStore().BeginInstance(identity)
+	_ = UseAnimatedValue(ctx.WithComponentInstance(inst), float32(200), 100*time.Millisecond, EaseOut)
+	rt.EndFrame()
+
+	// Frame 6: 40ms after second target change, should progress toward 200 from mid-point
+	rt.BeginFrame()
+	gtx.Now = now.Add(170 * time.Millisecond)
+	ctx = internal.NewContext(gtx, rt)
+	inst = rt.HookStore().BeginInstance(identity)
+	v170 := UseAnimatedValue(ctx.WithComponentInstance(inst), float32(200), 100*time.Millisecond, EaseOut)
+	if v170 < 70 || v170 > 170 {
+		t.Fatalf("40ms after second target change, expected 70-170, got %v", v170)
+	}
+	rt.EndFrame()
+}
+
 func TestKeyedComponentsInsideCompositeElementsPreserveStateAcrossReorder(t *testing.T) {
 	rt := internal.NewRuntime(nil)
 	var ops op.Ops

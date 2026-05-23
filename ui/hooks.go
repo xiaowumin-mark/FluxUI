@@ -179,21 +179,8 @@ type animValueState[T animNum] struct {
 }
 
 func animNumLerp[T animNum](from, to T, t float32) T {
-	t = animClamp01(t)
+	t = anim.Clamp01(t)
 	return T(float32(from) + (float32(to)-float32(from))*t)
-}
-
-func animClamp01(v float32) float32 {
-	if math.IsNaN(float64(v)) {
-		return 0
-	}
-	if v < 0 {
-		return 0
-	}
-	if v > 1 {
-		return 1
-	}
-	return v
 }
 
 func animProgress(now, startedAt time.Time, duration time.Duration) (float32, bool) {
@@ -207,14 +194,14 @@ func animProgress(now, startedAt time.Time, duration time.Duration) (float32, bo
 	if elapsed >= duration {
 		return 1, false
 	}
-	return animClamp01(float32(elapsed) / float32(duration)), true
+	return anim.Clamp01(float32(elapsed) / float32(duration)), true
 }
 
 func animEasedProgress(easing anim.Easing, progress float32) float32 {
 	if easing == nil {
 		easing = anim.Linear
 	}
-	v := easing(animClamp01(progress))
+	v := easing(anim.Clamp01(progress))
 	if math.IsNaN(float64(v)) {
 		return 0
 	}
@@ -227,6 +214,12 @@ func animEasedProgress(easing anim.Easing, progress float32) float32 {
 	return v
 }
 
+// UseAnimatedValue 是泛型逐帧动画钩子。
+//
+// 每帧从当前插值位置平滑过渡到 target。duration <= 0 时立即瞬切到 target。
+// easing 为 nil 时使用 anim.Linear。
+//
+// 类型约束 T 支持 float32、int、float64。int 类型动画会截断小数部分。
 func UseAnimatedValue[T animNum](ctx *Context, target T, duration time.Duration, easing anim.Easing) T {
 	if easing == nil {
 		easing = anim.Linear
@@ -337,6 +330,11 @@ func useLegacyAnimValue[T animNum](ctx *Context, target T, duration time.Duratio
 	return animNumLerp(state.from, state.to, 0)
 }
 
+// UseAnimatedDecoration 对 Decoration 逐字段帧动画。
+//
+// 平滑插值字段：Background, Opacity, Radius, Transform, Border, Shadow, Gradient。
+// 瞬切字段：Padding, Margin, CircleClip, Image, Hover/Pressed/Focused/Disabled。
+// easing 为 nil 时使用 anim.Linear。duration <= 0 时立即瞬切。
 func UseAnimatedDecoration(ctx *Context, target Decoration, duration time.Duration, easing anim.Easing) Decoration {
 	if easing == nil {
 		easing = anim.Linear

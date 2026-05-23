@@ -50,42 +50,42 @@ var (
 	EaseInOutBounce Easing = easeInOutBounce
 )
 
-func easeLinear(v float32) float32 { return clamp01(v) }
+func easeLinear(v float32) float32 { return Clamp01(v) }
 
-func easeInQuad(v float32) float32  { v = clamp01(v); return v * v }
-func easeOutQuad(v float32) float32 { v = clamp01(v); return 1 - (1-v)*(1-v) }
+func easeInQuad(v float32) float32  { v = Clamp01(v); return v * v }
+func easeOutQuad(v float32) float32 { v = Clamp01(v); return 1 - (1-v)*(1-v) }
 func easeInOutQuad(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	if v < 0.5 {
 		return 2 * v * v
 	}
 	return 1 - (-2*v+2)*(-2*v+2)/2
 }
 
-func easeInCubic(v float32) float32  { v = clamp01(v); return v * v * v }
-func easeOutCubic(v float32) float32 { v = clamp01(v); return 1 - (1-v)*(1-v)*(1-v) }
+func easeInCubic(v float32) float32  { v = Clamp01(v); return v * v * v }
+func easeOutCubic(v float32) float32 { v = Clamp01(v); return 1 - (1-v)*(1-v)*(1-v) }
 func easeInOutCubic(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	if v < 0.5 {
 		return 4 * v * v * v
 	}
 	return 1 - (-2*v+2)*(-2*v+2)*(-2*v+2)/2
 }
 
-func easeInQuart(v float32) float32  { v = clamp01(v); return v * v * v * v }
-func easeOutQuart(v float32) float32 { v = clamp01(v); return 1 - (1-v)*(1-v)*(1-v)*(1-v) }
+func easeInQuart(v float32) float32  { v = Clamp01(v); return v * v * v * v }
+func easeOutQuart(v float32) float32 { v = Clamp01(v); return 1 - (1-v)*(1-v)*(1-v)*(1-v) }
 func easeInOutQuart(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	if v < 0.5 {
 		return 8 * v * v * v * v
 	}
 	return 1 - (-2*v+2)*(-2*v+2)*(-2*v+2)*(-2*v+2)/2
 }
 
-func easeInQuint(v float32) float32  { v = clamp01(v); return v * v * v * v * v }
-func easeOutQuint(v float32) float32 { v = clamp01(v); return 1 - (1-v)*(1-v)*(1-v)*(1-v)*(1-v) }
+func easeInQuint(v float32) float32  { v = Clamp01(v); return v * v * v * v * v }
+func easeOutQuint(v float32) float32 { v = Clamp01(v); return 1 - (1-v)*(1-v)*(1-v)*(1-v)*(1-v) }
 func easeInOutQuint(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	if v < 0.5 {
 		return 16 * v * v * v * v * v
 	}
@@ -93,34 +93,34 @@ func easeInOutQuint(v float32) float32 {
 }
 
 func easeInSine(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	return 1 - float32(math.Cos(float64(v)*math.Pi/2))
 }
 func easeOutSine(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	return float32(math.Sin(float64(v) * math.Pi / 2))
 }
 func easeInOutSine(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	return float32(-(math.Cos(math.Pi*float64(v)) - 1) / 2)
 }
 
 func easeInExpo(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	if v == 0 {
 		return 0
 	}
 	return float32(math.Pow(2, 10*float64(v)-10))
 }
 func easeOutExpo(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	if v == 1 {
 		return 1
 	}
 	return 1 - float32(math.Pow(2, -10*float64(v)))
 }
 func easeInOutExpo(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	if v == 0 {
 		return 0
 	}
@@ -133,13 +133,13 @@ func easeInOutExpo(v float32) float32 {
 	return (2 - float32(math.Pow(2, -20*float64(v)+10))) / 2
 }
 
-func easeInCirc(v float32) float32 { v = clamp01(v); return 1 - float32(math.Sqrt(1-float64(v*v))) }
+func easeInCirc(v float32) float32 { v = Clamp01(v); return 1 - float32(math.Sqrt(1-float64(v*v))) }
 func easeOutCirc(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	return float32(math.Sqrt(1 - float64((v-1)*(v-1))))
 }
 func easeInOutCirc(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	if v < 0.5 {
 		return (1 - float32(math.Sqrt(1-float64(4*v*v)))) / 2
 	}
@@ -148,10 +148,10 @@ func easeInOutCirc(v float32) float32 {
 
 const easeBackS float32 = 1.70158
 
-func easeInBack(v float32) float32  { v = clamp01(v); return v * v * ((easeBackS+1)*v - easeBackS) }
-func easeOutBack(v float32) float32 { v = clamp01(v); v--; return v*v*((easeBackS+1)*v+easeBackS) + 1 }
+func easeInBack(v float32) float32  { v = Clamp01(v); return v * v * ((easeBackS+1)*v - easeBackS) }
+func easeOutBack(v float32) float32 { v = Clamp01(v); v--; return v*v*((easeBackS+1)*v+easeBackS) + 1 }
 func easeInOutBack(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	s := easeBackS * 1.525
 	if v < 0.5 {
 		v = 2 * v
@@ -162,7 +162,7 @@ func easeInOutBack(v float32) float32 {
 }
 
 func easeInElastic(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	if v == 0 {
 		return 0
 	}
@@ -173,7 +173,7 @@ func easeInElastic(v float32) float32 {
 }
 
 func easeOutElastic(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	if v == 0 {
 		return 0
 	}
@@ -184,7 +184,7 @@ func easeOutElastic(v float32) float32 {
 }
 
 func easeInOutElastic(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	if v == 0 {
 		return 0
 	}
@@ -202,10 +202,10 @@ func easeInOutElastic(v float32) float32 {
 var bounceN1 float32 = 7.5625
 var bounceD1 float32 = 2.75
 
-func easeInBounce(v float32) float32  { return 1 - easeOutBounce(1-clamp01(v)) }
-func easeOutBounce(v float32) float32 { return bounceOut(clamp01(v)) }
+func easeInBounce(v float32) float32  { return 1 - easeOutBounce(1-Clamp01(v)) }
+func easeOutBounce(v float32) float32 { return bounceOut(Clamp01(v)) }
 func easeInOutBounce(v float32) float32 {
-	v = clamp01(v)
+	v = Clamp01(v)
 	if v < 0.5 {
 		return (1 - easeOutBounce(1-2*v)) / 2
 	}

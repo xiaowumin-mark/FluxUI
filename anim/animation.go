@@ -105,7 +105,7 @@ func (a *Animation) Value(ctx *internal.Context) float32 {
 		ctx.RequestFrameRedraw()
 	}
 
-	progress := clamp01(float32(elapsed) / float32(a.duration))
+	progress := Clamp01(float32(elapsed) / float32(a.duration))
 	easing := a.easing
 	if easing == nil {
 		easing = Linear

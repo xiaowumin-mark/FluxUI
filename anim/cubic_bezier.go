@@ -2,6 +2,9 @@ package anim
 
 import "math"
 
+// CubicBezier 创建 CSS 风格的三次贝塞尔缓动曲线。
+// x1, x2 会被 clamp 到 [0,1]；y1, y2 不受限制。
+// 内部使用 1024 点 LUT + 二分搜索求逆，误差 < 0.0005。
 func CubicBezier(x1, y1, x2, y2 float32) Easing {
 	x1 = clampDefault(x1, 0, 1)
 	x2 = clampDefault(x2, 0, 1)
@@ -15,7 +18,7 @@ func CubicBezier(x1, y1, x2, y2 float32) Easing {
 	}
 
 	return func(v float32) float32 {
-		v = clamp01(v)
+		v = Clamp01(v)
 		if v <= 0 {
 			return 0
 		}

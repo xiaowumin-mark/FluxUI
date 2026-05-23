@@ -2,33 +2,16 @@ package anim
 
 import (
 	"image/color"
-	"time"
 
 	style "github.com/xiaowumin-mark/FluxUI/style"
 )
 
-type decorationTimeline struct {
-	startedAt time.Time
-	from      style.Decoration
-	target    style.Decoration
-	duration  time.Duration
-}
-
-func (tl *decorationTimeline) value(now time.Time, easing Easing) style.Decoration {
-	if tl.duration <= 0 {
-		return tl.target
-	}
-	if easing == nil {
-		easing = Linear
-	}
-	elapsed := now.Sub(tl.startedAt)
-	raw := float32(elapsed) / float32(tl.duration)
-	p := clamp01(raw)
-	eased := easing(p)
-
-	return LerpDecoration(tl.from, tl.target, eased)
-}
-
+// LerpDecoration 逐字段插值两个 Decoration。
+//
+// 平滑插值：Background(颜色), Opacity, Radius, Transform(全部5个float),
+// Border(Width+Color), Shadow(OffsetX/Y+Blur+Color), Gradient(两端颜色)。
+// 瞬切：Padding, Margin, CircleClip, Image, Border.Style, Transform.Origin,
+// Hover/Pressed/Focused/Disabled（交互态）。
 func LerpDecoration(from, to style.Decoration, t float32) style.Decoration {
 	if t >= 1 {
 		return to
@@ -160,6 +143,7 @@ func lerpGradient(from, to style.LinearGradient, t float32) style.LinearGradient
 	}
 }
 
+// DecorationEqual 深度比较两个 Decoration 的所有字段是否相等。
 func DecorationEqual(a, b style.Decoration) bool {
 	return colorNRGBAPtrEqual(a.Background, b.Background) &&
 		gradientEqual(a.Gradient, b.Gradient) &&
@@ -174,7 +158,7 @@ func DecorationEqual(a, b style.Decoration) bool {
 		imageFillPtrEqual(a.Image, b.Image)
 }
 
-func colorNRGBAPtrEqual(a, b *color.NRGBA) bool {
+func colorNRGBAPtrEqual(a, b *color.NRGBA) bool { //nolint:unused // false-positive
 	if a == nil && b == nil {
 		return true
 	}

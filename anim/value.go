@@ -5,7 +5,8 @@ import (
 	"math"
 )
 
-func clamp01(v float32) float32 {
+// Clamp01 将 v 约束到 [0,1] 区间，NaN 返回 0。
+func Clamp01(v float32) float32 {
 	switch {
 	case math.IsNaN(float64(v)):
 		return 0
@@ -23,7 +24,7 @@ func lerp(from, to, progress float32) float32 {
 }
 
 func lerpNRGBA(from, to color.NRGBA, progress float32) color.NRGBA {
-	p := clamp01(progress)
+	p := Clamp01(progress)
 	return color.NRGBA{
 		R: uint8(float32(from.R) + (float32(to.R)-float32(from.R))*p),
 		G: uint8(float32(from.G) + (float32(to.G)-float32(from.G))*p),
