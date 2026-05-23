@@ -232,34 +232,45 @@ func BridgePage(snapshot workspaceSnapshot) ui.Component {
 			return nil
 		})
 
-		legacyProgress := ui.FromWidget(ui.ProgressBar(
+		stableProgress := ui.ProgressBarElement(
 			progress.Value(),
 			ui.ProgressMin(0),
 			ui.ProgressMax(100),
 			ui.ProgressTrackColor(snapshot.Colors.PanelMuted),
 			ui.ProgressFillColor(snapshot.Colors.Accent),
-		))
+		)
 
-		legacyCard := ui.FromWidget(ui.Card(
-			ui.Column(
-				ui.Text("嵌入元素树的旧版卡片", ui.TextSize(14)),
-				ui.Padding(ui.Insets{Top: 6}, ui.Text("FromWidget 保持旧版组件状态和绘图完整。", ui.TextSize(12), ui.TextColor(snapshot.Colors.Muted))),
+		stableCard := ui.CardElement(
+			ui.ColumnElement(
+				ui.TextElement("稳定 Element wrapper", ui.TextSize(14), ui.TextColor(snapshot.Colors.Text)),
+				ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("CardElement 与 ProgressBarElement 可直接在 React-style tree 中组合。", ui.TextSize(12), ui.TextColor(snapshot.Colors.Muted))),
 			),
 			ui.CardBackground(ui.NRGBA(255, 255, 255, 255)),
 			ui.CardBorder(snapshot.Colors.Border, 1),
+			ui.CardRadius(12),
+		)
+
+		legacyBridge := ui.FromWidget(ui.Card(
+			ui.Column(
+				ui.Text("FromWidget 逃生口", ui.TextSize(14)),
+				ui.Padding(ui.Insets{Top: 6}, ui.Text("自定义或旧版 Widget 仍可作为长期桥接路径嵌入。", ui.TextSize(12), ui.TextColor(snapshot.Colors.Muted))),
+			),
+			ui.CardBackground(snapshot.Colors.PanelMuted),
 			ui.CardRadius(12),
 		))
 
 		return pageCard(snapshot,
 			"桥接",
-			"FromWidget 允许 React 风格组件在 API 逐步迁移时托管旧版组件。",
+			"最终组件可直接用 React-style Element 编写，FromWidget 仍作为长期逃生口保留。",
 			routeBadge(snapshot, location),
 			ui.SpacerElement(0, 12),
-			legacyCard,
+			stableCard,
+			ui.SpacerElement(0, 10),
+			legacyBridge,
 			ui.SpacerElement(0, 14),
-			ui.TextElement(fmt.Sprintf("旧版进度条值：%.0f%%", progress.Value()), ui.TextSize(14)),
+			ui.TextElement(fmt.Sprintf("Element 进度条值：%.0f%%", progress.Value()), ui.TextSize(14)),
 			ui.SpacerElement(0, 6),
-			legacyProgress,
+			stableProgress,
 			ui.SpacerElement(0, 12),
 			actionRow(
 				primaryButton(snapshot, "+12", func() {

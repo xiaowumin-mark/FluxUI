@@ -1,5 +1,7 @@
 # Docs 默认示例迁移策略
 
+> Status note: This is a historical rollout plan. The final wrapper pass has since added stable `XxxElement` APIs for the remaining public widgets; use `docs/react-style-status.md` and current `docs/widgets/*.md` pages for current React-style guidance.
+
 ## 目标
 
 制定 docs 默认示例从 legacy `Widget` 写法迁移到 React-style `Element` 写法的分批计划。本文只规划顺序和风险边界，不直接大规模重写 examples。

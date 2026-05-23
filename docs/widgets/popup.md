@@ -8,6 +8,7 @@
   "example": { "id": "popup_basic" },
   "apis": [
     "Popup(open bool, child Widget, opts ...PopupOption) Widget",
+    "PopupElement(open bool, child Element, opts ...PopupOption) Element",
     "PopupWidth(width float32) PopupOption",
     "PopupRadius(radius float32) PopupOption",
     "PopupMaskClosable(maskClosable bool) PopupOption",
@@ -34,14 +35,11 @@ Popup 是一个纯净的弹窗容器，只提供遮罩层和居中面板，不�
 - 可通过 `PopupAttachRef` 绑定 `PopupRef` 实现命令式控制。
 - Popup 不自带确认/取消按钮，内部关闭行为需要由用户内容、外部状态或 `PopupRef` 负责。
 
-## Lifecycle / React-style 说明
+## Lifecycle / React-style Element
 
-- 当前仍以 legacy `Widget` + `PopupRef` 作为兼容实现。
-- `Popup` 和 `Dialog` 共享类似的 overlay/mask/panel 生命周期，但 Popup 的内容完全由用户提供。
-- `open` 是受控输入；`PopupAttachRef` 绑定的 `PopupRef` 命令会在布局时消费，并通过 `PopupOnOpenChange` 同步外部状态。
-- mask click 只在 `PopupMaskClosable(true)` 且提供 `PopupOnOpenChange` 时触发关闭通知；关闭时 Popup 子内容不再布局。
-- overlay stacking、焦点归属、输入事件拦截、子树 mount/unmount 和 ref 命令释放尚未冻结，本批次不推荐 `PopupElement` 作为稳定公开 API。
-- 在 Batch 5 期间，文档保持 legacy-first，只记录自定义弹层的 overlay 生命周期边界，不新增 React-style snippet，也不修改 docs_browser 示例映射。
+- `PopupElement` 已可在 `RunElement` root 下直接包裹 Element 子树。
+- `open` 是受控输入；`PopupAttachRef` 绑定的 `PopupRef` 命令仍在布局时消费，并通过 `PopupOnOpenChange` 同步外部状态。
+- mask click、overlay stacking、焦点归属和 ref command queue 仍属于底层 popup host lifecycle，不迁入 component HookSlot。
 
 ## 使用示例
 ```go
@@ -66,4 +64,23 @@ ui.Popup(
         open.Set(v)
     }),
 )
+```
+
+### React-style Element
+
+```go
+func CustomPopup(ctx *ui.Context) ui.Element {
+    open := ui.UseState(ctx, true)
+    return ui.PopupElement(
+        open.Value(),
+        ui.ColumnElement(
+            ui.TextElement("自定义标题", ui.TextSize(18)),
+            ui.SpacerElement(0, 8),
+            ui.TextElement("这里可以放任意 Element。"),
+        ),
+        ui.PopupWidth(320),
+        ui.PopupPadding(ui.All(16)),
+        ui.PopupOnOpenChange(func(ctx *ui.Context, v bool) { open.Set(v) }),
+    )
+}
 ```

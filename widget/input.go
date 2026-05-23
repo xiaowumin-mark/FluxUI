@@ -39,6 +39,7 @@ type inputConfig struct {
 	onChange       func(ctx *internal.Context, value string)
 	onFocus        func(ctx *internal.Context, focused bool)
 	ref            *InputRef
+	decoration     style.Decoration
 }
 
 type inputWidget struct {
@@ -197,6 +198,13 @@ func InputAttachRef(ref *InputRef) InputOption {
 	}
 }
 
+// InputDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func InputDecoration(d style.Decoration) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.decoration = d
+	}
+}
+
 func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	state := inputStateFor(ctx)
 	editor := state.editor
@@ -283,9 +291,9 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	bg := t.config.background
+	bg := t.config.decoration.ResolveBg(t.config.background)
 	if !t.config.hasBackground {
-		bg = ctx.Theme().Surface
+		bg = t.config.decoration.ResolveBg(ctx.Theme().Surface)
 	}
 
 	fg := t.config.foreground
@@ -304,6 +312,9 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		border = ctx.Theme().Disabled
 	}
 
+	radius := t.config.decoration.ResolveRad(t.config.radius)
+	padding := t.config.decoration.ResolvePad(t.config.padding)
+
 	font := ctx.Font()
 	if t.config.hasFamily && strings.TrimSpace(t.config.font.Family) != "" {
 		font.Family = strings.TrimSpace(t.config.font.Family)
@@ -320,8 +331,8 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		Background:  bg,
 		Foreground:  fg,
 		Border:      border,
-		Radius:      t.config.radius,
-		Padding:     toInternalInsets(t.config.padding),
+		Radius:      radius,
+		Padding:     toInternalInsets(padding),
 		TextSize:    t.config.textSize,
 		Placeholder: t.config.placeholder,
 		Password:    t.config.password,

@@ -17,14 +17,13 @@ type CheckboxOption func(*checkboxConfig)
 type checkboxConfig struct {
 	dispatcher    event.Dispatcher
 	disabled      bool
-	padding       style.Insets
 	size          float32
 	color         color.NRGBA
-	background    color.NRGBA
 	hasColor      bool
 	hasBackground bool
 	onChange      func(ctx *internal.Context, checked bool)
 	ref           *CheckboxRef
+	decoration    style.Decoration
 }
 
 type checkboxWidget struct {
@@ -35,8 +34,7 @@ type checkboxWidget struct {
 
 func Checkbox(label string, checked bool, opts ...CheckboxOption) Widget {
 	cfg := checkboxConfig{
-		padding: style.Symmetric(8, 8),
-		size:    24,
+		size: 24,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -77,6 +75,13 @@ func CheckboxColor(color color.NRGBA) CheckboxOption {
 func CheckboxAttachRef(ref *CheckboxRef) CheckboxOption {
 	return func(cfg *checkboxConfig) {
 		cfg.ref = ref
+	}
+}
+
+// CheckboxDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func CheckboxDecoration(d style.Decoration) CheckboxOption {
+	return func(cfg *checkboxConfig) {
+		cfg.decoration = d
 	}
 }
 

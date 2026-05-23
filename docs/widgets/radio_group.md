@@ -8,6 +8,7 @@
   "example": { "id": "radio_group_basic" },
   "apis": [
     "RadioGroup(value string, items []RadioItem, opts ...RadioGroupOption) Widget",
+    "RadioGroupElement(value string, items []RadioItem, opts ...RadioGroupOption) Element",
     "RadioGroupDirection(axis Axis) RadioGroupOption",
     "RadioGroupDisabled(disabled bool) RadioGroupOption",
     "RadioGroupOnChange(fn func(ctx *Context, value string)) RadioGroupOption",
@@ -31,12 +32,10 @@ RadioGroup 用于“多个选项中只能选一个”的场景，例如排序模
 - 变化回调用 `RadioGroupOnChange`。
 - 若需外部主动切换选项，使用 `RadioGroupAttachRef` + `SetValue`。
 
-## Host-state / React-style 说明
+## React-style Element
 
-- 当前仍以 legacy `Widget` + `RadioGroupRef` 作为兼容实现。
-- `RadioGroup` 的 Element wrapper 名称与 host-state 边界尚未冻结，不在本批次文档中作为稳定公开 API 推荐。
-- 在 Batch 4 期间，文档保持 legacy-first，只保留受控 value、items、direction 和 ref 操作说明，不引入新的 React-style snippet。
-- 如果后续引入 `RadioGroupElement`，需要先确认选项 identity、value 更新和 ref 命令如何归属到 host fiber。
+- `RadioGroupElement` 已可在 `RunElement` root 下直接使用。
+- `value` 仍由调用方状态驱动；选项点击和 `RadioGroupRef` 命令队列仍由底层 radio group widget 管理。
 
 ## 使用示例
 ```go
@@ -51,4 +50,19 @@ ui.RadioGroup(
         mode.Set(value)
     }),
 )
+```
+
+### React-style Element
+
+```go
+func ModePicker(ctx *ui.Context) ui.Element {
+    mode := ui.UseState(ctx, "layout")
+    return ui.RadioGroupElement(
+        mode.Value(),
+        []ui.RadioItem{{Label: "布局", Value: "layout"}, {Label: "输入", Value: "input"}},
+        ui.RadioGroupOnChange(func(ctx *ui.Context, value string) {
+            mode.Set(value)
+        }),
+    )
+}
 ```

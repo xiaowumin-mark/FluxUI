@@ -8,6 +8,7 @@
   "example": { "id": "list_view_basic" },
   "apis": [
     "ListView(count int, itemBuilder func(ctx *Context, index int) Widget, opts ...ListOption) Widget",
+    "ListViewElement(count int, itemBuilder func(ctx *Context, index int) Element, opts ...ListOption) Element",
     "ListAxis(axis Axis) ListOption",
     "ListVirtualized(virtualized bool) ListOption",
     "ListItemSpacing(spacing float32) ListOption",
@@ -29,13 +30,11 @@ ListView 用于长列表展示，适合日志、消息流、任务清单等场�
 - `ListItemSpacing` 和 `ListPadding` 用于控制项间距与列表内边距。
 - 大列表和分页场景要让 item 内容尽量由稳定数据源驱动，避免只依赖 index 保存业务状态。
 
-## Lifecycle / React-style 说明
+## Lifecycle / React-style Element
 
-- 当前仍以 legacy `Widget` + Gio list state 作为兼容实现。
-- `ListView` 的滚动位置、虚拟窗口、触底回调去重状态和 itemBuilder 调用时机都属于 host/list state，不应放入 component HookSlot。
-- `itemBuilder` 当前按 index 生成 child context；动态插入、删除或重排时，业务状态需要由外部稳定 id 或后续 Element `Key` 规则承担。
-- `ListOnReachEnd` 依赖滚动位置和 viewport 判断，后续若引入 Element wrapper，需要先明确触底回调的去重、重置和 unmount cleanup 语义。
-- 在 Batch 5 期间，文档保持 legacy-first，只记录虚拟列表与 item identity 边界，不冻结 `ListViewElement` API 名称，也不新增 React-style snippet。
+- `ListViewElement` 已可在 `RunElement` root 下直接使用。
+- 滚动位置、虚拟窗口和触底回调去重状态仍属于底层 list host state，不放入 component HookSlot。
+- `itemBuilder` 仍按 index 构建；动态插入、删除或重排时，业务状态应由外部稳定 id 或 `Key` 显式表达。
 
 ## 使用示例
 ```go
@@ -46,4 +45,19 @@ ui.ListView(
     },
     ui.ListItemSpacing(6),
 )
+```
+
+### React-style Element
+
+```go
+func TodoList(ctx *ui.Context) ui.Element {
+    items := []string{"设计", "实现", "测试"}
+    return ui.ListViewElement(
+        len(items),
+        func(ctx *ui.Context, index int) ui.Element {
+            return ui.Key(items[index], ui.TextElement(items[index]))
+        },
+        ui.ListItemSpacing(6),
+    )
+}
 ```

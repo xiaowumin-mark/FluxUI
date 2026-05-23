@@ -8,6 +8,7 @@
   "example": { "id": "textfield_basic" },
   "apis": [
     "TextField(value string, opts ...InputOption) Widget",
+    "TextFieldElement(value string, opts ...InputOption) Element",
     "InputPlaceholder(text string) InputOption",
     "InputPadding(insets Insets) InputOption",
     "InputRadius(radius float32) InputOption",
@@ -44,12 +45,11 @@ TextField 是受控输入组件，值由外部状态提供，输入变化通过 
 - 长文本场景建议关闭单行模式。
 - 命令式控制（聚焦/清空/追加）建议通过 `InputAttachRef` + `InputRef` 方法完成。
 
-## Host-state / React-style 说明
+## React-style Element
 
-- 当前仍以 legacy `Widget` + `InputRef` 作为兼容实现。
-- `TextField` 的 Element wrapper 名称与 host-state 边界尚未冻结，不在本批次文档中作为稳定公开 API 推荐。
-- 在 Batch 4 期间，文档保持 legacy-first，只保留受控输入和命令式 ref 用法，不引入新的 React-style snippet。
-- 更完整的表单组合可参考 `examples/form_validation`，它仍然是 legacy 组合示例。
+- `TextFieldElement` 已可在 `RunElement` root 下直接使用。
+- 文本值仍是受控输入：`value` 来自调用方状态，`InputOnChange` 回写状态。
+- 编辑器焦点、光标、选择区和 `InputRef` 命令队列仍由底层 input host state 管理，不迁入 component HookSlot。
 
 ## 使用示例
 ```go
@@ -61,4 +61,19 @@ ui.TextField(
         name.Set(value)
     }),
 )
+```
+
+### React-style Element
+
+```go
+func NameField(ctx *ui.Context) ui.Element {
+    name := ui.UseState(ctx, "")
+    return ui.TextFieldElement(
+        name.Value(),
+        ui.InputPlaceholder("请输入名称"),
+        ui.InputOnChange(func(ctx *ui.Context, value string) {
+            name.Set(value)
+        }),
+    )
+}
 ```

@@ -8,6 +8,7 @@
   "example": { "id": "select_basic" },
   "apis": [
     "Select[T comparable](value T, options []SelectOptionItem[T], opts ...SelectOption[T]) Widget",
+    "SelectElement[T comparable](value T, options []SelectOptionItem[T], opts ...SelectOption[T]) Element",
     "SelectPlaceholder[T comparable](text string) SelectOption[T]",
     "SelectDisabled[T comparable](disabled bool) SelectOption[T]",
     "SelectSearchable[T comparable](searchable bool) SelectOption[T]",
@@ -34,12 +35,10 @@ Select 适用于中等数量的枚举值选择，支持占位文本、展开状�
 - 候选项建议直接定义成固定 `[]SelectOptionItem[T]`。
 - 需要外部打开/关闭或切换值时，使用 `SelectAttachRef` 绑定 `SelectRef[T]`。
 
-## Host-state / React-style 说明
+## React-style Element
 
-- 当前仍以 legacy `Widget` + `SelectRef[T]` 作为兼容实现。
-- `Select` 需要保存展开状态、候选项命中和命令队列，Element wrapper 名称与 host-state 边界尚未冻结。
-- 在 Batch 4 期间，文档保持 legacy-first，只保留受控 value、options、open change 和 ref 操作说明，不引入新的 React-style snippet。
-- 如果后续引入 `SelectElement`，需要先明确泛型 API、展开生命周期和 ref 命令在 host fiber 上的归属。
+- `SelectElement[T]` 已可在 `RunElement` root 下直接使用。
+- `value` 仍由调用方状态驱动；展开状态、候选项命中和 `SelectRef[T]` 命令队列仍由底层 select host state 管理。
 
 ## 使用示例
 ```go
@@ -56,4 +55,19 @@ ui.Select(
         level.Set(value)
     }),
 )
+```
+
+### React-style Element
+
+```go
+func PrioritySelect(ctx *ui.Context) ui.Element {
+    level := ui.UseState(ctx, "medium")
+    return ui.SelectElement(
+        level.Value(),
+        []ui.SelectOptionItem[string]{{Label: "低", Value: "low"}, {Label: "中", Value: "medium"}, {Label: "高", Value: "high"}},
+        ui.SelectOnChange[string](func(ctx *ui.Context, value string) {
+            level.Set(value)
+        }),
+    )
+}
 ```

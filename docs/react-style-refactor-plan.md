@@ -1,5 +1,7 @@
 # FluxUI React 风格重构计划
 
+> Status note: This is a historical planning record. The final wrapper pass has since added stable `XxxElement` APIs for the remaining public widgets; use `docs/react-style-status.md` and current `docs/widgets/*.md` pages for current React-style guidance.
+
 ## 背景
 
 FluxUI 当前基于 Gio immediate mode 构建，每个 frame 都会重新执行 root builder 并重新布局组件树。跨帧状态主要依赖 `Runtime.memory`、`Context.path` 和 hook 调用顺序维持。

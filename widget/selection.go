@@ -200,6 +200,7 @@ type selectConfig[T comparable] struct {
 	onChange    func(ctx *internal.Context, value T)
 	onOpen      func(ctx *internal.Context, opened bool)
 	ref         *SelectRef[T]
+	decoration  style.Decoration
 }
 
 type selectWidget[T comparable] struct {
@@ -274,6 +275,13 @@ func SelectOnOpenChange[T comparable](fn func(ctx *internal.Context, opened bool
 func SelectAttachRef[T comparable](ref *SelectRef[T]) SelectOption[T] {
 	return func(cfg *selectConfig[T]) {
 		cfg.ref = ref
+	}
+}
+
+// SelectDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func SelectDecoration[T comparable](d style.Decoration) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.decoration = d
 	}
 }
 
@@ -393,9 +401,9 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	panel := expandWidth(
 		Container(
 			style.Style{
-				Background: ctx.Theme().Surface,
-				Padding:    style.All(6),
-				Radius:     8,
+				Background: s.config.decoration.ResolveBg(ctx.Theme().Surface),
+				Padding:    s.config.decoration.ResolvePad(style.All(6)),
+				Radius:     s.config.decoration.ResolveRad(8),
 			},
 			list,
 		),

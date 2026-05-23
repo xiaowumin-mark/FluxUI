@@ -8,7 +8,7 @@
   "example": { "id": "circular_progress_basic" },
   "apis": [
     "CircularProgress(value float32, opts ...ProgressOption) Widget",
-    "FromWidget(w Widget) Element",
+    "CircularProgressElement(value float32, opts ...ProgressOption) Element",
     "ProgressMin(min float32) ProgressOption",
     "ProgressMax(max float32) ProgressOption",
     "ProgressThickness(thickness float32) ProgressOption",
@@ -40,9 +40,19 @@ ui.CircularProgress(
 )
 ```
 
-## React-style 状态
+## React-style Element
 
-- 当前 `CircularProgress` 仍以 legacy `Widget` 作为稳定实现。
-- React-style root 中可先使用 `FromWidget(ui.CircularProgress(...))` 桥接到 Element 树。
-- 进度值仍由调用方状态驱动；若使用动画值，应先保留现有 frame-driven animation 语义。
-- 本阶段不冻结 `CircularProgressElement` API 名称；后续如引入 Element wrapper，需要先明确 progress value、indeterminate/animation 和 redraw lifecycle 归属。
+`CircularProgressElement` 已可在 `RunElement` root 下直接使用。进度值仍由调用方状态驱动；动画值和不定进度的 frame redraw lifecycle 仍由底层 progress widget 管理。
+
+```go
+func CapacityGauge(ctx *ui.Context) ui.Element {
+    usage := ui.UseState(ctx, float32(72))
+    return ui.CircularProgressElement(
+        usage.Value(),
+        ui.ProgressMin(0),
+        ui.ProgressMax(100),
+        ui.ProgressSize(80),
+        ui.ProgressThickness(8),
+    )
+}
+```

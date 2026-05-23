@@ -10,7 +10,9 @@
     "Row(children ...Widget) Widget",
     "RowElement(children ...Element) Element",
     "Flexed(weight float32, child Widget) Widget",
-    "Expanded(child Widget) Widget"
+    "FlexedElement(weight float32, child Element) Element",
+    "Expanded(child Widget) Widget",
+    "ExpandedElement(child Element) Element"
   ]
 }
 -->
@@ -40,15 +42,15 @@ ui.Row(
 ```
 
 ### React-style Element
-新代码可在 `RunElement` root 下返回 `RowElement`。当前阶段 `Expanded` / `Flexed` 的原生 Element wrapper 尚未冻结，基础横向布局优先用 Element wrapper：
+新代码可在 `RunElement` root 下返回 `RowElement`，并用 `ExpandedElement` / `FlexedElement` 表达弹性子项：
 
 ```go
 func Toolbar(ctx *ui.Context) ui.Element {
     return ui.RowElement(
         ui.TextElement("标题"),
         ui.PaddingElement(ui.Insets{Left: 8}, ui.TextElement("副标题")),
-        ui.SpacerElement(16, 0),
-        ui.TextElement("操作"),
+        ui.ExpandedElement(ui.SpacerElement(0, 0)),
+        ui.ButtonElement(ui.TextElement("操作")),
     )
 }
 ```

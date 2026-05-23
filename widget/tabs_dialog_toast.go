@@ -191,6 +191,7 @@ type dialogConfig struct {
 	onConfirm    func(ctx *internal.Context)
 	onCancel     func(ctx *internal.Context)
 	ref          *DialogRef
+	decoration   style.Decoration
 }
 
 type dialogWidget struct {
@@ -284,6 +285,13 @@ func DialogAttachRef(ref *DialogRef) DialogOption {
 	}
 }
 
+// DialogDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func DialogDecoration(d style.Decoration) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.decoration = d
+	}
+}
+
 func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	open := d.open
 	if d.config.ref != nil {
@@ -339,9 +347,9 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	panel := Container(
 		style.Style{
-			Background: ctx.Theme().Surface,
-			Padding:    style.All(12),
-			Radius:     d.config.radius,
+			Background: d.config.decoration.ResolveBg(ctx.Theme().Surface),
+			Padding:    d.config.decoration.ResolvePad(style.All(12)),
+			Radius:     d.config.decoration.ResolveRad(d.config.radius),
 		},
 		Column(parts...),
 	)
@@ -394,10 +402,11 @@ const (
 type ToastOption func(*toastConfig)
 
 type toastConfig struct {
-	kind     ToastType
-	duration time.Duration
-	position ToastPosition
-	onClose  func(ctx *internal.Context)
+	kind       ToastType
+	duration   time.Duration
+	position   ToastPosition
+	onClose    func(ctx *internal.Context)
+	decoration style.Decoration
 }
 
 type toastWidget struct {
@@ -446,8 +455,13 @@ func ToastPositionOf(p ToastPosition) ToastOption {
 }
 
 func ToastOnClose(fn func(ctx *internal.Context)) ToastOption {
+	return func(cfg *toastConfig) { cfg.onClose = fn }
+}
+
+// ToastDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func ToastDecoration(d style.Decoration) ToastOption {
 	return func(cfg *toastConfig) {
-		cfg.onClose = fn
+		cfg.decoration = d
 	}
 }
 
@@ -478,21 +492,21 @@ func (t *toastWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 
-	bg := color.NRGBA{R: 60, G: 60, B: 60, A: 220}
+	bg := t.config.decoration.ResolveBg(color.NRGBA{R: 60, G: 60, B: 60, A: 220})
 	switch t.config.kind {
 	case ToastSuccess:
-		bg = color.NRGBA{R: 40, G: 167, B: 69, A: 220}
+		bg = t.config.decoration.ResolveBg(color.NRGBA{R: 40, G: 167, B: 69, A: 220})
 	case ToastWarning:
-		bg = color.NRGBA{R: 255, G: 193, B: 7, A: 230}
+		bg = t.config.decoration.ResolveBg(color.NRGBA{R: 255, G: 193, B: 7, A: 230})
 	case ToastError:
-		bg = color.NRGBA{R: 220, G: 53, B: 69, A: 230}
+		bg = t.config.decoration.ResolveBg(color.NRGBA{R: 220, G: 53, B: 69, A: 230})
 	}
 
 	body := Container(
 		style.Style{
 			Background: bg,
-			Padding:    style.Symmetric(8, 12),
-			Radius:     8,
+			Padding:    t.config.decoration.ResolvePad(style.Symmetric(8, 12)),
+			Radius:     t.config.decoration.ResolveRad(8),
 		},
 		Text(t.message, TextColor(color.NRGBA{R: 255, G: 255, B: 255, A: 255})),
 	)
@@ -612,6 +626,7 @@ type popupConfig struct {
 	hasPadding    bool
 	onOpenChange  func(ctx *internal.Context, open bool)
 	ref           *PopupRef
+	decoration    style.Decoration
 }
 
 type popupWidget struct {
@@ -687,6 +702,13 @@ func PopupAttachRef(ref *PopupRef) PopupOption {
 	}
 }
 
+// PopupDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func PopupDecoration(d style.Decoration) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.decoration = d
+	}
+}
+
 func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	open := p.open
 	if p.config.ref != nil {
@@ -721,21 +743,22 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		p.config.onOpenChange(maskCtx, false)
 	})
 
-	bg := ctx.Theme().Surface
+	bg := p.config.decoration.ResolveBg(ctx.Theme().Surface)
 	if p.config.hasBackground {
 		bg = p.config.background
 	}
-	padding := style.All(0)
+	padding := p.config.decoration.ResolvePad(style.All(0))
 	if p.config.hasPadding {
 		padding = p.config.padding
 	}
+	radius := p.config.decoration.ResolveRad(p.config.radius)
 
 	var panel Widget
 	panel = Container(
 		style.Style{
 			Background: bg,
 			Padding:    padding,
-			Radius:     p.config.radius,
+			Radius:     radius,
 		},
 		p.child,
 	)

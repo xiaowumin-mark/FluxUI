@@ -261,8 +261,23 @@ func renderElement(el Element) widget.Widget {
 }
 
 func renderElementWithContext(ctx *Context, el Element) widget.Widget {
+	return renderElementWithContextAt(ctx, el, 0, "")
+}
+
+func renderElementWithContextAt(ctx *Context, el Element, position int, key string) widget.Widget {
 	if el == nil {
 		return nil
+	}
+	switch e := el.(type) {
+	case keyElement:
+		return renderElementWithContextAt(ctx, e.Child(), position, e.Key())
+	case componentElement:
+		return renderComponentWidgetWithContext(ctx, position, key, e.component)
+	case providerScoped:
+		return renderElementWithContextAt(e.providerContext(ctx), e.Child(), position, key)
+	}
+	if composite, ok := el.(compositeElement); ok {
+		return renderCompositeElementWithContext(ctx, composite, position, key)
 	}
 	if renderable, ok := el.(contextRenderable); ok {
 		return renderable.renderWithContext(ctx)
@@ -274,16 +289,77 @@ type contextRenderable interface {
 	renderWithContext(ctx *Context) widget.Widget
 }
 
-func (e fragmentElement) renderWithContext(ctx *Context) widget.Widget {
-	children := make([]Widget, 0, len(e.children))
-	for _, child := range e.children {
+type compositeElement interface {
+	Element
+	HostChildren() []Element
+	RenderWithChildren(ctx *Context, children []Widget) Widget
+}
+
+type childContextElement interface {
+	ChildContext(ctx *Context) *Context
+}
+
+func renderComponentWidgetWithContext(ctx *Context, position int, key string, component Component) widget.Widget {
+	if ctx == nil || component == nil {
+		return nil
+	}
+	parentID := "root"
+	if inst := ctx.ComponentInstance(); inst != nil && inst.ID != "" {
+		parentID = inst.ID
+	}
+	if path := ctx.TreePath(); path != "" {
+		parentID += "/" + path
+	}
+	identity := internal.ComponentIdentity{
+		ParentID: parentID,
+		TypeID:   componentTypeID(component),
+		Key:      key,
+		Position: position,
+	}
+	inst := beginComponentInstance(ctx, identity)
+	componentCtx := ctx
+	if inst != nil {
+		componentCtx = ctx.WithComponentInstance(inst)
+	}
+	return renderElementWithContext(componentCtx, component(componentCtx))
+}
+
+func renderCompositeElementWithContext(ctx *Context, el compositeElement, position int, key string) widget.Widget {
+	if el == nil {
+		return nil
+	}
+	childCtx := scopedElementContext(ctx, ElementInfo(el), position, key)
+	if scoped, ok := el.(childContextElement); ok {
+		childCtx = scoped.ChildContext(childCtx)
+	}
+	children := el.HostChildren()
+	widgets := make([]Widget, 0, len(children))
+	for idx, child := range children {
 		if child == nil {
+			widgets = append(widgets, nil)
 			continue
 		}
-		if w := renderElementWithContext(ctx, child); w != nil {
-			children = append(children, w)
-		}
+		widgets = append(widgets, renderElementWithContextAt(childCtx, child, idx, ""))
 	}
+	return el.RenderWithChildren(ctx, widgets)
+}
+
+func scopedElementContext(ctx *Context, identity ElementIdentity, position int, key string) *Context {
+	if ctx == nil {
+		return nil
+	}
+	kind := identity.Kind
+	if kind == "" {
+		kind = "element"
+	}
+	if key != "" {
+		return ctx.Scope(kind + "#" + strconv.Quote(key))
+	}
+	return ctx.Scope(kind + "@" + strconv.Itoa(position))
+}
+
+func (e fragmentElement) renderWithContext(ctx *Context) widget.Widget {
+	children := renderElementsWithContext(ctx, e.children)
 	if len(children) == 0 {
 		return nil
 	}

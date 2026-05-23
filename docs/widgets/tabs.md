@@ -8,7 +8,7 @@
   "example": { "id": "tabs_basic" },
   "apis": [
     "Tabs(active string, items []TabItem, opts ...TabsOption) Widget",
-    "FromWidget(w Widget) Element",
+    "TabsElement(active string, items []TabItem, opts ...TabsOption) Element",
     "TabsOnChange(fn func(ctx *Context, key string)) TabsOption",
     "TabsScrollable(scrollable bool) TabsOption",
     "TabsIndicatorColor(col color.NRGBA) TabsOption",
@@ -48,9 +48,21 @@ ui.Tabs(
 )
 ```
 
-## Host-state / React-style 状态
+## React-style Element
 
-- 当前 `Tabs` 仍以 legacy `Widget` + `TabsRef` 作为稳定实现。
-- React-style root 中可先使用 `FromWidget(ui.Tabs(...))` 桥接到 Element 树。
-- `active` key、滚动标签栏状态、`TabsOnChange` 和 `TabsAttachRef` 仍由 legacy path / 调用方状态管理。
-- 本阶段不冻结 `TabsElement` API 名称；后续如引入 Element wrapper，需要先明确 tab item identity、ref 命令、切换页面 key/remount 和 scroll host-state 归属。
+- `TabsElement` 已可在 `RunElement` root 下直接使用。
+- `active` key、滚动标签栏状态、`TabsOnChange` 和 `TabsAttachRef` 仍由底层 widget host / 调用方状态管理。
+- 切换标签页对应的内容子树建议由调用方用 `Key` 或路由参数显式表达 identity。
+
+```go
+func SettingsTabs(ctx *ui.Context) ui.Element {
+    active := ui.UseState(ctx, "profile")
+    return ui.TabsElement(
+        active.Value(),
+        []ui.TabItem{{Key: "profile", Label: "Profile"}, {Key: "team", Label: "Team"}},
+        ui.TabsOnChange(func(ctx *ui.Context, key string) {
+            active.Set(key)
+        }),
+    )
+}
+```

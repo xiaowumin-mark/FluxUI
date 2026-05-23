@@ -12,14 +12,18 @@ Covered runtime features:
 - `UseMount` and `UseEffectWithDeps` for lifecycle and dependency-based effects.
 - `Provider` and `UseContext` for typed context values.
 - `RouterElement`, `RouteElement`, `UseNavigate`, `UseLocation`, and `UseParams` for routing.
+- Per-navigation transition options via `WithNavTransition`.
 - `Fragment`, `ComponentElement`, and `Key` for composition and keyed component identity.
-- `FromWidget` for bridging legacy widgets such as `Card` and `ProgressBar` into an Element tree.
+- Final stable Element wrappers such as `CardElement` and `ProgressBarElement`.
+- `FromWidget` as the long-term escape hatch for custom or legacy-only widgets.
 
 The task list page includes a rotate-order action. Each task card has local expanded state and is wrapped with `Key(task.ID, ComponentElement(...))`, so the example can be used to verify that component state follows stable business ids instead of list indexes.
 
 Route pages receive the live workspace snapshot through route component factories because `RouterElement` still bridges through the legacy router host. `Provider` / `UseContext` is demonstrated inside the keyed task-card subtree, where the provider and consumer stay within the same Element render pass.
 
-This example does not depend on unfrozen wrappers such as `TextFieldElement`, `TabsElement`, `BottomNavigationElement`, `CardElement`, or `ProgressBarElement`. Legacy widgets are shown through `FromWidget` where the Element wrapper is not stable yet.
+Every navigation button passes an explicit transition option because `RouterElement` currently reuses the legacy router host and does not expose a default transition configuration yet.
+
+The bridge page intentionally shows both paths: stable `XxxElement` wrappers for new React-style code, and `FromWidget` for older or custom widgets that still need to live inside an Element tree.
 
 Run it with:
 

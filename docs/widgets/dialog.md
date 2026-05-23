@@ -8,6 +8,7 @@
   "example": { "id": "dialog_basic" },
   "apis": [
     "Dialog(open bool, child Widget, opts ...DialogOption) Widget",
+    "DialogElement(open bool, child Element, opts ...DialogOption) Element",
     "DialogTitle(title string) DialogOption",
     "DialogWidth(width float32) DialogOption",
     "DialogRadius(radius float32) DialogOption",
@@ -38,14 +39,11 @@ Dialog 用于确认、警告、补充输入等高优先级交互，通常以遮�
 - 外部程序可通过 `DialogAttachRef` 命令式控制开关。
 - 如果 `DialogMaskClosable(false)`，关闭逻辑应由按钮回调、外部状态或 `DialogRef` 命令触发。
 
-## Lifecycle / React-style 说明
+## Lifecycle / React-style Element
 
-- 当前仍以 legacy `Widget` + `DialogRef` 作为兼容实现。
-- `open` 是受控输入；`DialogRef` 的 `Open` / `Close` / `Toggle` 命令会在布局时消费，并通过 `DialogOnOpenChange` 让外部状态同步。
-- `Dialog` 内部用 overlay/mask + panel 组合渲染，关闭时子内容不布局；打开、关闭和 mask click 都属于 overlay host lifecycle，不应混入 component HookSlot。
-- `DialogOnOpenChange` 会基于内部 `wasOpen` 状态做变化通知，后续 Element API 需要先明确通知去重、ref 命令释放和 host unmount 的处理规则。
-- overlay stacking、焦点归属、输入事件拦截和子树 mount/unmount 语义尚未冻结，本批次不推荐 `DialogElement` 作为稳定公开 API。
-- 在 Batch 5 期间，文档保持 legacy-first，只记录受控 open、ref 和 overlay 生命周期边界，不新增 React-style snippet，也不修改 docs_browser 示例映射。
+- `DialogElement` 已可在 `RunElement` root 下直接包裹 Element 子树。
+- `open` 是受控输入；`DialogRef` 的 `Open` / `Close` / `Toggle` 命令仍在布局时消费，并通过 `DialogOnOpenChange` 同步外部状态。
+- overlay/mask/panel、open-change 去重、焦点归属和 ref command queue 仍属于底层 dialog host lifecycle，不迁入 component HookSlot。
 
 ## 使用示例
 ```go
@@ -62,4 +60,18 @@ ui.Dialog(
         open.Set(false)
     }),
 )
+```
+
+### React-style Element
+
+```go
+func ConfirmDialog(ctx *ui.Context) ui.Element {
+    open := ui.UseState(ctx, false)
+    return ui.DialogElement(
+        open.Value(),
+        ui.TextElement("确认执行该操作吗？"),
+        ui.DialogTitle("操作确认"),
+        ui.DialogOnOpenChange(func(ctx *ui.Context, v bool) { open.Set(v) }),
+    )
+}
 ```

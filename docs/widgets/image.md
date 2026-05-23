@@ -8,7 +8,7 @@
   "example": { "id": "image_basic" },
   "apis": [
     "Image(src ImageSource, opts ...ImageOption) Widget",
-    "FromWidget(w Widget) Element",
+    "ImageElement(src ImageSource, opts ...ImageOption) Element",
     "ImageWidth(width float32) ImageOption",
     "ImageHeight(height float32) ImageOption",
     "ImageFitMode(fit ImageFit) ImageOption",
@@ -41,9 +41,18 @@ ui.Image(
 )
 ```
 
-## React-style 状态
+## React-style Element
 
-- 当前 `Image` 仍以 legacy `Widget` 作为稳定实现。
-- React-style root 中可先使用 `FromWidget(ui.Image(...))` 桥接到 Element 树。
-- 图片加载、尺寸约束、点击事件和 `ImageAttachRef` 仍由 legacy widget 路径负责。
-- 本阶段不冻结 `ImageElement` API 名称；后续如引入 Element wrapper，需要先明确资源缓存、加载失败、点击命中和 host-state 复用规则。
+- `ImageElement` 已可在 `RunElement` root 下直接使用。
+- 图片加载缓存、尺寸约束、点击事件和 `ImageAttachRef` 仍由底层 image widget host 管理。
+
+```go
+func Cover(ctx *ui.Context) ui.Element {
+    return ui.ImageElement(
+        ui.ImageSource{Path: "examples/assets/sample.png", Label: "示例图"},
+        ui.ImageWidth(160),
+        ui.ImageHeight(96),
+        ui.ImageFitMode(ui.ImageFitCover),
+    )
+}
+```

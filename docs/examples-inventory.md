@@ -14,7 +14,7 @@ This document records the current role of each example after the React-style run
 
 | Example | Role | Runtime | Decision | Notes |
 | --- | --- | --- | --- | --- |
-| `examples/react_workspace` | Canonical React-style runtime showcase | React-style `RunElement` | Keep | Demonstrates hooks, context, router, keyed identity, fragments, components, and `FromWidget` bridging. |
+| `examples/react_workspace` | Canonical React-style runtime showcase | React-style `RunElement` | Keep | Demonstrates hooks, context, router, keyed identity, fragments, components, stable Element wrappers, transitions, and `FromWidget` bridging. |
 | `examples/counter` | Minimal counter smoke demo | Legacy `Run` / `Widget` | Keep | Compact legacy state example. |
 | `examples/router` | Router compatibility showcase | Legacy `Run` / `Widget` | Keep | Comprehensive router demo and docs browser `router_basic` counterpart. |
 | `examples/docs_browser` | Docs runtime host | Legacy `Run` / `Widget` | Keep | Owns Markdown loading, metadata parsing, legacy example id mapping, previews, and online fallback. |

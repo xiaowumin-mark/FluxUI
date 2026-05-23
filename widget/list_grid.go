@@ -425,6 +425,7 @@ type listConfig struct {
 	itemSpacing float32
 	padding     style.Insets
 	onReachEnd  func(ctx *internal.Context)
+	decoration  style.Decoration
 }
 
 type listViewWidget struct {
@@ -480,6 +481,13 @@ func ListPadding(insets style.Insets) ListOption {
 	}
 }
 
+// ListDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func ListDecoration(d style.Decoration) ListOption {
+	return func(cfg *listConfig) {
+		cfg.decoration = d
+	}
+}
+
 func ListOnReachEnd(fn func(ctx *internal.Context)) ListOption {
 	return func(cfg *listConfig) {
 		cfg.onReachEnd = fn
@@ -520,8 +528,9 @@ func (l *listViewWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if l.config.axis == Vertical {
 		root = expandWidth(root)
 	}
-	if !l.config.padding.IsZero() {
-		root = Padding(l.config.padding, root)
+	padding := l.config.decoration.ResolvePad(l.config.padding)
+	if !padding.IsZero() {
+		root = Padding(padding, root)
 		if l.config.axis == Vertical {
 			root = expandWidth(root)
 		}
@@ -597,6 +606,7 @@ type gridConfig struct {
 	padding      style.Insets
 	minItemWidth float32
 	onReachEnd   func(ctx *internal.Context)
+	decoration   style.Decoration
 }
 
 type gridWidget struct {
@@ -651,6 +661,13 @@ func GridGap(rowGap, colGap float32) GridOption {
 func GridPadding(insets style.Insets) GridOption {
 	return func(cfg *gridConfig) {
 		cfg.padding = insets
+	}
+}
+
+// GridDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func GridDecoration(d style.Decoration) GridOption {
+	return func(cfg *gridConfig) {
+		cfg.decoration = d
 	}
 }
 
@@ -732,8 +749,9 @@ func (g *gridViewWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	})
 
 	var root Widget = expandWidth(listChild)
-	if !g.config.padding.IsZero() {
-		root = Padding(g.config.padding, root)
+	padding := g.config.decoration.ResolvePad(g.config.padding)
+	if !padding.IsZero() {
+		root = Padding(padding, root)
 		root = expandWidth(root)
 	}
 

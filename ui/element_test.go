@@ -747,6 +747,169 @@ func TestInteractiveElementsWrapLegacyWidgets(t *testing.T) {
 	}
 }
 
+func TestFinalComponentElementsWrapLegacyWidgets(t *testing.T) {
+	if el := TextFieldElement("hello"); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected TextFieldElement to wrap a legacy text field widget")
+	}
+	if el := SliderElement(42); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected SliderElement to wrap a legacy slider widget")
+	}
+	if el := RadioGroupElement("a", []RadioItem{{Label: "A", Value: "a"}}); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected RadioGroupElement to wrap a legacy radio group widget")
+	}
+	if el := SelectElement("a", []SelectOptionItem[string]{{Label: "A", Value: "a"}}); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected SelectElement to wrap a legacy select widget")
+	}
+	if el := ProgressBarElement(25); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected ProgressBarElement to wrap a legacy progress bar widget")
+	}
+	if el := CircularProgressElement(25); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected CircularProgressElement to wrap a legacy circular progress widget")
+	}
+	if el := ImageElement(ImageSource{Label: "placeholder"}); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected ImageElement to wrap a legacy image widget")
+	}
+	if el := IconElement("star"); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected IconElement to wrap a legacy icon widget")
+	}
+	if el := CardElement(TextElement("card")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected CardElement to wrap a legacy card widget")
+	}
+	if el := TabsElement("home", []TabItem{{Key: "home", Label: "Home"}}); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected TabsElement to wrap a legacy tabs widget")
+	}
+	if el := DialogElement(true, TextElement("dialog")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected DialogElement to wrap a legacy dialog widget")
+	}
+	if el := PopupElement(true, TextElement("popup")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected PopupElement to wrap a legacy popup widget")
+	}
+	if el := ToastElement("saved"); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected ToastElement to wrap a legacy toast widget")
+	}
+	if el := ScrollViewElement(TextElement("scroll")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected ScrollViewElement to wrap a legacy scroll view widget")
+	}
+	if el := ListViewElement(1, func(ctx *Context, index int) Element { return TextElement("item") }); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected ListViewElement to wrap a legacy list view widget")
+	}
+	if el := GridElement(2, TextElement("a"), TextElement("b")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected GridElement to wrap a legacy grid widget")
+	}
+	if el := GridViewElement(1, 2, func(ctx *Context, index int) Element { return TextElement("cell") }); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected GridViewElement to wrap a legacy grid view widget")
+	}
+	if el := AppBarElement(
+		TextElement("Title"),
+		AppBarHeight(48),
+	); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected AppBarElement to wrap a legacy app bar widget")
+	}
+	if el := AppBarElementWithSlots(
+		TextElement("Title"),
+		TextElement("Menu"),
+		[]Element{TextElement("Save")},
+		AppBarHeight(48),
+	); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected AppBarElementWithSlots to wrap a legacy app bar widget")
+	}
+	if el := BottomNavigationElement("home", []ElementNavItem{{Key: "home", Label: "Home", Icon: IconElement("home")}}); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected BottomNavigationElement to wrap a legacy bottom navigation widget")
+	}
+	if el := WithFontElement(DefaultFontSpec(), TextElement("font")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected WithFontElement to wrap a legacy font scope widget")
+	}
+	if el := FlexedElement(2, TextElement("flex")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected FlexedElement to wrap a legacy flexed widget")
+	}
+	if el := ExpandedElement(TextElement("expanded")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected ExpandedElement to wrap a legacy expanded widget")
+	}
+	if el := FixedSizeElement(20, 10, TextElement("fixed")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected FixedSizeElement to wrap a legacy fixed-size widget")
+	}
+	if el := FillElement(TextElement("fill")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected FillElement to wrap a legacy fill widget")
+	}
+}
+
+func TestCompositeElementChildrenCanUseHooksAndContext(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	gtx := gioLayout.Context{Ops: &ops}
+	r := newReconciler()
+	contextKey := ContextKey[string]{Default: "default"}
+	seenContext := make([]string, 0, 2)
+	seenState := make([]int, 0, 2)
+
+	child := func(ctx *Context) Element {
+		state := UseState(ctx, 1)
+		seenContext = append(seenContext, UseContext(ctx, contextKey))
+		seenState = append(seenState, state.Value())
+		state.Set(state.Value() + 1)
+		return TextElement("child")
+	}
+	root := func(ctx *Context) Element {
+		return Provider(contextKey, "provided", RowElement(
+			ButtonElement(ComponentElement(child)),
+		))
+	}
+
+	for range 2 {
+		rt.BeginFrame()
+		r.Render(internal.NewContext(gtx, rt), root)
+		rt.EndFrame()
+	}
+
+	if len(seenContext) != 2 || seenContext[0] != "provided" || seenContext[1] != "provided" {
+		t.Fatalf("expected provider context inside composite children, got %v", seenContext)
+	}
+	if len(seenState) != 2 || seenState[0] != 1 || seenState[1] != 2 {
+		t.Fatalf("expected nested component state to persist, got %v", seenState)
+	}
+}
+
+func TestKeyedComponentsInsideCompositeElementsPreserveStateAcrossReorder(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	gtx := gioLayout.Context{Ops: &ops}
+	r := newReconciler()
+	items := []string{"a", "b", "c"}
+	seen := map[string][]int{}
+
+	child := func(id string) Component {
+		return func(ctx *Context) Element {
+			state := UseState(ctx, 1)
+			seen[id] = append(seen[id], state.Value())
+			state.Set(state.Value() + 1)
+			return TextElement(id)
+		}
+	}
+	root := func(ctx *Context) Element {
+		children := make([]Element, 0, len(items))
+		for _, id := range items {
+			children = append(children, Key(id, ButtonElement(ComponentElement(child(id)))))
+		}
+		return RowElement(children...)
+	}
+
+	rt.BeginFrame()
+	r.Render(internal.NewContext(gtx, rt), root)
+	rt.EndFrame()
+
+	items = []string{"c", "a", "b"}
+	rt.BeginFrame()
+	r.Render(internal.NewContext(gtx, rt), root)
+	rt.EndFrame()
+
+	for _, id := range []string{"a", "b", "c"} {
+		values := seen[id]
+		if len(values) != 2 || values[0] != 1 || values[1] != 2 {
+			t.Fatalf("expected keyed composite child %s to preserve state across reorder, got %v", id, values)
+		}
+	}
+}
+
 func TestRouterElementWrapsComponentRoutes(t *testing.T) {
 	if el := RouterElement(
 		RouteElement("/", func(ctx *Context) Element { return TextElement("home") }),

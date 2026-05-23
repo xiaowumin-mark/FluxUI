@@ -17,6 +17,7 @@ type appBarConfig struct {
 	height     float32
 	background color.NRGBA
 	hasBG      bool
+	decoration style.Decoration
 }
 
 type appBarWidget struct {
@@ -63,8 +64,15 @@ func AppBarBackground(col color.NRGBA) AppBarOption {
 	}
 }
 
+// AppBarDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func AppBarDecoration(d style.Decoration) AppBarOption {
+	return func(cfg *appBarConfig) {
+		cfg.decoration = d
+	}
+}
+
 func (a *appBarWidget) Layout(ctx *internal.Context) layout.Dimensions {
-	bg := ctx.Theme().Surface
+	bg := a.config.decoration.ResolveBg(ctx.Theme().Surface)
 	if a.config.hasBG {
 		bg = a.config.background
 	}
@@ -144,6 +152,7 @@ type bottomNavConfig struct {
 	hasInactive   bool
 	alignment     BottomNavAlignment
 	ref           *BottomNavRef
+	decoration    style.Decoration
 }
 
 type bottomNavWidget struct {
@@ -207,6 +216,13 @@ func BottomNavAttachRef(ref *BottomNavRef) BottomNavOption {
 	}
 }
 
+// BottomNavDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func BottomNavDecoration(d style.Decoration) BottomNavOption {
+	return func(cfg *bottomNavConfig) {
+		cfg.decoration = d
+	}
+}
+
 func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	activeKey := b.active
 	if b.config.ref != nil {
@@ -222,7 +238,7 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	bg := ctx.Theme().Surface
+	bg := b.config.decoration.ResolveBg(ctx.Theme().Surface)
 	if b.config.hasBG {
 		bg = b.config.background
 	}

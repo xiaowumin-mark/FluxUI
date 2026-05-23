@@ -10,7 +10,9 @@
     "Column(children ...Widget) Widget",
     "ColumnElement(children ...Element) Element",
     "Flexed(weight float32, child Widget) Widget",
-    "Expanded(child Widget) Widget"
+    "FlexedElement(weight float32, child Element) Element",
+    "Expanded(child Widget) Widget",
+    "ExpandedElement(child Element) Element"
   ]
 }
 -->
@@ -40,15 +42,15 @@ ui.Column(
 ```
 
 ### React-style Element
-新代码可在 `RunElement` root 下返回 `ColumnElement`。当前阶段 `Expanded` / `Flexed` 的原生 Element wrapper 尚未冻结，基础纵向布局优先用 Element wrapper：
+新代码可在 `RunElement` root 下返回 `ColumnElement`，并用 `ExpandedElement` / `FlexedElement` 表达弹性子项：
 
 ```go
 func Page(ctx *ui.Context) ui.Element {
     return ui.ColumnElement(
         ui.TextElement("页面标题", ui.TextSize(20)),
         ui.PaddingElement(ui.Insets{Top: 8}, ui.TextElement("说明文本")),
-        ui.SpacerElement(0, 24),
-        ui.TextElement("提交"),
+        ui.ExpandedElement(ui.SpacerElement(0, 0)),
+        ui.ButtonElement(ui.TextElement("提交")),
     )
 }
 ```

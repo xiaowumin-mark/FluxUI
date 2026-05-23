@@ -454,6 +454,11 @@ func ButtonForeground(value color.NRGBA) ButtonOption {
 	return widget.ButtonForeground(value)
 }
 
+// ButtonDecoration 通过 Decoration 统一设置按钮背景、内边距和圆角。
+func ButtonDecoration(d Decoration) ButtonOption {
+	return widget.ButtonDecoration(d)
+}
+
 func NewButtonRef() *ButtonRef {
 	return widget.NewButtonRef()
 }
@@ -475,6 +480,24 @@ func Symmetric(vertical, horizontal float32) Insets {
 // NRGBA 创建颜色。
 func NRGBA(r, g, b, a uint8) color.NRGBA {
 	return style.NRGBA(r, g, b, a)
+}
+
+// Decoration 提供可选的可视装饰属性（背景 / 内边距 / 圆角）。
+type Decoration = style.Decoration
+
+// Bg 创建仅设置背景色的装饰。
+func Bg(c color.NRGBA) style.Decoration {
+	return style.Decoration{}.WithBg(c)
+}
+
+// Pad 创建仅设置内边距的装饰。
+func Pad(p Insets) style.Decoration {
+	return style.Decoration{}.WithPad(p)
+}
+
+// Rad 创建仅设置圆角的装饰。
+func Rad(r float32) style.Decoration {
+	return style.Decoration{}.WithRad(r)
 }
 
 // InputPlaceholder 设置输入框占位符。
@@ -560,6 +583,11 @@ func InputAttachRef(ref *InputRef) InputOption {
 	return widget.InputAttachRef(ref)
 }
 
+// InputDecoration 通过 Decoration 统一设置输入框背景、内边距和圆角。
+func InputDecoration(d Decoration) InputOption {
+	return widget.InputDecoration(d)
+}
+
 // CheckboxOnChange 绑定复选框变化事件。
 func CheckboxOnChange(fn func(ctx *Context, checked bool)) CheckboxOption {
 	return widget.CheckboxOnChange(fn)
@@ -586,6 +614,11 @@ func NewCheckboxRef() *CheckboxRef {
 
 func CheckboxAttachRef(ref *CheckboxRef) CheckboxOption {
 	return widget.CheckboxAttachRef(ref)
+}
+
+// CheckboxDecoration 通过 Decoration 统一设置复选框装饰。
+func CheckboxDecoration(d Decoration) CheckboxOption {
+	return widget.CheckboxDecoration(d)
 }
 
 // SwitchDisabled 设置开关禁用状态。

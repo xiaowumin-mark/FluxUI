@@ -54,6 +54,13 @@ type BottomNavAlignment = widget.BottomNavAlignment
 type NavItem = widget.NavItem
 type PopupRef = widget.PopupRef
 
+// ElementNavItem 描述 BottomNavigationElement 的单项配置。
+type ElementNavItem struct {
+	Key   string
+	Label string
+	Icon  Element
+}
+
 const (
 	ToastInfo    ToastType = widget.ToastInfo
 	ToastSuccess ToastType = widget.ToastSuccess
@@ -77,6 +84,54 @@ const (
 type SelectOptionItem[T comparable] = widget.SelectOptionItem[T]
 type SelectOption[T comparable] = widget.SelectOption[T]
 type SelectRef[T comparable] = widget.SelectRef[T]
+
+type singleChildElement struct {
+	kind     string
+	child    Element
+	renderFn func(child Widget) Widget
+}
+
+type multiChildElement struct {
+	kind     string
+	children []Element
+	renderFn func(children []Widget) Widget
+}
+
+type appBarElement struct {
+	title   Element
+	leading Element
+	actions []Element
+	opts    []AppBarOption
+}
+
+type withFontElement struct {
+	font  FontSpec
+	child Element
+}
+
+type flexElement struct {
+	kind   string
+	weight float32
+	child  Element
+}
+
+type listViewElement struct {
+	count   int
+	builder func(ctx *Context, index int) Element
+	opts    []ListOption
+}
+
+type gridElement struct {
+	columns  int
+	children []Element
+}
+
+type gridViewElement struct {
+	count   int
+	columns int
+	builder func(ctx *Context, index int) Element
+	opts    []GridOption
+}
 
 func Spacer(width, height float32) Widget {
 	return widget.Spacer(width, height)
@@ -129,12 +184,16 @@ func ContainerElement(st Style, child Element) Element {
 
 // ButtonElement 创建可参与 reconciler 的按钮 Element。
 func ButtonElement(child Element, opts ...ButtonOption) Element {
-	return FromWidget(widget.Button(renderElement(child), opts...))
+	return &singleChildElement{kind: "button", child: child, renderFn: func(child Widget) Widget {
+		return widget.Button(child, opts...)
+	}}
 }
 
 // ClickAreaElement 创建可参与 reconciler 的可点击区域 Element。
 func ClickAreaElement(child Element, onClick func(ctx *Context), opts ...ClickAreaOption) Element {
-	return FromWidget(widget.ClickArea(renderElement(child), onClick, opts...))
+	return &singleChildElement{kind: "click-area", child: child, renderFn: func(child Widget) Widget {
+		return widget.ClickArea(child, onClick, opts...)
+	}}
 }
 
 // CheckboxElement 创建可参与 reconciler 的复选框 Element。
@@ -145,6 +204,203 @@ func CheckboxElement(label string, checked bool, opts ...CheckboxOption) Element
 // SwitchElement 创建可参与 reconciler 的开关 Element。
 func SwitchElement(checked bool, opts ...SwitchOption) Element {
 	return FromWidget(widget.Switch(checked, opts...))
+}
+
+// TextFieldElement 创建可参与 reconciler 的受控输入框 Element。
+func TextFieldElement(value string, opts ...InputOption) Element {
+	return FromWidget(widget.TextField(value, opts...))
+}
+
+// SliderElement 创建可参与 reconciler 的受控滑块 Element。
+func SliderElement(value float32, opts ...SliderOption) Element {
+	return FromWidget(widget.Slider(value, opts...))
+}
+
+// RadioGroupElement 创建可参与 reconciler 的受控单选组 Element。
+func RadioGroupElement(value string, items []RadioItem, opts ...RadioGroupOption) Element {
+	return FromWidget(widget.RadioGroup(value, items, opts...))
+}
+
+// SelectElement 创建可参与 reconciler 的受控下拉选择 Element。
+func SelectElement[T comparable](value T, options []SelectOptionItem[T], opts ...SelectOption[T]) Element {
+	return FromWidget(widget.Select(value, options, opts...))
+}
+
+// ProgressBarElement 创建可参与 reconciler 的线性进度 Element。
+func ProgressBarElement(value float32, opts ...ProgressOption) Element {
+	return FromWidget(widget.ProgressBar(value, opts...))
+}
+
+// CircularProgressElement 创建可参与 reconciler 的环形进度 Element。
+func CircularProgressElement(value float32, opts ...ProgressOption) Element {
+	return FromWidget(widget.CircularProgress(value, opts...))
+}
+
+// ImageElement 创建可参与 reconciler 的图片 Element。
+func ImageElement(src ImageSource, opts ...ImageOption) Element {
+	return FromWidget(widget.Image(src, opts...))
+}
+
+// IconElement 创建可参与 reconciler 的图标 Element。
+func IconElement(name string, opts ...IconOption) Element {
+	return FromWidget(widget.Icon(name, opts...))
+}
+
+// CardElement 创建可参与 reconciler 的卡片 Element。
+func CardElement(child Element, opts ...CardOption) Element {
+	return &singleChildElement{kind: "card", child: child, renderFn: func(child Widget) Widget {
+		return widget.Card(child, opts...)
+	}}
+}
+
+// TabsElement 创建可参与 reconciler 的标签栏 Element。
+func TabsElement(active string, items []TabItem, opts ...TabsOption) Element {
+	return FromWidget(widget.Tabs(active, items, opts...))
+}
+
+// DialogElement 创建可参与 reconciler 的对话框 Element。
+func DialogElement(open bool, child Element, opts ...DialogOption) Element {
+	return &singleChildElement{kind: "dialog", child: child, renderFn: func(child Widget) Widget {
+		return widget.Dialog(open, child, opts...)
+	}}
+}
+
+// PopupElement 创建可参与 reconciler 的自定义弹窗 Element。
+func PopupElement(open bool, child Element, opts ...PopupOption) Element {
+	return &singleChildElement{kind: "popup", child: child, renderFn: func(child Widget) Widget {
+		return widget.Popup(open, child, opts...)
+	}}
+}
+
+// ToastElement 创建可参与 reconciler 的吐司 Element。
+func ToastElement(message string, opts ...ToastOption) Element {
+	return FromWidget(widget.Toast(message, opts...))
+}
+
+// ScrollViewElement 创建可参与 reconciler 的滚动容器 Element。
+func ScrollViewElement(child Element, opts ...ScrollOption) Element {
+	return &singleChildElement{kind: "scroll-view", child: child, renderFn: func(child Widget) Widget {
+		return widget.ScrollView(child, opts...)
+	}}
+}
+
+// ListViewElement 创建可参与 reconciler 的列表 Element。
+func ListViewElement(count int, itemBuilder func(ctx *Context, index int) Element, opts ...ListOption) Element {
+	return &listViewElement{count: count, builder: itemBuilder, opts: append([]ListOption(nil), opts...)}
+}
+
+// GridElement 创建可参与 reconciler 的固定网格 Element。
+func GridElement(columns int, children ...Element) Element {
+	return &gridElement{columns: columns, children: append([]Element(nil), children...)}
+}
+
+// GridViewElement 创建可参与 reconciler 的动态网格列表 Element。
+func GridViewElement(count int, columns int, itemBuilder func(ctx *Context, index int) Element, opts ...GridOption) Element {
+	return &gridViewElement{count: count, columns: columns, builder: itemBuilder, opts: append([]GridOption(nil), opts...)}
+}
+
+// AppBarElement 创建可参与 reconciler 的顶部导航栏 Element。
+func AppBarElement(title Element, opts ...AppBarOption) Element {
+	return &appBarElement{title: title, opts: append([]AppBarOption(nil), opts...)}
+}
+
+// AppBarElementWithSlots 创建包含 leading/actions Element 插槽的顶部导航栏。
+func AppBarElementWithSlots(title Element, leading Element, actions []Element, opts ...AppBarOption) Element {
+	return &appBarElement{
+		title:   title,
+		leading: leading,
+		actions: append([]Element(nil), actions...),
+		opts:    append([]AppBarOption(nil), opts...),
+	}
+}
+
+// BottomNavigationElement 创建可参与 reconciler 的底部导航 Element。
+func BottomNavigationElement(active string, items []ElementNavItem, opts ...BottomNavOption) Element {
+	children := make([]Element, 0, len(items))
+	for _, item := range items {
+		children = append(children, item.Icon)
+	}
+	return &multiChildElement{kind: "bottom-navigation", children: children, renderFn: func(children []Widget) Widget {
+		legacyItems := make([]widget.NavItem, 0, len(items))
+		for idx, item := range items {
+			var icon Widget
+			if idx < len(children) {
+				icon = children[idx]
+			}
+			legacyItems = append(legacyItems, widget.NavItem{Key: item.Key, Label: item.Label, Icon: icon})
+		}
+		return widget.BottomNavigation(active, legacyItems, opts...)
+	}}
+}
+
+// WithFontElement 在 Element 子树中覆盖默认字体。
+func WithFontElement(font FontSpec, child Element) Element {
+	if child == nil {
+		return nil
+	}
+	return &withFontElement{font: font, child: child}
+}
+
+// FlexedElement 创建带权重的弹性 Element 子项。
+func FlexedElement(weight float32, child Element) Element {
+	if child == nil {
+		return nil
+	}
+	return &flexElement{kind: "flexed", weight: weight, child: child}
+}
+
+// ExpandedElement 创建权重为 1 的弹性 Element 子项。
+func ExpandedElement(child Element) Element {
+	if child == nil {
+		return nil
+	}
+	return &flexElement{kind: "expanded", weight: 1, child: child}
+}
+
+// FixedWidthElement 固定 Element 子树宽度。
+func FixedWidthElement(width float32, child Element) Element {
+	return &singleChildElement{kind: "fixed-width", child: child, renderFn: func(child Widget) Widget {
+		return widget.FixedWidth(width, child)
+	}}
+}
+
+// FixedHeightElement 固定 Element 子树高度。
+func FixedHeightElement(height float32, child Element) Element {
+	return &singleChildElement{kind: "fixed-height", child: child, renderFn: func(child Widget) Widget {
+		return widget.FixedHeight(height, child)
+	}}
+}
+
+// FixedSizeElement 固定 Element 子树尺寸。
+func FixedSizeElement(width, height float32, child Element) Element {
+	return &singleChildElement{kind: "fixed-size", child: child, renderFn: func(child Widget) Widget {
+		return widget.FixedSize(width, height, child)
+	}}
+}
+
+// FillWidthElement 让 Element 子树填满可用宽度。
+func FillWidthElement(child Element) Element {
+	return &singleChildElement{kind: "fill-width", child: child, renderFn: widget.FillWidth}
+}
+
+// FillHeightElement 让 Element 子树填满可用高度。
+func FillHeightElement(child Element) Element {
+	return &singleChildElement{kind: "fill-height", child: child, renderFn: widget.FillHeight}
+}
+
+// FillElement 让 Element 子树填满可用空间。
+func FillElement(child Element) Element {
+	return &singleChildElement{kind: "fill", child: child, renderFn: widget.Fill}
+}
+
+// HSpacerElement 创建水平空白 Element。
+func HSpacerElement(width float32) Element {
+	return FromWidget(widget.HSpacer(width))
+}
+
+// VSpacerElement 创建垂直空白 Element。
+func VSpacerElement(height float32) Element {
+	return FromWidget(widget.VSpacer(height))
 }
 
 func ClickArea(child Widget, onClick func(ctx *Context), opts ...ClickAreaOption) Widget {
@@ -243,19 +499,51 @@ func (e *layoutElement) render() widget.Widget {
 }
 
 func (e *layoutElement) renderWithContext(ctx *Context) widget.Widget {
+	return renderCompositeElementWithContext(ctx, e, 0, "")
+}
+
+func (e *layoutElement) identity() ElementIdentity {
+	if e == nil {
+		return ElementIdentity{}
+	}
+	count := len(e.children)
+	if count == 0 && e.child != nil {
+		count = 1
+	}
+	return ElementIdentity{Kind: e.kind, ChildCount: count}
+}
+
+func (e *layoutElement) HostChildren() []Element {
+	if e == nil {
+		return nil
+	}
+	switch e.kind {
+	case "column", "row", "stack":
+		return append([]Element(nil), e.children...)
+	case "center", "padding", "container":
+		return []Element{e.child}
+	default:
+		return nil
+	}
+}
+
+func (e *layoutElement) RenderWithChildren(ctx *Context, children []Widget) Widget {
+	if e == nil {
+		return nil
+	}
 	switch e.kind {
 	case "column":
-		return widget.Column(renderElementsWithContext(ctx, e.children)...)
+		return widget.Column(children...)
 	case "row":
-		return widget.Row(renderElementsWithContext(ctx, e.children)...)
+		return widget.Row(children...)
 	case "stack":
-		return widget.Stack(renderElementsWithContext(ctx, e.children)...)
+		return widget.Stack(children...)
 	case "center":
-		return widget.Center(renderElementWithContext(ctx, e.child))
+		return widget.Center(firstWidget(children))
 	case "padding":
-		return widget.Padding(e.insets, renderElementWithContext(ctx, e.child))
+		return widget.Padding(e.insets, firstWidget(children))
 	case "container":
-		return widget.Container(e.style, renderElementWithContext(ctx, e.child))
+		return widget.Container(e.style, firstWidget(children))
 	default:
 		return nil
 	}
@@ -276,15 +564,296 @@ func renderElements(children []Element) []Widget {
 
 func renderElementsWithContext(ctx *Context, children []Element) []Widget {
 	widgets := make([]Widget, 0, len(children))
-	for _, child := range children {
+	for idx, child := range children {
 		if child == nil {
 			continue
 		}
-		if w := renderElementWithContext(ctx, child); w != nil {
+		if w := renderElementWithContextAt(ctx, child, idx, ""); w != nil {
 			widgets = append(widgets, w)
 		}
 	}
 	return widgets
+}
+
+func firstWidget(children []Widget) Widget {
+	if len(children) == 0 {
+		return nil
+	}
+	return children[0]
+}
+
+func (e *singleChildElement) render() widget.Widget {
+	if e == nil || e.renderFn == nil {
+		return nil
+	}
+	return e.renderFn(renderElement(e.child))
+}
+
+func (e *singleChildElement) identity() ElementIdentity {
+	if e == nil {
+		return ElementIdentity{}
+	}
+	return ElementIdentity{Kind: e.kind, ChildCount: 1}
+}
+
+func (e *singleChildElement) HostChildren() []Element {
+	if e == nil {
+		return nil
+	}
+	return []Element{e.child}
+}
+
+func (e *singleChildElement) RenderWithChildren(ctx *Context, children []Widget) Widget {
+	if e == nil || e.renderFn == nil {
+		return nil
+	}
+	return e.renderFn(firstWidget(children))
+}
+
+func (e *multiChildElement) render() widget.Widget {
+	if e == nil || e.renderFn == nil {
+		return nil
+	}
+	return e.renderFn(renderElements(e.children))
+}
+
+func (e *multiChildElement) identity() ElementIdentity {
+	if e == nil {
+		return ElementIdentity{}
+	}
+	return ElementIdentity{Kind: e.kind, ChildCount: len(e.children)}
+}
+
+func (e *multiChildElement) HostChildren() []Element {
+	if e == nil {
+		return nil
+	}
+	return append([]Element(nil), e.children...)
+}
+
+func (e *multiChildElement) RenderWithChildren(ctx *Context, children []Widget) Widget {
+	if e == nil || e.renderFn == nil {
+		return nil
+	}
+	return e.renderFn(children)
+}
+
+func (e *withFontElement) render() widget.Widget {
+	if e == nil {
+		return nil
+	}
+	return widget.WithFont(e.font, renderElement(e.child))
+}
+
+func (e *withFontElement) renderWithContext(ctx *Context) widget.Widget {
+	return renderCompositeElementWithContext(ctx, e, 0, "")
+}
+
+func (e *withFontElement) identity() ElementIdentity {
+	return ElementIdentity{Kind: "with-font", ChildCount: 1}
+}
+
+func (e *withFontElement) HostChildren() []Element {
+	if e == nil {
+		return nil
+	}
+	return []Element{e.child}
+}
+
+func (e *withFontElement) ChildContext(ctx *Context) *Context {
+	if ctx == nil || e == nil {
+		return ctx
+	}
+	return ctx.WithFont(e.font)
+}
+
+func (e *withFontElement) RenderWithChildren(ctx *Context, children []Widget) Widget {
+	if e == nil {
+		return nil
+	}
+	return widget.WithFont(e.font, firstWidget(children))
+}
+
+func (e *flexElement) render() widget.Widget {
+	if e == nil {
+		return nil
+	}
+	if e.kind == "expanded" {
+		return widget.Expanded(renderElement(e.child))
+	}
+	return widget.Flexed(e.weight, renderElement(e.child))
+}
+
+func (e *flexElement) renderWithContext(ctx *Context) widget.Widget {
+	return renderCompositeElementWithContext(ctx, e, 0, "")
+}
+
+func (e *flexElement) identity() ElementIdentity {
+	if e == nil {
+		return ElementIdentity{}
+	}
+	return ElementIdentity{Kind: e.kind, ChildCount: 1}
+}
+
+func (e *flexElement) HostChildren() []Element {
+	if e == nil {
+		return nil
+	}
+	return []Element{e.child}
+}
+
+func (e *flexElement) RenderWithChildren(ctx *Context, children []Widget) Widget {
+	if e == nil {
+		return nil
+	}
+	if e.kind == "expanded" {
+		return widget.Expanded(firstWidget(children))
+	}
+	return widget.Flexed(e.weight, firstWidget(children))
+}
+
+func (e *listViewElement) render() widget.Widget {
+	if e == nil {
+		return nil
+	}
+	return widget.ListView(e.count, func(ctx *internal.Context, index int) widget.Widget {
+		if e.builder == nil {
+			return nil
+		}
+		return renderElement(e.builder(ctx, index))
+	}, e.opts...)
+}
+
+func (e *listViewElement) renderWithContext(ctx *Context) widget.Widget {
+	if e == nil {
+		return nil
+	}
+	return widget.ListView(e.count, func(itemCtx *internal.Context, index int) widget.Widget {
+		if e.builder == nil {
+			return nil
+		}
+		return renderElementWithContext(itemCtx, e.builder(itemCtx, index))
+	}, e.opts...)
+}
+
+func (e *listViewElement) identity() ElementIdentity {
+	if e == nil {
+		return ElementIdentity{}
+	}
+	return ElementIdentity{Kind: "list-view", ChildCount: e.count}
+}
+
+func (e *gridElement) render() widget.Widget {
+	if e == nil {
+		return nil
+	}
+	return widget.Grid(e.columns, renderElements(e.children)...)
+}
+
+func (e *gridElement) renderWithContext(ctx *Context) widget.Widget {
+	return renderCompositeElementWithContext(ctx, e, 0, "")
+}
+
+func (e *gridElement) identity() ElementIdentity {
+	if e == nil {
+		return ElementIdentity{}
+	}
+	return ElementIdentity{Kind: "grid", ChildCount: len(e.children)}
+}
+
+func (e *gridElement) HostChildren() []Element {
+	if e == nil {
+		return nil
+	}
+	return append([]Element(nil), e.children...)
+}
+
+func (e *gridElement) RenderWithChildren(ctx *Context, children []Widget) Widget {
+	if e == nil {
+		return nil
+	}
+	return widget.Grid(e.columns, children...)
+}
+
+func (e *gridViewElement) render() widget.Widget {
+	if e == nil {
+		return nil
+	}
+	return widget.GridView(e.count, e.columns, func(ctx *internal.Context, index int) widget.Widget {
+		if e.builder == nil {
+			return nil
+		}
+		return renderElement(e.builder(ctx, index))
+	}, e.opts...)
+}
+
+func (e *gridViewElement) renderWithContext(ctx *Context) widget.Widget {
+	if e == nil {
+		return nil
+	}
+	return widget.GridView(e.count, e.columns, func(itemCtx *internal.Context, index int) widget.Widget {
+		if e.builder == nil {
+			return nil
+		}
+		return renderElementWithContext(itemCtx, e.builder(itemCtx, index))
+	}, e.opts...)
+}
+
+func (e *gridViewElement) identity() ElementIdentity {
+	if e == nil {
+		return ElementIdentity{}
+	}
+	return ElementIdentity{Kind: "grid-view", ChildCount: e.count}
+}
+
+func (e *appBarElement) render() widget.Widget {
+	if e == nil {
+		return nil
+	}
+	opts := append([]AppBarOption(nil), e.opts...)
+	if e.leading != nil {
+		opts = append(opts, widget.AppBarLeading(renderElement(e.leading)))
+	}
+	if len(e.actions) > 0 {
+		opts = append(opts, widget.AppBarActions(renderElements(e.actions)...))
+	}
+	return widget.AppBar(renderElement(e.title), opts...)
+}
+
+func (e *appBarElement) renderWithContext(ctx *Context) widget.Widget {
+	return renderCompositeElementWithContext(ctx, e, 0, "")
+}
+
+func (e *appBarElement) identity() ElementIdentity {
+	if e == nil {
+		return ElementIdentity{}
+	}
+	return ElementIdentity{Kind: "app-bar", ChildCount: 1 + len(e.actions)}
+}
+
+func (e *appBarElement) HostChildren() []Element {
+	if e == nil {
+		return nil
+	}
+	children := make([]Element, 0, 2+len(e.actions))
+	children = append(children, e.title, e.leading)
+	children = append(children, e.actions...)
+	return children
+}
+
+func (e *appBarElement) RenderWithChildren(ctx *Context, children []Widget) Widget {
+	if e == nil {
+		return nil
+	}
+	title := firstWidget(children)
+	opts := append([]AppBarOption(nil), e.opts...)
+	if len(children) > 1 && children[1] != nil {
+		opts = append(opts, widget.AppBarLeading(children[1]))
+	}
+	if len(children) > 2 {
+		opts = append(opts, widget.AppBarActions(children[2:]...))
+	}
+	return widget.AppBar(title, opts...)
 }
 
 func Image(src ImageSource, opts ...ImageOption) Widget {
@@ -309,6 +878,10 @@ func ImageRadius(radius float32) ImageOption {
 
 func ImageBackground(col color.NRGBA) ImageOption {
 	return widget.ImageBackground(col)
+}
+
+func ImageDecoration(d Decoration) ImageOption {
+	return widget.ImageDecoration(d)
 }
 
 func ImageOnClick(fn func(ctx *Context)) ImageOption {
@@ -369,6 +942,10 @@ func CardOnClick(fn func(ctx *Context)) CardOption {
 
 func CardAttachRef(ref *ButtonRef) CardOption {
 	return widget.CardAttachRef(ref)
+}
+
+func CardDecoration(d Decoration) CardOption {
+	return widget.CardDecoration(d)
 }
 
 func RadioGroup(value string, items []RadioItem, opts ...RadioGroupOption) Widget {
@@ -437,6 +1014,10 @@ func NewSelectRef[T comparable]() *SelectRef[T] {
 
 func SelectAttachRef[T comparable](ref *SelectRef[T]) SelectOption[T] {
 	return widget.SelectAttachRef[T](ref)
+}
+
+func SelectDecoration[T comparable](d Decoration) SelectOption[T] {
+	return widget.SelectDecoration[T](d)
 }
 
 func ProgressBar(value float32, opts ...ProgressOption) Widget {
@@ -555,6 +1136,10 @@ func DialogCancelText(text string) DialogOption {
 	return widget.DialogCancelText(text)
 }
 
+func DialogDecoration(d Decoration) DialogOption {
+	return widget.DialogDecoration(d)
+}
+
 func Popup(open bool, child Widget, opts ...PopupOption) Widget {
 	return widget.Popup(open, child, opts...)
 }
@@ -591,6 +1176,10 @@ func PopupAttachRef(ref *PopupRef) PopupOption {
 	return widget.PopupAttachRef(ref)
 }
 
+func PopupDecoration(d Decoration) PopupOption {
+	return widget.PopupDecoration(d)
+}
+
 func Toast(message string, opts ...ToastOption) Widget {
 	return widget.Toast(message, opts...)
 }
@@ -609,6 +1198,10 @@ func ToastPositionOf(position ToastPosition) ToastOption {
 
 func ToastOnClose(fn func(ctx *Context)) ToastOption {
 	return widget.ToastOnClose(fn)
+}
+
+func ToastDecoration(d Decoration) ToastOption {
+	return widget.ToastDecoration(d)
 }
 
 func ScrollView(child Widget, opts ...ScrollOption) Widget {
@@ -669,6 +1262,10 @@ func ListPadding(insets Insets) ListOption {
 	return widget.ListPadding(insets)
 }
 
+func ListDecoration(d Decoration) ListOption {
+	return widget.ListDecoration(d)
+}
+
 func ListOnReachEnd(fn func(ctx *Context)) ListOption {
 	return widget.ListOnReachEnd(fn)
 }
@@ -689,6 +1286,10 @@ func GridGap(rowGap, colGap float32) GridOption {
 
 func GridPadding(insets Insets) GridOption {
 	return widget.GridPadding(insets)
+}
+
+func GridDecoration(d Decoration) GridOption {
+	return widget.GridDecoration(d)
 }
 
 func GridMinItemWidth(width float32) GridOption {
@@ -719,6 +1320,10 @@ func AppBarBackground(col color.NRGBA) AppBarOption {
 	return widget.AppBarBackground(col)
 }
 
+func AppBarDecoration(d Decoration) AppBarOption {
+	return widget.AppBarDecoration(d)
+}
+
 func BottomNavigation(active string, items []NavItem, opts ...BottomNavOption) Widget {
 	return widget.BottomNavigation(active, items, opts...)
 }
@@ -729,6 +1334,10 @@ func BottomNavOnChange(fn func(ctx *Context, key string)) BottomNavOption {
 
 func BottomNavBackground(col color.NRGBA) BottomNavOption {
 	return widget.BottomNavBackground(col)
+}
+
+func BottomNavDecoration(d Decoration) BottomNavOption {
+	return widget.BottomNavDecoration(d)
 }
 
 func BottomNavActiveColor(col color.NRGBA) BottomNavOption {

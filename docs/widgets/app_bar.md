@@ -8,7 +8,8 @@
   "example": { "id": "app_bar_basic" },
   "apis": [
     "AppBar(title Widget, opts ...AppBarOption) Widget",
-    "FromWidget(w Widget) Element",
+    "AppBarElement(title Element, opts ...AppBarOption) Element",
+    "AppBarElementWithSlots(title Element, leading Element, actions []Element, opts ...AppBarOption) Element",
     "AppBarLeading(leading Widget) AppBarOption",
     "AppBarActions(actions ...Widget) AppBarOption",
     "AppBarHeight(height float32) AppBarOption",
@@ -37,9 +38,19 @@ ui.AppBar(
 )
 ```
 
-## React-style 状态
+## React-style Element
 
-- 当前 `AppBar` 仍以 legacy `Widget` composition 作为稳定实现。
-- React-style root 中可先使用 `FromWidget(ui.AppBar(...))` 桥接完整 AppBar 子树。
-- `title`、`leading`、`actions` 当前接收 legacy `Widget`，不是 `Element` child；不要在文档中假定 `AppBarElement` 已稳定。
-- 本阶段不冻结 `AppBarElement` API 名称；后续如引入 Element wrapper，需要先明确 action 子树 identity、布局约束和事件归属。
+- `AppBarElement` 已可在 `RunElement` root 下直接使用，标题接收 `Element`。
+- 需要 leading/actions 也使用 Element 时，用 `AppBarElementWithSlots`。
+- 布局约束和 action 区横向滚动仍由底层 AppBar widget host 管理。
+
+```go
+func Header(ctx *ui.Context) ui.Element {
+    return ui.AppBarElementWithSlots(
+        ui.TextElement("文档中心"),
+        ui.IconElement("<"),
+        []ui.Element{ui.ButtonElement(ui.TextElement("刷新"))},
+        ui.AppBarHeight(56),
+    )
+}
+```

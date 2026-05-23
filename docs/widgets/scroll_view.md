@@ -8,6 +8,7 @@
   "example": { "id": "scroll_view_basic" },
   "apis": [
     "ScrollView(child Widget, opts ...ScrollOption) Widget",
+    "ScrollViewElement(child Element, opts ...ScrollOption) Element",
     "ScrollVertical(vertical bool) ScrollOption",
     "ScrollHorizontal(horizontal bool) ScrollOption",
     "ScrollBarVisible(visible bool) ScrollOption",
@@ -32,13 +33,11 @@ ScrollView 用于承载超出可视区的内容。常见于文档区、表单区
 - 外部主动控制滚动位置时，使用 `ScrollAttachRef` 绑定 `ScrollRef`，命令会在后续 frame 中由 ScrollView 消费。
 - 消息流、日志流等需要自动贴底的场景建议配合 `ScrollAutoToEndKey`，只在数据版本变化时触发滚到底部。
 
-## Lifecycle / React-style 说明
+## Lifecycle / React-style Element
 
-- 当前仍以 legacy `Widget` + `ScrollRef` 作为兼容实现。
-- `ScrollView` 的滚动偏移、滚动条状态、auto-to-end key 和 ref 命令队列都属于 host state，不应混入 component HookSlot。
-- `ScrollRef` 的命令会跨 frame 排队并在布局时消费；后续若引入 Element wrapper，需要明确 ref 绑定、命令释放和 host unmount 的处理规则。
-- `ScrollAutoToEnd` / `ScrollAutoToEndKey` 与内容增长、用户手动滚动之间存在生命周期语义，本批次不冻结 `ScrollViewElement` API 名称。
-- 在 Batch 5 期间，文档保持 legacy-first，只记录滚动状态和 ref 边界，不新增 React-style snippet，也不修改 docs_browser 示例映射。
+- `ScrollViewElement` 已可在 `RunElement` root 下直接使用。
+- 滚动偏移、滚动条状态、auto-to-end key 和 `ScrollRef` 命令队列仍属于底层 scroll host state，不迁入 component HookSlot。
+- `ScrollRef` 的命令会跨 frame 排队并在布局时消费；调用方仍负责在组件卸载后停止发送无意义命令。
 
 ## 使用示例
 ```go
@@ -61,4 +60,21 @@ ref.ScrollToBottom()
 ref.ScrollToTop()
 ref.ScrollToOffset(120)
 ref.ScrollBy(2.0)
+```
+
+### React-style Element
+
+```go
+func LogPanel(ctx *ui.Context) ui.Element {
+    return ui.FixedHeightElement(
+        220,
+        ui.ScrollViewElement(
+            ui.ColumnElement(
+                ui.TextElement("长内容 1"),
+                ui.TextElement("长内容 2"),
+            ),
+            ui.ScrollVertical(true),
+        ),
+    )
+}
 ```

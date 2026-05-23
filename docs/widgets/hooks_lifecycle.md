@@ -7,7 +7,7 @@
   "summary": "FluxUI React-style runtime 的 Hook 与生命周期能力。",
   "example": { "id": "hooks_lifecycle_basic" },
   "apis": [
-    "RunElement(root Component, opts ...RunOption) error",
+    "RunElement(root Component, opts ...AppOption) error",
     "type Component func(ctx *Context) Element",
     "UseState[T](ctx *Context, initial T) *State[T]",
     "UseEffect(ctx *Context, effect Effect)",
@@ -17,6 +17,13 @@
     "UseMemo[T](ctx *Context, deps []any, factory func() T) T",
     "UseRef[T](ctx *Context, initial T) *Ref[T]",
     "UseCallback[T](ctx *Context, deps []any, fn T) T",
+    "ComponentElement(component Component) Element",
+    "Provider[T](key ContextKey[T], value T, child Element) Element",
+    "Key(key string, child Element) Element",
+    "Fragment(children ...Element) Element",
+    "TextFieldElement(value string, opts ...InputOption) Element",
+    "CardElement(child Element, opts ...CardOption) Element",
+    "ListViewElement(count int, itemBuilder func(ctx *Context, index int) Element, opts ...ListOption) Element",
     "FromWidget(w Widget) Element"
   ]
 }
@@ -30,6 +37,7 @@ FluxUI 保持 Gio 的 immediate-mode 渲染模型，同时提供 React-style `El
 
 - React-style runtime 已完成并可通过 `RunElement` 作为 root 入口使用。
 - `Element` / `Component` / HookSlot / effect cleanup / provider / keyed reconciler 已接入 runtime。
+- 常用组件已补齐稳定 `XxxElement` wrapper，新代码可以直接以 React-style tree 编写。
 - Legacy `Run` / `Widget` 继续保留，旧项目无需迁移；新旧混用通过 `FromWidget` 连接。
 
 ## 核心能力
@@ -45,6 +53,15 @@ FluxUI 保持 Gio 的 immediate-mode 渲染模型，同时提供 React-style `El
 - `UseRef`：保存跨 render 持久的可变引用值。
 - `UseCallback`：依赖未变化时复用函数值。
 - `FromWidget`：长期保留的 Widget -> Element bridge，用于在 React-style tree 中复用 legacy widget。
+
+## Element wrapper 覆盖
+
+- Display/layout: `TextElement`, `SpacerElement`, `DividerElement`, `ColumnElement`, `RowElement`, `StackElement`, `CenterElement`, `PaddingElement`, `ContainerElement`。
+- Sizing/font: `FixedWidthElement`, `FixedHeightElement`, `FixedSizeElement`, `FillWidthElement`, `FillHeightElement`, `FillElement`, `FlexedElement`, `ExpandedElement`, `WithFontElement`。
+- Interaction/input: `ButtonElement`, `ClickAreaElement`, `CheckboxElement`, `SwitchElement`, `TextFieldElement`, `SliderElement`, `RadioGroupElement`, `SelectElement`。
+- Data/media/feedback: `ScrollViewElement`, `ListViewElement`, `GridElement`, `GridViewElement`, `ImageElement`, `IconElement`, `CardElement`, `ProgressBarElement`, `CircularProgressElement`, `TabsElement`, `DialogElement`, `PopupElement`, `ToastElement`。
+- Navigation/router: `AppBarElement`, `AppBarElementWithSlots`, `BottomNavigationElement`, `RouterElement`, `RouteElement`。
+- Host-state 仍由底层 widget 管理，例如输入 editor、滚动位置、overlay open-change 去重、toast timer 和 ref command queue；HookSlot 管理的是 function component 自身状态。
 
 ## Legacy state 与 HookSlot
 

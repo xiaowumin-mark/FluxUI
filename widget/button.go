@@ -23,6 +23,7 @@ type buttonConfig struct {
 	hasBackground bool
 	hasForeground bool
 	ref           *ButtonRef
+	decoration    style.Decoration
 }
 
 type buttonWidget struct {
@@ -96,6 +97,13 @@ func ButtonForeground(value color.NRGBA) ButtonOption {
 	}
 }
 
+// ButtonDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func ButtonDecoration(d style.Decoration) ButtonOption {
+	return func(cfg *buttonConfig) {
+		cfg.decoration = d
+	}
+}
+
 // ButtonAttachRef 绑定命令型引用，用于外部主动触发点击。
 func ButtonAttachRef(ref *ButtonRef) ButtonOption {
 	return func(cfg *buttonConfig) {
@@ -123,7 +131,9 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	background := ctx.Theme().Primary
+	background := b.config.decoration.ResolveBg(ctx.Theme().Primary)
+	radius := b.config.decoration.ResolveRad(b.config.radius)
+	padding := b.config.decoration.ResolvePad(b.config.padding)
 	if b.config.hasBackground {
 		background = b.config.background
 	}
@@ -139,8 +149,8 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	size := ctx.LayoutButton(clickable.Handle(), internal.ButtonSpec{
 		Background: background,
 		Foreground: foreground,
-		Radius:     b.config.radius,
-		Padding:    toInternalInsets(b.config.padding),
+		Radius:     radius,
+		Padding:    toInternalInsets(padding),
 		Disabled:   b.config.disabled,
 	}, func(childCtx *internal.Context) image.Point {
 		if b.child == nil {

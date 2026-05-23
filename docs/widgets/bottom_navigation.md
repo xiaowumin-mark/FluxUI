@@ -8,7 +8,8 @@
   "example": { "id": "bottom_navigation_basic" },
   "apis": [
     "BottomNavigation(active string, items []NavItem, opts ...BottomNavOption) Widget",
-    "FromWidget(w Widget) Element",
+    "BottomNavigationElement(active string, items []ElementNavItem, opts ...BottomNavOption) Element",
+    "type ElementNavItem struct { Key string; Label string; Icon Element }",
     "BottomNavOnChange(fn func(ctx *Context, key string)) BottomNavOption",
     "BottomNavBackground(col color.NRGBA) BottomNavOption",
     "BottomNavActiveColor(col color.NRGBA) BottomNavOption",
@@ -47,9 +48,22 @@ ui.BottomNavigation(
 )
 ```
 
-## Host-state / React-style 状态
+## React-style Element
 
-- 当前 `BottomNavigation` 仍以 legacy `Widget` + `BottomNavRef` 作为稳定实现。
-- React-style root 中可先使用 `FromWidget(ui.BottomNavigation(...))` 桥接到底层 legacy navigation。
-- `active` key、`BottomNavOnChange`、`BottomNavAttachRef` 和页面切换状态仍由调用方/legacy path 管理，不自动迁入 component HookSlot。
-- 本阶段不冻结 `BottomNavigationElement` API 名称；后续如引入 Element wrapper，需要先明确 nav item identity、ref 命令、页面 subtree key/remount 和 host-state 归属。
+- `BottomNavigationElement` 已可在 `RunElement` root 下直接使用。
+- React-style 版本使用 `[]ElementNavItem`，因此每个 item 的 icon 可以是 `Element`。
+- `active` key、`BottomNavOnChange`、`BottomNavAttachRef` 和页面切换状态仍由调用方/底层 navigation host 管理。
+
+```go
+func BottomTabs(ctx *ui.Context) ui.Element {
+    active := ui.UseState(ctx, "home")
+    return ui.BottomNavigationElement(
+        active.Value(),
+        []ui.ElementNavItem{
+            {Key: "home", Label: "首页", Icon: ui.TextElement("H")},
+            {Key: "docs", Label: "文档", Icon: ui.TextElement("D")},
+        },
+        ui.BottomNavOnChange(func(ctx *ui.Context, key string) { active.Set(key) }),
+    )
+}
+```

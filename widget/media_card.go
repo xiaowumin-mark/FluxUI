@@ -50,6 +50,7 @@ type imageConfig struct {
 	hasBackground bool
 	onClick       func(ctx *internal.Context)
 	ref           *ButtonRef
+	decoration    style.Decoration
 }
 
 type imageWidget struct {
@@ -136,6 +137,13 @@ func ImageAttachRef(ref *ButtonRef) ImageOption {
 	}
 }
 
+// ImageDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func ImageDecoration(d style.Decoration) ImageOption {
+	return func(cfg *imageConfig) {
+		cfg.decoration = d
+	}
+}
+
 func (i *imageWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	var root Widget = &fixedSizeWidget{
 		width:  i.config.width,
@@ -143,11 +151,12 @@ func (i *imageWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		child:  &imageRenderWidget{owner: i},
 	}
 	if i.config.onClick != nil || i.config.ref != nil {
+		rad := i.config.decoration.ResolveRad(i.config.radius)
 		opts := []ButtonOption{
 			ButtonBackground(color.NRGBA{}),
 			ButtonForeground(ctx.Theme().TextColor),
 			ButtonPadding(style.All(0)),
-			ButtonRadius(i.config.radius),
+			ButtonRadius(rad),
 		}
 		if i.config.onClick != nil {
 			opts = append(opts, OnClick(i.config.onClick))
@@ -174,12 +183,12 @@ func (r *imageRenderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 
-	bg := ctx.Theme().SurfaceMuted
+	bg := r.owner.config.decoration.ResolveBg(ctx.Theme().SurfaceMuted)
 	if r.owner.config.hasBackground {
 		bg = r.owner.config.background
 	}
 
-	radius := clampRRectRadiusPx(size, gtx.Dp(safeDp(r.owner.config.radius)))
+	radius := clampRRectRadiusPx(size, gtx.Dp(safeDp(r.owner.config.decoration.ResolveRad(r.owner.config.radius))))
 	clipArea := clip.UniformRRect(image.Rectangle{Max: size}, radius).Push(gtx.Ops)
 	paint.Fill(gtx.Ops, bg)
 
@@ -452,6 +461,7 @@ type cardConfig struct {
 	shadowLevel    int
 	onClick        func(ctx *internal.Context)
 	ref            *ButtonRef
+	decoration     style.Decoration
 }
 
 type cardWidget struct {
@@ -526,17 +536,27 @@ func CardAttachRef(ref *ButtonRef) CardOption {
 	}
 }
 
+// CardDecoration 通过 Decoration 统一设置背景、内边距和圆角。
+func CardDecoration(d style.Decoration) CardOption {
+	return func(cfg *cardConfig) {
+		cfg.decoration = d
+	}
+}
+
 func (c *cardWidget) Layout(ctx *internal.Context) layout.Dimensions {
-	bg := ctx.Theme().Surface
+	bg := c.config.decoration.ResolveBg(ctx.Theme().Surface)
 	if c.config.hasBackground {
 		bg = c.config.background
 	}
 
+	padding := c.config.decoration.ResolvePad(c.config.padding)
+	radius := c.config.decoration.ResolveRad(c.config.radius)
+
 	inner := Container(
 		style.Style{
 			Background: bg,
-			Padding:    c.config.padding,
-			Radius:     c.config.radius,
+			Padding:    padding,
+			Radius:     radius,
 		},
 		c.child,
 	)

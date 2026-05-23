@@ -8,7 +8,7 @@
   "example": { "id": "progress_bar_basic" },
   "apis": [
     "ProgressBar(value float32, opts ...ProgressOption) Widget",
-    "FromWidget(w Widget) Element",
+    "ProgressBarElement(value float32, opts ...ProgressOption) Element",
     "ProgressMin(min float32) ProgressOption",
     "ProgressMax(max float32) ProgressOption",
     "ProgressIndeterminate(indeterminate bool) ProgressOption",
@@ -40,9 +40,22 @@ ui.ProgressBar(
 )
 ```
 
-## React-style 状态
+## React-style Element
 
-- 当前 `ProgressBar` 仍以 legacy `Widget` 作为稳定实现。
-- React-style root 中可先使用 `FromWidget(ui.ProgressBar(...))` 桥接到 Element 树。
-- 进度值仍由调用方状态驱动；`ProgressIndeterminate` 和动画更新不自动迁入 component HookSlot。
-- 本阶段不冻结 `ProgressBarElement` API 名称；后续如引入 Element wrapper，需要先明确 progress value、indeterminate/animation 和 redraw lifecycle 归属。
+`ProgressBarElement` 已可在 `RunElement` root 下直接使用。进度值仍由调用方状态驱动；`ProgressIndeterminate` 的 frame redraw lifecycle 仍由底层 progress widget 管理。
+
+```go
+func UploadProgress(ctx *ui.Context) ui.Element {
+    value := ui.UseState(ctx, float32(40))
+    return ui.ColumnElement(
+        ui.TextElement(fmt.Sprintf("progress = %.0f%%", value.Value())),
+        ui.SpacerElement(0, 6),
+        ui.ProgressBarElement(
+            value.Value(),
+            ui.ProgressMin(0),
+            ui.ProgressMax(100),
+            ui.ProgressFillColor(ui.NRGBA(30, 136, 229, 255)),
+        ),
+    )
+}
+```

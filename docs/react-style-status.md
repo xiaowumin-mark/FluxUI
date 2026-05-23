@@ -4,11 +4,11 @@ This document is the current status page for the React-style runtime and docs/ex
 
 ## Current status
 
-- The React-style runtime work is complete: `RunElement`, `Element`, function components, hook slots, effects, providers, reconciler identity, keyed reuse, unmount cleanup, router hooks, and `FromWidget` are implemented and tested.
+- The React-style runtime work is complete: `RunElement`, `Element`, function components, hook slots, effects, providers, reconciler identity, keyed reuse, unmount cleanup, router hooks, stable Element wrappers, and `FromWidget` are implemented and tested.
 - Legacy `Run` / `Widget` remains a stable compatibility path. It is not deprecated in code and should not be removed during docs/example cleanup.
 - `FromWidget` remains a long-term escape hatch for mixing legacy widgets into Element trees.
 - Docs/examples rollout Batches 1-6 are complete. The rollout updated low-risk widget docs with React-style snippets, consolidated redundant standalone examples into the full React-style workspace, and recorded compatibility notes for complex examples.
-- Widget docs have been audited for React runtime coverage. Stable wrappers are documented with React-style snippets; controls without stable wrappers document `FromWidget` bridging and host-state/lifecycle boundaries instead of inventing `XxxElement` APIs.
+- Widget docs have been audited for React runtime coverage. Stable wrappers are documented with React-style snippets; host-state/lifecycle-heavy controls still document which state remains owned by the underlying widget host.
 - The docs browser still uses legacy example ids and legacy preview mappings. Do not migrate `examples/docs_browser` without a separate runtime migration design.
 
 ## Canonical examples
@@ -31,17 +31,23 @@ This document is the current status page for the React-style runtime and docs/ex
 
 ## Widget docs coverage
 
-- Stable Element wrappers are documented for low-risk display, layout, simple interaction, and router APIs.
-- Complex input, scroll/list/grid, overlay, toast, navigation, media, card, and progress docs explicitly stay legacy-first where Element wrapper names are not frozen.
-- Docs may use `FromWidget(w Widget) Element` as the documented bridge when a stable wrapper does not exist yet.
-- Do not add docs for `CardElement`, `IconElement`, `ImageElement`, `AppBarElement`, `TabsElement`, `BottomNavigationElement`, `ProgressBarElement`, or `CircularProgressElement` until those APIs exist and lifecycle ownership is decided.
+- Stable Element wrappers are now available across display, layout, sizing, interaction, input, selection, media/card, progress, overlay, scroll/list/grid, navigation, and router APIs.
+- Complex widgets keep their existing host-state ownership: text editing, slider drag state, select popup state, scroll offsets, list/grid viewport state, overlay open-change dedupe, toast timers, and ref command queues remain inside the underlying widget path.
+- Docs may still use `FromWidget(w Widget) Element` as the long-term escape hatch for custom or legacy-only compositions.
+- New React-style docs can reference `TextFieldElement`, `SliderElement`, `SelectElement`, `RadioGroupElement`, `CardElement`, `IconElement`, `ImageElement`, `AppBarElement`, `TabsElement`, `BottomNavigationElement`, `ProgressBarElement`, `CircularProgressElement`, `DialogElement`, `PopupElement`, `ToastElement`, `ScrollViewElement`, `ListViewElement`, `GridElement`, and `GridViewElement`.
+
+## Final wrapper pass
+
+- `ButtonElement`, layout wrappers, `CardElement`, and other composite wrappers render their Element children with context, so nested `ComponentElement`, `Provider`, and `Key` continue to work inside host wrappers.
+- Dynamic wrappers such as `ListViewElement` and `GridViewElement` accept item builders returning `Element`; item identity still needs stable business keys when order changes.
+- Navigation wrappers include `AppBarElement`, `AppBarElementWithSlots`, and `BottomNavigationElement`; bottom navigation uses `ElementNavItem` so icons can be declared as Elements.
 
 ## Full runtime showcase
 
 - `examples/react_workspace` demonstrates the completed React-style mode in one standalone app.
-- It covers `RunElement`, function components, `UseState`, `UseMount`, `UseEffectWithDeps`, `Provider`, `UseContext`, `RouterElement`, route hooks, `Fragment`, `ComponentElement`, `Key`, and `FromWidget`.
+- It covers `RunElement`, function components, `UseState`, `UseMount`, `UseEffectWithDeps`, `Provider`, `UseContext`, `RouterElement`, route hooks, `Fragment`, `ComponentElement`, `Key`, stable Element wrappers, and `FromWidget`.
 - Its route pages receive live app settings through route component factories because `RouterElement` still bridges through the legacy router host; `Provider` / `UseContext` coverage stays inside the keyed task-card subtree.
-- It avoids unfrozen wrappers and uses `FromWidget` for legacy `Card` and `ProgressBar` bridge coverage.
+- It keeps `FromWidget` coverage as an escape-hatch example while stable wrappers are available for the full public widget set.
 
 ## Active strategy documents
 
