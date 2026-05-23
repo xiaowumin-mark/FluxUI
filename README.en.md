@@ -13,15 +13,19 @@ It does not replace Gio. Instead, it provides a higher-level API layer with comp
 
 ## Core Features
 
+- React-style declarative components: `RunElement`, `Element`, function components, `Fragment`, `Key`, `Provider`
 - Basic widgets: `Text`, `Button`, `TextField`, `Checkbox`, `Switch`, `Slider`
 - Layout widgets: `Column`, `Row`, `Stack`, `Padding`, `Container`, `ScrollView`
-- Navigation & overlays: `Tabs`, `BottomNavigation`, `Dialog`, `Toast`
+- Navigation & overlays: `Router`, `Tabs`, `BottomNavigation`, `Dialog`, `Toast`, `Popup`
 - Media widgets: `Image`, `Icon`, `Card`
-- State: `ui.State[T](ctx)` (controlled component pattern)
-- Hooks: `UseEffect`, `UseMount`, `UseLifecycle`
+- State: `State[T](ctx)` / `UseState[T](ctx, initial)` (controlled component pattern)
+- Hooks: `UseEffect`, `UseEffectWithDeps`, `UseMount`, `UseLifecycle`, `UseMemo`, `UseRef`, `UseCallback`
+- Context: `Provider`, `UseContext`
+- Router hooks: `UseParams`, `UseLocation`, `UseNavigate`
 - Command-style refs for external control (scroll, focus, toggle, open/close)
 - Multi-window support (desktop)
 - Font system: system font discovery + global/local font override
+- Frame-driven animation: `Animate` + easing functions
 
 ## Architecture
 
@@ -34,6 +38,9 @@ Key constraints:
 - `ui` is the public entry point
 - No cross-layer violations
 - Keep business logic out of low-level rendering internals
+
+Internals include a React-style reconciler (element tree diff + component instance management),
+a HookStore (component-level hook slots), and Rules-of-Hooks validation (preventing conditional hook calls).
 
 ## Requirements
 
@@ -69,9 +76,35 @@ func main() {
 }
 ```
 
+React-style alternative:
+
+```go
+package main
+
+import ui "github.com/xiaowumin-mark/FluxUI/ui"
+
+func main() {
+	_ = ui.RunElement(func(ctx *ui.Context) ui.Element {
+		count := ui.UseState(ctx, 0)
+		return ui.FromWidget(
+			ui.Center(
+				ui.Button(
+					ui.Text("Click +1"),
+					ui.OnClick(func(ctx *ui.Context) {
+						count.Set(count.Value() + 1)
+					}),
+				),
+			),
+		)
+	})
+}
+```
+
 ## Examples
 
 ```bash
+go run ./examples/counter
+go run ./examples/react_workspace
 go run ./examples/basic_components
 go run ./examples/advanced_components
 go run ./examples/layout
@@ -85,6 +118,12 @@ go run ./examples/multi_window
 go run ./examples/vscode_layout
 go run ./examples/docs_browser
 go run ./examples/network_request
+go run ./examples/router
+go run ./examples/popup_demo
+go run ./examples/team_workspace
+go run ./examples/virtual_scroll
+go run ./examples/fonts
+go run ./examples/horizontal_scroll
 ```
 
 ## Docs
