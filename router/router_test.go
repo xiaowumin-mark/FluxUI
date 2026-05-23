@@ -281,7 +281,7 @@ func TestCurrentPathPrefersRouteView(t *testing.T) {
 	if got := CurrentPath(ctx); got != "/home?tab=posts" {
 		t.Fatalf("expected current path from router state, got %s", got)
 	}
-	if got := RouteParams(ctx); got.Get("id") != "42" || got.Query("tab") != "posts" {
+	if got := UseParams(ctx); got.Get("id") != "42" || got.Query("tab") != "posts" {
 		t.Fatalf("unexpected route params from state: %#v", got)
 	}
 	if CanGoBack(ctx) {
@@ -305,7 +305,7 @@ func TestCurrentPathPrefersRouteView(t *testing.T) {
 		if got := CurrentPath(ctx); got != "/settings" {
 			t.Fatalf("expected route view path, got %s", got)
 		}
-		params := RouteParams(ctx)
+		params := UseParams(ctx)
 		if params.Get("section") != "general" || params.Query("tab") != "profile" {
 			t.Fatalf("unexpected route view params: %#v", params)
 		}
@@ -320,7 +320,7 @@ func TestCurrentPathPrefersRouteView(t *testing.T) {
 	if got := CurrentPath(ctx); got != "/home?tab=posts" {
 		t.Fatalf("expected route view to be restored, got %s", got)
 	}
-	if got := RouteParams(ctx); got.Get("id") != "42" || got.Query("tab") != "posts" {
+	if got := UseParams(ctx); got.Get("id") != "42" || got.Query("tab") != "posts" {
 		t.Fatalf("unexpected restored route params: %#v", got)
 	}
 }

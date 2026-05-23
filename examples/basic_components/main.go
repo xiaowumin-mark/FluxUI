@@ -9,6 +9,7 @@ import (
 func main() {
 	_ = ui.Run(func(ctx *ui.Context) ui.Widget {
 		th := ui.UseTheme(ctx)
+		hovering := ui.State[bool](ctx)
 		blue := ui.NRGBA(33, 133, 209, 255)
 		green := ui.NRGBA(40, 167, 69, 255)
 		orange := ui.NRGBA(255, 193, 7, 255)
@@ -37,8 +38,14 @@ func main() {
 					ui.Padding(ui.All(4), ui.Button(ui.Text("默认按钮"))),
 					ui.Padding(ui.All(4), ui.Button(ui.Text("点击我"), ui.OnClick(func(ctx *ui.Context) {
 						fmt.Println("按钮被点击!")
+					}), ui.OnHover(func(ctx *ui.Context, value bool) {
+						hovering.Set(value)
 					}))),
 					ui.Padding(ui.All(4), ui.Button(ui.Text("禁用按钮"), ui.Disabled(true))),
+				),
+				ui.Padding(
+					ui.All(8),
+					ui.Text(fmt.Sprintf("点击我按钮悬浮状态: %v", hovering.Value()), ui.TextSize(13), ui.TextColor(th.SurfaceMuted)),
 				),
 				ui.Padding(
 					ui.All(8),

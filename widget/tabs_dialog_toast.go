@@ -611,7 +611,7 @@ type popupConfig struct {
 	padding       style.Insets
 	hasPadding    bool
 	onOpenChange  func(ctx *internal.Context, open bool)
-	ref           *DialogRef
+	ref           *PopupRef
 }
 
 type popupWidget struct {
@@ -681,7 +681,7 @@ func PopupOnOpenChange(fn func(ctx *internal.Context, open bool)) PopupOption {
 }
 
 // PopupAttachRef 绑定命令型引用，用于外部主动打开/关闭弹窗。
-func PopupAttachRef(ref *DialogRef) PopupOption {
+func PopupAttachRef(ref *PopupRef) PopupOption {
 	return func(cfg *popupConfig) {
 		cfg.ref = ref
 	}

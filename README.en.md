@@ -75,7 +75,7 @@ func main() {
 go run ./examples/basic_components
 go run ./examples/advanced_components
 go run ./examples/layout
-go run ./examples/animation
+go run ./examples/animation_showcase
 go run ./examples/state_management
 go run ./examples/form_validation
 go run ./examples/textfield_demo

@@ -14,7 +14,8 @@
     "PopupBackground(bg color.NRGBA) PopupOption",
     "PopupPadding(insets Insets) PopupOption",
     "PopupOnOpenChange(fn func(ctx *Context, open bool)) PopupOption",
-    "PopupAttachRef(ref *DialogRef) PopupOption"
+    "NewPopupRef() *PopupRef",
+    "PopupAttachRef(ref *PopupRef) PopupOption"
   ]
 }
 -->
@@ -30,14 +31,14 @@ Popup 是一个纯净的弹窗容器，只提供遮罩层和居中面板，不�
 - `open` 控制显示与隐藏（受控模式）。
 - 通过 `PopupOnOpenChange` 同步遮罩点击关闭和外部状态。
 - 使用 `PopupPadding` 设置内边距，`PopupBackground` 设置背景色。
-- 可通过 `PopupAttachRef` 绑定 `DialogRef` 实现命令式控制。
-- Popup 不自带确认/取消按钮，内部关闭行为需要由用户内容、外部状态或 `DialogRef` 负责。
+- 可通过 `PopupAttachRef` 绑定 `PopupRef` 实现命令式控制。
+- Popup 不自带确认/取消按钮，内部关闭行为需要由用户内容、外部状态或 `PopupRef` 负责。
 
 ## Lifecycle / React-style 说明
 
-- 当前仍以 legacy `Widget` + `DialogRef` 作为兼容实现。
+- 当前仍以 legacy `Widget` + `PopupRef` 作为兼容实现。
 - `Popup` 和 `Dialog` 共享类似的 overlay/mask/panel 生命周期，但 Popup 的内容完全由用户提供。
-- `open` 是受控输入；`PopupAttachRef` 绑定的 `DialogRef` 命令会在布局时消费，并通过 `PopupOnOpenChange` 同步外部状态。
+- `open` 是受控输入；`PopupAttachRef` 绑定的 `PopupRef` 命令会在布局时消费，并通过 `PopupOnOpenChange` 同步外部状态。
 - mask click 只在 `PopupMaskClosable(true)` 且提供 `PopupOnOpenChange` 时触发关闭通知；关闭时 Popup 子内容不再布局。
 - overlay stacking、焦点归属、输入事件拦截、子树 mount/unmount 和 ref 命令释放尚未冻结，本批次不推荐 `PopupElement` 作为稳定公开 API。
 - 在 Batch 5 期间，文档保持 legacy-first，只记录自定义弹层的 overlay 生命周期边界，不新增 React-style snippet，也不修改 docs_browser 示例映射。

@@ -7,17 +7,16 @@ This document is the current status page for the React-style runtime and docs/ex
 - The React-style runtime work is complete: `RunElement`, `Element`, function components, hook slots, effects, providers, reconciler identity, keyed reuse, unmount cleanup, router hooks, and `FromWidget` are implemented and tested.
 - Legacy `Run` / `Widget` remains a stable compatibility path. It is not deprecated in code and should not be removed during docs/example cleanup.
 - `FromWidget` remains a long-term escape hatch for mixing legacy widgets into Element trees.
-- Docs/examples rollout Batches 1-6 are complete. The rollout updated low-risk widget docs with React-style snippets, added canonical React-style examples, and recorded compatibility notes for complex examples.
+- Docs/examples rollout Batches 1-6 are complete. The rollout updated low-risk widget docs with React-style snippets, consolidated redundant standalone examples into the full React-style workspace, and recorded compatibility notes for complex examples.
 - Widget docs have been audited for React runtime coverage. Stable wrappers are documented with React-style snippets; controls without stable wrappers document `FromWidget` bridging and host-state/lifecycle boundaries instead of inventing `XxxElement` APIs.
 - The docs browser still uses legacy example ids and legacy preview mappings. Do not migrate `examples/docs_browser` without a separate runtime migration design.
 
 ## Canonical examples
 
-- `examples/react_counter` is the minimal React-style state example.
-- `examples/router_element` is the React-style router example.
-- `examples/react_workspace` is the full React-style runtime showcase for hooks, context, router, keyed identity, fragments, components, and `FromWidget` bridging.
-- `examples/counter` remains the legacy counter counterpart.
-- `examples/router` remains the legacy router counterpart.
+- `examples/react_workspace` is the canonical React-style runtime showcase for hooks, context, router, keyed identity, fragments, components, and `FromWidget` bridging.
+- `examples/counter` remains the compact legacy counter smoke demo.
+- `examples/router` remains the comprehensive router compatibility showcase.
+- Removed redundant standalone React-style examples: `examples/react_counter` and `examples/router_element`.
 
 ## Completed rollout batches
 
@@ -25,7 +24,7 @@ This document is the current status page for the React-style runtime and docs/ex
 | --- | --- | --- |
 | Batch 1 | Stateless display and basic layout docs | React-style snippets added, legacy examples retained. |
 | Batch 2 | Simple interaction docs | React-style snippets added for low-risk controlled state examples. |
-| Batch 3 | Router docs and example | `examples/router_element` added, legacy router retained. |
+| Batch 3 | Router docs and example | RouterElement coverage now lives in `examples/react_workspace`; legacy router retained. |
 | Batch 4 | Complex input and form strategy | Strategy notes added; complex Element API names not frozen. |
 | Batch 5 | Scroll, list, grid, overlays, toast, virtual scroll | Compatibility notes added; lifecycle-heavy examples kept legacy. |
 | Batch 6 | Integration showcases | Compatibility and lifecycle notes added; showcase code kept legacy. |

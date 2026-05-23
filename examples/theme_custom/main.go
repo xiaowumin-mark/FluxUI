@@ -3,12 +3,11 @@ package main
 import (
 	"image/color"
 
-	theme "github.com/xiaowumin-mark/FluxUI/theme"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
 func main() {
-	darkTheme := &theme.Theme{
+	darkTheme := &ui.Theme{
 		Primary:       color.NRGBA{R: 66, G: 133, B: 244, A: 255},
 		Surface:       color.NRGBA{R: 32, G: 33, B: 36, A: 255},
 		SurfaceMuted:  color.NRGBA{R: 48, G: 49, B: 52, A: 255},
@@ -18,7 +17,7 @@ func main() {
 		TextSize:      16,
 	}
 
-	redTheme := &theme.Theme{
+	redTheme := &ui.Theme{
 		Primary:       color.NRGBA{R: 220, G: 53, B: 69, A: 255},
 		Surface:       color.NRGBA{R: 253, G: 246, B: 246, A: 255},
 		SurfaceMuted:  color.NRGBA{R: 248, G: 215, B: 218, A: 255},
@@ -28,7 +27,7 @@ func main() {
 		TextSize:      16,
 	}
 
-	greenTheme := &theme.Theme{
+	greenTheme := &ui.Theme{
 		Primary:       color.NRGBA{R: 40, G: 167, B: 69, A: 255},
 		Surface:       color.NRGBA{R: 247, G: 253, B: 250, A: 255},
 		SurfaceMuted:  color.NRGBA{R: 209, G: 231, B: 221, A: 255},
@@ -38,7 +37,7 @@ func main() {
 		TextSize:      16,
 	}
 
-	orangeTheme := &theme.Theme{
+	orangeTheme := &ui.Theme{
 		Primary:       color.NRGBA{R: 255, G: 193, B: 7, A: 255},
 		Surface:       color.NRGBA{R: 255, G: 243, B: 224, A: 255},
 		SurfaceMuted:  color.NRGBA{R: 255, G: 238, B: 199, A: 255},
@@ -52,7 +51,7 @@ func main() {
 		th := ui.UseTheme(ctx)
 		currentTheme := ui.State[string](ctx)
 
-		var themeToApply *theme.Theme
+		var themeToApply *ui.Theme
 		switch currentTheme.Value() {
 		case "dark":
 			themeToApply = darkTheme

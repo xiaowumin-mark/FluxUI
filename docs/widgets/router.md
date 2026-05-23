@@ -27,7 +27,6 @@
     "NavigateBack(ctx *Context, opts ...NavigateOption)",
     "WithNavTransition(t Transition) NavigateOption",
     "CurrentPath(ctx *Context) string",
-    "RouteParams(ctx *Context) *RouteParamsType",
     "CanGoBack(ctx *Context) bool",
     "StackDepth(ctx *Context) int",
     "(*RouteParamsType).Path(name string) string",
@@ -62,7 +61,7 @@ routes := []ui.Route{
     {
         Path: "/users/:id",
         Builder: func(ctx *ui.Context) ui.Widget {
-            params := ui.RouteParams(ctx)
+            params := ui.UseParams(ctx)
             return ui.Text("用户ID: " + params.Path("id"))
         },
     },
@@ -139,7 +138,7 @@ ui.RouteElement("/users/:id", UserPage, ui.RouteKey("user-42"))
 - 这意味着 `/users/1`、`/users/2` 这类同 pattern 路由会复用同一个页面实例，除非显式传入 `RouteKey`。
 - `RouteKey` 适合用于需要按业务对象强制重建页面的场景，例如切换不同用户详情页时需要清空局部状态。
 - 这个行为与现有路由测试保持一致：pattern identity 复用、显式 key 变化 remount。
-- 旧的 `Router` / `Navigate` / `RouteParams` API 仍然保留，适合作为 legacy 兼容路径。
+- 旧的 `Router` / `Navigate` API 仍然保留，参数读取统一使用 `UseParams`。
 - `RouterElement` 目前是 React-style 对照入口，不改变 `examples/router` 和 `router_basic` 的既有行为。
 
 ## 导航操作
@@ -173,7 +172,7 @@ ui.RouterBeforeEach(func(ctx *ui.Context, from, to string) bool {
 - `Query("tab")`：读取查询参数
 
 ```go
-params := ui.RouteParams(ctx)
+params := ui.UseParams(ctx)
 userID := params.Path("id")
 tab := params.Query("tab")
 ```
@@ -181,7 +180,7 @@ tab := params.Query("tab")
 ## 实战示例
 
 - 独立示例：`examples/router/main.go`
-- React-style 对照示例：`examples/router_element/main.go`
+- React-style 对照示例：`examples/react_workspace/main.go`
 - 文档浏览器示例：`router_basic`
 
 该示例覆盖了动态参数、query、守卫、404、`NavigateReplace`、`NavigateBack` 以及过渡动画切换。

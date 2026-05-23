@@ -15,18 +15,26 @@ import (
 
 // Runtime 持有跨 frame 的稳定数据。
 type Runtime struct {
-	mu             sync.Mutex
-	memory         map[string]any
-	theme          *theme.Theme
-	material       *material.Theme
-	invalidate     func()
-	windowCtrl     WindowController
-	effects        map[string]*effectSlot
-	activeFx       map[string]struct{}
-	pendingFx      []func()
+	mu         sync.Mutex
+	memory     map[string]any
+	theme      *theme.Theme
+	material   *material.Theme
+	invalidate func()
+	windowCtrl WindowController
+	effects    map[string]*effectSlot
+	activeFx   map[string]struct{}
+	pendingFx  []func()
+
 	hookCounts     map[string]int
 	prevHookCounts map[string]int
-	hookStore      *HookStore
+
+	// hookCounts and prevHookCounts enforce React's "Rules of Hooks":
+	// hooks must always be called in the same count and order every frame.
+	// BeginFrame snapshots the previous frame's counts into prevHookCounts;
+	// EndFrame panics if any path rendered a different number of hooks —
+	// this means hooks were called conditionally (inside if/for/switch).
+	// These fields are NOT related to click counting or user-event tracking.
+	hookStore *HookStore
 }
 
 type effectSlot struct {
@@ -106,7 +114,10 @@ func (r *Runtime) WindowController() WindowController {
 	return r.windowCtrl
 }
 
-// BeginFrame resets per-frame hook bookkeeping.
+// BeginFrame resets per-frame bookkeeping for the next render pass.
+// It snapshots the current frame's hookCounts into prevHookCounts
+// (consumed by EndFrame to detect conditional hook calls) and clears
+// hookCounts, active effects, and pending side-effects for the new frame.
 func (r *Runtime) BeginFrame() {
 	if r == nil {
 		return
@@ -120,7 +131,11 @@ func (r *Runtime) BeginFrame() {
 	r.pendingFx = r.pendingFx[:0]
 }
 
-// EndFrame runs queued effects and cleans up unmounted effects.
+// EndFrame runs queued effects, cleans up unmounted effects, and validates
+// hook consistency. The hook-count check enforces React's "Rules of Hooks":
+// if any context path rendered a different number of hooks compared to the
+// previous frame, it means hooks were called conditionally (inside if/for/switch),
+// which breaks hook state identity and causes subtle bugs.
 func (r *Runtime) EndFrame() {
 	if r == nil {
 		return
@@ -132,9 +147,11 @@ func (r *Runtime) EndFrame() {
 	for path, count := range r.hookCounts {
 		if prev, ok := r.prevHookCounts[path]; ok && prev != count {
 			panic(fmt.Sprintf(
-				"FluxUI: path %q rendered %d hooks this frame but %d last frame — "+
-					"hooks must not be called conditionally",
-				path, count, prev,
+				"FluxUI: path %q 本帧渲染了 %d 个 hook，但上一帧为 %d —— "+
+					"hooks 不得在条件语句(if/for/switch)中调用，调用数量和顺序必须每帧一致。\n"+
+					"       path %q rendered %d hooks this frame but %d last frame — "+
+					"hooks must not be called inside if/for/switch or any conditional block",
+				path, count, prev, path, count, prev,
 			))
 		}
 	}
@@ -218,7 +235,11 @@ func (r *Runtime) UseEffect(key string, hasDeps bool, deps []any, setup EffectSe
 	})
 }
 
-// RecordHookCount 记录指定 path 的 hook 调用次数。
+// RecordHookCount stores the number of hooks rendered at the given context path
+// in the current frame. EndFrame later compares this against prevHookCounts to
+// enforce React's "Rules of Hooks": any path that changes count between frames
+// indicates hooks were called conditionally (inside if/for/switch), which breaks
+// hook state identity.
 func (r *Runtime) RecordHookCount(path string, count int) {
 	if r == nil {
 		return

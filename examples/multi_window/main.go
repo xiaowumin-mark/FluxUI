@@ -12,9 +12,11 @@ func main() {
 			th := ui.UseTheme(ctx)
 			count := ui.State[int](ctx)
 			titleSeq := ui.State[int](ctx)
+			mainMaximized := ui.State[bool](ctx)
 
 			currentID := ui.CurrentWindowID(ctx)
 			allWindows := ui.ListWindows()
+			currentHandle, currentAlive := ui.GetWindow(currentID)
 
 			return ui.Container(
 				ui.Style{
@@ -29,7 +31,7 @@ func main() {
 					),
 					ui.Padding(
 						ui.Insets{Top: 8},
-						ui.Text(fmt.Sprintf("当前存活窗口数: %d", len(allWindows)), ui.TextSize(13), ui.TextColor(th.SurfaceMuted)),
+						ui.Text(fmt.Sprintf("当前存活窗口数: %d / 当前句柄存活: %v", len(allWindows), currentAlive && currentHandle.IsAlive()), ui.TextSize(13), ui.TextColor(th.SurfaceMuted)),
 					),
 					ui.Padding(
 						ui.Insets{Top: 10},
@@ -82,16 +84,37 @@ func main() {
 					),
 					ui.Padding(
 						ui.Insets{Top: 10},
-						ui.Button(
-							ui.Text("关闭工具窗口"),
-							ui.OnClick(func(ctx *ui.Context) {
-								for _, h := range ui.ListWindows() {
-									if h.ID() == currentID {
-										continue
+						ui.Row(
+							ui.Button(
+								ui.Text("最大化/还原"),
+								ui.OnClick(func(ctx *ui.Context) {
+									if mainMaximized.Value() {
+										ui.WindowRestore(ctx)
+									} else {
+										ui.WindowMaximize(ctx)
 									}
-									h.Close()
-								}
-							}),
+									mainMaximized.Set(!mainMaximized.Value())
+								}),
+							),
+							ui.HSpacer(10),
+							ui.Button(
+								ui.Text("改尺寸"),
+								ui.OnClick(func(ctx *ui.Context) {
+									ui.WindowSetSize(ctx, 640, 420)
+								}),
+							),
+							ui.HSpacer(10),
+							ui.Button(
+								ui.Text("关闭工具窗口"),
+								ui.OnClick(func(ctx *ui.Context) {
+									for _, h := range ui.ListWindows() {
+										if h.ID() == currentID {
+											continue
+										}
+										h.Close()
+									}
+								}),
+							),
 						),
 					),
 				),
@@ -111,6 +134,10 @@ func main() {
 
 			currentID := ui.CurrentWindowID(ctx)
 			titleSeq := ui.State[int](ctx)
+			aliveText := "否"
+			if ui.WindowIsAlive(ctx) {
+				aliveText = "是"
+			}
 
 			return ui.Container(
 				ui.Style{
@@ -121,7 +148,7 @@ func main() {
 					ui.Text("工具窗口", ui.TextSize(20)),
 					ui.Padding(
 						ui.Insets{Top: 8},
-						ui.Text(fmt.Sprintf("窗口 ID: %d", currentID), ui.TextSize(13), ui.TextColor(th.SurfaceMuted)),
+						ui.Text(fmt.Sprintf("窗口 ID: %d / 存活: %s", currentID, aliveText), ui.TextSize(13), ui.TextColor(th.SurfaceMuted)),
 					),
 					ui.Padding(
 						ui.Insets{Top: 10},
@@ -139,6 +166,13 @@ func main() {
 					ui.Padding(
 						ui.Insets{Top: 12},
 						ui.Row(
+							ui.Button(
+								ui.Text("重绘"),
+								ui.OnClick(func(ctx *ui.Context) {
+									ui.WindowInvalidate(ctx)
+								}),
+							),
+							ui.HSpacer(10),
 							ui.Button(
 								ui.Text("改标题"),
 								ui.OnClick(func(ctx *ui.Context) {

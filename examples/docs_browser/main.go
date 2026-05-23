@@ -48,6 +48,16 @@ type remoteLoadResult struct {
 	Err  error
 }
 
+type docsRuntimeState struct {
+	Docs       []widgetDoc
+	Source     string
+	LoadErr    error
+	OnlineErr  error
+	Loading    bool
+	ResultCh   <-chan remoteLoadResult
+	ResultDone bool
+}
+
 type githubContentEntry struct {
 	Name        string `json:"name"`
 	Type        string `json:"type"`
@@ -60,43 +70,30 @@ const (
 )
 
 func main() {
-	docs, loadErr := loadWidgetDocs()
-	docsSource := "local"
-	onlineLoading := false
-	var onlineErr error
-	onlineResultCh := make(chan remoteLoadResult, 1)
-	if len(docs) == 0 {
-		docsSource = "online"
-		onlineLoading = true
-		docs = []widgetDoc{buildOnlineLoadingDoc(loadErr)}
+	initialDocs, loadErr := loadWidgetDocs()
+	runtimeState := &docsRuntimeState{
+		Docs:    initialDocs,
+		Source:  "local",
+		LoadErr: loadErr,
+	}
+	if len(runtimeState.Docs) == 0 {
+		resultCh := make(chan remoteLoadResult, 1)
+		runtimeState.Source = "online"
+		runtimeState.Loading = true
+		runtimeState.ResultCh = resultCh
+		runtimeState.Docs = []widgetDoc{buildOnlineLoadingDoc(loadErr)}
 		go func() {
 			remoteDocs, err := loadWidgetDocsFromGitHub()
-			onlineResultCh <- remoteLoadResult{Docs: remoteDocs, Err: err}
+			resultCh <- remoteLoadResult{Docs: remoteDocs, Err: err}
 		}()
 	}
 
 	_ = ui.Run(func(ctx *ui.Context) ui.Widget {
-		if onlineLoading {
-			select {
-			case result := <-onlineResultCh:
-				onlineLoading = false
-				onlineErr = result.Err
-				if len(result.Docs) > 0 {
-					docs = result.Docs
-					loadErr = nil
-				} else {
-					docs = []widgetDoc{buildOnlineLoadFailedDoc(loadErr, onlineErr)}
-					if loadErr != nil && onlineErr != nil {
-						loadErr = fmt.Errorf("本地加载失败: %v；在线加载失败: %v", loadErr, onlineErr)
-					} else if onlineErr != nil {
-						loadErr = fmt.Errorf("在线加载失败: %w", onlineErr)
-					}
-				}
-			default:
-				// 在线请求在后台进行；加载期间持续请求下一帧，确保结果到达后立即刷新 UI。
-				ctx.RequestRedraw()
-			}
-		}
+		applyRemoteDocsResult(runtimeState)
+		docs := runtimeState.Docs
+		loadErr := runtimeState.LoadErr
+		docsSource := runtimeState.Source
+		onlineLoading := runtimeState.Loading
 
 		th := ui.UseTheme(ctx)
 
@@ -804,7 +801,7 @@ func main() {
 					{
 						Path: "/user/:id",
 						Builder: func(routeCtx *ui.Context) ui.Widget {
-							params := ui.RouteParams(routeCtx)
+							params := ui.UseParams(routeCtx)
 							id := params.Path("id")
 							tab := params.Query("tab")
 							if tab == "" {
@@ -1231,6 +1228,30 @@ func main() {
 			),
 		)
 	}, ui.Title("FluxUI Docs Browser"), ui.Size(1360, 880))
+}
+
+func applyRemoteDocsResult(state *docsRuntimeState) {
+	if state == nil || !state.Loading || state.ResultDone || state.ResultCh == nil {
+		return
+	}
+	select {
+	case result := <-state.ResultCh:
+		state.ResultDone = true
+		state.Loading = false
+		state.OnlineErr = result.Err
+		if len(result.Docs) > 0 {
+			state.Docs = result.Docs
+			state.LoadErr = nil
+			return
+		}
+		state.Docs = []widgetDoc{buildOnlineLoadFailedDoc(state.LoadErr, state.OnlineErr)}
+		if state.LoadErr != nil && state.OnlineErr != nil {
+			state.LoadErr = fmt.Errorf("本地加载失败: %v；在线加载失败: %v", state.LoadErr, state.OnlineErr)
+		} else if state.OnlineErr != nil {
+			state.LoadErr = fmt.Errorf("在线加载失败: %w", state.OnlineErr)
+		}
+	default:
+	}
 }
 
 func buildMenuEntries(docs []widgetDoc) []menuEntry {

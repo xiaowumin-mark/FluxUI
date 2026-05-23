@@ -6,7 +6,6 @@ import "github.com/xiaowumin-mark/FluxUI/internal"
 type Dispatcher struct {
 	Click ClickHandler
 	Hover HoverHandler
-	Key   KeyHandler
 }
 
 // DispatchClick 分发点击事件。
@@ -20,12 +19,5 @@ func (d Dispatcher) DispatchClick(ctx *internal.Context) {
 func (d Dispatcher) DispatchHover(ctx *internal.Context, hovering bool) {
 	if d.Hover != nil {
 		d.Hover(ctx, hovering)
-	}
-}
-
-// DispatchKey 分发键盘事件。
-func (d Dispatcher) DispatchKey(ctx *internal.Context, key string) {
-	if d.Key != nil {
-		d.Key(ctx, key)
 	}
 }

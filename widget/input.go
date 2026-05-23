@@ -28,8 +28,6 @@ type inputConfig struct {
 	hasBorderFocus bool
 	hasBackground  bool
 	hasForeground  bool
-	hasValue       bool
-	value          string
 	textSize       float32
 	maxLen         int
 	password       bool
@@ -90,20 +88,9 @@ func TextField(value string, opts ...InputOption) Widget {
 		opt(&cfg)
 	}
 
-	if cfg.hasValue {
-		value = cfg.value
-	}
-
 	return &inputWidget{
 		value:  value,
 		config: cfg,
-	}
-}
-
-func InputValue(value string) InputOption {
-	return func(cfg *inputConfig) {
-		cfg.value = value
-		cfg.hasValue = true
 	}
 }
 
@@ -177,39 +164,11 @@ func InputSingleLine(singleLine bool) InputOption {
 	}
 }
 
-// InputFont 设置输入框字体（局部覆盖）。
-func InputFont(spec theme.FontSpec) InputOption {
-	return func(cfg *inputConfig) {
-		cfg.font = spec
-		cfg.hasStyle = true
-		cfg.hasWeight = true
-		if strings.TrimSpace(spec.Family) != "" {
-			cfg.hasFamily = true
-		}
-	}
-}
-
 // InputFontFamily 设置输入框字体族（局部覆盖）。
 func InputFontFamily(family string) InputOption {
 	return func(cfg *inputConfig) {
 		cfg.font.Family = strings.TrimSpace(family)
 		cfg.hasFamily = true
-	}
-}
-
-// InputFontStyle 设置输入框字体样式（局部覆盖）。
-func InputFontStyle(style theme.FontStyle) InputOption {
-	return func(cfg *inputConfig) {
-		cfg.font.Style = style
-		cfg.hasStyle = true
-	}
-}
-
-// InputFontWeight 设置输入框字体字重（局部覆盖）。
-func InputFontWeight(weight theme.FontWeight) InputOption {
-	return func(cfg *inputConfig) {
-		cfg.font.Weight = weight
-		cfg.hasWeight = true
 	}
 }
 

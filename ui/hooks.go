@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"time"
 
+	internal "github.com/xiaowumin-mark/FluxUI/internal"
 	state "github.com/xiaowumin-mark/FluxUI/state"
 )
 
@@ -34,6 +36,42 @@ func UseInterval(ctx *Context, interval time.Duration, fn func()) {
 	state.UseInterval(ctx, interval, fn)
 }
 
+// UseMemo memoizes a value until one of deps changes.
+func UseMemo[T any](ctx *Context, deps []any, factory func() T) T {
+	if factory == nil {
+		var zero T
+		return zero
+	}
+	if ctx == nil {
+		return factory()
+	}
+	if hook := ctx.NextHookSlot(internal.HookMemo); hook != nil {
+		return useHookMemo(ctx, hook, deps, factory)
+	}
+	return useLegacyMemo(ctx, deps, factory)
+}
+
+// Ref stores a mutable value that persists for a component instance lifetime.
+type Ref[T any] struct {
+	Current T
+}
+
+// UseRef returns a stable mutable ref initialized on first render.
+func UseRef[T any](ctx *Context, initial T) *Ref[T] {
+	if ctx == nil {
+		return &Ref[T]{Current: initial}
+	}
+	if hook := ctx.NextHookSlot(internal.HookRef); hook != nil {
+		return useHookRef(ctx, hook, initial)
+	}
+	return useLegacyRef(ctx, initial)
+}
+
+// UseCallback memoizes a callback or function-like value until deps changes.
+func UseCallback[T any](ctx *Context, deps []any, fn T) T {
+	return UseMemo(ctx, deps, func() T { return fn })
+}
+
 // AsyncStatus 表示异步操作的状态。
 type AsyncStatus = state.AsyncStatus
 
@@ -50,4 +88,78 @@ const (
 // UseAsync 创建或读取当前作用域下的异步状态。
 func UseAsync[T any](ctx *Context) *AsyncHandle[T] {
 	return state.UseAsync[T](ctx)
+}
+
+type memoSlot[T any] struct {
+	initialized bool
+	deps        []any
+	value       T
+}
+
+func useHookMemo[T any](ctx *Context, hook *internal.HookSlot, deps []any, factory func() T) T {
+	if hook.Initialized {
+		if value, ok := hook.Value.(T); ok && internal.DepsEqual(hook.Deps, deps) {
+			return value
+		}
+		if _, ok := hook.Value.(T); !ok && hook.Value != nil {
+			panic(hookTypeMismatch[T](ctx, "memo"))
+		}
+	}
+	value := factory()
+	hook.Value = value
+	hook.Initialized = true
+	hook.HasDeps = true
+	hook.Deps = internal.CloneDeps(deps)
+	return value
+}
+
+func useLegacyMemo[T any](ctx *Context, deps []any, factory func() T) T {
+	key := ctx.NextKey("memo")
+	value := ctx.Persistent(key, func() any {
+		return &memoSlot[T]{}
+	})
+	slot, ok := value.(*memoSlot[T])
+	if !ok {
+		panic(hookTypeMismatch[T](ctx, "memo"))
+	}
+	if !slot.initialized || !internal.DepsEqual(slot.deps, deps) {
+		slot.value = factory()
+		slot.deps = internal.CloneDeps(deps)
+		slot.initialized = true
+	}
+	return slot.value
+}
+
+func useHookRef[T any](ctx *Context, hook *internal.HookSlot, initial T) *Ref[T] {
+	if hook.Initialized {
+		ref, ok := hook.Value.(*Ref[T])
+		if !ok {
+			panic(hookTypeMismatch[T](ctx, "ref"))
+		}
+		return ref
+	}
+	ref := &Ref[T]{Current: initial}
+	hook.Value = ref
+	hook.Initialized = true
+	return ref
+}
+
+func useLegacyRef[T any](ctx *Context, initial T) *Ref[T] {
+	key := ctx.NextKey("ref")
+	value := ctx.Persistent(key, func() any {
+		return &Ref[T]{Current: initial}
+	})
+	ref, ok := value.(*Ref[T])
+	if !ok {
+		panic(hookTypeMismatch[T](ctx, "ref"))
+	}
+	return ref
+}
+
+func hookTypeMismatch[T any](ctx *Context, kind string) string {
+	path := ""
+	if ctx != nil {
+		path = ctx.TreePath()
+	}
+	return fmt.Sprintf("github.com/xiaowumin-mark/FluxUI/ui: %s hook type mismatch at %q for %T", kind, path, *new(T))
 }

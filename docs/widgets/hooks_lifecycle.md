@@ -14,6 +14,9 @@
     "UseEffectWithDeps(ctx *Context, deps []any, effect Effect)",
     "UseMount(ctx *Context, effect Effect)",
     "UseLifecycle(ctx *Context, onMount func(), onUnmount func())",
+    "UseMemo[T](ctx *Context, deps []any, factory func() T) T",
+    "UseRef[T](ctx *Context, initial T) *Ref[T]",
+    "UseCallback[T](ctx *Context, deps []any, fn T) T",
     "FromWidget(w Widget) Element"
   ]
 }
@@ -38,6 +41,9 @@ FluxUI 保持 Gio 的 immediate-mode 渲染模型，同时提供 React-style `El
 - `UseEffectWithDeps`：首次渲染执行，之后仅在依赖变化时执行。
 - `UseMount`：只在挂载时执行一次；返回的 cleanup 在卸载时执行。
 - `UseLifecycle`：快捷绑定 `onMount/onUnmount`。
+- `UseMemo`：依赖未变化时复用计算结果。
+- `UseRef`：保存跨 render 持久的可变引用值。
+- `UseCallback`：依赖未变化时复用函数值。
 - `FromWidget`：长期保留的 Widget -> Element bridge，用于在 React-style tree 中复用 legacy widget。
 
 ## Legacy state 与 HookSlot
@@ -76,6 +82,10 @@ func Counter(ctx *ui.Context) ui.Element {
         }
     })
 
-    return ui.TextElement(fmt.Sprintf("count = %d", count.Value()))
+    doubled := ui.UseMemo(ctx, []any{count.Value()}, func() int {
+        return count.Value() * 2
+    })
+
+    return ui.TextElement(fmt.Sprintf("count = %d, doubled = %d", count.Value(), doubled))
 }
 ```

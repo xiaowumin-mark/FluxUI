@@ -153,7 +153,7 @@ func main() {
 			{
 				Path: "/users/:id",
 				Builder: func(routeCtx *ui.Context) ui.Widget {
-					params := ui.RouteParams(routeCtx)
+					params := ui.UseParams(routeCtx)
 					userID := params.Path("id")
 					tab := params.Query("tab")
 					if tab == "" {

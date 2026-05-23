@@ -234,7 +234,7 @@ func TestHookCountConsistencyPanics(t *testing.T) {
 			t.Fatal("expected panic on hook count mismatch")
 		}
 		msg, ok := r.(string)
-		if !ok || !contains(msg, "hooks must not be called conditionally") {
+		if !ok || !contains(msg, "hooks must not be called") {
 			t.Fatalf("unexpected panic message: %v", r)
 		}
 	}()

@@ -83,22 +83,6 @@ func TextFont(spec theme.FontSpec) TextOption {
 	}
 }
 
-// TextFontFamily 设置文本字体族（局部覆盖）。
-func TextFontFamily(family string) TextOption {
-	return func(cfg *textConfig) {
-		cfg.font.Family = strings.TrimSpace(family)
-		cfg.hasFamily = true
-	}
-}
-
-// TextFontStyle 设置文本字体样式（局部覆盖）。
-func TextFontStyle(style theme.FontStyle) TextOption {
-	return func(cfg *textConfig) {
-		cfg.font.Style = style
-		cfg.hasStyle = true
-	}
-}
-
 // TextFontWeight 设置文本字体字重（局部覆盖）。
 func TextFontWeight(weight theme.FontWeight) TextOption {
 	return func(cfg *textConfig) {

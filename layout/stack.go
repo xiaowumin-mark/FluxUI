@@ -17,14 +17,6 @@ func Stacked(layout func(*internal.Context) Dimensions) StackChild {
 	return StackChild{layout: layout}
 }
 
-// Expanded 创建扩展子项。
-func Expanded(layout func(*internal.Context) Dimensions) StackChild {
-	return StackChild{
-		expanded: true,
-		layout:   layout,
-	}
-}
-
 // Stack 执行堆叠布局。
 func Stack(ctx *internal.Context, children ...StackChild) Dimensions {
 	internalChildren := make([]internal.StackChild, 0, len(children))

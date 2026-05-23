@@ -5,8 +5,8 @@ This document records the current role of each example after the React-style run
 ## Cleanup policy
 
 - Keep legacy examples that exercise compatibility, host state, complex controls, or integration workflows.
-- Keep React-style examples that demonstrate `RunElement`, hooks, router APIs, or Element composition.
-- Do not delete an example only because a React-style counterpart exists.
+- Keep React-style examples that demonstrate broad `RunElement`, hooks, router APIs, or Element composition coverage.
+- Delete narrow examples when a documented, broader example supersedes them and the compact legacy smoke demo remains.
 - Prefer adding a parallel React-style showcase before replacing an existing integration example.
 - Remove only examples that are empty, unreachable, or explicitly superseded by a documented replacement.
 
@@ -14,11 +14,9 @@ This document records the current role of each example after the React-style run
 
 | Example | Role | Runtime | Decision | Notes |
 | --- | --- | --- | --- | --- |
-| `examples/react_counter` | Canonical React-style counter | React-style `RunElement` | Keep | Minimal state example for docs snippets. |
-| `examples/router_element` | Canonical React-style router | React-style `RunElement` | Keep | Demonstrates `RouterElement`, route hooks, params, and navigation. |
-| `examples/react_workspace` | Full React-style runtime showcase | React-style `RunElement` | Keep | Demonstrates hooks, context, router, keyed identity, fragments, components, and `FromWidget` bridging. |
-| `examples/counter` | Legacy counter counterpart | Legacy `Run` / `Widget` | Keep | Compatibility comparison for `examples/react_counter`. |
-| `examples/router` | Legacy router counterpart | Legacy `Run` / `Widget` | Keep | Compatibility comparison for `examples/router_element` and docs browser `router_basic`. |
+| `examples/react_workspace` | Canonical React-style runtime showcase | React-style `RunElement` | Keep | Demonstrates hooks, context, router, keyed identity, fragments, components, and `FromWidget` bridging. |
+| `examples/counter` | Minimal counter smoke demo | Legacy `Run` / `Widget` | Keep | Compact legacy state example. |
+| `examples/router` | Router compatibility showcase | Legacy `Run` / `Widget` | Keep | Comprehensive router demo and docs browser `router_basic` counterpart. |
 | `examples/docs_browser` | Docs runtime host | Legacy `Run` / `Widget` | Keep | Owns Markdown loading, metadata parsing, legacy example id mapping, previews, and online fallback. |
 | `examples/form_validation` | Complex input workflow | Legacy `Run` / `Widget` | Keep | Compatibility note exists; wait for stable input host-state strategy. |
 | `examples/virtual_scroll` | Virtual list/grid performance reference | Legacy `Run` / `Widget` | Keep | Compatibility note exists; wait for list/grid lifecycle and identity strategy. |
@@ -32,7 +30,6 @@ This document records the current role of each example after the React-style run
 | `examples/fonts` | Font rendering demo | Legacy `Run` / `Widget` | Keep | Feature-specific smoke demo. |
 | `examples/theme_custom` | Theme customization demo | Legacy `Run` / `Widget` | Keep | Feature-specific smoke demo. |
 | `examples/horizontal_scroll` | Scroll behavior demo | Legacy `Run` / `Widget` | Keep | Useful scroll compatibility reference. |
-| `examples/animation` | Smaller animation demo | Legacy `Run` / `Widget` | Review later | Merge candidate with `animation_showcase` or keep as compact smoke demo. |
 | `examples/basic_components` | Broad basic widget demo | Legacy `Run` / `Widget` | Review later | Merge candidate; overlaps with widget docs and docs browser examples. |
 | `examples/layout` | Basic layout demo | Legacy `Run` / `Widget` | Review later | Merge candidate; overlaps with Batch 1 layout docs. |
 | `examples/state_management` | State demo | Legacy `Run` / `Widget` | Review later | Merge candidate or future React-style state comparison candidate. |
@@ -45,7 +42,6 @@ This document records the current role of each example after the React-style run
 
 These examples are not removed in the cleanup pass because they still compile, demonstrate specific behavior, or may be useful as compact smoke demos:
 
-- `examples/animation`
 - `examples/basic_components`
 - `examples/layout`
 - `examples/state_management`
@@ -57,3 +53,6 @@ Future work should decide whether each one should be merged into a richer showca
 ## Removed examples
 
 - `examples/router_demo` was an empty directory and has been removed as a low-risk cleanup item.
+- `examples/react_counter` was removed because `examples/react_workspace` covers the React-style `UseState` path and `examples/counter` remains the compact counter smoke demo.
+- `examples/router_element` was removed because `examples/react_workspace` covers `RouterElement` and `examples/router` remains the comprehensive router showcase.
+- `examples/animation` was removed because `examples/animation_showcase` covers the same animation helpers and broader lifecycle scenarios.

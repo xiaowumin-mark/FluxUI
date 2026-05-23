@@ -11,7 +11,7 @@ import (
 type AsyncStatus int
 
 const (
-	AsyncIdle    AsyncStatus = iota
+	AsyncIdle AsyncStatus = iota
 	AsyncLoading
 	AsyncSuccess
 	AsyncError

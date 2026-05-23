@@ -14,9 +14,9 @@
 
 ## Canonical React-style 示例
 
-- `examples/react_counter` 是最小 React-style counter 示例，作为后续文档 snippet 的 canonical example。
-- `examples/counter` 继续保留为 legacy `Run` / `Widget` 对照示例，不在 rollout 初期删除或替换。
-- 新文档示例优先参考 `RunElement`、`UseState`、`TextElement`、`ButtonElement`、基础 layout Element wrappers 的组合方式。
+- `examples/react_workspace` 是当前唯一完整 React-style showcase，覆盖 `RunElement`、`UseState`、hooks、context、router、keyed identity 和 `FromWidget`。
+- `examples/counter` 继续保留为 compact legacy `Run` / `Widget` smoke demo。
+- 新文档示例优先参考 `RunElement`、`UseState`、`UseMemo`、`UseRef`、`TextElement`、`ButtonElement`、基础 layout Element wrappers 的组合方式。
 
 ## 分批计划
 
@@ -24,7 +24,7 @@
 | --- | --- | --- |
 | Batch 1 | 无状态展示和基础布局 | `text_basic`、`spacer_basic`、`divider_basic`、`row_basic`、`column_basic`、`stack_basic`、`center_basic`、`padding_basic`、`container_basic`、`sizing_basic` |
 | Batch 2 | 简单交互 | `button_basic`、`click_area_basic`、`checkbox_basic`、`switch_basic` |
-| Batch 3 | Router 新写法 | `router_basic`、`examples/router_element` React-style 对照版本 |
+| Batch 3 | Router 新写法 | `router_basic`、`examples/react_workspace` React-style 对照版本 |
 | Batch 4 | 输入和表单 | `textfield_basic`、`select_basic`、`radio_group_basic`、`slider_basic`、`form_validation` |
 | Batch 5 | 滚动、列表、网格、弹层、通知 | `scroll_view_basic`、`list_view_basic`、`grid_basic`、`dialog_basic`、`popup_basic`、`toast_basic`、`virtual_scroll` |
 | Batch 6 | 综合 showcase | `docs_browser`、`team_workspace`、`advanced_components`、`animation_showcase`、`vscode_layout` |
@@ -51,8 +51,7 @@
 
 ### Batch 3 进度
 
-- 已新增 `examples/router_element` 作为独立 React-style Router 对照示例。
-- 示例覆盖 `RouterElement`、`RouteElement`、`UseNavigate`、`UseLocation`、`UseParams`。
+- `examples/react_workspace` 覆盖 `RouterElement`、`RouteElement`、`UseNavigate`、`UseLocation`、`UseParams`。
 - legacy `examples/router` 保持不变，继续作为旧 Router API 对照。
 - 本步骤未修改 docs_browser runtime 示例映射。
 
@@ -61,12 +60,12 @@
 - Batch 1 文档仍然使用 legacy example id：`text_basic`、`spacer_basic`、`divider_basic`、`row_basic`、`column_basic`、`stack_basic`、`center_basic`、`padding_basic`、`container_basic`、`sizing_basic`。
 - Router 文档仍然使用 legacy example id：`router_basic`。
 - `examples/docs_browser` 继续解析这些 legacy example id，没有新增 runtime 映射变更。
-- 新增的 `examples/react_counter` 和 `examples/router_element` 先作为独立对照示例，不接入 docs_browser 旧示例映射。
+- React-style 对照能力集中在 `examples/react_workspace`，不接入 docs_browser 旧示例映射。
 
 ### Batch 2 准备
 
 - Batch 2 只覆盖简单交互文档：`button.md`、`click_area.md`、`checkbox.md`、`switch.md`。
-- `examples/react_counter` 作为 `Button + UseState` 的 canonical 参考，不再新增单独 counter 示例。
+- `examples/react_workspace` 作为 `Button + UseState` 的 canonical 参考，不再新增单独 counter 示例。
 - `button` 和 `click_area` 先写 React-style 对照示例，再补 metadata 中的 Element API 条目。
 - `checkbox` 和 `switch` 示例用 `UseState` 展示受控布尔状态，保持 legacy 示例与文档 id 不变。
 - 本批次仍然不修改 `examples/docs_browser` runtime 映射。
@@ -93,7 +92,7 @@
 ### Batch 3 准备
 
 - Batch 3 只覆盖 Router 文档：`docs/widgets/router.md`。
-- `examples/router_element` 作为 Router React-style 对照的 canonical example，`examples/router` 继续保留为 legacy 对照。
+- `examples/react_workspace` 作为 Router React-style 对照的 canonical example，`examples/router` 继续保留为 legacy 对照。
 - 本批次仍然不修改 `examples/docs_browser` runtime 映射，`router_basic` 继续作为文档浏览器的旧入口。
 - 推荐顺序：先补 Router 文档的 React-style API 说明，再整理示例段落和 identity 说明，最后做兼容性检查。
 
@@ -101,7 +100,7 @@
 
 - `router.md` 已补充 React-style API metadata：`RouterElement`、`RouteElement`、`RouteKey`、`UseNavigate`、`UseLocation`、`UseParams`。
 - `router.md` 已补充 React-style 对照示例，并说明默认 route identity 按 pattern 复用、`RouteKey` 可强制 remount。
-- `examples/router/main.go` 仍然作为 legacy 对照，`examples/router_element/main.go` 作为 React-style 对照示例。
+- `examples/router/main.go` 仍然作为 legacy 对照，`examples/react_workspace/main.go` 作为 React-style 对照示例。
 - 本次更新未修改 `examples/docs_browser` runtime 映射。
 
 ### Batch 3 兼容性确认
@@ -113,7 +112,7 @@
 ### Batch 3 完成
 
 - Router 文档迁移已完成，legacy / React-style 对照路径均已记录。
-- `examples/router_element` 作为独立 React-style 对照示例继续保留。
+- React-style Router 对照路径已集中到 `examples/react_workspace`。
 - `examples/router` 和 `router_basic` 保持不变，docs_browser 行为未被改动。
 
 ### Batch 4 准备
@@ -176,7 +175,7 @@
 - 本步骤没有新增 `GridElement` / `GridViewElement` metadata，没有修改 examples 代码或 `examples/docs_browser` runtime 映射。
 - `go test ./...` 继续通过。
 - D5.4 已完成 `docs/widgets/dialog.md` 和 `docs/widgets/popup.md` overlay 生命周期说明。
-- `dialog` / `popup` 已记录受控 open、mask close、`DialogRef` 命令队列、overlay mount/unmount、stacking/focus 和事件拦截边界。
+- `dialog` / `popup` 已记录受控 open、mask close、`DialogRef` / `PopupRef` 命令队列、overlay mount/unmount、stacking/focus 和事件拦截边界。
 - 本步骤没有新增 `DialogElement` / `PopupElement` metadata，没有修改 examples 代码或 `examples/docs_browser` runtime 映射。
 - `go test ./...` 继续通过。
 - D5.5 已完成 `docs/widgets/toast.md` 生命周期说明和 `examples/virtual_scroll/README.md` 兼容说明。
@@ -267,7 +266,7 @@
 - `examples/docs_browser` runtime 示例映射保持不变，仍包含 legacy entries：`row_basic`、`button_basic`、`textfield_basic`、`slider_basic`、`radio_group_basic`、`select_basic`、`dialog_basic`、`popup_basic`、`toast_basic`、`scroll_view_basic`、`list_view_basic`、`grid_basic`、`router_basic`。
 - Batch 6 已新增兼容说明文件：`examples/docs_browser/README.md`、`examples/team_workspace/README.md`、`examples/advanced_components/README.md`、`examples/vscode_layout/README.md`、`examples/animation_showcase/README.md`。
 - Batch 6 没有新增或冻结综合 showcase 专用 React-style API 名称，没有修改示例交互行为，没有修改 docs_browser runtime mapping。
-- `examples/react_counter` 和 `examples/router_element` 仍是当前仅有的 React-style standalone examples；Batch 6 candidate examples 保持 legacy integration references。
+- `examples/react_workspace` 是当前 React-style standalone showcase；Batch 6 candidate examples 保持 legacy integration references。
 - `go test ./...` 继续通过。
 
 ### Batch 6 完成

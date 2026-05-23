@@ -59,16 +59,6 @@ func FontFamily(family string) FontSpec {
 	return FontSpec{Family: strings.TrimSpace(family)}
 }
 
-// FontStyleOf 设置字体样式。
-func FontStyleOf(style FontStyle) FontSpec {
-	return FontSpec{Style: style}
-}
-
-// FontWeightOf 设置字体字重。
-func FontWeightOf(weight FontWeight) FontSpec {
-	return FontSpec{Weight: weight}
-}
-
 // WithStyle 复制并更新字体样式。
 func (f FontSpec) WithStyle(style FontStyle) FontSpec {
 	f.Style = style
@@ -199,16 +189,6 @@ func (t *Theme) SetFonts(faces ...FontFace) {
 	t.Fonts = append([]FontFace(nil), faces...)
 }
 
-// WithFonts 基于拷贝返回带字体集合的新主题。
-func (t *Theme) WithFonts(faces ...FontFace) *Theme {
-	if t == nil {
-		return nil
-	}
-	cp := *t
-	cp.SetFonts(faces...)
-	return &cp
-}
-
 // SetDefaultFont 设置主题默认字体。
 func (t *Theme) SetDefaultFont(spec FontSpec) {
 	if t == nil {
@@ -217,32 +197,12 @@ func (t *Theme) SetDefaultFont(spec FontSpec) {
 	t.DefaultFont = spec.Normalize()
 }
 
-// WithDefaultFont 基于拷贝返回带默认字体的新主题。
-func (t *Theme) WithDefaultFont(spec FontSpec) *Theme {
-	if t == nil {
-		return nil
-	}
-	cp := *t
-	cp.SetDefaultFont(spec)
-	return &cp
-}
-
 // SetUseSystemFonts 设置是否启用系统字体参与回退。
 func (t *Theme) SetUseSystemFonts(enabled bool) {
 	if t == nil {
 		return
 	}
 	t.UseSystemFonts = enabled
-}
-
-// WithSystemFonts 基于拷贝返回系统字体开关已更新的新主题。
-func (t *Theme) WithSystemFonts(enabled bool) *Theme {
-	if t == nil {
-		return nil
-	}
-	cp := *t
-	cp.SetUseSystemFonts(enabled)
-	return &cp
 }
 
 // SystemFontDirs 返回当前平台常见系统字体目录（用于扫描预览，不保证全部存在）。

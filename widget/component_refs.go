@@ -492,6 +492,55 @@ func (r *DialogRef) drainCommands() []boolCommand {
 	return r.queue.drainCommands()
 }
 
+type PopupRef struct {
+	queue commandQueue[boolCommand]
+}
+
+func NewPopupRef() *PopupRef {
+	return &PopupRef{}
+}
+
+func (r *PopupRef) Open() {
+	if r == nil {
+		return
+	}
+	r.queue.enqueue(boolCommand{
+		kind:  boolCmdSet,
+		value: true,
+	})
+}
+
+func (r *PopupRef) Close() {
+	if r == nil {
+		return
+	}
+	r.queue.enqueue(boolCommand{
+		kind:  boolCmdSet,
+		value: false,
+	})
+}
+
+func (r *PopupRef) Toggle() {
+	if r == nil {
+		return
+	}
+	r.queue.enqueue(boolCommand{kind: boolCmdToggle})
+}
+
+func (r *PopupRef) bindInvalidator(fn func()) {
+	if r == nil {
+		return
+	}
+	r.queue.bindInvalidator(fn)
+}
+
+func (r *PopupRef) drainCommands() []boolCommand {
+	if r == nil {
+		return nil
+	}
+	return r.queue.drainCommands()
+}
+
 type BottomNavRef struct {
 	queue commandQueue[string]
 }

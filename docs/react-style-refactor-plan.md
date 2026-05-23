@@ -232,7 +232,7 @@ Host Component 分层目标：
 - 新增 `UseState(ctx, initial)`，内部可先复用现有 `state.Use[T]`。
 - 新增 `Fragment(children ...Element) Element`。
 - 新增 `Key(key string, child Element) Element`。
-- 提供一个 `examples/react_counter` 或 `examples/v2_counter` 验证 API。
+- 提供一个 React-style 示例验证 API，当前以 `examples/react_workspace` 作为集中 showcase。
 
 验收标准：
 
@@ -795,7 +795,7 @@ P4.7 完成标准：
 2. Router / Route 组件化：把 route 定义变成 Element 树的一部分。
 3. route identity 规则：默认 pattern key、参数变化复用、显式 key remount。
 4. transition 生命周期：from/to 页面并存、动画结束后统一 unmount。
-5. Router 与现有 legacy API 兼容：保留现有 `ui.Router`、`Navigate`、`RouteParams` 包装层。
+5. Router 与现有 legacy API 兼容：保留现有 `ui.Router`、`Navigate` 包装层，参数读取统一收敛到 `UseParams`。
 
 P5 入口标准：
 
@@ -817,14 +817,14 @@ P5.1 先补齐 Router 的查询 hooks 和 API 表面，不急于把整个 Router
 
 - `UseNavigate(ctx)`：返回绑定当前上下文的导航函数，供组件内部直接触发 push / replace / back 风格导航。
 - `UseLocation(ctx)`：返回当前路由位置，至少包含完整路径、纯路径和查询参数访问。
-- `UseParams(ctx)`：与现有 `RouteParams(ctx)` 保持同源，作为 React 风格的参数读取入口。
+- `UseParams(ctx)`：作为统一参数读取入口，同时服务 legacy Router 与 React-style Router。
 - `ui/router.go` 同步暴露这些 hooks，保留 `ui.Navigate` / `ui.NavigateReplace` / `ui.NavigateBack` 作为兼容层。
 
 实现原则：
 
 - 新 hooks 直接读取现有 router state 和 route view，不额外引入新的路由状态系统。
 - `UseLocation` 与 `UseParams` 在 route view 内优先返回当前页面的上下文信息，保证 transition 期间页面自身读取到的是当前路由位置。
-- 旧的 `CurrentPath` / `RouteParams` / `CanGoBack` / `StackDepth` 继续可用，方便现有示例和文档逐步迁移。
+- 旧的 `CurrentPath` / `CanGoBack` / `StackDepth` 继续可用，参数读取统一使用 `UseParams`，方便现有示例和文档逐步迁移。
 
 P5.1 完成标准：
 
@@ -907,13 +907,13 @@ P5.4 完成标准：
 
 #### Phase 5.5 Legacy API 兼容收口
 
-P5.5 只收口兼容边界，不迁移 examples。目标是确认 Router React 化之后，旧 `ui.Router` / `ui.Route` / `ui.Navigate` / `ui.RouteParams` 仍然是稳定可用的兼容层，便于现有项目继续运行并分阶段迁移。
+P5.5 只收口兼容边界，不迁移 examples。目标是确认 Router React 化之后，旧 `ui.Router` / `ui.Route` / `ui.Navigate` 仍然是稳定可用的兼容层，参数读取统一走 `ui.UseParams`，便于现有项目继续运行并分阶段迁移。
 
 兼容结论：
 
 - 旧 `ui.Router` 继续作为当前稳定入口，内部仍走现有路由状态与 transition 逻辑。
 - `ui.Navigate` / `ui.NavigateReplace` / `ui.NavigateBack` 继续有效，且可与 `UseNavigate` 并存。
-- `ui.CurrentPath` / `ui.RouteParams` / `ui.CanGoBack` / `ui.StackDepth` 继续可用，供旧页面和迁移中的页面共存。
+- `ui.CurrentPath` / `ui.UseParams` / `ui.CanGoBack` / `ui.StackDepth` 继续可用，供旧页面和迁移中的页面共存。
 - `RouterElement` / `RouteElement` 只是新写法，不要求马上替代旧 API。
 - examples 暂不改动，留到单独的示例迁移计划处理。
 
@@ -1150,7 +1150,7 @@ P7.4 完成标准：
 
 ### D1.2 最小 RunElement counter 示例
 
-D1.2 新增 `examples/react_counter`，作为 React-style `RunElement` 入口的最小 canonical example。
+D1.2 曾新增独立 React-style counter；后续清理中已合并到 `examples/react_workspace`，避免与 `examples/counter` 重复。
 
 示例范围：
 
@@ -1162,7 +1162,7 @@ D1.2 新增 `examples/react_counter`，作为 React-style `RunElement` 入口的
 
 D1.2 完成标准：
 
-- `examples/react_counter` 可编译并纳入 `go test ./...` 包扫描。
+- `examples/react_workspace` 可编译并纳入 `go test ./...` 包扫描。
 - legacy counter 示例不修改、不删除。
 - docs migration plan 已记录该示例作为后续 Markdown snippet 的参考入口。
 
@@ -1197,7 +1197,7 @@ D1.1 完成标准：
 
 ### D1.3 RouterElement 对照示例
 
-D1.3 新增 `examples/router_element`，作为 React-style Router API 的独立对照示例；legacy `examples/router` 保持不变。
+D1.3 曾新增独立 React-style Router 对照；后续清理中已合并到 `examples/react_workspace`，legacy `examples/router` 保持不变。
 
 示例范围：
 
@@ -1210,7 +1210,7 @@ D1.3 新增 `examples/router_element`，作为 React-style Router API 的独立�
 
 D1.3 完成标准：
 
-- `examples/router_element` 可编译并纳入 `go test ./...` 包扫描。
+- `examples/react_workspace` 可编译并纳入 `go test ./...` 包扫描。
 - `examples/router` 不修改，继续作为 legacy Router 对照。
 - docs migration plan 已记录 RouterElement 示例进度。
 
@@ -1221,7 +1221,7 @@ D1.4 只做兼容性验证，不改 docs_browser 的 runtime 映射。
 验证结论：
 
 - Batch 1 文档的 example id 仍然是 legacy 值，docs browser 继续命中现有示例分支。
-- Router 文档仍然指向 `router_basic`，未切换到 `examples/router_element`。
+- Router 文档仍然指向 `router_basic`，React-style 对照指向 `examples/react_workspace`。
 - `examples/docs_browser` 的示例解析逻辑无需因本轮 rollout 变更。
 
 D1.4 完成标准：
@@ -1245,7 +1245,7 @@ Batch 2 将从输入交互类文档开始，范围锁定为 `button`、`click_ar
 
 - 不修改 `examples/docs_browser` runtime 映射。
 - 不新增独立交互示例除非后续发现文档对照不足。
-- `examples/react_counter` 继续作为 `Button + UseState` 的 canonical example。
+- `examples/react_workspace` 继续作为 `Button + UseState` 的 canonical example。
 
 ### D2.2 Button / ClickArea docs
 
@@ -1303,7 +1303,7 @@ D3.2 更新 `docs/widgets/router.md`，补充 React-style RouterElement 说明�
 
 - metadata 中补齐 `RouterElement` / `RouteElement` / `RouteKey` / `UseNavigate` / `UseLocation` / `UseParams` 条目。
 - 文档保留 legacy Router 的基础用法和导航说明。
-- `examples/router_element` 被引用为 React-style 对照示例，`examples/router` 保持不变。
+- `examples/react_workspace` 被引用为 React-style 对照示例，`examples/router` 保持不变。
 - docs_browser runtime 映射不变。
 
 ### D3.3 Route identity and compatibility
@@ -1314,7 +1314,7 @@ D3.3 统一收束 Router 文档中的 route identity 和兼容性说明，确保
 
 - `RouteElement` 默认按 pattern 复用页面实例。
 - `RouteKey` 会触发 remount。
-- legacy `Router` / `Navigate` / `RouteParams` 保持稳定。
+- legacy `Router` / `Navigate` 保持稳定，参数读取统一使用 `UseParams`。
 - `examples/router` 与 `router_basic` 不受影响。
 
 D3.3 完成标准：
@@ -1331,7 +1331,7 @@ D3.4 做最终兼容性检查，确认 Batch 3 的 Router 文档迁移没有影�
 
 - `examples/docs_browser` 仍然只解析 `router_basic`。
 - `examples/router` 仍然作为 legacy 对照。
-- `examples/router_element` 仍然作为独立 React-style 对照示例。
+- React-style Router 对照路径集中到 `examples/react_workspace`。
 - `go test ./...` 继续通过。
 
 D3.4 完成标准：
@@ -1501,7 +1501,7 @@ D5.4 为弹层文档补充 overlay lifecycle / host-state 策略说明，继续�
 文档更新：
 
 - `docs/widgets/dialog.md`：记录受控 `open`、`DialogRef` 命令队列、mask close、确认/取消回调和 overlay mount/unmount 边界。
-- `docs/widgets/popup.md`：记录自定义内容弹层的受控 `open`、`PopupOnOpenChange`、`PopupAttachRef` / `DialogRef` 和 overlay 子树布局边界。
+- `docs/widgets/popup.md`：记录自定义内容弹层的受控 `open`、`PopupOnOpenChange`、`PopupAttachRef` / `PopupRef` 和 overlay 子树布局边界。
 
 兼容结论：
 
@@ -1711,7 +1711,7 @@ D6.6 对 Batch 6 做最终兼容性检查，确认本批次只补 integration in
 - `examples/docs_browser` runtime 示例映射保持 legacy entries，检查到 `row_basic`、`button_basic`、`textfield_basic`、`slider_basic`、`radio_group_basic`、`select_basic`、`dialog_basic`、`popup_basic`、`toast_basic`、`scroll_view_basic`、`list_view_basic`、`grid_basic`、`router_basic`。
 - Batch 6 已新增 README 兼容说明：`examples/docs_browser/README.md`、`examples/team_workspace/README.md`、`examples/advanced_components/README.md`、`examples/vscode_layout/README.md`、`examples/animation_showcase/README.md`。
 - Batch 6 没有修改五个 candidate examples 的 `main.go`，没有修改 docs_browser runtime mapping，没有新增或冻结综合 showcase 专用 React-style API 名称。
-- 当前独立 React-style examples 仍只有 `examples/react_counter` 和 `examples/router_element`，Batch 6 candidate examples 保持 legacy integration references。
+- 当前独立 React-style showcase 是 `examples/react_workspace`，Batch 6 candidate examples 保持 legacy integration references。
 - `go test ./...` 继续通过。
 
 Batch 6 结论：

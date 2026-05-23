@@ -701,7 +701,19 @@ func UseLocation(ctx *internal.Context) *Location {
 
 // UseParams 返回当前路由参数。
 func UseParams(ctx *internal.Context) *Params {
-	return RouteParams(ctx)
+	if view := getRouteView(ctx); view != nil {
+		params := view.params
+		return &params
+	}
+	st := getRouterState(ctx)
+	if st == nil {
+		return &Params{}
+	}
+	entry := st.currentEntry()
+	if entry == nil {
+		return &Params{}
+	}
+	return &entry.params
 }
 
 func locationFromPath(fullPath string) *Location {
@@ -733,23 +745,6 @@ func CurrentPath(ctx *internal.Context) string {
 		return ""
 	}
 	return entry.path
-}
-
-// RouteParams 返回当前路由的参数。
-func RouteParams(ctx *internal.Context) *Params {
-	if view := getRouteView(ctx); view != nil {
-		params := view.params
-		return &params
-	}
-	st := getRouterState(ctx)
-	if st == nil {
-		return &Params{}
-	}
-	entry := st.currentEntry()
-	if entry == nil {
-		return &Params{}
-	}
-	return &entry.params
 }
 
 // CanGoBack 返回是否可以返回上一页。

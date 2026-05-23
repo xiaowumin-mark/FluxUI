@@ -52,7 +52,7 @@ type AppBarOption = widget.AppBarOption
 type BottomNavOption = widget.BottomNavOption
 type BottomNavAlignment = widget.BottomNavAlignment
 type NavItem = widget.NavItem
-type SelectValue = string
+type PopupRef = widget.PopupRef
 
 const (
 	ToastInfo    ToastType = widget.ToastInfo
@@ -583,7 +583,11 @@ func PopupOnOpenChange(fn func(ctx *Context, open bool)) PopupOption {
 	return widget.PopupOnOpenChange(fn)
 }
 
-func PopupAttachRef(ref *DialogRef) PopupOption {
+func NewPopupRef() *PopupRef {
+	return widget.NewPopupRef()
+}
+
+func PopupAttachRef(ref *PopupRef) PopupOption {
 	return widget.PopupAttachRef(ref)
 }
 

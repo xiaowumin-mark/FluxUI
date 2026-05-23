@@ -47,7 +47,7 @@
 - `Router`
 - `Route`
 - `Navigate`
-- `RouteParams`
+- `UseParams`
 - `FromWidget`
 
 ## 后续重新评估条件

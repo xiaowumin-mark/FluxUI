@@ -22,7 +22,7 @@
 | 旧组件 | `Widget` | 继续作为兼容层和未迁移控件入口。 |
 | 新旧混用 | `FromWidget` / Element wrappers | 渐进迁移，不需要一次性重写。 |
 | Router | `UseNavigate` / `UseLocation` / `UseParams` / `RouterElement` | 新代码优先使用。 |
-| Router 旧代码 | `Router` / `Route` / `Navigate` / `RouteParams` | 稳定兼容，不强制替换。 |
+| Router 旧代码 | `Router` / `Route` / `Navigate` / `UseParams` | 稳定兼容，不强制替换。 |
 
 ## 非目标
 

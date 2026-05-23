@@ -5,7 +5,6 @@ import (
 	"image/color"
 	"time"
 
-	"github.com/xiaowumin-mark/FluxUI/anim"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
@@ -82,9 +81,9 @@ func easingCompare(ctx *ui.Context, th *ui.Theme) ui.Widget {
 	}
 
 	dur := 1200 * time.Millisecond
-	linearP := anim.New(anim.From(from), anim.To(to), anim.Duration(dur), anim.Ease(anim.Linear)).Value(ctx)
-	easeOutP := anim.New(anim.From(from), anim.To(to), anim.Duration(dur), anim.Ease(anim.EaseOut)).Value(ctx)
-	easeInOutP := anim.New(anim.From(from), anim.To(to), anim.Duration(dur), anim.Ease(anim.EaseInOut)).Value(ctx)
+	linearP := ui.Animate(ui.From(from), ui.To(to), ui.Duration(dur), ui.Ease(ui.Linear)).Value(ctx)
+	easeOutP := ui.Animate(ui.From(from), ui.To(to), ui.Duration(dur), ui.Ease(ui.EaseOut)).Value(ctx)
+	easeInOutP := ui.Animate(ui.From(from), ui.To(to), ui.Duration(dur), ui.Ease(ui.EaseInOut)).Value(ctx)
 
 	return ui.Column(
 		ui.Text("三种缓动函数同步播放，观察运动曲线差异", ui.TextSize(13), ui.TextColor(th.SurfaceMuted)),
@@ -140,12 +139,12 @@ func pulseBreathing(ctx *ui.Context, th *ui.Theme) ui.Widget {
 	// 两个分支都调用一次 Animate().Value(ctx)，hook 计数一致
 	var pulse float32
 	if active.Value() {
-		pulse = anim.New(anim.From(0), anim.To(1), anim.Duration(800*time.Millisecond), anim.Ease(anim.EaseInOut)).Value(ctx)
+		pulse = ui.Animate(ui.From(0), ui.To(1), ui.Duration(800*time.Millisecond), ui.Ease(ui.EaseInOut)).Value(ctx)
 		if pulse >= 1.0 {
 			active.Set(false)
 		}
 	} else {
-		pulse = anim.New(anim.From(1), anim.To(0), anim.Duration(800*time.Millisecond), anim.Ease(anim.EaseInOut)).Value(ctx)
+		pulse = ui.Animate(ui.From(1), ui.To(0), ui.Duration(800*time.Millisecond), ui.Ease(ui.EaseInOut)).Value(ctx)
 	}
 
 	size := lerpFloat(60, 120, pulse)
@@ -211,7 +210,7 @@ func staggerEntrance(ctx *ui.Context, th *ui.Theme) ui.Widget {
 		if playing.Value() {
 			to = 1
 		}
-		rawP := anim.New(anim.From(0), anim.To(to), anim.Duration(totalDuration), anim.Ease(anim.EaseOut)).Value(ctx)
+		rawP := ui.Animate(ui.From(0), ui.To(to), ui.Duration(totalDuration), ui.Ease(ui.EaseOut)).Value(ctx)
 
 		// 延迟效果：在 delay 阶段保持 0
 		var progress float32
@@ -266,10 +265,10 @@ func colorTransition(ctx *ui.Context, th *ui.Theme) ui.Widget {
 
 	// 用微小偏移让每次 step 变化都触发 track 重置
 	offset := float32(step.Value()) * 0.0001
-	p := anim.New(
-		anim.From(offset), anim.To(1+offset),
-		anim.Duration(600*time.Millisecond),
-		anim.Ease(anim.EaseInOut),
+	p := ui.Animate(
+		ui.From(offset), ui.To(1+offset),
+		ui.Duration(600*time.Millisecond),
+		ui.Ease(ui.EaseInOut),
 	).Value(ctx)
 	normalP := clamp01((p - offset) / 1.0)
 
@@ -319,7 +318,7 @@ func progressAnimation(ctx *ui.Context, th *ui.Theme) ui.Widget {
 		to = 1 // running 和 done 都指向 1，done 时动画已完成不会重置
 	}
 
-	p := anim.New(anim.From(0), anim.To(to), anim.Duration(3*time.Second), anim.Ease(anim.EaseInOut)).Value(ctx)
+	p := ui.Animate(ui.From(0), ui.To(to), ui.Duration(3*time.Second), ui.Ease(ui.EaseInOut)).Value(ctx)
 
 	if phase.Value() == 1 && p >= 1.0 {
 		phase.Set(2)

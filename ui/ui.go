@@ -179,16 +179,6 @@ func FontFamily(family string) FontSpec {
 	return theme.FontFamily(family)
 }
 
-// FontStyleOf 创建仅带样式的字体规格。
-func FontStyleOf(style FontStyle) FontSpec {
-	return theme.FontStyleOf(style)
-}
-
-// FontWeightOf 创建仅带字重的字体规格。
-func FontWeightOf(weight FontWeight) FontSpec {
-	return theme.FontWeightOf(weight)
-}
-
 // ListFontFamilies 返回去重后的字体族名称。
 func ListFontFamilies(faces []FontFace) []string {
 	return theme.ListFontFamilies(faces)
@@ -379,11 +369,6 @@ func State[T any](ctx *Context) *state.State[T] {
 	return state.Use[T](ctx)
 }
 
-// StateWithInitial 返回当前作用域的稳定状态，并在首次创建时写入初始值。
-func StateWithInitial[T any](ctx *Context, initial T) *state.State[T] {
-	return state.UseWithInitial[T](ctx, initial)
-}
-
 // Animate 创建动画定义。
 func Animate(opts ...anim.Option) *anim.Animation {
 	return anim.New(opts...)
@@ -427,16 +412,6 @@ func TextAlign(alignment TextAlignment) TextOption {
 // TextFont 设置文本字体（局部覆盖）。
 func TextFont(font FontSpec) TextOption {
 	return widget.TextFont(font)
-}
-
-// TextFontFamily 设置文本字体族（局部覆盖）。
-func TextFontFamily(family string) TextOption {
-	return widget.TextFontFamily(family)
-}
-
-// TextFontStyle 设置文本字体样式（局部覆盖）。
-func TextFontStyle(style FontStyle) TextOption {
-	return widget.TextFontStyle(style)
 }
 
 // TextFontWeight 设置文本字体字重（局部覆盖）。
@@ -557,24 +532,9 @@ func InputSingleLine(singleLine bool) InputOption {
 	return widget.InputSingleLine(singleLine)
 }
 
-// InputFont 设置输入框字体（局部覆盖）。
-func InputFont(font FontSpec) InputOption {
-	return widget.InputFont(font)
-}
-
 // InputFontFamily 设置输入框字体族（局部覆盖）。
 func InputFontFamily(family string) InputOption {
 	return widget.InputFontFamily(family)
-}
-
-// InputFontStyle 设置输入框字体样式（局部覆盖）。
-func InputFontStyle(style FontStyle) InputOption {
-	return widget.InputFontStyle(style)
-}
-
-// InputFontWeight 设置输入框字体字重（局部覆盖）。
-func InputFontWeight(weight FontWeight) InputOption {
-	return widget.InputFontWeight(weight)
 }
 
 // InputDisabled 设置输入框禁用状态。

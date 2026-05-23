@@ -30,7 +30,7 @@ type Location = router.Location
 // Transition 定义页面切换动画类型。
 type Transition = router.Transition
 
-// RouteParams_ 路由参数类型。
+// RouteParamsType 路由参数类型。
 type RouteParamsType = router.Params
 
 // BeforeEachFunc 路由守卫函数类型。
@@ -141,11 +141,6 @@ func UseParams(ctx *Context) *RouteParamsType {
 // CurrentPath 返回当前路由路径。
 func CurrentPath(ctx *Context) string {
 	return router.CurrentPath(ctx)
-}
-
-// RouteParams 返回当前路由的参数。
-func RouteParams(ctx *Context) *RouteParamsType {
-	return router.RouteParams(ctx)
 }
 
 // CanGoBack 返回是否可以返回上一页。

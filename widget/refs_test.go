@@ -80,6 +80,13 @@ func TestDialogTabsAndNavigationRefsQueueCommands(t *testing.T) {
 		t.Fatalf("expected 2 dialog commands, got %d", len(cmds))
 	}
 
+	popup := NewPopupRef()
+	popup.Open()
+	popup.Toggle()
+	if cmds := popup.drainCommands(); len(cmds) != 2 {
+		t.Fatalf("expected 2 popup commands, got %d", len(cmds))
+	}
+
 	tabs := NewTabsRef()
 	tabs.SetActive("settings")
 	if cmds := tabs.drainCommands(); len(cmds) != 1 || cmds[0] != "settings" {

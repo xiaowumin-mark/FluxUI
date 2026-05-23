@@ -11,7 +11,7 @@ import (
 	"gioui.org/op"
 )
 
-func TestUseStateWithInitial(t *testing.T) {
+func TestUseStateInitialValue(t *testing.T) {
 	rt := internal.NewRuntime(nil)
 	var ops op.Ops
 	gtx := gioLayout.Context{Ops: &ops}
@@ -215,6 +215,99 @@ func TestUseEffectFallsBackToLegacyWithoutComponentInstance(t *testing.T) {
 
 	if runCount != 1 {
 		t.Fatalf("expected legacy deps effect to run once, got %d", runCount)
+	}
+}
+
+func TestUseMemoUsesComponentHookSlot(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	gtx := gioLayout.Context{Ops: &ops}
+	identity := internal.ComponentIdentity{ParentID: "root", TypeID: "MemoDemo", Key: "main"}
+	runs := 0
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gtx, rt)
+	inst := rt.HookStore().BeginInstance(identity)
+	first := UseMemo(ctx.WithComponentInstance(inst), []any{1}, func() int {
+		runs++
+		return 10
+	})
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	ctx2 := internal.NewContext(gtx, rt)
+	inst2 := rt.HookStore().BeginInstance(identity)
+	second := UseMemo(ctx2.WithComponentInstance(inst2), []any{1}, func() int {
+		runs++
+		return 20
+	})
+	rt.EndFrame()
+
+	if first != 10 || second != 10 || runs != 1 {
+		t.Fatalf("expected memoized value to be reused, first=%d second=%d runs=%d", first, second, runs)
+	}
+
+	rt.BeginFrame()
+	ctx3 := internal.NewContext(gtx, rt)
+	inst3 := rt.HookStore().BeginInstance(identity)
+	third := UseMemo(ctx3.WithComponentInstance(inst3), []any{2}, func() int {
+		runs++
+		return 30
+	})
+	rt.EndFrame()
+
+	if third != 30 || runs != 2 {
+		t.Fatalf("expected deps change to recompute, third=%d runs=%d", third, runs)
+	}
+}
+
+func TestUseRefPersistsComponentHookSlot(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	gtx := gioLayout.Context{Ops: &ops}
+	identity := internal.ComponentIdentity{ParentID: "root", TypeID: "RefDemo", Key: "main"}
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gtx, rt)
+	inst := rt.HookStore().BeginInstance(identity)
+	ref := UseRef(ctx.WithComponentInstance(inst), 1)
+	ref.Current = 42
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	ctx2 := internal.NewContext(gtx, rt)
+	inst2 := rt.HookStore().BeginInstance(identity)
+	ref2 := UseRef(ctx2.WithComponentInstance(inst2), 1)
+	rt.EndFrame()
+
+	if ref2 != ref || ref2.Current != 42 {
+		t.Fatalf("expected ref to persist, got %#v", ref2)
+	}
+}
+
+func TestUseCallbackUsesMemoIdentity(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	gtx := gioLayout.Context{Ops: &ops}
+	identity := internal.ComponentIdentity{ParentID: "root", TypeID: "CallbackDemo", Key: "main"}
+
+	fn1 := func() int { return 1 }
+	fn2 := func() int { return 2 }
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gtx, rt)
+	inst := rt.HookStore().BeginInstance(identity)
+	cb1 := UseCallback(ctx.WithComponentInstance(inst), []any{"same"}, fn1)
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	ctx2 := internal.NewContext(gtx, rt)
+	inst2 := rt.HookStore().BeginInstance(identity)
+	cb2 := UseCallback(ctx2.WithComponentInstance(inst2), []any{"same"}, fn2)
+	rt.EndFrame()
+
+	if cb1() != 1 || cb2() != 1 {
+		t.Fatalf("expected callback to be memoized while deps are unchanged")
 	}
 }
 
