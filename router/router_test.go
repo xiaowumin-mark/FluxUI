@@ -484,6 +484,92 @@ func TestTransitionLayoutsFromAndToUntilDurationEnds(t *testing.T) {
 	}
 }
 
+func TestRouteBeforeEnterBlocksNavigation(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	var blocked bool
+	var homeLayouts, adminLayouts int
+
+	routes := []Route{
+		{Path: "/", Builder: func(ctx *internal.Context) widget.Widget { return countLayoutWidget{count: &homeLayouts} }},
+		{
+			Path: "/admin",
+			BeforeEnter: func(ctx *internal.Context, from, to string) bool {
+				blocked = from == "/" && to == "/admin"
+				return false
+			},
+			Builder: func(ctx *internal.Context) widget.Widget { return countLayoutWidget{count: &adminLayouts} },
+		},
+	}
+	routerWidget := New(nil, routes)
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gioLayout.Context{Ops: &ops}, rt)
+	routerWidget.Layout(ctx)
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	ctx = internal.NewContext(gioLayout.Context{Ops: &ops}, rt)
+	Navigate(ctx.Scope("router").Scope("content"), "/admin")
+	routerWidget.Layout(ctx)
+	rt.EndFrame()
+
+	if !blocked {
+		t.Fatal("expected route-level guard to run")
+	}
+	if homeLayouts != 2 || adminLayouts != 0 {
+		t.Fatalf("expected navigation to stay on home, got home=%d admin=%d", homeLayouts, adminLayouts)
+	}
+}
+
+func TestUseRouteReturnsMatchedMetadata(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	var info *RouteInfo
+	var detailLayouts int
+
+	routes := []Route{
+		{Path: "/", Builder: func(ctx *internal.Context) widget.Widget { return countLayoutWidget{} }},
+		{
+			Path:  "/projects/:id",
+			Name:  "project",
+			Title: "Project",
+			Meta:  map[string]any{"layout": "workspace"},
+			Builder: func(ctx *internal.Context) widget.Widget {
+				info = UseRoute(ctx)
+				return countLayoutWidget{count: &detailLayouts}
+			},
+		},
+	}
+	routerWidget := New(nil, routes)
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gioLayout.Context{Ops: &ops}, rt)
+	routerWidget.Layout(ctx)
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	ctx = internal.NewContext(gioLayout.Context{Ops: &ops}, rt)
+	Navigate(ctx.Scope("router").Scope("content"), "/projects/42")
+	routerWidget.Layout(ctx)
+	rt.EndFrame()
+
+	if detailLayouts != 1 {
+		t.Fatalf("expected project route to layout once, got %d", detailLayouts)
+	}
+
+	if info == nil || !info.Matched || info.Path != "/projects/:id" || info.Name != "project" || info.Title != "Project" {
+		t.Fatalf("unexpected route info: %#v", info)
+	}
+	if info.Meta["layout"] != "workspace" {
+		t.Fatalf("expected metadata to be available, got %#v", info.Meta)
+	}
+	info.Meta["layout"] = "changed"
+	if routes[1].Meta["layout"] != "workspace" {
+		t.Fatal("expected UseRoute metadata to be cloned")
+	}
+}
+
 type countLayoutWidget struct {
 	count *int
 }

@@ -24,6 +24,15 @@ type Location struct {
 	QueryParams map[string]string
 }
 
+// RouteInfo describes the currently matched route declaration.
+type RouteInfo struct {
+	Path    string
+	Name    string
+	Title   string
+	Meta    map[string]any
+	Matched bool
+}
+
 // Query 返回查询参数值。
 func (l *Location) Query(name string) string {
 	if l == nil || l.QueryParams == nil {
@@ -46,8 +55,12 @@ func (l *Location) AllQueryParams() map[string]string {
 
 // Route 定义一条路由规则。
 type Route struct {
-	Path    string
-	Builder func(ctx *internal.Context) widget.Widget
+	Path        string
+	Name        string
+	Title       string
+	Meta        map[string]any
+	BeforeEnter BeforeEachFunc
+	Builder     func(ctx *internal.Context) widget.Widget
 }
 
 // Option 定义路由器配置项。
@@ -229,6 +242,13 @@ func (s *routerState) navigate(ctx *internal.Context, fullPath string, action na
 	}
 
 	idx, params := s.matchRoute(fullPath)
+	if idx >= 0 && idx < len(s.routes) {
+		if guard := s.routes[idx].BeforeEnter; guard != nil {
+			if !guard(ctx, currentCleanPath, targetCleanPath) {
+				return
+			}
+		}
+	}
 
 	entry := stackEntry{
 		path:       fullPath,
@@ -363,6 +383,7 @@ func resolvePageForPath(
 	}
 
 	if idx >= 0 && idx < len(routes) {
+		view.route = routeInfoFromRoute(routes[idx], true)
 		var page widget.Widget
 		withRouteView(ctx, view, func() {
 			scopeCtx := ctx.Scope(fullPath)
@@ -589,6 +610,7 @@ type routeView struct {
 	params     Params
 	canGoBack  bool
 	stackDepth int
+	route      RouteInfo
 }
 
 const routeViewKey = "__fluxui_router_view__"
@@ -729,6 +751,50 @@ func locationFromPath(fullPath string) *Location {
 		}
 	}
 	return loc
+}
+
+// UseRoute returns metadata for the currently matched route declaration.
+func UseRoute(ctx *internal.Context) *RouteInfo {
+	if view := getRouteView(ctx); view != nil {
+		info := cloneRouteInfo(view.route)
+		return &info
+	}
+	st := getRouterState(ctx)
+	if st == nil {
+		return &RouteInfo{}
+	}
+	entry := st.currentEntry()
+	if entry == nil || entry.routeIndex < 0 || entry.routeIndex >= len(st.routes) {
+		return &RouteInfo{}
+	}
+	info := routeInfoFromRoute(st.routes[entry.routeIndex], true)
+	return &info
+}
+
+func routeInfoFromRoute(route Route, matched bool) RouteInfo {
+	return RouteInfo{
+		Path:    route.Path,
+		Name:    route.Name,
+		Title:   route.Title,
+		Meta:    cloneRouteMeta(route.Meta),
+		Matched: matched,
+	}
+}
+
+func cloneRouteInfo(info RouteInfo) RouteInfo {
+	info.Meta = cloneRouteMeta(info.Meta)
+	return info
+}
+
+func cloneRouteMeta(meta map[string]any) map[string]any {
+	if len(meta) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(meta))
+	for key, value := range meta {
+		out[key] = value
+	}
+	return out
 }
 
 // CurrentPath 返回当前路由路径。

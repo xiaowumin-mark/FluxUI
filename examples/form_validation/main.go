@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
@@ -65,344 +66,322 @@ func validateForm(data FormData) ValidationResult {
 	return result
 }
 
-func main() {
-	_ = ui.Run(func(ctx *ui.Context) ui.Widget {
-		th := ui.UseTheme(ctx)
+var (
+	red   = ui.NRGBA(220, 53, 69, 255)
+	green = ui.NRGBA(40, 167, 69, 255)
+)
 
-		username := ui.State[string](ctx)
-		email := ui.State[string](ctx)
-		password := ui.State[string](ctx)
-		confirmPass := ui.State[string](ctx)
-		formResult := ui.State[ValidationResult](ctx)
-		isSubmitted := ui.State[bool](ctx)
+func App(ctx *ui.Context) ui.Element {
+	th := ui.UseTheme(ctx)
 
-		red := ui.NRGBA(220, 53, 69, 255)
-		green := ui.NRGBA(40, 167, 69, 255)
+	username := ui.UseState(ctx, "")
+	email := ui.UseState(ctx, "")
+	password := ui.UseState(ctx, "")
+	confirmPass := ui.UseState(ctx, "")
+	formResult := ui.UseState(ctx, ValidationResult{isValid: true, errors: make(map[string]string)})
+	isSubmitted := ui.UseState(ctx, false)
 
-		return ui.Container(
-			ui.Style{
-				Background: th.Surface,
-				Padding:    ui.All(20),
-			},
-			ui.Column(
-				ui.Padding(
-					ui.All(8),
-					ui.Text("表单验证示例", ui.TextSize(24), ui.TextAlign(ui.AlignCenter)),
-				),
-				ui.Padding(
-					ui.All(8),
-					ui.Text("用户注册表单 - 包含完整的验证逻辑", ui.TextSize(14), ui.TextColor(th.SurfaceMuted)),
-				),
-				ui.Padding(
-					ui.All(8),
-					ui.Text("用户名", ui.TextSize(14), ui.TextColor(th.TextColor)),
-				),
-				ui.Padding(
-					ui.All(4),
-					ui.TextField(
-						username.Value(),
-						ui.InputPlaceholder("请输入用户名"),
-						ui.InputBorder(th.SurfaceMuted),
-						ui.InputBorderFocus(th.Primary),
-						ui.InputOnChange(func(ctx *ui.Context, value string) {
-							username.Set(value)
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				ui.Container(
-					ui.Style{
-						Background: th.SurfaceMuted,
-						Padding:    ui.All(8),
-						Radius:     4,
-					},
-					ui.Text("当前输入: "+username.Value(), ui.TextSize(12)),
-				),
-				ui.Row(
-					ui.Padding(
-						ui.All(4),
-						ui.Button(
-							ui.Text("设置: Alice"),
-							ui.OnClick(func(ctx *ui.Context) {
-								username.Set("Alice")
-								isSubmitted.Set(false)
-							}),
-						),
-					),
-					ui.Padding(
-						ui.All(4),
-						ui.Button(
-							ui.Text("设置: Bo"),
-							ui.OnClick(func(ctx *ui.Context) {
-								username.Set("Bo")
-								isSubmitted.Set(false)
-							}),
-						),
-					),
-					ui.Padding(
-						ui.All(4),
-						ui.Button(
-							ui.Text("清空"),
-							ui.OnClick(func(ctx *ui.Context) {
-								username.Set("")
-								isSubmitted.Set(false)
-							}),
-						),
-					),
-				),
-				ui.Padding(
-					ui.All(8),
-					ui.Text("邮箱", ui.TextSize(14), ui.TextColor(th.TextColor)),
-				),
-				ui.Padding(
-					ui.All(4),
-					ui.TextField(
-						email.Value(),
-						ui.InputPlaceholder("请输入邮箱"),
-						ui.InputBorder(th.SurfaceMuted),
-						ui.InputBorderFocus(th.Primary),
-						ui.InputOnChange(func(ctx *ui.Context, value string) {
-							email.Set(value)
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				ui.Container(
-					ui.Style{
-						Background: th.SurfaceMuted,
-						Padding:    ui.All(8),
-						Radius:     4,
-					},
-					ui.Text("当前输入: "+email.Value(), ui.TextSize(12)),
-				),
-				ui.Row(
-					ui.Padding(
-						ui.All(4),
-						ui.Button(
-							ui.Text("有效邮箱"),
-							ui.OnClick(func(ctx *ui.Context) {
-								email.Set("user@example.com")
-								isSubmitted.Set(false)
-							}),
-						),
-					),
-					ui.Padding(
-						ui.All(4),
-						ui.Button(
-							ui.Text("无效邮箱"),
-							ui.OnClick(func(ctx *ui.Context) {
-								email.Set("invalid-email")
-								isSubmitted.Set(false)
-							}),
-						),
-					),
-					ui.Padding(
-						ui.All(4),
-						ui.Button(
-							ui.Text("清空"),
-							ui.OnClick(func(ctx *ui.Context) {
-								email.Set("")
-								isSubmitted.Set(false)
-							}),
-						),
-					),
-				),
-				ui.Padding(
-					ui.All(8),
-					ui.Text("密码", ui.TextSize(14), ui.TextColor(th.TextColor)),
-				),
-				ui.Padding(
-					ui.All(4),
-					ui.TextField(
-						password.Value(),
-						ui.InputPlaceholder("请输入密码"),
-						ui.InputPassword(true),
-						ui.InputBorder(th.SurfaceMuted),
-						ui.InputBorderFocus(th.Primary),
-						ui.InputOnChange(func(ctx *ui.Context, value string) {
-							password.Set(value)
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				ui.Container(
-					ui.Style{
-						Background: th.SurfaceMuted,
-						Padding:    ui.All(8),
-						Radius:     4,
-					},
-					ui.Text("当前输入: "+strings.Repeat("*", len(password.Value())), ui.TextSize(12)),
-				),
-				ui.Row(
-					ui.Padding(
-						ui.All(4),
-						ui.Button(
-							ui.Text("有效密码"),
-							ui.OnClick(func(ctx *ui.Context) {
-								password.Set("password123")
-								isSubmitted.Set(false)
-							}),
-						),
-					),
-					ui.Padding(
-						ui.All(4),
-						ui.Button(
-							ui.Text("短密码"),
-							ui.OnClick(func(ctx *ui.Context) {
-								password.Set("short")
-								isSubmitted.Set(false)
-							}),
-						),
-					),
-					ui.Padding(
-						ui.All(4),
-						ui.Button(
-							ui.Text("清空"),
-							ui.OnClick(func(ctx *ui.Context) {
-								password.Set("")
-								isSubmitted.Set(false)
-							}),
-						),
-					),
-				),
-				ui.Padding(
-					ui.All(8),
-					ui.Text("确认密码", ui.TextSize(14), ui.TextColor(th.TextColor)),
-				),
-				ui.Padding(
-					ui.All(4),
-					ui.TextField(
-						confirmPass.Value(),
-						ui.InputPlaceholder("请再次输入密码"),
-						ui.InputPassword(true),
-						ui.InputBorder(th.SurfaceMuted),
-						ui.InputBorderFocus(th.Primary),
-						ui.InputOnChange(func(ctx *ui.Context, value string) {
-							confirmPass.Set(value)
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				ui.Container(
-					ui.Style{
-						Background: th.SurfaceMuted,
-						Padding:    ui.All(8),
-						Radius:     4,
-					},
-					ui.Text("当前输入: "+strings.Repeat("*", len(confirmPass.Value())), ui.TextSize(12)),
-				),
-				ui.Row(
-					ui.Padding(
-						ui.All(4),
-						ui.Button(
-							ui.Text("匹配密码"),
-							ui.OnClick(func(ctx *ui.Context) {
-								confirmPass.Set(password.Value())
-								isSubmitted.Set(false)
-							}),
-						),
-					),
-					ui.Padding(
-						ui.All(4),
-						ui.Button(
-							ui.Text("不匹配"),
-							ui.OnClick(func(ctx *ui.Context) {
-								confirmPass.Set("different")
-								isSubmitted.Set(false)
-							}),
-						),
-					),
-					ui.Padding(
-						ui.All(4),
-						ui.Button(
-							ui.Text("清空"),
-							ui.OnClick(func(ctx *ui.Context) {
-								confirmPass.Set("")
-								isSubmitted.Set(false)
-							}),
-						),
-					),
-				),
-				ui.Padding(
-					ui.All(12),
-					ui.Button(
-						ui.Text("提交表单"),
-						ui.ButtonBackground(th.Primary),
-						ui.ButtonForeground(th.TextOnPrimary),
-						ui.ButtonRadius(8),
-						ui.OnClick(func(ctx *ui.Context) {
-							data := FormData{
-								username:    username.Value(),
-								email:       email.Value(),
-								password:    password.Value(),
-								confirmPass: confirmPass.Value(),
-							}
-							result := validateForm(data)
-							formResult.Set(result)
-							isSubmitted.Set(true)
-						}),
-					),
-				),
-				ui.Padding(
-					ui.All(4),
-					ui.Button(
-						ui.Text("重置表单"),
-						ui.ButtonBackground(red),
-						ui.ButtonForeground(ui.NRGBA(255, 255, 255, 255)),
-						ui.OnClick(func(ctx *ui.Context) {
-							username.Set("")
-							email.Set("")
-							password.Set("")
-							confirmPass.Set("")
-							formResult.Set(ValidationResult{isValid: true, errors: make(map[string]string)})
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				func() ui.Widget {
-					if !isSubmitted.Value() {
-						return ui.Padding(
-							ui.All(8),
-							ui.Text("请填写并提交表单", ui.TextSize(14), ui.TextColor(th.SurfaceMuted)),
-						)
-					}
-
-					result := formResult.Value()
-					if result.isValid {
-						return ui.Container(
-							ui.Style{
-								Background: green,
-								Padding:    ui.All(12),
-								Radius:     8,
-							},
-							ui.Text("表单验证通过", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(16)),
-						)
-					}
-
-					errorWidgets := []ui.Widget{
-						ui.Padding(ui.All(2), ui.Text("表单验证失败:", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(14))),
-					}
-					for field, errMsg := range result.errors {
-						errorWidgets = append(errorWidgets, ui.Padding(
-							ui.All(2),
-							ui.Text(fmt.Sprintf("- %s: %s", field, errMsg), ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
-						))
-					}
-
-					return ui.Container(
-						ui.Style{
-							Background: red,
-							Padding:    ui.All(12),
-							Radius:     8,
-						},
-						ui.Column(errorWidgets...),
-					)
-				}(),
-				ui.Padding(
-					ui.All(8),
-					ui.Text("表单验证示例完成", ui.TextSize(14), ui.TextColor(th.SurfaceMuted)),
+	return ui.ContainerDecorationElement(
+		ui.Bg(th.Surface).WithPad(ui.All(20)),
+		ui.ColumnElement(
+			ui.PaddingElement(
+				ui.All(8),
+				ui.TextElement("表单验证示例", ui.TextSize(24), ui.TextAlign(ui.AlignCenter)),
+			),
+			ui.PaddingElement(
+				ui.All(8),
+				ui.TextElement("用户注册表单 - 包含完整的验证逻辑", ui.TextSize(14), ui.TextColor(th.SurfaceMuted)),
+			),
+			ui.PaddingElement(
+				ui.All(8),
+				ui.TextElement("用户名", ui.TextSize(14), ui.TextColor(th.TextColor)),
+			),
+			ui.PaddingElement(
+				ui.All(4),
+				ui.TextFieldElement(
+					username.Value(),
+					ui.InputPlaceholder("请输入用户名"),
+					ui.InputBorder(th.SurfaceMuted),
+					ui.InputBorderFocus(th.Primary),
+					ui.InputOnChange(func(ctx *ui.Context, value string) {
+						username.Set(value)
+						isSubmitted.Set(false)
+					}),
 				),
 			),
+			ui.ContainerDecorationElement(
+				ui.Bg(th.SurfaceMuted).WithPad(ui.All(8)).WithRad(4),
+				ui.TextElement("当前输入: "+username.Value(), ui.TextSize(12)),
+			),
+			ui.RowElement(
+				ui.PaddingElement(
+					ui.All(4),
+					ui.ButtonElement(
+						ui.TextElement("设置: Alice"),
+						ui.OnClick(func(ctx *ui.Context) {
+							username.Set("Alice")
+							isSubmitted.Set(false)
+						}),
+					),
+				),
+				ui.PaddingElement(
+					ui.All(4),
+					ui.ButtonElement(
+						ui.TextElement("设置: Bo"),
+						ui.OnClick(func(ctx *ui.Context) {
+							username.Set("Bo")
+							isSubmitted.Set(false)
+						}),
+					),
+				),
+				ui.PaddingElement(
+					ui.All(4),
+					ui.ButtonElement(
+						ui.TextElement("清空"),
+						ui.OnClick(func(ctx *ui.Context) {
+							username.Set("")
+							isSubmitted.Set(false)
+						}),
+					),
+				),
+			),
+			ui.PaddingElement(
+				ui.All(8),
+				ui.TextElement("邮箱", ui.TextSize(14), ui.TextColor(th.TextColor)),
+			),
+			ui.PaddingElement(
+				ui.All(4),
+				ui.TextFieldElement(
+					email.Value(),
+					ui.InputPlaceholder("请输入邮箱"),
+					ui.InputBorder(th.SurfaceMuted),
+					ui.InputBorderFocus(th.Primary),
+					ui.InputOnChange(func(ctx *ui.Context, value string) {
+						email.Set(value)
+						isSubmitted.Set(false)
+					}),
+				),
+			),
+			ui.ContainerDecorationElement(
+				ui.Bg(th.SurfaceMuted).WithPad(ui.All(8)).WithRad(4),
+				ui.TextElement("当前输入: "+email.Value(), ui.TextSize(12)),
+			),
+			ui.RowElement(
+				ui.PaddingElement(
+					ui.All(4),
+					ui.ButtonElement(
+						ui.TextElement("有效邮箱"),
+						ui.OnClick(func(ctx *ui.Context) {
+							email.Set("user@example.com")
+							isSubmitted.Set(false)
+						}),
+					),
+				),
+				ui.PaddingElement(
+					ui.All(4),
+					ui.ButtonElement(
+						ui.TextElement("无效邮箱"),
+						ui.OnClick(func(ctx *ui.Context) {
+							email.Set("invalid-email")
+							isSubmitted.Set(false)
+						}),
+					),
+				),
+				ui.PaddingElement(
+					ui.All(4),
+					ui.ButtonElement(
+						ui.TextElement("清空"),
+						ui.OnClick(func(ctx *ui.Context) {
+							email.Set("")
+							isSubmitted.Set(false)
+						}),
+					),
+				),
+			),
+			ui.PaddingElement(
+				ui.All(8),
+				ui.TextElement("密码", ui.TextSize(14), ui.TextColor(th.TextColor)),
+			),
+			ui.PaddingElement(
+				ui.All(4),
+				ui.TextFieldElement(
+					password.Value(),
+					ui.InputPlaceholder("请输入密码"),
+					ui.InputPassword(true),
+					ui.InputBorder(th.SurfaceMuted),
+					ui.InputBorderFocus(th.Primary),
+					ui.InputOnChange(func(ctx *ui.Context, value string) {
+						password.Set(value)
+						isSubmitted.Set(false)
+					}),
+				),
+			),
+			ui.ContainerDecorationElement(
+				ui.Bg(th.SurfaceMuted).WithPad(ui.All(8)).WithRad(4),
+				ui.TextElement("当前输入: "+strings.Repeat("*", len(password.Value())), ui.TextSize(12)),
+			),
+			ui.RowElement(
+				ui.PaddingElement(
+					ui.All(4),
+					ui.ButtonElement(
+						ui.TextElement("有效密码"),
+						ui.OnClick(func(ctx *ui.Context) {
+							password.Set("password123")
+							isSubmitted.Set(false)
+						}),
+					),
+				),
+				ui.PaddingElement(
+					ui.All(4),
+					ui.ButtonElement(
+						ui.TextElement("短密码"),
+						ui.OnClick(func(ctx *ui.Context) {
+							password.Set("short")
+							isSubmitted.Set(false)
+						}),
+					),
+				),
+				ui.PaddingElement(
+					ui.All(4),
+					ui.ButtonElement(
+						ui.TextElement("清空"),
+						ui.OnClick(func(ctx *ui.Context) {
+							password.Set("")
+							isSubmitted.Set(false)
+						}),
+					),
+				),
+			),
+			ui.PaddingElement(
+				ui.All(8),
+				ui.TextElement("确认密码", ui.TextSize(14), ui.TextColor(th.TextColor)),
+			),
+			ui.PaddingElement(
+				ui.All(4),
+				ui.TextFieldElement(
+					confirmPass.Value(),
+					ui.InputPlaceholder("请再次输入密码"),
+					ui.InputPassword(true),
+					ui.InputBorder(th.SurfaceMuted),
+					ui.InputBorderFocus(th.Primary),
+					ui.InputOnChange(func(ctx *ui.Context, value string) {
+						confirmPass.Set(value)
+						isSubmitted.Set(false)
+					}),
+				),
+			),
+			ui.ContainerDecorationElement(
+				ui.Bg(th.SurfaceMuted).WithPad(ui.All(8)).WithRad(4),
+				ui.TextElement("当前输入: "+strings.Repeat("*", len(confirmPass.Value())), ui.TextSize(12)),
+			),
+			ui.RowElement(
+				ui.PaddingElement(
+					ui.All(4),
+					ui.ButtonElement(
+						ui.TextElement("匹配密码"),
+						ui.OnClick(func(ctx *ui.Context) {
+							confirmPass.Set(password.Value())
+							isSubmitted.Set(false)
+						}),
+					),
+				),
+				ui.PaddingElement(
+					ui.All(4),
+					ui.ButtonElement(
+						ui.TextElement("不匹配"),
+						ui.OnClick(func(ctx *ui.Context) {
+							confirmPass.Set("different")
+							isSubmitted.Set(false)
+						}),
+					),
+				),
+				ui.PaddingElement(
+					ui.All(4),
+					ui.ButtonElement(
+						ui.TextElement("清空"),
+						ui.OnClick(func(ctx *ui.Context) {
+							confirmPass.Set("")
+							isSubmitted.Set(false)
+						}),
+					),
+				),
+			),
+			ui.PaddingElement(
+				ui.All(12),
+				ui.ButtonElement(
+					ui.TextElement("提交表单"),
+					ui.ButtonBackground(th.Primary),
+					ui.ButtonForeground(th.TextOnPrimary),
+					ui.ButtonRadius(8),
+					ui.OnClick(func(ctx *ui.Context) {
+						data := FormData{
+							username:    username.Value(),
+							email:       email.Value(),
+							password:    password.Value(),
+							confirmPass: confirmPass.Value(),
+						}
+						result := validateForm(data)
+						formResult.Set(result)
+						isSubmitted.Set(true)
+					}),
+				),
+			),
+			ui.PaddingElement(
+				ui.All(4),
+				ui.ButtonElement(
+					ui.TextElement("重置表单"),
+					ui.ButtonBackground(red),
+					ui.ButtonForeground(ui.NRGBA(255, 255, 255, 255)),
+					ui.OnClick(func(ctx *ui.Context) {
+						username.Set("")
+						email.Set("")
+						password.Set("")
+						confirmPass.Set("")
+						formResult.Set(ValidationResult{isValid: true, errors: make(map[string]string)})
+						isSubmitted.Set(false)
+					}),
+				),
+			),
+			FormResultElement(isSubmitted.Value(), formResult.Value(), th.SurfaceMuted),
+			ui.PaddingElement(
+				ui.All(8),
+				ui.TextElement("表单验证示例完成", ui.TextSize(14), ui.TextColor(th.SurfaceMuted)),
+			),
+		),
+	)
+}
+
+func FormResultElement(submitted bool, result ValidationResult, mutedColor color.NRGBA) ui.Element {
+	if !submitted {
+		return ui.PaddingElement(
+			ui.All(8),
+			ui.TextElement("请填写并提交表单", ui.TextSize(14), ui.TextColor(mutedColor)),
 		)
-	}, ui.Title("表单验证示例"), ui.Size(480, 1200))
+	}
+
+	if result.isValid {
+		return ui.ContainerDecorationElement(
+			ui.Bg(green).WithPad(ui.All(12)).WithRad(8),
+			ui.TextElement("表单验证通过", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(16)),
+		)
+	}
+
+	errorElements := []ui.Element{
+		ui.PaddingElement(ui.All(2), ui.TextElement("表单验证失败:", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(14))),
+	}
+	for field, errMsg := range result.errors {
+		errorElements = append(errorElements, ui.PaddingElement(
+			ui.All(2),
+			ui.TextElement(fmt.Sprintf("- %s: %s", field, errMsg), ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
+		))
+	}
+
+	return ui.ContainerDecorationElement(
+		ui.Bg(red).WithPad(ui.All(12)).WithRad(8),
+		ui.ColumnElement(errorElements...),
+	)
+}
+
+func main() {
+	_ = ui.RunElement(App, ui.Title("表单验证示例"), ui.Size(480, 1200))
 }

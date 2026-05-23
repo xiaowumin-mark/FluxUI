@@ -159,10 +159,14 @@ func (e providerElement[T]) providerContext(ctx *Context) *Context {
 // RunElement 启动 React 风格实验入口。
 // 当前实现仍复用既有 Widget 运行链路，但 Element 与 Widget 的结构已拆分。
 func RunElement(root Component, opts ...AppOption) error {
+	return fluxapp.Run(elementRootBuilder(root), opts...)
+}
+
+func elementRootBuilder(root Component) fluxapp.Builder {
 	reconciler := newReconciler()
-	return fluxapp.Run(func(ctx *internal.Context) widget.Widget {
+	return func(ctx *internal.Context) widget.Widget {
 		return reconciler.Render(ctx, root)
-	}, opts...)
+	}
 }
 
 // UseState 创建或读取带初始值的状态。

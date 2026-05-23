@@ -502,8 +502,8 @@ func containerComparisonSection() ui.Element {
 				ui.Bg(ui.NRGBA(230, 230, 230, 255)).WithPad(ui.All(4)).WithRad(6),
 				ui.ColumnElement(
 					ui.TextElement("旧 Container", ui.TextSize(11), ui.TextColor(gray)),
-					ui.ContainerElement(
-						ui.Style{Background: panel, Padding: ui.All(12), Radius: 8},
+					ui.ContainerDecorationElement(
+						ui.Bg(panel).WithPad(ui.All(12)).WithRad(8),
 						ui.TextElement("Content", ui.TextSize(13)),
 					),
 				),

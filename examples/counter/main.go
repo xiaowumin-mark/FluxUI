@@ -6,32 +6,38 @@ import (
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
-func main() {
-	_ = ui.Run(func(ctx *ui.Context) ui.Widget {
-		count := ui.State[int](ctx)
-		th := ui.UseTheme(ctx)
+func App(ctx *ui.Context) ui.Element {
+	count := ui.UseState(ctx, 0)
+	th := ui.UseTheme(ctx)
 
-		return ui.Container(
-			ui.Style{
-				Background: th.Surface,
-				Padding:    ui.All(20),
-			},
-			ui.Column(
-				ui.Padding(ui.All(4), ui.Text("FluxUI Counter", ui.TextSize(24))),
-				ui.Padding(
-					ui.All(4),
-					ui.Text(fmt.Sprintf("当前值: %d", count.Value()), ui.TextSize(18)),
-				),
-				ui.Padding(
-					ui.All(4),
-					ui.Button(
-						ui.Text("+1"),
-						ui.OnClick(func(ctx *ui.Context) {
-							count.Set(count.Value() + 1)
-						}),
-					),
+	var label string
+	if count.Value() == 0 {
+		label = "当前值: 0"
+	} else {
+		label = fmt.Sprintf("当前值: %d", count.Value())
+	}
+
+	return ui.ContainerDecorationElement(
+		ui.Bg(th.Surface).WithPad(ui.All(20)),
+		ui.ColumnElement(
+			ui.TextElement("FluxUI Counter", ui.TextSize(24)),
+			ui.PaddingElement(
+				ui.All(4),
+				ui.TextElement(label, ui.TextSize(18)),
+			),
+			ui.PaddingElement(
+				ui.All(4),
+				ui.ButtonElement(
+					ui.TextElement("+1"),
+					ui.OnClick(func(ctx *ui.Context) {
+						count.Set(count.Value() + 1)
+					}),
 				),
 			),
-		)
-	}, ui.Title("FluxUI Counter"), ui.Size(420, 220))
+		),
+	)
+}
+
+func main() {
+	_ = ui.RunElement(App, ui.Title("FluxUI Counter"), ui.Size(420, 220))
 }

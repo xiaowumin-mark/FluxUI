@@ -50,974 +50,952 @@ type ownerLoad struct {
 	AvgProgress float32
 }
 
-func main() {
-	_ = ui.Run(func(ctx *ui.Context) ui.Widget {
-		th := ui.UseTheme(ctx)
+func App(ctx *ui.Context) ui.Element {
+	th := ui.UseTheme(ctx)
 
-		boot := ui.State[bool](ctx)
-		tasks := ui.State[[]task](ctx)
-		selectedID := ui.State[int](ctx)
-		page := ui.State[string](ctx)
-		tab := ui.State[string](ctx)
-		search := ui.State[string](ctx)
-		statusFilter := ui.State[string](ctx)
-		sortMode := ui.State[string](ctx)
-		blockedOnly := ui.State[bool](ctx)
-		showCreateDialog := ui.State[bool](ctx)
-		showResetDialog := ui.State[bool](ctx)
-		toastMessage := ui.State[string](ctx)
-		activityLog := ui.State[[]string](ctx)
-		newTitle := ui.State[string](ctx)
-		newOwner := ui.State[string](ctx)
-		newPriority := ui.State[string](ctx)
-		newBlocked := ui.State[bool](ctx)
-		autoToast := ui.State[bool](ctx)
-		denseMode := ui.State[bool](ctx)
-		reviewAlerts := ui.State[bool](ctx)
-		weeklyGoal := ui.State[float32](ctx)
+	tasks := ui.UseState(ctx, sampleTasks())
+	selectedID := ui.UseState(ctx, func() int { s := sampleTasks(); return s[0].ID }())
+	page := ui.UseState(ctx, pageWorkspace)
+	tab := ui.UseState(ctx, tabBoard)
+	search := ui.UseState(ctx, "")
+	statusFilter := ui.UseState(ctx, "all")
+	sortMode := ui.UseState(ctx, "priority")
+	blockedOnly := ui.UseState(ctx, false)
+	showCreateDialog := ui.UseState(ctx, false)
+	showResetDialog := ui.UseState(ctx, false)
+	toastMessage := ui.UseState(ctx, "")
+	activityLog := ui.UseState(ctx, []string{stamped("工作台示例已加载"), stamped("打开看板，调整筛选并查看任务详情")})
+	newTitle := ui.UseState(ctx, "")
+	newOwner := ui.UseState(ctx, "")
+	newPriority := ui.UseState(ctx, "medium")
+	newBlocked := ui.UseState(ctx, false)
+	autoToast := ui.UseState(ctx, true)
+	denseMode := ui.UseState(ctx, false)
+	reviewAlerts := ui.UseState(ctx, true)
+	weeklyGoal := ui.UseState(ctx, float32(72))
 
-		if !boot.Value() {
-			seed := sampleTasks()
-			tasks.Set(seed)
-			selectedID.Set(seed[0].ID)
-			page.Set(pageWorkspace)
-			tab.Set(tabBoard)
-			statusFilter.Set("all")
-			sortMode.Set("priority")
-			newPriority.Set("medium")
-			autoToast.Set(true)
-			denseMode.Set(false)
-			reviewAlerts.Set(true)
-			weeklyGoal.Set(72)
-			activityLog.Set([]string{
-				stamped("工作台示例已加载"),
-				stamped("打开看板，调整筛选并查看任务详情"),
-			})
-			boot.Set(true)
+	allTasks := tasks.Value()
+	if len(allTasks) == 0 {
+		allTasks = sampleTasks()
+		tasks.Set(allTasks)
+	}
+	if len(allTasks) > 0 && !taskExists(allTasks, selectedID.Value()) {
+		selectedID.Set(allTasks[0].ID)
+	}
+
+	currentTask, hasCurrentTask := findTask(allTasks, selectedID.Value())
+	filteredTasks := filterTasks(allTasks, search.Value(), statusFilter.Value(), blockedOnly.Value(), sortMode.Value())
+	summary := summarizeTasks(allTasks)
+	owners := buildOwnerLoads(allTasks)
+	compactLayout := ctx.MaxConstraints().X < 1100
+
+	notify := func(message string) {
+		activityLog.Set(appendActivity(activityLog.Value(), message))
+		if autoToast.Value() {
+			toastMessage.Set(message)
+		} else {
+			toastMessage.Set("")
+		}
+	}
+
+	resetTaskForm := func() {
+		newTitle.Set("")
+		newOwner.Set("")
+		newPriority.Set("medium")
+		newBlocked.Set(false)
+	}
+
+	createTask := func() {
+		title := strings.TrimSpace(newTitle.Value())
+		owner := strings.TrimSpace(newOwner.Value())
+		if title == "" {
+			notify("创建任务前必须填写任务标题")
+			return
+		}
+		if owner == "" {
+			owner = "未分配"
 		}
 
-		allTasks := tasks.Value()
-		if len(allTasks) == 0 {
-			allTasks = sampleTasks()
-			tasks.Set(allTasks)
-		}
-		if len(allTasks) > 0 && !taskExists(allTasks, selectedID.Value()) {
-			selectedID.Set(allTasks[0].ID)
-		}
-
-		currentTask, hasCurrentTask := findTask(allTasks, selectedID.Value())
-		filteredTasks := filterTasks(allTasks, search.Value(), statusFilter.Value(), blockedOnly.Value(), sortMode.Value())
-		summary := summarizeTasks(allTasks)
-		owners := buildOwnerLoads(allTasks)
-		compactLayout := ctx.MaxConstraints().X < 1100
-
-		notify := func(message string) {
-			activityLog.Set(appendActivity(activityLog.Value(), message))
-			if autoToast.Value() {
-				toastMessage.Set(message)
-			} else {
-				toastMessage.Set("")
-			}
+		next := task{
+			ID:       nextTaskID(allTasks),
+			Title:    title,
+			Owner:    owner,
+			Priority: normalizePriority(newPriority.Value()),
+			Status:   "todo",
+			Progress: 0,
+			Blocked:  newBlocked.Value(),
+			Due:      "本周",
+			Notes:    "该任务从工作台弹窗创建。",
 		}
 
-		resetTaskForm := func() {
-			newTitle.Set("")
-			newOwner.Set("")
-			newPriority.Set("medium")
-			newBlocked.Set(false)
+		updated := append([]task{next}, cloneTasks(allTasks)...)
+		tasks.Set(updated)
+		selectedID.Set(next.ID)
+		showCreateDialog.Set(false)
+		resetTaskForm()
+		notify("已创建任务：" + next.Title)
+	}
+
+	resetDemo := func() {
+		seed := sampleTasks()
+		tasks.Set(seed)
+		selectedID.Set(seed[0].ID)
+		search.Set("")
+		statusFilter.Set("all")
+		sortMode.Set("priority")
+		blockedOnly.Set(false)
+		showResetDialog.Set(false)
+		resetTaskForm()
+		notify("已将工作台重置为示例数据")
+	}
+
+	advanceTaskStatus := func(taskID int) {
+		before, ok := findTask(allTasks, taskID)
+		if !ok {
+			return
 		}
 
-		createTask := func() {
-			title := strings.TrimSpace(newTitle.Value())
-			owner := strings.TrimSpace(newOwner.Value())
-			if title == "" {
-				notify("创建任务前必须填写任务标题")
-				return
-			}
-			if owner == "" {
-				owner = "未分配"
-			}
-
-			next := task{
-				ID:       nextTaskID(allTasks),
-				Title:    title,
-				Owner:    owner,
-				Priority: normalizePriority(newPriority.Value()),
-				Status:   "todo",
-				Progress: 0,
-				Blocked:  newBlocked.Value(),
-				Due:      "本周",
-				Notes:    "该任务从工作台弹窗创建。",
-			}
-
-			updated := append([]task{next}, cloneTasks(allTasks)...)
-			tasks.Set(updated)
-			selectedID.Set(next.ID)
-			showCreateDialog.Set(false)
-			resetTaskForm()
-			notify("已创建任务：" + next.Title)
-		}
-
-		resetDemo := func() {
-			seed := sampleTasks()
-			tasks.Set(seed)
-			selectedID.Set(seed[0].ID)
-			search.Set("")
-			statusFilter.Set("all")
-			sortMode.Set("priority")
-			blockedOnly.Set(false)
-			showResetDialog.Set(false)
-			resetTaskForm()
-			notify("已将工作台重置为示例数据")
-		}
-
-		advanceTaskStatus := func(taskID int) {
-			before, ok := findTask(allTasks, taskID)
-			if !ok {
-				return
-			}
-
-			updated := updateTask(allTasks, taskID, func(item *task) {
-				switch item.Status {
-				case "todo":
-					item.Status = "active"
-					if item.Progress < 0.25 {
-						item.Progress = 0.25
-					}
-				case "active":
-					item.Status = "review"
-					if item.Progress < 0.8 {
-						item.Progress = 0.8
-					}
-				case "review":
-					item.Status = "done"
-					item.Progress = 1
-					item.Blocked = false
+		updated := updateTask(allTasks, taskID, func(item *task) {
+			switch item.Status {
+			case "todo":
+				item.Status = "active"
+				if item.Progress < 0.25 {
+					item.Progress = 0.25
 				}
-			})
-			tasks.Set(updated)
-
-			after, _ := findTask(updated, taskID)
-			switch after.Status {
+			case "active":
+				item.Status = "review"
+				if item.Progress < 0.8 {
+					item.Progress = 0.8
+				}
 			case "review":
-				if reviewAlerts.Value() {
-					notify("已移动到评审：" + after.Title)
-				} else {
-					notify("状态已推进：" + after.Title)
-				}
-			case "done":
-				notify("任务已完成：" + after.Title)
-			default:
-				if before.Status != after.Status {
-					notify("状态已推进：" + after.Title)
-				}
-			}
-		}
-
-		markTaskDone := func(taskID int) {
-			updated := updateTask(allTasks, taskID, func(item *task) {
 				item.Status = "done"
 				item.Progress = 1
 				item.Blocked = false
-			})
-			tasks.Set(updated)
-			if after, ok := findTask(updated, taskID); ok {
-				notify("任务已完成：" + after.Title)
+			}
+		})
+		tasks.Set(updated)
+
+		after, _ := findTask(updated, taskID)
+		switch after.Status {
+		case "review":
+			if reviewAlerts.Value() {
+				notify("已移动到评审：" + after.Title)
+			} else {
+				notify("状态已推进：" + after.Title)
+			}
+		case "done":
+			notify("任务已完成：" + after.Title)
+		default:
+			if before.Status != after.Status {
+				notify("状态已推进：" + after.Title)
 			}
 		}
+	}
 
-		toggleBlockedState := func(taskID int) {
-			updated := updateTask(allTasks, taskID, func(item *task) {
-				item.Blocked = !item.Blocked
-			})
-			tasks.Set(updated)
-			if after, ok := findTask(updated, taskID); ok {
-				if after.Blocked {
-					notify("任务已阻塞：" + after.Title)
-				} else {
-					notify("任务已解除阻塞：" + after.Title)
-				}
+	markTaskDone := func(taskID int) {
+		updated := updateTask(allTasks, taskID, func(item *task) {
+			item.Status = "done"
+			item.Progress = 1
+			item.Blocked = false
+		})
+		tasks.Set(updated)
+		if after, ok := findTask(updated, taskID); ok {
+			notify("任务已完成：" + after.Title)
+		}
+	}
+
+	toggleBlockedState := func(taskID int) {
+		updated := updateTask(allTasks, taskID, func(item *task) {
+			item.Blocked = !item.Blocked
+		})
+		tasks.Set(updated)
+		if after, ok := findTask(updated, taskID); ok {
+			if after.Blocked {
+				notify("任务已阻塞：" + after.Title)
+			} else {
+				notify("任务已解除阻塞：" + after.Title)
 			}
 		}
+	}
 
-		boostProgress := func(taskID int) {
-			updated := updateTask(allTasks, taskID, func(item *task) {
-				item.Progress += 0.1
-				if item.Progress > 1 {
-					item.Progress = 1
-				}
-				if item.Progress >= 1 {
-					item.Status = "done"
-					item.Blocked = false
-				} else if item.Progress >= 0.8 && item.Status == "active" {
-					item.Status = "review"
-				}
-			})
-			tasks.Set(updated)
-			if after, ok := findTask(updated, taskID); ok {
-				notify(fmt.Sprintf("进度微调：%s -> %.0f%%", after.Title, after.Progress*100))
+	boostProgress := func(taskID int) {
+		updated := updateTask(allTasks, taskID, func(item *task) {
+			item.Progress += 0.1
+			if item.Progress > 1 {
+				item.Progress = 1
 			}
+			if item.Progress >= 1 {
+				item.Status = "done"
+				item.Blocked = false
+			} else if item.Progress >= 0.8 && item.Status == "active" {
+				item.Status = "review"
+			}
+		})
+		tasks.Set(updated)
+		if after, ok := findTask(updated, taskID); ok {
+			notify(fmt.Sprintf("进度微调：%s -> %.0f%%", after.Title, after.Progress*100))
 		}
+	}
 
-		statsCards := []ui.Widget{
-			metricCard(th, "进行中工作", fmt.Sprintf("%d", summary.Todo+summary.Active+summary.Review), "未完成任务数", th.Primary, float32(summary.Todo+summary.Active+summary.Review)/maxFloat32(1, float32(summary.Total))),
-			metricCard(th, "评审队列", fmt.Sprintf("%d", summary.Review), "等待评审的任务", warnColor(), float32(summary.Review)/maxFloat32(1, float32(summary.Total))),
-			metricCard(th, "已完成", fmt.Sprintf("%d", summary.Done), "完成任务数", successColor(), float32(summary.Done)/maxFloat32(1, float32(summary.Total))),
-			metricCard(th, "阻塞", fmt.Sprintf("%d", summary.Blocked), "存在阻塞项", dangerColor(), float32(summary.Blocked)/maxFloat32(1, float32(summary.Total))),
-		}
+	statsCards := []ui.Element{
+		metricCard(th, "进行中工作", fmt.Sprintf("%d", summary.Todo+summary.Active+summary.Review), "未完成任务数", th.Primary, float32(summary.Todo+summary.Active+summary.Review)/maxFloat32(1, float32(summary.Total))),
+		metricCard(th, "评审队列", fmt.Sprintf("%d", summary.Review), "等待评审的任务", warnColor(), float32(summary.Review)/maxFloat32(1, float32(summary.Total))),
+		metricCard(th, "已完成", fmt.Sprintf("%d", summary.Done), "完成任务数", successColor(), float32(summary.Done)/maxFloat32(1, float32(summary.Total))),
+		metricCard(th, "阻塞", fmt.Sprintf("%d", summary.Blocked), "存在阻塞项", dangerColor(), float32(summary.Blocked)/maxFloat32(1, float32(summary.Total))),
+	}
 
-		filterPanel := ui.Card(
-			ui.Column(
-				sectionHeader("看板筛选", "进入详情前先搜索并筛选任务列表。"),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					ui.TextField(
-						search.Value(),
-						ui.InputPlaceholder("搜索标题、负责人、优先级或状态"),
-						ui.InputOnChange(func(ctx *ui.Context, value string) {
-							search.Set(value)
-						}),
-					),
+	filterPanel := ui.CardElement(
+		ui.ColumnElement(
+			sectionHeader("看板筛选", "进入详情前先搜索并筛选任务列表。"),
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				ui.TextFieldElement(
+					search.Value(),
+					ui.InputPlaceholder("搜索标题、负责人、优先级或状态"),
+					ui.InputOnChange(func(ctx *ui.Context, value string) {
+						search.Set(value)
+					}),
 				),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					ui.Select(
-						statusFilter.Value(),
-						[]ui.SelectOptionItem[string]{
-							{Label: "全部状态", Value: "all"},
-							{Label: "待办", Value: "todo"},
-							{Label: "进行中", Value: "active"},
-							{Label: "评审中", Value: "review"},
-							{Label: "已完成", Value: "done"},
-						},
-						ui.SelectPlaceholder[string]("状态"),
-						ui.SelectOnChange[string](func(ctx *ui.Context, value string) {
-							statusFilter.Set(value)
-						}),
-					),
+			),
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				ui.SelectElement(
+					statusFilter.Value(),
+					[]ui.SelectOptionItem[string]{
+						{Label: "全部状态", Value: "all"},
+						{Label: "待办", Value: "todo"},
+						{Label: "进行中", Value: "active"},
+						{Label: "评审中", Value: "review"},
+						{Label: "已完成", Value: "done"},
+					},
+					ui.SelectPlaceholder[string]("状态"),
+					ui.SelectOnChange[string](func(ctx *ui.Context, value string) {
+						statusFilter.Set(value)
+					}),
 				),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					ui.Checkbox(
-						"仅显示阻塞任务",
-						blockedOnly.Value(),
-						ui.CheckboxOnChange(func(ctx *ui.Context, checked bool) {
-							blockedOnly.Set(checked)
-						}),
-					),
+			),
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				ui.CheckboxElement(
+					"仅显示阻塞任务",
+					blockedOnly.Value(),
+					ui.CheckboxOnChange(func(ctx *ui.Context, checked bool) {
+						blockedOnly.Set(checked)
+					}),
 				),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					ui.Text("排序方式", ui.TextSize(13), ui.TextColor(infoColor())),
+			),
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				ui.TextElement("排序方式", ui.TextSize(13), ui.TextColor(infoColor())),
+			),
+			ui.PaddingElement(
+				ui.Insets{Top: 6},
+				ui.RadioGroupElement(
+					sortMode.Value(),
+					[]ui.RadioItem{
+						{Label: "优先级优先", Value: "priority"},
+						{Label: "状态流转", Value: "status"},
+						{Label: "负责人名称", Value: "owner"},
+						{Label: "进度", Value: "progress"},
+					},
+					ui.RadioGroupOnChange(func(ctx *ui.Context, value string) {
+						sortMode.Set(value)
+					}),
 				),
-				ui.Padding(
-					ui.Insets{Top: 6},
-					ui.RadioGroup(
-						sortMode.Value(),
-						[]ui.RadioItem{
-							{Label: "优先级优先", Value: "priority"},
-							{Label: "状态流转", Value: "status"},
-							{Label: "负责人名称", Value: "owner"},
-							{Label: "进度", Value: "progress"},
-						},
-						ui.RadioGroupOnChange(func(ctx *ui.Context, value string) {
-							sortMode.Set(value)
+			),
+		),
+		ui.CardBorder(th.SurfaceMuted, 1),
+	)
+
+	workspaceTools := ui.CardElement(
+		ui.ColumnElement(
+			sectionHeader("工作台工具", "无需离开看板即可执行常用操作。"),
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				ui.FillWidthElement(
+					ui.ButtonElement(
+						ui.TextElement("新建任务"),
+						ui.ButtonBackground(th.Primary),
+						ui.ButtonForeground(th.TextOnPrimary),
+						ui.OnClick(func(ctx *ui.Context) {
+							showCreateDialog.Set(true)
 						}),
 					),
 				),
 			),
-			ui.CardBorder(th.SurfaceMuted, 1),
-		)
-
-		workspaceTools := ui.Card(
-			ui.Column(
-				sectionHeader("工作台工具", "无需离开看板即可执行常用操作。"),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					ui.FillWidth(
-						ui.Button(
-							ui.Text("新建任务"),
-							ui.ButtonBackground(th.Primary),
-							ui.ButtonForeground(th.TextOnPrimary),
-							ui.OnClick(func(ctx *ui.Context) {
-								showCreateDialog.Set(true)
-							}),
-						),
-					),
-				),
-				ui.Padding(
-					ui.Insets{Top: 10},
-					ui.FillWidth(
-						ui.Button(
-							ui.Text("恢复示例数据"),
-							ui.ButtonBackground(withAlpha(dangerColor(), 230)),
-							ui.ButtonForeground(ui.NRGBA(255, 255, 255, 255)),
-							ui.OnClick(func(ctx *ui.Context) {
-								showResetDialog.Set(true)
-							}),
-						),
-					),
-				),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					ui.Text(
-						fmt.Sprintf("可见任务：%d / %d", len(filteredTasks), len(allTasks)),
-						ui.TextSize(13),
-						ui.TextColor(infoColor()),
+			ui.PaddingElement(
+				ui.Insets{Top: 10},
+				ui.FillWidthElement(
+					ui.ButtonElement(
+						ui.TextElement("恢复示例数据"),
+						ui.ButtonBackground(withAlpha(dangerColor(), 230)),
+						ui.ButtonForeground(ui.NRGBA(255, 255, 255, 255)),
+						ui.OnClick(func(ctx *ui.Context) {
+							showResetDialog.Set(true)
+						}),
 					),
 				),
 			),
-			ui.CardBorder(th.SurfaceMuted, 1),
-		)
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				ui.TextElement(
+					fmt.Sprintf("可见任务：%d / %d", len(filteredTasks), len(allTasks)),
+					ui.TextSize(13),
+					ui.TextColor(infoColor()),
+				),
+			),
+		),
+		ui.CardBorder(th.SurfaceMuted, 1),
+	)
 
-		leftPanelContent := ui.Column(
-			filterPanel,
-			ui.Padding(ui.Insets{Top: 12}, workspaceTools),
-		)
-		leftPanel := ui.ScrollView(
-			leftPanelContent,
-			ui.ScrollVertical(true),
-		)
+	leftPanelContent := ui.ColumnElement(
+		filterPanel,
+		ui.PaddingElement(ui.Insets{Top: 12}, workspaceTools),
+	)
+	leftPanel := ui.ScrollViewElement(
+		leftPanelContent,
+		ui.ScrollVertical(true),
+	)
 
-		boardTabs := ui.Tabs(
-			tab.Value(),
-			[]ui.TabItem{
-				{Key: tabBoard, Label: "看板"},
-				{Key: tabFocus, Label: "聚焦"},
-				{Key: tabActivity, Label: "动态"},
-			},
-			ui.TabsScrollable(true),
-			ui.TabsOnChange(func(ctx *ui.Context, key string) {
-				tab.Set(key)
-			}),
-		)
+	boardTabs := ui.TabsElement(
+		tab.Value(),
+		[]ui.TabItem{
+			{Key: tabBoard, Label: "看板"},
+			{Key: tabFocus, Label: "聚焦"},
+			{Key: tabActivity, Label: "动态"},
+		},
+		ui.TabsScrollable(true),
+		ui.TabsOnChange(func(ctx *ui.Context, key string) {
+			tab.Set(key)
+		}),
+	)
 
-		boardCard := ui.Card(
-			ui.Column(
-				sectionHeader("任务队列", "选择一行查看详情并推进流程。"),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					func() ui.Widget {
-						if len(filteredTasks) == 0 {
-							return ui.Container(
-								ui.Style{
-									Background: withAlpha(th.SurfaceMuted, 30),
-									Padding:    ui.All(18),
-									Radius:     10,
-								},
-								ui.Text("没有符合当前筛选条件的任务。", ui.TextColor(infoColor())),
-							)
-						}
-
-						return ui.FixedHeight(
-							listHeight(compactLayout),
-							ui.ListView(
-								len(filteredTasks),
-								func(ctx *ui.Context, index int) ui.Widget {
-									item := filteredTasks[index]
-									return taskCard(
-										th,
-										item,
-										item.ID == selectedID.Value(),
-										denseMode.Value(),
-										func(ctx *ui.Context) {
-											selectedID.Set(item.ID)
-										},
-									)
-								},
-								ui.ListItemSpacing(8),
-							),
+	boardCard := ui.CardElement(
+		ui.ColumnElement(
+			sectionHeader("任务队列", "选择一行查看详情并推进流程。"),
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				func() ui.Element {
+					if len(filteredTasks) == 0 {
+						return ui.ContainerDecorationElement(
+							ui.Bg(withAlpha(th.SurfaceMuted, 30)).WithPad(ui.All(18)).WithRad(10),
+							ui.TextElement("没有符合当前筛选条件的任务。", ui.TextColor(infoColor())),
 						)
-					}(),
-				),
-			),
-			ui.CardBorder(th.SurfaceMuted, 1),
-		)
+					}
 
-		focusCard := ui.Card(
-			ui.Column(
-				sectionHeader("当前聚焦", "选中任务的紧凑详情视图。"),
-				ui.Padding(
+					return ui.FixedHeightElement(
+						listHeight(compactLayout),
+						ui.ListViewElement(
+							len(filteredTasks),
+							func(ctx *ui.Context, index int) ui.Element {
+								item := filteredTasks[index]
+								return taskCard(
+									th,
+									item,
+									item.ID == selectedID.Value(),
+									denseMode.Value(),
+									func(ctx *ui.Context) {
+										selectedID.Set(item.ID)
+									},
+								)
+							},
+							ui.ListItemSpacing(8),
+						),
+					)
+				}(),
+			),
+		),
+		ui.CardBorder(th.SurfaceMuted, 1),
+	)
+
+	focusCard := ui.CardElement(
+		ui.ColumnElement(
+			sectionHeader("当前聚焦", "选中任务的紧凑详情视图。"),
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				func() ui.Element {
+					if !hasCurrentTask {
+						return ui.TextElement("请选择一个任务查看聚焦视图。", ui.TextColor(infoColor()))
+					}
+					return ui.ColumnElement(
+						ui.TextElement(currentTask.Title, ui.TextSize(20)),
+						ui.PaddingElement(
+							ui.Insets{Top: 8},
+							ui.RowElement(
+								statusBadge(th, currentTask.Status),
+								ui.PaddingElement(ui.Insets{Left: 8}, priorityBadge(currentTask.Priority)),
+								func() ui.Element {
+									if currentTask.Blocked {
+										return ui.PaddingElement(ui.Insets{Left: 8}, blockedBadge())
+									}
+									return ui.SpacerElement(0, 0)
+								}(),
+							),
+						),
+						ui.PaddingElement(
+							ui.Insets{Top: 12},
+							ui.TextElement(currentTask.Notes, ui.TextColor(infoColor())),
+						),
+						ui.PaddingElement(
+							ui.Insets{Top: 12},
+							ui.TextElement(fmt.Sprintf("负责人：%s", currentTask.Owner), ui.TextSize(13)),
+						),
+						ui.PaddingElement(
+							ui.Insets{Top: 6},
+							ui.TextElement(fmt.Sprintf("截止：%s", currentTask.Due), ui.TextSize(13)),
+						),
+						ui.PaddingElement(
+							ui.Insets{Top: 12},
+							ui.ProgressBarElement(
+								currentTask.Progress*100,
+								ui.ProgressMin(0),
+								ui.ProgressMax(100),
+								ui.ProgressTrackColor(withAlpha(th.SurfaceMuted, 60)),
+								ui.ProgressFillColor(priorityColor(currentTask.Priority)),
+							),
+						),
+						ui.PaddingElement(
+							ui.Insets{Top: 8},
+							ui.TextElement(fmt.Sprintf("完成度 %.0f%%", currentTask.Progress*100), ui.TextSize(12), ui.TextColor(infoColor())),
+						),
+					)
+				}(),
+			),
+		),
+		ui.CardBorder(th.SurfaceMuted, 1),
+	)
+
+	activityCard := ui.CardElement(
+		ui.ColumnElement(
+			sectionHeader("动态流", "最近变更和导航事件会保留，便于调试。"),
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				buildActivityView(activityLog.Value(), th),
+			),
+		),
+		ui.CardBorder(th.SurfaceMuted, 1),
+	)
+
+	centerContent := boardCard
+	switch tab.Value() {
+	case tabFocus:
+		centerContent = focusCard
+	case tabActivity:
+		centerContent = activityCard
+	}
+
+	centerPanelContent := ui.ColumnElement(
+		stackCards(compactLayout, 12, statsCards...),
+		ui.PaddingElement(ui.Insets{Top: 12}, boardTabs),
+		ui.PaddingElement(ui.Insets{Top: 12}, centerContent),
+	)
+	centerPanel := ui.ScrollViewElement(
+		centerPanelContent,
+		ui.ScrollVertical(true),
+	)
+
+	detailPanelContent := ui.ColumnElement(
+		ui.CardElement(
+			ui.ColumnElement(
+				sectionHeader("任务详情", "使用右侧面板推进状态或解除阻塞。"),
+				ui.PaddingElement(
 					ui.Insets{Top: 12},
-					func() ui.Widget {
+					func() ui.Element {
 						if !hasCurrentTask {
-							return ui.Text("请选择一个任务查看聚焦视图。", ui.TextColor(infoColor()))
+							return ui.TextElement("尚未选择任务。", ui.TextColor(infoColor()))
 						}
-						return ui.Column(
-							ui.Text(currentTask.Title, ui.TextSize(20)),
-							ui.Padding(
-								ui.Insets{Top: 8},
-								ui.Row(
-									statusBadge(th, currentTask.Status),
-									ui.Padding(ui.Insets{Left: 8}, priorityBadge(currentTask.Priority)),
-									func() ui.Widget {
-										if currentTask.Blocked {
-											return ui.Padding(ui.Insets{Left: 8}, blockedBadge())
-										}
-										return ui.Spacer(0, 0)
-									}(),
-								),
-							),
-							ui.Padding(
-								ui.Insets{Top: 12},
-								ui.Text(currentTask.Notes, ui.TextColor(infoColor())),
-							),
-							ui.Padding(
-								ui.Insets{Top: 12},
-								ui.Text(fmt.Sprintf("负责人：%s", currentTask.Owner), ui.TextSize(13)),
-							),
-							ui.Padding(
-								ui.Insets{Top: 6},
-								ui.Text(fmt.Sprintf("截止：%s", currentTask.Due), ui.TextSize(13)),
-							),
-							ui.Padding(
-								ui.Insets{Top: 12},
-								ui.ProgressBar(
+
+						return ui.ColumnElement(
+							ui.TextElement(currentTask.Title, ui.TextSize(18)),
+							ui.PaddingElement(
+								ui.Insets{Top: 10},
+								ui.CircularProgressElement(
 									currentTask.Progress*100,
 									ui.ProgressMin(0),
 									ui.ProgressMax(100),
-									ui.ProgressTrackColor(withAlpha(th.SurfaceMuted, 60)),
+									ui.ProgressSize(88),
 									ui.ProgressFillColor(priorityColor(currentTask.Priority)),
+									ui.ProgressTrackColor(withAlpha(th.SurfaceMuted, 70)),
 								),
 							),
-							ui.Padding(
+							ui.PaddingElement(
+								ui.Insets{Top: 12},
+								ui.TextElement(fmt.Sprintf("负责人：%s", currentTask.Owner), ui.TextSize(13)),
+							),
+							ui.PaddingElement(
+								ui.Insets{Top: 6},
+								ui.TextElement(fmt.Sprintf("优先级：%s", priorityLabel(currentTask.Priority)), ui.TextSize(13)),
+							),
+							ui.PaddingElement(
+								ui.Insets{Top: 6},
+								ui.TextElement(fmt.Sprintf("状态：%s", statusLabel(currentTask.Status)), ui.TextSize(13)),
+							),
+							ui.PaddingElement(
+								ui.Insets{Top: 6},
+								ui.TextElement(fmt.Sprintf("截止：%s", currentTask.Due), ui.TextSize(13)),
+							),
+							ui.PaddingElement(
+								ui.Insets{Top: 12},
+								ui.TextElement(currentTask.Notes, ui.TextColor(infoColor())),
+							),
+							ui.PaddingElement(
+								ui.Insets{Top: 12},
+								ui.FillWidthElement(
+									ui.ButtonElement(
+										ui.TextElement("推进状态"),
+										ui.ButtonBackground(th.Primary),
+										ui.ButtonForeground(th.TextOnPrimary),
+										ui.OnClick(func(ctx *ui.Context) {
+											advanceTaskStatus(currentTask.ID)
+										}),
+									),
+								),
+							),
+							ui.PaddingElement(
 								ui.Insets{Top: 8},
-								ui.Text(fmt.Sprintf("完成度 %.0f%%", currentTask.Progress*100), ui.TextSize(12), ui.TextColor(infoColor())),
+								ui.FillWidthElement(
+									ui.ButtonElement(
+										ui.TextElement("标记完成"),
+										ui.ButtonBackground(successColor()),
+										ui.ButtonForeground(ui.NRGBA(255, 255, 255, 255)),
+										ui.OnClick(func(ctx *ui.Context) {
+											markTaskDone(currentTask.ID)
+										}),
+									),
+								),
+							),
+							ui.PaddingElement(
+								ui.Insets{Top: 8},
+								ui.FillWidthElement(
+									ui.ButtonElement(
+										ui.TextElement(blockActionLabel(currentTask.Blocked)),
+										ui.ButtonBackground(withAlpha(warnColor(), 230)),
+										ui.ButtonForeground(ui.NRGBA(25, 30, 38, 255)),
+										ui.OnClick(func(ctx *ui.Context) {
+											toggleBlockedState(currentTask.ID)
+										}),
+									),
+								),
+							),
+							ui.PaddingElement(
+								ui.Insets{Top: 8},
+								ui.FillWidthElement(
+									ui.ButtonElement(
+										ui.TextElement("进度 +10%"),
+										ui.OnClick(func(ctx *ui.Context) {
+											boostProgress(currentTask.ID)
+										}),
+									),
+								),
 							),
 						)
 					}(),
 				),
 			),
 			ui.CardBorder(th.SurfaceMuted, 1),
-		)
-
-		activityCard := ui.Card(
-			ui.Column(
-				sectionHeader("动态流", "最近变更和导航事件会保留，便于调试。"),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					buildActivityView(activityLog.Value(), th),
-				),
-			),
-			ui.CardBorder(th.SurfaceMuted, 1),
-		)
-
-		centerContent := boardCard
-		switch tab.Value() {
-		case tabFocus:
-			centerContent = focusCard
-		case tabActivity:
-			centerContent = activityCard
-		}
-
-		centerPanelContent := ui.Column(
-			stackCards(compactLayout, 12, statsCards...),
-			ui.Padding(ui.Insets{Top: 12}, boardTabs),
-			ui.Padding(ui.Insets{Top: 12}, centerContent),
-		)
-		centerPanel := ui.ScrollView(
-			centerPanelContent,
-			ui.ScrollVertical(true),
-		)
-
-		detailPanelContent := ui.Column(
-			ui.Card(
-				ui.Column(
-					sectionHeader("任务详情", "使用右侧面板推进状态或解除阻塞。"),
-					ui.Padding(
+		),
+		ui.PaddingElement(
+			ui.Insets{Top: 12},
+			ui.CardElement(
+				ui.ColumnElement(
+					sectionHeader("实时设置", "这些控制项会影响示例应用行为。"),
+					ui.PaddingElement(
 						ui.Insets{Top: 12},
-						func() ui.Widget {
-							if !hasCurrentTask {
-								return ui.Text("尚未选择任务。", ui.TextColor(infoColor()))
-							}
-
-							return ui.Column(
-								ui.Text(currentTask.Title, ui.TextSize(18)),
-								ui.Padding(
-									ui.Insets{Top: 10},
-									ui.CircularProgress(
-										currentTask.Progress*100,
-										ui.ProgressMin(0),
-										ui.ProgressMax(100),
-										ui.ProgressSize(88),
-										ui.ProgressFillColor(priorityColor(currentTask.Priority)),
-										ui.ProgressTrackColor(withAlpha(th.SurfaceMuted, 70)),
-									),
-								),
-								ui.Padding(
-									ui.Insets{Top: 12},
-									ui.Text(fmt.Sprintf("负责人：%s", currentTask.Owner), ui.TextSize(13)),
-								),
-								ui.Padding(
-									ui.Insets{Top: 6},
-									ui.Text(fmt.Sprintf("优先级：%s", priorityLabel(currentTask.Priority)), ui.TextSize(13)),
-								),
-								ui.Padding(
-									ui.Insets{Top: 6},
-									ui.Text(fmt.Sprintf("状态：%s", statusLabel(currentTask.Status)), ui.TextSize(13)),
-								),
-								ui.Padding(
-									ui.Insets{Top: 6},
-									ui.Text(fmt.Sprintf("截止：%s", currentTask.Due), ui.TextSize(13)),
-								),
-								ui.Padding(
-									ui.Insets{Top: 12},
-									ui.Text(currentTask.Notes, ui.TextColor(infoColor())),
-								),
-								ui.Padding(
-									ui.Insets{Top: 12},
-									ui.FillWidth(
-										ui.Button(
-											ui.Text("推进状态"),
-											ui.ButtonBackground(th.Primary),
-											ui.ButtonForeground(th.TextOnPrimary),
-											ui.OnClick(func(ctx *ui.Context) {
-												advanceTaskStatus(currentTask.ID)
-											}),
-										),
-									),
-								),
-								ui.Padding(
-									ui.Insets{Top: 8},
-									ui.FillWidth(
-										ui.Button(
-											ui.Text("标记完成"),
-											ui.ButtonBackground(successColor()),
-											ui.ButtonForeground(ui.NRGBA(255, 255, 255, 255)),
-											ui.OnClick(func(ctx *ui.Context) {
-												markTaskDone(currentTask.ID)
-											}),
-										),
-									),
-								),
-								ui.Padding(
-									ui.Insets{Top: 8},
-									ui.FillWidth(
-										ui.Button(
-											ui.Text(blockActionLabel(currentTask.Blocked)),
-											ui.ButtonBackground(withAlpha(warnColor(), 230)),
-											ui.ButtonForeground(ui.NRGBA(25, 30, 38, 255)),
-											ui.OnClick(func(ctx *ui.Context) {
-												toggleBlockedState(currentTask.ID)
-											}),
-										),
-									),
-								),
-								ui.Padding(
-									ui.Insets{Top: 8},
-									ui.FillWidth(
-										ui.Button(
-											ui.Text("进度 +10%"),
-											ui.OnClick(func(ctx *ui.Context) {
-												boostProgress(currentTask.ID)
-											}),
-										),
-									),
-								),
-							)
-						}(),
+						ui.SwitchElement(
+							autoToast.Value(),
+							ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
+								autoToast.Set(checked)
+							}),
+						),
+					),
+					ui.PaddingElement(
+						ui.Insets{Top: 6},
+						ui.TextElement("自动提示", ui.TextSize(13)),
+					),
+					ui.PaddingElement(
+						ui.Insets{Top: 12},
+						ui.SwitchElement(
+							denseMode.Value(),
+							ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
+								denseMode.Set(checked)
+							}),
+						),
+					),
+					ui.PaddingElement(
+						ui.Insets{Top: 6},
+						ui.TextElement("紧凑看板行", ui.TextSize(13)),
 					),
 				),
 				ui.CardBorder(th.SurfaceMuted, 1),
 			),
-			ui.Padding(
+		),
+	)
+	detailPanel := ui.ScrollViewElement(
+		detailPanelContent,
+		ui.ScrollVertical(true),
+	)
+
+	workspaceBody := func() ui.Element {
+		if compactLayout {
+			return ui.ScrollViewElement(
+				ui.ColumnElement(
+					leftPanelContent,
+					ui.PaddingElement(ui.Insets{Top: 12}, centerPanelContent),
+					ui.PaddingElement(ui.Insets{Top: 12}, detailPanelContent),
+				),
+				ui.ScrollVertical(true),
+			)
+		}
+
+		return ui.RowElement(
+			ui.FixedWidthElement(300, leftPanel),
+			ui.PaddingElement(
+				ui.Insets{Left: 12, Right: 12},
+				ui.ExpandedElement(centerPanel),
+			),
+			ui.FixedWidthElement(320, detailPanel),
+		)
+	}()
+
+	deliveryBody := ui.ScrollViewElement(
+		ui.ColumnElement(
+			sectionHeader("交付视图", "聚焦交付的页面，包含负责人容量、评审压力和周目标跟踪。"),
+			ui.PaddingElement(
 				ui.Insets{Top: 12},
-				ui.Card(
-					ui.Column(
-						sectionHeader("实时设置", "这些控制项会影响示例应用行为。"),
-						ui.Padding(
+				stackCards(
+					compactLayout,
+					12,
+					metricCard(th, "每周计划", fmt.Sprintf("%.0fh", summary.PlannedHours), fmt.Sprintf("目标 %.0f 小时", weeklyGoal.Value()), th.Primary, summary.PlannedHours/maxFloat32(1, weeklyGoal.Value())),
+					metricCard(th, "平均进度", fmt.Sprintf("%.0f%%", summary.AverageProgress*100), "全部任务", successColor(), summary.AverageProgress),
+					metricCard(th, "评审压力", fmt.Sprintf("%d", summary.Review), "等待评审的任务", warnColor(), float32(summary.Review)/maxFloat32(1, float32(summary.Total))),
+				),
+			),
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				ui.CardElement(
+					ui.ColumnElement(
+						sectionHeader("负责人容量", "每张卡片汇总负责人工作量和平均完成度。"),
+						ui.PaddingElement(
 							ui.Insets{Top: 12},
-							ui.Switch(
-								autoToast.Value(),
-								ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
-									autoToast.Set(checked)
-								}),
-							),
-						),
-						ui.Padding(
-							ui.Insets{Top: 6},
-							ui.Text("自动提示", ui.TextSize(13)),
-						),
-						ui.Padding(
-							ui.Insets{Top: 12},
-							ui.Switch(
-								denseMode.Value(),
-								ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
-									denseMode.Set(checked)
-								}),
-							),
-						),
-						ui.Padding(
-							ui.Insets{Top: 6},
-							ui.Text("紧凑看板行", ui.TextSize(13)),
+							func() ui.Element {
+								if len(owners) == 0 {
+									return ui.TextElement("暂无负责人容量数据。", ui.TextColor(infoColor()))
+								}
+
+								cards := make([]ui.Element, 0, len(owners))
+								for _, owner := range owners {
+									cards = append(cards, ownerCard(th, owner))
+								}
+								return stackCards(compactLayout, 12, cards...)
+							}(),
 						),
 					),
 					ui.CardBorder(th.SurfaceMuted, 1),
 				),
 			),
-		)
-		detailPanel := ui.ScrollView(
-			detailPanelContent,
-			ui.ScrollVertical(true),
-		)
-
-		workspaceBody := func() ui.Widget {
-			if compactLayout {
-				return ui.ScrollView(
-					ui.Column(
-						leftPanelContent,
-						ui.Padding(ui.Insets{Top: 12}, centerPanelContent),
-						ui.Padding(ui.Insets{Top: 12}, detailPanelContent),
-					),
-					ui.ScrollVertical(true),
-				)
-			}
-
-			return ui.Row(
-				ui.FixedWidth(300, leftPanel),
-				ui.Padding(
-					ui.Insets{Left: 12, Right: 12},
-					ui.Expanded(centerPanel),
-				),
-				ui.FixedWidth(320, detailPanel),
-			)
-		}()
-
-		deliveryBody := ui.ScrollView(
-			ui.Column(
-				sectionHeader("交付视图", "聚焦交付的页面，包含负责人容量、评审压力和周目标跟踪。"),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					stackCards(
-						compactLayout,
-						12,
-						metricCard(th, "每周计划", fmt.Sprintf("%.0fh", summary.PlannedHours), fmt.Sprintf("目标 %.0f 小时", weeklyGoal.Value()), th.Primary, summary.PlannedHours/maxFloat32(1, weeklyGoal.Value())),
-						metricCard(th, "平均进度", fmt.Sprintf("%.0f%%", summary.AverageProgress*100), "全部任务", successColor(), summary.AverageProgress),
-						metricCard(th, "评审压力", fmt.Sprintf("%d", summary.Review), "等待评审的任务", warnColor(), float32(summary.Review)/maxFloat32(1, float32(summary.Total))),
-					),
-				),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					ui.Card(
-						ui.Column(
-							sectionHeader("负责人容量", "每张卡片汇总负责人工作量和平均完成度。"),
-							ui.Padding(
-								ui.Insets{Top: 12},
-								func() ui.Widget {
-									if len(owners) == 0 {
-										return ui.Text("暂无负责人容量数据。", ui.TextColor(infoColor()))
-									}
-
-									cards := make([]ui.Widget, 0, len(owners))
-									for _, owner := range owners {
-										cards = append(cards, ownerCard(th, owner))
-									}
-									return stackCards(compactLayout, 12, cards...)
-								}(),
-							),
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				ui.CardElement(
+					ui.ColumnElement(
+						sectionHeader("状态泳道", "用于检查任务是流动推进还是堆积。"),
+						ui.PaddingElement(
+							ui.Insets{Top: 12},
+							buildStatusLane(th, "待办", summary.Todo, summary.Total, neutralColor()),
 						),
-						ui.CardBorder(th.SurfaceMuted, 1),
-					),
-				),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					ui.Card(
-						ui.Column(
-							sectionHeader("状态泳道", "用于检查任务是流动推进还是堆积。"),
-							ui.Padding(
-								ui.Insets{Top: 12},
-								buildStatusLane(th, "待办", summary.Todo, summary.Total, neutralColor()),
-							),
-							ui.Padding(
-								ui.Insets{Top: 10},
-								buildStatusLane(th, "进行中", summary.Active, summary.Total, th.Primary),
-							),
-							ui.Padding(
-								ui.Insets{Top: 10},
-								buildStatusLane(th, "评审中", summary.Review, summary.Total, warnColor()),
-							),
-							ui.Padding(
-								ui.Insets{Top: 10},
-								buildStatusLane(th, "已完成", summary.Done, summary.Total, successColor()),
-							),
+						ui.PaddingElement(
+							ui.Insets{Top: 10},
+							buildStatusLane(th, "进行中", summary.Active, summary.Total, th.Primary),
 						),
-						ui.CardBorder(th.SurfaceMuted, 1),
-					),
-				),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					ui.Card(
-						ui.Column(
-							sectionHeader("评审与阻塞队列", "更聚焦风险任务的精简列表。"),
-							ui.Padding(
-								ui.Insets{Top: 12},
-								buildRiskQueue(th, allTasks),
-							),
+						ui.PaddingElement(
+							ui.Insets{Top: 10},
+							buildStatusLane(th, "评审中", summary.Review, summary.Total, warnColor()),
 						),
-						ui.CardBorder(th.SurfaceMuted, 1),
+						ui.PaddingElement(
+							ui.Insets{Top: 10},
+							buildStatusLane(th, "已完成", summary.Done, summary.Total, successColor()),
+						),
 					),
+					ui.CardBorder(th.SurfaceMuted, 1),
 				),
 			),
-			ui.ScrollVertical(true),
-		)
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				ui.CardElement(
+					ui.ColumnElement(
+						sectionHeader("评审与阻塞队列", "更聚焦风险任务的精简列表。"),
+						ui.PaddingElement(
+							ui.Insets{Top: 12},
+							buildRiskQueue(th, allTasks),
+						),
+					),
+					ui.CardBorder(th.SurfaceMuted, 1),
+				),
+			),
+		),
+		ui.ScrollVertical(true),
+	)
 
-		settingsBody := ui.ScrollView(
-			ui.Column(
-				sectionHeader("设置", "调整示例行为，并在需要时重置工作台。"),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					ui.Card(
-						ui.Column(
-							ui.Text("交付偏好", ui.TextSize(16)),
-							ui.Padding(
-								ui.Insets{Top: 12},
-								ui.Row(
-									ui.Switch(
-										autoToast.Value(),
-										ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
-											autoToast.Set(checked)
-											notify("自动提示设置已变更")
-										}),
-									),
-									ui.Padding(ui.Insets{Left: 10, Top: 4}, ui.Text("操作后自动提示")),
-								),
-							),
-							ui.Padding(
-								ui.Insets{Top: 12},
-								ui.Row(
-									ui.Switch(
-										denseMode.Value(),
-										ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
-											denseMode.Set(checked)
-											notify("看板密度已调整")
-										}),
-									),
-									ui.Padding(ui.Insets{Left: 10, Top: 4}, ui.Text("紧凑看板行")),
-								),
-							),
-							ui.Padding(
-								ui.Insets{Top: 12},
-								ui.Checkbox(
-									"启用评审提醒",
-									reviewAlerts.Value(),
-									ui.CheckboxOnChange(func(ctx *ui.Context, checked bool) {
-										reviewAlerts.Set(checked)
-										notify("评审提醒设置已变更")
+	settingsBody := ui.ScrollViewElement(
+		ui.ColumnElement(
+			sectionHeader("设置", "调整示例行为，并在需要时重置工作台。"),
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				ui.CardElement(
+					ui.ColumnElement(
+						ui.TextElement("交付偏好", ui.TextSize(16)),
+						ui.PaddingElement(
+							ui.Insets{Top: 12},
+							ui.RowElement(
+								ui.SwitchElement(
+									autoToast.Value(),
+									ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
+										autoToast.Set(checked)
+										notify("自动提示设置已变更")
 									}),
 								),
+								ui.PaddingElement(ui.Insets{Left: 10, Top: 4}, ui.TextElement("操作后自动提示")),
 							),
-							ui.Padding(
-								ui.Insets{Top: 14},
-								ui.Text(fmt.Sprintf("每周容量目标：%.0f 小时", weeklyGoal.Value()), ui.TextSize(13), ui.TextColor(infoColor())),
+						),
+						ui.PaddingElement(
+							ui.Insets{Top: 12},
+							ui.RowElement(
+								ui.SwitchElement(
+									denseMode.Value(),
+									ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
+										denseMode.Set(checked)
+										notify("看板密度已调整")
+									}),
+								),
+								ui.PaddingElement(ui.Insets{Left: 10, Top: 4}, ui.TextElement("紧凑看板行")),
 							),
-							ui.Padding(
-								ui.Insets{Top: 8},
-								ui.Slider(
-									weeklyGoal.Value(),
-									ui.SliderMin(24),
-									ui.SliderMax(120),
-									ui.SliderStep(4),
-									ui.SliderOnChange(func(ctx *ui.Context, value float32) {
-										weeklyGoal.Set(value)
+						),
+						ui.PaddingElement(
+							ui.Insets{Top: 12},
+							ui.CheckboxElement(
+								"启用评审提醒",
+								reviewAlerts.Value(),
+								ui.CheckboxOnChange(func(ctx *ui.Context, checked bool) {
+									reviewAlerts.Set(checked)
+									notify("评审提醒设置已变更")
+								}),
+							),
+						),
+						ui.PaddingElement(
+							ui.Insets{Top: 14},
+							ui.TextElement(fmt.Sprintf("每周容量目标：%.0f 小时", weeklyGoal.Value()), ui.TextSize(13), ui.TextColor(infoColor())),
+						),
+						ui.PaddingElement(
+							ui.Insets{Top: 8},
+							ui.SliderElement(
+								weeklyGoal.Value(),
+								ui.SliderMin(24),
+								ui.SliderMax(120),
+								ui.SliderStep(4),
+								ui.SliderOnChange(func(ctx *ui.Context, value float32) {
+									weeklyGoal.Set(value)
+								}),
+							),
+						),
+					),
+					ui.CardBorder(th.SurfaceMuted, 1),
+				),
+			),
+			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				ui.CardElement(
+					ui.ColumnElement(
+						ui.TextElement("当前快照", ui.TextSize(16)),
+						ui.PaddingElement(
+							ui.Insets{Top: 10},
+							ui.TextElement(fmt.Sprintf("任务：总计 %d / 已完成 %d / 阻塞 %d", summary.Total, summary.Done, summary.Blocked)),
+						),
+						ui.PaddingElement(
+							ui.Insets{Top: 6},
+							ui.TextElement(fmt.Sprintf("当前页面：%s", pageLabel(page.Value()))),
+						),
+						ui.PaddingElement(
+							ui.Insets{Top: 6},
+							ui.TextElement(fmt.Sprintf("当前选中任务：%d", selectedID.Value())),
+						),
+						ui.PaddingElement(
+							ui.Insets{Top: 12},
+							ui.FillWidthElement(
+								ui.ButtonElement(
+									ui.TextElement("重置示例工作台"),
+									ui.ButtonBackground(withAlpha(dangerColor(), 230)),
+									ui.ButtonForeground(ui.NRGBA(255, 255, 255, 255)),
+									ui.OnClick(func(ctx *ui.Context) {
+										showResetDialog.Set(true)
 									}),
 								),
 							),
 						),
-						ui.CardBorder(th.SurfaceMuted, 1),
 					),
-				),
-				ui.Padding(
-					ui.Insets{Top: 12},
-					ui.Card(
-						ui.Column(
-							ui.Text("当前快照", ui.TextSize(16)),
-							ui.Padding(
-								ui.Insets{Top: 10},
-								ui.Text(fmt.Sprintf("任务：总计 %d / 已完成 %d / 阻塞 %d", summary.Total, summary.Done, summary.Blocked)),
-							),
-							ui.Padding(
-								ui.Insets{Top: 6},
-								ui.Text(fmt.Sprintf("当前页面：%s", pageLabel(page.Value()))),
-							),
-							ui.Padding(
-								ui.Insets{Top: 6},
-								ui.Text(fmt.Sprintf("当前选中任务：%d", selectedID.Value())),
-							),
-							ui.Padding(
-								ui.Insets{Top: 12},
-								ui.FillWidth(
-									ui.Button(
-										ui.Text("重置示例工作台"),
-										ui.ButtonBackground(withAlpha(dangerColor(), 230)),
-										ui.ButtonForeground(ui.NRGBA(255, 255, 255, 255)),
-										ui.OnClick(func(ctx *ui.Context) {
-											showResetDialog.Set(true)
-										}),
-									),
-								),
-							),
-						),
-						ui.CardBorder(th.SurfaceMuted, 1),
-					),
+					ui.CardBorder(th.SurfaceMuted, 1),
 				),
 			),
-			ui.ScrollVertical(true),
-		)
+		),
+		ui.ScrollVertical(true),
+	)
 
-		body := workspaceBody
-		switch page.Value() {
-		case pageDelivery:
-			body = deliveryBody
-		case pageSettings:
-			body = settingsBody
-		}
+	body := workspaceBody
+	switch page.Value() {
+	case pageDelivery:
+		body = deliveryBody
+	case pageSettings:
+		body = settingsBody
+	}
 
-		appBar := ui.AppBar(
-			ui.Column(
-				ui.Text("FluxUI 团队工作台", ui.TextSize(17)),
-				ui.Text("基于看板、详情和交付视图构建的完整示例应用。", ui.TextSize(11), ui.TextColor(infoColor())),
+	appBar := ui.AppBarElementWithSlots(
+		ui.ColumnElement(
+			ui.TextElement("FluxUI 团队工作台", ui.TextSize(17)),
+			ui.TextElement("基于看板、详情和交付视图构建的完整示例应用。", ui.TextSize(11), ui.TextColor(infoColor())),
+		),
+		nil,
+		[]ui.Element{
+			ui.ButtonElement(
+				ui.TextElement("新建任务"),
+				ui.ButtonPadding(ui.Symmetric(6, 10)),
+				ui.OnClick(func(ctx *ui.Context) {
+					showCreateDialog.Set(true)
+				}),
 			),
-			ui.AppBarActions(
-				ui.Button(
-					ui.Text("新建任务"),
-					ui.ButtonPadding(ui.Symmetric(6, 10)),
-					ui.OnClick(func(ctx *ui.Context) {
-						showCreateDialog.Set(true)
+			ui.ButtonElement(
+				ui.TextElement("重置"),
+				ui.ButtonPadding(ui.Symmetric(6, 10)),
+				ui.OnClick(func(ctx *ui.Context) {
+					showResetDialog.Set(true)
+				}),
+			),
+		},
+	)
+
+	bottomNav := ui.BottomNavigationElement(
+		page.Value(),
+		[]ui.ElementNavItem{
+			{Key: pageWorkspace, Label: "工作台", Icon: ui.TextElement("W", ui.TextSize(12))},
+			{Key: pageDelivery, Label: "交付", Icon: ui.TextElement("D", ui.TextSize(12))},
+			{Key: pageSettings, Label: "设置", Icon: ui.TextElement("S", ui.TextSize(12))},
+		},
+		ui.BottomNavAlignmentOf(ui.BottomNavAlignSpaceEvenly),
+		ui.BottomNavOnChange(func(ctx *ui.Context, key string) {
+			page.Set(key)
+			notify("已切换页面：" + pageLabel(key))
+		}),
+	)
+
+	layers := []ui.Element{
+		ui.ColumnElement(
+			appBar,
+			ui.ExpandedElement(
+				ui.PaddingElement(
+					ui.Insets{Left: 14, Right: 14, Top: 12, Bottom: 12},
+					body,
+				),
+			),
+			bottomNav,
+		),
+	}
+
+	if showCreateDialog.Value() {
+		layers = append(layers, ui.DialogElement(
+			showCreateDialog.Value(),
+			ui.ColumnElement(
+				ui.TextFieldElement(
+					newTitle.Value(),
+					ui.InputPlaceholder("任务标题"),
+					ui.InputOnChange(func(ctx *ui.Context, value string) {
+						newTitle.Set(value)
 					}),
 				),
-				ui.Button(
-					ui.Text("重置"),
-					ui.ButtonPadding(ui.Symmetric(6, 10)),
-					ui.OnClick(func(ctx *ui.Context) {
-						showResetDialog.Set(true)
-					}),
-				),
-			),
-		)
-
-		bottomNav := ui.BottomNavigation(
-			page.Value(),
-			[]ui.NavItem{
-				{Key: pageWorkspace, Label: "工作台", Icon: ui.Text("W", ui.TextSize(12))},
-				{Key: pageDelivery, Label: "交付", Icon: ui.Text("D", ui.TextSize(12))},
-				{Key: pageSettings, Label: "设置", Icon: ui.Text("S", ui.TextSize(12))},
-			},
-			ui.BottomNavAlignmentOf(ui.BottomNavAlignSpaceEvenly),
-			ui.BottomNavOnChange(func(ctx *ui.Context, key string) {
-				page.Set(key)
-				notify("已切换页面：" + pageLabel(key))
-			}),
-		)
-
-		layers := []ui.Widget{
-			ui.Column(
-				appBar,
-				ui.Expanded(
-					ui.Padding(
-						ui.Insets{Left: 14, Right: 14, Top: 12, Bottom: 12},
-						body,
-					),
-				),
-				bottomNav,
-			),
-		}
-
-		if showCreateDialog.Value() {
-			layers = append(layers, ui.Dialog(
-				showCreateDialog.Value(),
-				ui.Column(
-					ui.TextField(
-						newTitle.Value(),
-						ui.InputPlaceholder("任务标题"),
+				ui.PaddingElement(
+					ui.Insets{Top: 10},
+					ui.TextFieldElement(
+						newOwner.Value(),
+						ui.InputPlaceholder("负责人"),
 						ui.InputOnChange(func(ctx *ui.Context, value string) {
-							newTitle.Set(value)
+							newOwner.Set(value)
 						}),
 					),
-					ui.Padding(
-						ui.Insets{Top: 10},
-						ui.TextField(
-							newOwner.Value(),
-							ui.InputPlaceholder("负责人"),
-							ui.InputOnChange(func(ctx *ui.Context, value string) {
-								newOwner.Set(value)
-							}),
-						),
-					),
-					ui.Padding(
-						ui.Insets{Top: 10},
-						ui.Select(
-							newPriority.Value(),
-							[]ui.SelectOptionItem[string]{
-								{Label: "低优先级", Value: "low"},
-								{Label: "中优先级", Value: "medium"},
-								{Label: "高优先级", Value: "high"},
-							},
-							ui.SelectPlaceholder[string]("优先级"),
-							ui.SelectOnChange[string](func(ctx *ui.Context, value string) {
-								newPriority.Set(value)
-							}),
-						),
-					),
-					ui.Padding(
-						ui.Insets{Top: 10},
-						ui.Checkbox(
-							"初始为阻塞",
-							newBlocked.Value(),
-							ui.CheckboxOnChange(func(ctx *ui.Context, checked bool) {
-								newBlocked.Set(checked)
-							}),
-						),
+				),
+				ui.PaddingElement(
+					ui.Insets{Top: 10},
+					ui.SelectElement(
+						newPriority.Value(),
+						[]ui.SelectOptionItem[string]{
+							{Label: "低优先级", Value: "low"},
+							{Label: "中优先级", Value: "medium"},
+							{Label: "高优先级", Value: "high"},
+						},
+						ui.SelectPlaceholder[string]("优先级"),
+						ui.SelectOnChange[string](func(ctx *ui.Context, value string) {
+							newPriority.Set(value)
+						}),
 					),
 				),
-				ui.DialogTitle("创建任务"),
-				ui.DialogWidth(360),
-				ui.DialogOnOpenChange(func(ctx *ui.Context, open bool) {
-					showCreateDialog.Set(open)
-				}),
-				ui.DialogOnCancel(func(ctx *ui.Context) {
-					showCreateDialog.Set(false)
-				}),
-				ui.DialogOnConfirm(func(ctx *ui.Context) {
-					createTask()
-				}),
-			))
-		}
+				ui.PaddingElement(
+					ui.Insets{Top: 10},
+					ui.CheckboxElement(
+						"初始为阻塞",
+						newBlocked.Value(),
+						ui.CheckboxOnChange(func(ctx *ui.Context, checked bool) {
+							newBlocked.Set(checked)
+						}),
+					),
+				),
+			),
+			ui.DialogTitle("创建任务"),
+			ui.DialogWidth(360),
+			ui.DialogOnOpenChange(func(ctx *ui.Context, open bool) {
+				showCreateDialog.Set(open)
+			}),
+			ui.DialogOnCancel(func(ctx *ui.Context) {
+				showCreateDialog.Set(false)
+			}),
+			ui.DialogOnConfirm(func(ctx *ui.Context) {
+				createTask()
+			}),
+		))
+	}
 
-		if showResetDialog.Value() {
-			layers = append(layers, ui.Dialog(
-				showResetDialog.Value(),
-				ui.Text("恢复此演示工作台的示例数据、筛选条件和选中状态。"),
-				ui.DialogTitle("重置工作台"),
-				ui.DialogWidth(340),
-				ui.DialogOnOpenChange(func(ctx *ui.Context, open bool) {
-					showResetDialog.Set(open)
-				}),
-				ui.DialogOnCancel(func(ctx *ui.Context) {
-					showResetDialog.Set(false)
-				}),
-				ui.DialogOnConfirm(func(ctx *ui.Context) {
-					resetDemo()
-				}),
-			))
-		}
+	if showResetDialog.Value() {
+		layers = append(layers, ui.DialogElement(
+			showResetDialog.Value(),
+			ui.TextElement("恢复此演示工作台的示例数据、筛选条件和选中状态。"),
+			ui.DialogTitle("重置工作台"),
+			ui.DialogWidth(340),
+			ui.DialogOnOpenChange(func(ctx *ui.Context, open bool) {
+				showResetDialog.Set(open)
+			}),
+			ui.DialogOnCancel(func(ctx *ui.Context) {
+				showResetDialog.Set(false)
+			}),
+			ui.DialogOnConfirm(func(ctx *ui.Context) {
+				resetDemo()
+			}),
+		))
+	}
 
-		if toastMessage.Value() != "" {
-			layers = append(layers, ui.Toast(
-				toastMessage.Value(),
-				ui.ToastTypeOf(ui.ToastSuccess),
-				ui.ToastPositionOf(ui.ToastBottom),
-				ui.ToastDuration(2200*time.Millisecond),
-				ui.ToastOnClose(func(ctx *ui.Context) {
-					toastMessage.Set("")
-				}),
-			))
-		}
+	if toastMessage.Value() != "" {
+		layers = append(layers, ui.ToastElement(
+			toastMessage.Value(),
+			ui.ToastTypeOf(ui.ToastSuccess),
+			ui.ToastPositionOf(ui.ToastBottom),
+			ui.ToastDuration(2200*time.Millisecond),
+			ui.ToastOnClose(func(ctx *ui.Context) {
+				toastMessage.Set("")
+			}),
+		))
+	}
 
-		return ui.Container(
-			ui.Style{Background: th.Surface},
-			ui.Stack(layers...),
-		)
-	}, ui.Title("FluxUI 团队工作台"), ui.Size(1440, 920))
+	return ui.ContainerDecorationElement(
+		ui.Bg(th.Surface),
+		ui.StackElement(layers...),
+	)
+}
+
+func main() {
+	_ = ui.RunElement(App, ui.Title("FluxUI 团队工作台"), ui.Size(1440, 920))
 }
 
 func sampleTasks() []task {
@@ -1209,17 +1187,17 @@ func listHeight(compact bool) float32 {
 	return 520
 }
 
-func metricCard(th *ui.Theme, title, value, caption string, accent color.NRGBA, progress float32) ui.Widget {
-	return ui.Card(
-		ui.Column(
-			ui.Text(title, ui.TextSize(13), ui.TextColor(ui.NRGBA(102, 112, 128, 255))),
-			ui.Padding(
+func metricCard(th *ui.Theme, title, value, caption string, accent color.NRGBA, progress float32) ui.Element {
+	return ui.CardElement(
+		ui.ColumnElement(
+			ui.TextElement(title, ui.TextSize(13), ui.TextColor(ui.NRGBA(102, 112, 128, 255))),
+			ui.PaddingElement(
 				ui.Insets{Top: 6},
-				ui.Text(value, ui.TextSize(24)),
+				ui.TextElement(value, ui.TextSize(24)),
 			),
-			ui.Padding(
+			ui.PaddingElement(
 				ui.Insets{Top: 8},
-				ui.ProgressBar(
+				ui.ProgressBarElement(
 					clamp01(progress)*100,
 					ui.ProgressMin(0),
 					ui.ProgressMax(100),
@@ -1227,16 +1205,16 @@ func metricCard(th *ui.Theme, title, value, caption string, accent color.NRGBA, 
 					ui.ProgressFillColor(accent),
 				),
 			),
-			ui.Padding(
+			ui.PaddingElement(
 				ui.Insets{Top: 8},
-				ui.Text(caption, ui.TextSize(12), ui.TextColor(infoColor())),
+				ui.TextElement(caption, ui.TextSize(12), ui.TextColor(infoColor())),
 			),
 		),
 		ui.CardBorder(th.SurfaceMuted, 1),
 	)
 }
 
-func taskCard(th *ui.Theme, item task, selected bool, dense bool, onClick func(ctx *ui.Context)) ui.Widget {
+func taskCard(th *ui.Theme, item task, selected bool, dense bool, onClick func(ctx *ui.Context)) ui.Element {
 	padding := float32(12)
 	if dense {
 		padding = 10
@@ -1249,15 +1227,15 @@ func taskCard(th *ui.Theme, item task, selected bool, dense bool, onClick func(c
 		borderColor = th.Primary
 	}
 
-	return ui.Card(
-		ui.Column(
-			ui.Row(
-				ui.Expanded(
-					ui.Column(
-						ui.Text(item.Title, ui.TextSize(15)),
-						ui.Padding(
+	return ui.CardElement(
+		ui.ColumnElement(
+			ui.RowElement(
+				ui.ExpandedElement(
+					ui.ColumnElement(
+						ui.TextElement(item.Title, ui.TextSize(15)),
+						ui.PaddingElement(
 							ui.Insets{Top: 6},
-							ui.Text(
+							ui.TextElement(
 								fmt.Sprintf("%s  |  %s", item.Owner, item.Due),
 								ui.TextSize(12),
 								ui.TextColor(infoColor()),
@@ -1265,23 +1243,23 @@ func taskCard(th *ui.Theme, item task, selected bool, dense bool, onClick func(c
 						),
 					),
 				),
-				func() ui.Widget {
+				func() ui.Element {
 					if item.Blocked {
 						return blockedBadge()
 					}
-					return ui.Spacer(0, 0)
+					return ui.SpacerElement(0, 0)
 				}(),
 			),
-			ui.Padding(
+			ui.PaddingElement(
 				ui.Insets{Top: 10},
-				ui.Row(
+				ui.RowElement(
 					statusBadge(th, item.Status),
-					ui.Padding(ui.Insets{Left: 8}, priorityBadge(item.Priority)),
+					ui.PaddingElement(ui.Insets{Left: 8}, priorityBadge(item.Priority)),
 				),
 			),
-			ui.Padding(
+			ui.PaddingElement(
 				ui.Insets{Top: 10},
-				ui.ProgressBar(
+				ui.ProgressBarElement(
 					item.Progress*100,
 					ui.ProgressMin(0),
 					ui.ProgressMax(100),
@@ -1297,53 +1275,49 @@ func taskCard(th *ui.Theme, item task, selected bool, dense bool, onClick func(c
 	)
 }
 
-func buildActivityView(entries []string, th *ui.Theme) ui.Widget {
+func buildActivityView(entries []string, th *ui.Theme) ui.Element {
 	if len(entries) == 0 {
-		return ui.Text("暂无动态记录。", ui.TextColor(infoColor()))
+		return ui.TextElement("暂无动态记录。", ui.TextColor(infoColor()))
 	}
 
-	items := make([]ui.Widget, 0, len(entries))
+	items := make([]ui.Element, 0, len(entries))
 	for _, entry := range entries {
 		items = append(items,
-			ui.Padding(
+			ui.PaddingElement(
 				ui.Insets{Bottom: 8},
-				ui.Container(
-					ui.Style{
-						Background: withAlpha(th.SurfaceMuted, 20),
-						Padding:    ui.Symmetric(8, 10),
-						Radius:     8,
-					},
-					ui.Text(entry, ui.TextSize(12)),
+				ui.ContainerDecorationElement(
+					ui.Bg(withAlpha(th.SurfaceMuted, 20)).WithPad(ui.Symmetric(8, 10)).WithRad(8),
+					ui.TextElement(entry, ui.TextSize(12)),
 				),
 			),
 		)
 	}
 
-	return ui.FixedHeight(
+	return ui.FixedHeightElement(
 		320,
-		ui.ScrollView(
-			ui.Column(items...),
+		ui.ScrollViewElement(
+			ui.ColumnElement(items...),
 			ui.ScrollVertical(true),
 			ui.ScrollAutoToEndKey(len(entries)),
 		),
 	)
 }
 
-func ownerCard(th *ui.Theme, owner ownerLoad) ui.Widget {
-	return ui.Card(
-		ui.Column(
-			ui.Text(owner.Name, ui.TextSize(15)),
-			ui.Padding(
+func ownerCard(th *ui.Theme, owner ownerLoad) ui.Element {
+	return ui.CardElement(
+		ui.ColumnElement(
+			ui.TextElement(owner.Name, ui.TextSize(15)),
+			ui.PaddingElement(
 				ui.Insets{Top: 6},
-				ui.Text(
+				ui.TextElement(
 					fmt.Sprintf("%d 个任务  |  %d 个评审中", owner.Count, owner.ReviewCount),
 					ui.TextSize(12),
 					ui.TextColor(infoColor()),
 				),
 			),
-			ui.Padding(
+			ui.PaddingElement(
 				ui.Insets{Top: 10},
-				ui.ProgressBar(
+				ui.ProgressBarElement(
 					owner.AvgProgress*100,
 					ui.ProgressMin(0),
 					ui.ProgressMax(100),
@@ -1356,16 +1330,16 @@ func ownerCard(th *ui.Theme, owner ownerLoad) ui.Widget {
 	)
 }
 
-func buildStatusLane(th *ui.Theme, label string, count int, total int, accent color.NRGBA) ui.Widget {
+func buildStatusLane(th *ui.Theme, label string, count int, total int, accent color.NRGBA) ui.Element {
 	progress := float32(count) / maxFloat32(1, float32(total))
-	return ui.Column(
-		ui.Row(
-			ui.Text(label, ui.TextSize(13)),
-			ui.Padding(ui.Insets{Left: 8}, ui.Text(fmt.Sprintf("%d", count), ui.TextSize(12), ui.TextColor(infoColor()))),
+	return ui.ColumnElement(
+		ui.RowElement(
+			ui.TextElement(label, ui.TextSize(13)),
+			ui.PaddingElement(ui.Insets{Left: 8}, ui.TextElement(fmt.Sprintf("%d", count), ui.TextSize(12), ui.TextColor(infoColor()))),
 		),
-		ui.Padding(
+		ui.PaddingElement(
 			ui.Insets{Top: 6},
-			ui.ProgressBar(
+			ui.ProgressBarElement(
 				progress*100,
 				ui.ProgressMin(0),
 				ui.ProgressMax(100),
@@ -1376,7 +1350,7 @@ func buildStatusLane(th *ui.Theme, label string, count int, total int, accent co
 	)
 }
 
-func buildRiskQueue(th *ui.Theme, items []task) ui.Widget {
+func buildRiskQueue(th *ui.Theme, items []task) ui.Element {
 	risky := make([]task, 0, len(items))
 	for _, item := range items {
 		if item.Blocked || item.Status == "review" {
@@ -1384,7 +1358,7 @@ func buildRiskQueue(th *ui.Theme, items []task) ui.Widget {
 		}
 	}
 	if len(risky) == 0 {
-		return ui.Text("当前示例队列没有评审或阻塞风险。", ui.TextColor(infoColor()))
+		return ui.TextElement("当前示例队列没有评审或阻塞风险。", ui.TextColor(infoColor()))
 	}
 
 	sort.Slice(risky, func(i, j int) bool {
@@ -1394,31 +1368,31 @@ func buildRiskQueue(th *ui.Theme, items []task) ui.Widget {
 		return priorityRank(risky[i].Priority) < priorityRank(risky[j].Priority)
 	})
 
-	return ui.FixedHeight(
+	return ui.FixedHeightElement(
 		280,
-		ui.ListView(
+		ui.ListViewElement(
 			len(risky),
-			func(ctx *ui.Context, index int) ui.Widget {
+			func(ctx *ui.Context, index int) ui.Element {
 				item := risky[index]
-				return ui.Card(
-					ui.Column(
-						ui.Text(item.Title, ui.TextSize(14)),
-						ui.Padding(
+				return ui.CardElement(
+					ui.ColumnElement(
+						ui.TextElement(item.Title, ui.TextSize(14)),
+						ui.PaddingElement(
 							ui.Insets{Top: 6},
-							ui.Row(
+							ui.RowElement(
 								statusBadge(th, item.Status),
-								ui.Padding(ui.Insets{Left: 8}, priorityBadge(item.Priority)),
-								func() ui.Widget {
+								ui.PaddingElement(ui.Insets{Left: 8}, priorityBadge(item.Priority)),
+								func() ui.Element {
 									if item.Blocked {
-										return ui.Padding(ui.Insets{Left: 8}, blockedBadge())
+										return ui.PaddingElement(ui.Insets{Left: 8}, blockedBadge())
 									}
-									return ui.Spacer(0, 0)
+									return ui.SpacerElement(0, 0)
 								}(),
 							),
 						),
-						ui.Padding(
+						ui.PaddingElement(
 							ui.Insets{Top: 8},
-							ui.Text(item.Owner+"  |  "+item.Due, ui.TextSize(12), ui.TextColor(infoColor())),
+							ui.TextElement(item.Owner+"  |  "+item.Due, ui.TextSize(12), ui.TextColor(infoColor())),
 						),
 					),
 					ui.CardBorder(th.SurfaceMuted, 1),
@@ -1429,64 +1403,60 @@ func buildRiskQueue(th *ui.Theme, items []task) ui.Widget {
 	)
 }
 
-func stackCards(compact bool, gap float32, cards ...ui.Widget) ui.Widget {
-	children := make([]ui.Widget, 0, len(cards)*2)
+func stackCards(compact bool, gap float32, cards ...ui.Element) ui.Element {
+	children := make([]ui.Element, 0, len(cards)*2)
 	for index, card := range cards {
 		if card == nil {
 			continue
 		}
 		if index > 0 {
 			if compact {
-				children = append(children, ui.VSpacer(gap))
+				children = append(children, ui.VSpacerElement(gap))
 			} else {
-				children = append(children, ui.HSpacer(gap))
+				children = append(children, ui.HSpacerElement(gap))
 			}
 		}
 		if compact {
 			children = append(children, card)
 		} else {
-			children = append(children, ui.Expanded(card))
+			children = append(children, ui.ExpandedElement(card))
 		}
 	}
 
 	if compact {
-		return ui.Column(children...)
+		return ui.ColumnElement(children...)
 	}
-	return ui.Row(children...)
+	return ui.RowElement(children...)
 }
 
-func sectionHeader(title, subtitle string) ui.Widget {
-	return ui.Column(
-		ui.Text(title, ui.TextSize(16)),
-		ui.Padding(
+func sectionHeader(title, subtitle string) ui.Element {
+	return ui.ColumnElement(
+		ui.TextElement(title, ui.TextSize(16)),
+		ui.PaddingElement(
 			ui.Insets{Top: 4},
-			ui.Text(subtitle, ui.TextSize(12), ui.TextColor(ui.NRGBA(102, 112, 128, 255))),
+			ui.TextElement(subtitle, ui.TextSize(12), ui.TextColor(ui.NRGBA(102, 112, 128, 255))),
 		),
 	)
 }
 
-func statusBadge(th *ui.Theme, status string) ui.Widget {
+func statusBadge(th *ui.Theme, status string) ui.Element {
 	label := statusLabel(status)
 	return badge(label, ui.NRGBA(255, 255, 255, 255), statusColor(th, status))
 }
 
-func priorityBadge(priority string) ui.Widget {
+func priorityBadge(priority string) ui.Element {
 	label := priorityLabel(priority)
 	return badge(label, ui.NRGBA(255, 255, 255, 255), priorityColor(priority))
 }
 
-func blockedBadge() ui.Widget {
+func blockedBadge() ui.Element {
 	return badge("阻塞", ui.NRGBA(35, 39, 46, 255), warnColor())
 }
 
-func badge(label string, foreground, background color.NRGBA) ui.Widget {
-	return ui.Container(
-		ui.Style{
-			Background: background,
-			Padding:    ui.Symmetric(4, 8),
-			Radius:     999,
-		},
-		ui.Text(label, ui.TextSize(11), ui.TextColor(foreground)),
+func badge(label string, foreground, background color.NRGBA) ui.Element {
+	return ui.ContainerDecorationElement(
+		ui.Bg(background).WithPad(ui.Symmetric(4, 8)).WithRad(999),
+		ui.TextElement(label, ui.TextSize(11), ui.TextColor(foreground)),
 	)
 }
 

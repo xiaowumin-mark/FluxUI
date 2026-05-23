@@ -153,6 +153,16 @@ func RunMulti(windows ...WindowSpec) error {
 	return fluxapp.RunMulti(windows...)
 }
 
+// WindowElement 创建 React-style 多窗口启动中的单个窗口定义。
+func WindowElement(root Component, opts ...AppOption) WindowSpec {
+	return fluxapp.Window(elementRootBuilder(root), opts...)
+}
+
+// RunElementMulti 同时启动多个 React-style 窗口（桌面端）。
+func RunElementMulti(windows ...WindowSpec) error {
+	return fluxapp.RunMulti(windows...)
+}
+
 // ListWindows 返回当前所有存活窗口。
 func ListWindows() []WindowHandle {
 	return fluxapp.ListWindows()

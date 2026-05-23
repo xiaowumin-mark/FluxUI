@@ -27,6 +27,9 @@ type NavigateFunc = router.NavigateFunc
 // Location 描述当前路由位置。
 type Location = router.Location
 
+// RouteInfo 描述当前匹配的路由元数据。
+type RouteInfo = router.RouteInfo
+
 // Transition 定义页面切换动画类型。
 type Transition = router.Transition
 
@@ -88,6 +91,13 @@ func RouterNotFound(builder func(ctx *Context) Widget) RouterOption {
 	})
 }
 
+// RouterNotFoundElement 设置 React-style Element 404 页面。
+func RouterNotFoundElement(component Component) RouterOption {
+	return router.RouterNotFound(func(ctx *internal.Context) widget.Widget {
+		return renderRouterElementComponent(ctx, "router:not-found", component)
+	})
+}
+
 // RouterBeforeEach 设置全局路由守卫。
 func RouterBeforeEach(fn func(ctx *Context, from, to string) bool) RouterOption {
 	return router.RouterBeforeEach(func(ctx *internal.Context, from, to string) bool {
@@ -132,6 +142,11 @@ func UseLocation(ctx *Context) *Location {
 // UseParams 返回当前路由参数。
 func UseParams(ctx *Context) *RouteParamsType {
 	return router.UseParams(ctx)
+}
+
+// UseRoute 返回当前匹配路由的元数据。
+func UseRoute(ctx *Context) *RouteInfo {
+	return router.UseRoute(ctx)
 }
 
 // ──────────────────────────────

@@ -67,8 +67,8 @@ func App(ctx *ui.Context) ui.Element {
 	}
 	snapshot := workspaceSnapshot{Settings: settings, Colors: buildColors(settings.Accent)}
 
-	return ui.ContainerElement(
-		ui.Style{Background: snapshot.Colors.Surface, Padding: ui.All(18)},
+	return ui.ContainerDecorationElement(
+		ui.Bg(snapshot.Colors.Surface).WithPad(ui.All(18)),
 		ui.ColumnElement(
 			header(snapshot),
 			ui.SpacerElement(0, 12),
@@ -250,14 +250,14 @@ func BridgePage(snapshot workspaceSnapshot) ui.Component {
 			ui.CardRadius(12),
 		)
 
-		legacyBridge := ui.FromWidget(ui.Card(
-			ui.Column(
-				ui.Text("FromWidget 逃生口", ui.TextSize(14)),
-				ui.Padding(ui.Insets{Top: 6}, ui.Text("自定义或旧版 Widget 仍可作为长期桥接路径嵌入。", ui.TextSize(12), ui.TextColor(snapshot.Colors.Muted))),
+		legacyBridge := ui.CardElement(
+			ui.ColumnElement(
+				ui.TextElement("FromWidget 逃生口", ui.TextSize(14)),
+				ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("自定义或旧版 Widget 仍可作为长期桥接路径嵌入。", ui.TextSize(12), ui.TextColor(snapshot.Colors.Muted))),
 			),
 			ui.CardBackground(snapshot.Colors.PanelMuted),
 			ui.CardRadius(12),
-		))
+		)
 
 		return pageCard(snapshot,
 			"桥接",
@@ -339,22 +339,22 @@ func TaskCard(ctx *ui.Context) ui.Element {
 	if expanded.Value() {
 		children = append(children,
 			ui.SpacerElement(0, 8),
-			ui.ContainerElement(
-				ui.Style{Background: snapshot.Colors.PanelMuted, Padding: ui.All(10), Radius: 10},
+			ui.ContainerDecorationElement(
+				ui.Bg(snapshot.Colors.PanelMuted).WithPad(ui.All(10)).WithRad(10),
 				ui.TextElement("此本地状态存储在使用任务 ID 作为键值的组件 HookSlot 中。", ui.TextSize(12), ui.TextColor(snapshot.Colors.Muted)),
 			),
 		)
 	}
 
-	return ui.ContainerElement(
-		ui.Style{Background: ui.NRGBA(255, 255, 255, 255), Padding: cardPadding(snapshot.Settings.Compact), Radius: 14},
+	return ui.ContainerDecorationElement(
+		ui.Bg(ui.NRGBA(255, 255, 255, 255)).WithPad(cardPadding(snapshot.Settings.Compact)).WithRad(14),
 		ui.ColumnElement(children...),
 	)
 }
 
 func header(snapshot workspaceSnapshot) ui.Element {
-	return ui.ContainerElement(
-		ui.Style{Background: snapshot.Colors.Panel, Padding: ui.All(14), Radius: 18},
+	return ui.ContainerDecorationElement(
+		ui.Bg(snapshot.Colors.Panel).WithPad(ui.All(14)).WithRad(18),
 		ui.RowElement(
 			ui.ColumnElement(
 				ui.TextElement(snapshot.Settings.Name, ui.TextSize(24), ui.TextColor(snapshot.Colors.Text)),
@@ -374,8 +374,8 @@ func pageCard(snapshot workspaceSnapshot, title, subtitle string, children ...ui
 }
 
 func panel(snapshot workspaceSnapshot, children ...ui.Element) ui.Element {
-	return ui.ContainerElement(
-		ui.Style{Background: snapshot.Colors.Panel, Padding: ui.All(16), Radius: 18},
+	return ui.ContainerDecorationElement(
+		ui.Bg(snapshot.Colors.Panel).WithPad(ui.All(16)).WithRad(18),
 		ui.ColumnElement(children...),
 	)
 }
@@ -395,8 +395,8 @@ func summaryRow(snapshot workspaceSnapshot, done, total int) ui.Element {
 }
 
 func metricCard(snapshot workspaceSnapshot, label, value string) ui.Element {
-	return ui.ContainerElement(
-		ui.Style{Background: snapshot.Colors.PanelMuted, Padding: ui.All(12), Radius: 14},
+	return ui.ContainerDecorationElement(
+		ui.Bg(snapshot.Colors.PanelMuted).WithPad(ui.All(12)).WithRad(14),
 		ui.ColumnElement(
 			ui.TextElement(label, ui.TextSize(12), ui.TextColor(snapshot.Colors.Muted)),
 			ui.TextElement(value, ui.TextSize(20), ui.TextColor(snapshot.Colors.Accent)),
@@ -413,8 +413,8 @@ func routeBadge(snapshot workspaceSnapshot, location *ui.Location) ui.Element {
 }
 
 func infoBox(snapshot workspaceSnapshot, label, value string) ui.Element {
-	return ui.ContainerElement(
-		ui.Style{Background: snapshot.Colors.PanelMuted, Padding: ui.All(10), Radius: 12},
+	return ui.ContainerDecorationElement(
+		ui.Bg(snapshot.Colors.PanelMuted).WithPad(ui.All(10)).WithRad(12),
 		ui.ColumnElement(
 			ui.TextElement(label, ui.TextSize(12), ui.TextColor(snapshot.Colors.Muted)),
 			ui.TextElement(value, ui.TextSize(14), ui.TextColor(snapshot.Colors.Text)),
@@ -423,8 +423,8 @@ func infoBox(snapshot workspaceSnapshot, label, value string) ui.Element {
 }
 
 func settingToggle(snapshot workspaceSnapshot, label string, value *statepkg.State[bool], helper string) ui.Element {
-	return ui.ContainerElement(
-		ui.Style{Background: snapshot.Colors.PanelMuted, Padding: ui.All(12), Radius: 14},
+	return ui.ContainerDecorationElement(
+		ui.Bg(snapshot.Colors.PanelMuted).WithPad(ui.All(12)).WithRad(14),
 		ui.ColumnElement(
 			ui.RowElement(
 				ui.SwitchElement(value.Value(), ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {

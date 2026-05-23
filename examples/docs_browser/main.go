@@ -88,7 +88,7 @@ func main() {
 		}()
 	}
 
-	_ = ui.Run(func(ctx *ui.Context) ui.Widget {
+	app := func(ctx *ui.Context) ui.Element {
 		applyRemoteDocsResult(runtimeState)
 		docs := runtimeState.Docs
 		loadErr := runtimeState.LoadErr
@@ -97,46 +97,29 @@ func main() {
 
 		th := ui.UseTheme(ctx)
 
-		selectedDocID := ui.State[string](ctx)
-		searchKeyword := ui.State[string](ctx)
-		demoInit := ui.State[bool](ctx)
-
-		buttonCount := ui.State[int](ctx)
-		inputValue := ui.State[string](ctx)
-		checkboxValue := ui.State[bool](ctx)
-		switchValue := ui.State[bool](ctx)
-		sliderValue := ui.State[float32](ctx)
-		radioValue := ui.State[string](ctx)
-		selectValue := ui.State[string](ctx)
-		tabValue := ui.State[string](ctx)
-		dialogOpen := ui.State[bool](ctx)
-		popupOpen := ui.State[bool](ctx)
-		toastMessage := ui.State[string](ctx)
-		bottomNavValue := ui.State[string](ctx)
-		clickCount := ui.State[int](ctx)
-		appbarActionCount := ui.State[int](ctx)
-		listReachEndCount := ui.State[int](ctx)
-		hookDemoCount := ui.State[int](ctx)
-		hookDemoShowChild := ui.State[bool](ctx)
-		hookDemoLogs := ui.State[[]string](ctx)
-		routerDemoAllowSettings := ui.State[bool](ctx)
-		routerDemoUserID := ui.State[string](ctx)
-		routerDemoLog := ui.State[string](ctx)
-
-		if !demoInit.Value() {
-			inputValue.Set("FluxUI")
-			checkboxValue.Set(true)
-			switchValue.Set(true)
-			sliderValue.Set(40)
-			radioValue.Set("layout")
-			selectValue.Set("medium")
-			tabValue.Set("overview")
-			bottomNavValue.Set("home")
-			routerDemoAllowSettings.Set(true)
-			routerDemoUserID.Set("u1001")
-			routerDemoLog.Set("Router demo ready")
-			demoInit.Set(true)
-		}
+		selectedDocID := ui.UseState(ctx, "")
+		searchKeyword := ui.UseState(ctx, "")
+		buttonCount := ui.UseState(ctx, 0)
+		inputValue := ui.UseState(ctx, "FluxUI")
+		checkboxValue := ui.UseState(ctx, true)
+		switchValue := ui.UseState(ctx, true)
+		sliderValue := ui.UseState(ctx, float32(40))
+		radioValue := ui.UseState(ctx, "layout")
+		selectValue := ui.UseState(ctx, "medium")
+		tabValue := ui.UseState(ctx, "overview")
+		dialogOpen := ui.UseState(ctx, false)
+		popupOpen := ui.UseState(ctx, false)
+		toastMessage := ui.UseState(ctx, "")
+		bottomNavValue := ui.UseState(ctx, "home")
+		clickCount := ui.UseState(ctx, 0)
+		appbarActionCount := ui.UseState(ctx, 0)
+		listReachEndCount := ui.UseState(ctx, 0)
+		hookDemoCount := ui.UseState(ctx, 0)
+		hookDemoShowChild := ui.UseState(ctx, false)
+		hookDemoLogs := ui.UseState(ctx, []string{})
+		routerDemoAllowSettings := ui.UseState(ctx, true)
+		routerDemoUserID := ui.UseState(ctx, "u1001")
+		routerDemoLog := ui.UseState(ctx, "Router demo ready")
 
 		if selectedDocID.Value() == "" && len(docs) > 0 {
 			selectedDocID.Set(docs[0].Meta.ID)
@@ -149,9 +132,9 @@ func main() {
 			currentDoc = &docs[0]
 		}
 
-		buildDemo := func(doc *widgetDoc) ui.Widget {
+		buildDemo := func(doc *widgetDoc) ui.Element {
 			if doc == nil {
-				return ui.Text("暂无示例")
+				return ui.TextElement("暂无示例")
 			}
 
 			demoID := doc.Meta.Example.ID
@@ -161,159 +144,159 @@ func main() {
 
 			switch demoID {
 			case "row_basic":
-				return ui.Row(
-					ui.Container(
+				return ui.RowElement(
+					ui.ContainerElement(
 						ui.Style{Background: ui.NRGBA(30, 136, 229, 255), Padding: ui.All(10), Radius: 6},
-						ui.Text("A", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
+						ui.TextElement("A", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Left: 8},
-						ui.Container(
+						ui.ContainerElement(
 							ui.Style{Background: ui.NRGBA(67, 160, 71, 255), Padding: ui.All(10), Radius: 6},
-							ui.Text("B", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
+							ui.TextElement("B", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
 						),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Left: 8},
-						ui.Container(
+						ui.ContainerElement(
 							ui.Style{Background: ui.NRGBA(245, 124, 0, 255), Padding: ui.All(10), Radius: 6},
-							ui.Text("C", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
+							ui.TextElement("C", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
 						),
 					),
 				)
 			case "column_basic":
-				return ui.Column(
-					ui.Container(
+				return ui.ColumnElement(
+					ui.ContainerElement(
 						ui.Style{Background: ui.NRGBA(30, 136, 229, 255), Padding: ui.All(8), Radius: 6},
-						ui.Text("第一行", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
+						ui.TextElement("第一行", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.Container(
+						ui.ContainerElement(
 							ui.Style{Background: ui.NRGBA(67, 160, 71, 255), Padding: ui.All(8), Radius: 6},
-							ui.Text("第二行", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
+							ui.TextElement("第二行", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
 						),
 					),
 				)
 			case "stack_basic":
-				return ui.FixedHeight(
+				return ui.FixedHeightElement(
 					120,
-					ui.Fill(
-						ui.Stack(
-							ui.Fill(
-								ui.Container(
+					ui.FillElement(
+						ui.StackElement(
+							ui.FillElement(
+								ui.ContainerElement(
 									ui.Style{Background: ui.NRGBA(234, 239, 245, 255), Radius: 8},
-									ui.Spacer(0, 0),
+									ui.SpacerElement(0, 0),
 								),
 							),
-							ui.Padding(
+							ui.PaddingElement(
 								ui.Insets{Left: 12, Top: 12},
-								ui.Container(
+								ui.ContainerElement(
 									ui.Style{Background: ui.NRGBA(30, 136, 229, 255), Padding: ui.All(6), Radius: 6},
-									ui.Text("Layer 1", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
+									ui.TextElement("Layer 1", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
 								),
 							),
-							ui.Center(
-								ui.Text("Center Layer", ui.TextColor(ui.NRGBA(15, 23, 42, 255)), ui.TextSize(14)),
+							ui.CenterElement(
+								ui.TextElement("Center Layer", ui.TextColor(ui.NRGBA(15, 23, 42, 255)), ui.TextSize(14)),
 							),
 						),
 					),
 				)
 			case "center_basic":
-				return ui.FixedHeight(
+				return ui.FixedHeightElement(
 					120,
-					ui.Fill(
-						ui.Container(
+					ui.FillElement(
+						ui.ContainerElement(
 							ui.Style{Background: ui.NRGBA(240, 244, 248, 255), Radius: 8},
-							ui.Center(ui.Text("居中内容", ui.TextSize(14))),
+							ui.CenterElement(ui.TextElement("居中内容", ui.TextSize(14))),
 						),
 					),
 				)
 			case "container_basic":
-				return ui.Container(
+				return ui.ContainerElement(
 					ui.Style{
 						Background: ui.NRGBA(30, 136, 229, 255),
 						Padding:    ui.All(16),
 						Radius:     10,
 					},
-					ui.Text("Container: 背景 + 内边距 + 圆角", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
+					ui.TextElement("Container: 背景 + 内边距 + 圆角", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
 				)
 			case "padding_basic":
-				return ui.Container(
+				return ui.ContainerElement(
 					ui.Style{
 						Background: ui.NRGBA(229, 236, 246, 255),
 						Radius:     8,
 					},
-					ui.Padding(
+					ui.PaddingElement(
 						ui.All(16),
-						ui.Text("Padding: 这里有 16dp 内边距"),
+						ui.TextElement("Padding: 这里有 16dp 内边距"),
 					),
 				)
 			case "spacer_basic":
-				return ui.Row(
-					ui.Text("左"),
-					ui.HSpacer(24),
-					ui.Text("右"),
-					ui.HSpacer(24),
-					ui.Column(
-						ui.Text("上"),
-						ui.VSpacer(8),
-						ui.Text("下"),
+				return ui.RowElement(
+					ui.TextElement("左"),
+					ui.HSpacerElement(24),
+					ui.TextElement("右"),
+					ui.HSpacerElement(24),
+					ui.ColumnElement(
+						ui.TextElement("上"),
+						ui.VSpacerElement(8),
+						ui.TextElement("下"),
 					),
 				)
 			case "divider_basic":
-				return ui.Column(
-					ui.Text("第一段内容"),
-					ui.Divider(ui.DividerThickness(1), ui.DividerColor(ui.NRGBA(176, 190, 197, 255)), ui.DividerMargin(ui.Insets{Top: 8, Bottom: 8})),
-					ui.Text("第二段内容"),
+				return ui.ColumnElement(
+					ui.TextElement("第一段内容"),
+					ui.DividerElement(ui.DividerThickness(1), ui.DividerColor(ui.NRGBA(176, 190, 197, 255)), ui.DividerMargin(ui.Insets{Top: 8, Bottom: 8})),
+					ui.TextElement("第二段内容"),
 				)
 			case "sizing_basic":
-				return ui.Column(
-					ui.Row(
-						ui.FixedWidth(
+				return ui.ColumnElement(
+					ui.RowElement(
+						ui.FixedWidthElement(
 							110,
-							ui.Container(
+							ui.ContainerElement(
 								ui.Style{Background: ui.NRGBA(3, 169, 244, 255), Padding: ui.All(8), Radius: 6},
-								ui.Text("FixedWidth", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
+								ui.TextElement("FixedWidth", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
 							),
 						),
-						ui.Padding(
+						ui.PaddingElement(
 							ui.Insets{Left: 8},
-							ui.Expanded(
-								ui.Container(
+							ui.ExpandedElement(
+								ui.ContainerElement(
 									ui.Style{Background: ui.NRGBA(76, 175, 80, 255), Padding: ui.All(8), Radius: 6},
-									ui.Text("Expanded / Fill", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
+									ui.TextElement("Expanded / Fill", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
 								),
 							),
 						),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.FixedHeight(
+						ui.FixedHeightElement(
 							48,
-							ui.FillWidth(
-								ui.Container(
+							ui.FillWidthElement(
+								ui.ContainerElement(
 									ui.Style{Background: ui.NRGBA(255, 152, 0, 255), Padding: ui.All(8), Radius: 6},
-									ui.Text("FixedHeight", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
+									ui.TextElement("FixedHeight", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
 								),
 							),
 						),
 					),
 				)
 			case "click_area_basic":
-				return ui.Column(
-					ui.Text(fmt.Sprintf("点击次数: %d", clickCount.Value())),
-					ui.Padding(
+				return ui.ColumnElement(
+					ui.TextElement(fmt.Sprintf("点击次数: %d", clickCount.Value())),
+					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.ClickArea(
-							ui.FillWidth(
-								ui.Container(
+						ui.ClickAreaElement(
+							ui.FillWidthElement(
+								ui.ContainerElement(
 									ui.Style{
 										Background: ui.NRGBA(227, 242, 253, 255),
 										Padding:    ui.All(14),
 										Radius:     8,
 									},
-									ui.Text("这是 ClickArea（无默认按钮动画）"),
+									ui.TextElement("这是 ClickArea（无默认按钮动画）"),
 								),
 							),
 							func(ctx *ui.Context) {
@@ -323,40 +306,40 @@ func main() {
 					),
 				)
 			case "text_basic":
-				return ui.Column(
-					ui.Text("默认文本"),
-					ui.Padding(ui.Insets{Top: 6}, ui.Text("大字号文本", ui.TextSize(20))),
-					ui.Padding(ui.Insets{Top: 6}, ui.Text("强调色文本", ui.TextColor(th.Primary))),
+				return ui.ColumnElement(
+					ui.TextElement("默认文本"),
+					ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("大字号文本", ui.TextSize(20))),
+					ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("强调色文本", ui.TextColor(th.Primary))),
 				)
 			case "button_basic":
-				return ui.Row(
-					ui.Button(
-						ui.Text("点击 +1"),
+				return ui.RowElement(
+					ui.ButtonElement(
+						ui.TextElement("点击 +1"),
 						ui.OnClick(func(ctx *ui.Context) {
 							buttonCount.Set(buttonCount.Value() + 1)
 						}),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Left: 10, Top: 8},
-						ui.Text(fmt.Sprintf("count = %d", buttonCount.Value())),
+						ui.TextElement(fmt.Sprintf("count = %d", buttonCount.Value())),
 					),
 				)
 			case "textfield_basic":
-				return ui.Column(
-					ui.TextField(
+				return ui.ColumnElement(
+					ui.TextFieldElement(
 						inputValue.Value(),
 						ui.InputPlaceholder("请输入内容"),
 						ui.InputOnChange(func(ctx *ui.Context, value string) {
 							inputValue.Set(value)
 						}),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.Text("当前输入: "+inputValue.Value(), ui.TextSize(13), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
+						ui.TextElement("当前输入: "+inputValue.Value(), ui.TextSize(13), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
 					),
 				)
 			case "checkbox_basic":
-				return ui.Checkbox(
+				return ui.CheckboxElement(
 					"启用功能",
 					checkboxValue.Value(),
 					ui.CheckboxOnChange(func(ctx *ui.Context, checked bool) {
@@ -364,21 +347,21 @@ func main() {
 					}),
 				)
 			case "switch_basic":
-				return ui.Row(
-					ui.Switch(
+				return ui.RowElement(
+					ui.SwitchElement(
 						switchValue.Value(),
 						ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
 							switchValue.Set(checked)
 						}),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Left: 10, Top: 5},
-						ui.Text(fmt.Sprintf("状态: %v", switchValue.Value()), ui.TextSize(13)),
+						ui.TextElement(fmt.Sprintf("状态: %v", switchValue.Value()), ui.TextSize(13)),
 					),
 				)
 			case "slider_basic":
-				return ui.Column(
-					ui.Slider(
+				return ui.ColumnElement(
+					ui.SliderElement(
 						sliderValue.Value(),
 						ui.SliderMin(0),
 						ui.SliderMax(100),
@@ -386,23 +369,23 @@ func main() {
 							sliderValue.Set(value)
 						}),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.Text(fmt.Sprintf("value = %.1f", sliderValue.Value()), ui.TextSize(13)),
+						ui.TextElement(fmt.Sprintf("value = %.1f", sliderValue.Value()), ui.TextSize(13)),
 					),
 				)
 			case "image_basic":
-				return ui.Row(
-					ui.Image(
+				return ui.RowElement(
+					ui.ImageElement(
 						ui.ImageSource{Path: "examples/assets/sample.png", Label: "sample.png"},
 						ui.ImageWidth(150),
 						ui.ImageHeight(90),
 						ui.ImageFitMode(ui.ImageFitContain),
 						ui.ImageRadius(8),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Left: 10},
-						ui.Image(
+						ui.ImageElement(
 							ui.ImageSource{Path: "examples/assets/sample.png", Label: "sample.png"},
 							ui.ImageWidth(150),
 							ui.ImageHeight(90),
@@ -412,22 +395,22 @@ func main() {
 					),
 				)
 			case "icon_basic":
-				return ui.Row(
-					ui.Icon("H", ui.IconSize(20), ui.IconColor(ui.NRGBA(30, 136, 229, 255))),
-					ui.Padding(ui.Insets{Left: 12}, ui.Icon("S", ui.IconSize(20), ui.IconColor(ui.NRGBA(67, 160, 71, 255)))),
-					ui.Padding(ui.Insets{Left: 12}, ui.Icon("G", ui.IconSize(20), ui.IconColor(ui.NRGBA(245, 124, 0, 255)))),
+				return ui.RowElement(
+					ui.IconElement("H", ui.IconSize(20), ui.IconColor(ui.NRGBA(30, 136, 229, 255))),
+					ui.PaddingElement(ui.Insets{Left: 12}, ui.IconElement("S", ui.IconSize(20), ui.IconColor(ui.NRGBA(67, 160, 71, 255)))),
+					ui.PaddingElement(ui.Insets{Left: 12}, ui.IconElement("G", ui.IconSize(20), ui.IconColor(ui.NRGBA(245, 124, 0, 255)))),
 				)
 			case "card_basic":
-				return ui.Card(
-					ui.Column(
-						ui.Text("Card 卡片", ui.TextSize(15)),
-						ui.Padding(
+				return ui.CardElement(
+					ui.ColumnElement(
+						ui.TextElement("Card 卡片", ui.TextSize(15)),
+						ui.PaddingElement(
 							ui.Insets{Top: 6},
-							ui.Text("点击卡片会增加计数。", ui.TextSize(13), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
+							ui.TextElement("点击卡片会增加计数。", ui.TextSize(13), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
 						),
-						ui.Padding(
+						ui.PaddingElement(
 							ui.Insets{Top: 8},
-							ui.Text(fmt.Sprintf("点击次数: %d", buttonCount.Value()), ui.TextSize(13)),
+							ui.TextElement(fmt.Sprintf("点击次数: %d", buttonCount.Value()), ui.TextSize(13)),
 						),
 					),
 					ui.CardOnClick(func(ctx *ui.Context) {
@@ -435,7 +418,7 @@ func main() {
 					}),
 				)
 			case "radio_group_basic":
-				return ui.RadioGroup(
+				return ui.RadioGroupElement(
 					radioValue.Value(),
 					[]ui.RadioItem{
 						{Label: "布局", Value: "layout"},
@@ -447,7 +430,7 @@ func main() {
 					}),
 				)
 			case "select_basic":
-				return ui.Select(
+				return ui.SelectElement(
 					selectValue.Value(),
 					[]ui.SelectOptionItem[string]{
 						{Label: "低优先级", Value: "low"},
@@ -460,8 +443,8 @@ func main() {
 					}),
 				)
 			case "progress_bar_basic":
-				return ui.Column(
-					ui.Slider(
+				return ui.ColumnElement(
+					ui.SliderElement(
 						sliderValue.Value(),
 						ui.SliderMin(0),
 						ui.SliderMax(100),
@@ -469,9 +452,9 @@ func main() {
 							sliderValue.Set(value)
 						}),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.ProgressBar(
+						ui.ProgressBarElement(
 							sliderValue.Value(),
 							ui.ProgressMin(0),
 							ui.ProgressMax(100),
@@ -481,8 +464,8 @@ func main() {
 					),
 				)
 			case "circular_progress_basic":
-				return ui.Column(
-					ui.Slider(
+				return ui.ColumnElement(
+					ui.SliderElement(
 						sliderValue.Value(),
 						ui.SliderMin(0),
 						ui.SliderMax(100),
@@ -490,9 +473,9 @@ func main() {
 							sliderValue.Set(value)
 						}),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 12},
-						ui.CircularProgress(
+						ui.CircularProgressElement(
 							sliderValue.Value(),
 							ui.ProgressMin(0),
 							ui.ProgressMax(100),
@@ -504,8 +487,8 @@ func main() {
 					),
 				)
 			case "tabs_basic":
-				return ui.Column(
-					ui.Tabs(
+				return ui.ColumnElement(
+					ui.TabsElement(
 						tabValue.Value(),
 						[]ui.TabItem{
 							{Key: "overview", Label: "Overview"},
@@ -516,30 +499,30 @@ func main() {
 							tabValue.Set(key)
 						}),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.Text("当前标签: "+tabValue.Value(), ui.TextSize(13)),
+						ui.TextElement("当前标签: "+tabValue.Value(), ui.TextSize(13)),
 					),
 				)
 			case "dialog_basic":
-				return ui.Stack(
-					ui.FillWidth(
-						ui.Column(
-							ui.Button(
-								ui.Text("打开对话框"),
+				return ui.StackElement(
+					ui.FillWidthElement(
+						ui.ColumnElement(
+							ui.ButtonElement(
+								ui.TextElement("打开对话框"),
 								ui.OnClick(func(ctx *ui.Context) {
 									dialogOpen.Set(true)
 								}),
 							),
-							ui.Padding(
+							ui.PaddingElement(
 								ui.Insets{Top: 8},
-								ui.Text("Dialog 演示：支持遮罩关闭、确认、取消。", ui.TextSize(13)),
+								ui.TextElement("Dialog 演示：支持遮罩关闭、确认、取消。", ui.TextSize(13)),
 							),
 						),
 					),
-					ui.Dialog(
+					ui.DialogElement(
 						dialogOpen.Value(),
-						ui.Text("这是一个组件文档中的 Dialog 示例。"),
+						ui.TextElement("这是一个组件文档中的 Dialog 示例。"),
 						ui.DialogTitle("Dialog 示例"),
 						ui.DialogWidth(320),
 						ui.DialogMaskClosable(true),
@@ -555,33 +538,33 @@ func main() {
 					),
 				)
 			case "popup_basic":
-				return ui.Stack(
-					ui.FillWidth(
-						ui.Column(
-							ui.Button(
-								ui.Text("打开 Popup"),
+				return ui.StackElement(
+					ui.FillWidthElement(
+						ui.ColumnElement(
+							ui.ButtonElement(
+								ui.TextElement("打开 Popup"),
 								ui.OnClick(func(ctx *ui.Context) {
 									popupOpen.Set(true)
 								}),
 							),
-							ui.Padding(
+							ui.PaddingElement(
 								ui.Insets{Top: 8},
-								ui.Text("Popup 演示：弹窗内容完全自定义，无预置标题和按钮。", ui.TextSize(13)),
+								ui.TextElement("Popup 演示：弹窗内容完全自定义，无预置标题和按钮。", ui.TextSize(13)),
 							),
 						),
 					),
-					ui.Popup(
+					ui.PopupElement(
 						popupOpen.Value(),
-						ui.Column(
-							ui.Text("自定义弹窗内容", ui.TextSize(16)),
-							ui.Padding(
+						ui.ColumnElement(
+							ui.TextElement("自定义弹窗内容", ui.TextSize(16)),
+							ui.PaddingElement(
 								ui.Insets{Top: 8},
-								ui.Text("这里可以放置任意组件。", ui.TextSize(13)),
+								ui.TextElement("这里可以放置任意组件。", ui.TextSize(13)),
 							),
-							ui.Padding(
+							ui.PaddingElement(
 								ui.Insets{Top: 12},
-								ui.Button(
-									ui.Text("关闭"),
+								ui.ButtonElement(
+									ui.TextElement("关闭"),
 									ui.OnClick(func(ctx *ui.Context) {
 										popupOpen.Set(false)
 									}),
@@ -598,11 +581,11 @@ func main() {
 					),
 				)
 			case "toast_basic":
-				var layers []ui.Widget
+				var layers []ui.Element
 				layers = append(layers,
-					ui.FillWidth(
-						ui.Button(
-							ui.Text("显示 Toast"),
+					ui.FillWidthElement(
+						ui.ButtonElement(
+							ui.TextElement("显示 Toast"),
 							ui.OnClick(func(ctx *ui.Context) {
 								toastMessage.Set("这是一条 Toast 消息")
 							}),
@@ -611,7 +594,7 @@ func main() {
 				)
 				if toastMessage.Value() != "" {
 					layers = append(layers,
-						ui.Toast(
+						ui.ToastElement(
 							toastMessage.Value(),
 							ui.ToastTypeOf(ui.ToastSuccess),
 							ui.ToastPositionOf(ui.ToastBottom),
@@ -622,40 +605,40 @@ func main() {
 						),
 					)
 				}
-				return ui.Stack(layers...)
+				return ui.StackElement(layers...)
 			case "scroll_view_basic":
-				lines := make([]ui.Widget, 0, 24)
+				lines := make([]ui.Element, 0, 24)
 				for i := 1; i <= 24; i++ {
 					lines = append(lines,
-						ui.Padding(
+						ui.PaddingElement(
 							ui.Insets{Bottom: 6},
-							ui.Container(
+							ui.ContainerElement(
 								ui.Style{Background: ui.NRGBA(241, 245, 249, 255), Padding: ui.All(8), Radius: 6},
-								ui.Text(fmt.Sprintf("滚动项 %02d", i), ui.TextSize(13)),
+								ui.TextElement(fmt.Sprintf("滚动项 %02d", i), ui.TextSize(13)),
 							),
 						),
 					)
 				}
-				return ui.FixedHeight(
+				return ui.FixedHeightElement(
 					180,
-					ui.ScrollView(
-						ui.Column(lines...),
+					ui.ScrollViewElement(
+						ui.ColumnElement(lines...),
 						ui.ScrollVertical(true),
 					),
 				)
 			case "list_view_basic":
-				return ui.FixedHeight(
+				return ui.FixedHeightElement(
 					200,
-					ui.ListView(
+					ui.ListViewElement(
 						80,
-						func(ctx *ui.Context, index int) ui.Widget {
-							return ui.Container(
+						func(ctx *ui.Context, index int) ui.Element {
+							return ui.ContainerElement(
 								ui.Style{
 									Background: rowColor(index),
 									Padding:    ui.Symmetric(8, 10),
 									Radius:     6,
 								},
-								ui.Text(fmt.Sprintf("List Item #%d", index), ui.TextSize(13)),
+								ui.TextElement(fmt.Sprintf("List Item #%d", index), ui.TextSize(13)),
 							)
 						},
 						ui.ListItemSpacing(6),
@@ -665,57 +648,58 @@ func main() {
 					),
 				)
 			case "grid_basic":
-				cells := make([]ui.Widget, 0, 9)
+				cells := make([]ui.Element, 0, 9)
 				for i := 1; i <= 9; i++ {
 					cells = append(cells,
-						ui.Container(
+						ui.ContainerElement(
 							ui.Style{
 								Background: ui.NRGBA(227, 242, 253, 255),
 								Padding:    ui.All(10),
 								Radius:     6,
 							},
-							ui.Center(ui.Text(fmt.Sprintf("Cell %d", i), ui.TextSize(12))),
+							ui.CenterElement(ui.TextElement(fmt.Sprintf("Cell %d", i), ui.TextSize(12))),
 						),
 					)
 				}
-				return ui.Grid(
+				return ui.GridElement(
 					3,
 					cells...,
 				)
 			case "app_bar_basic":
-				return ui.Column(
-					ui.AppBar(
-						ui.Text("文档示例 AppBar", ui.TextSize(14)),
-						ui.AppBarActions(
-							ui.Button(
-								ui.Text("Action"),
+				return ui.ColumnElement(
+					ui.AppBarElementWithSlots(
+						ui.TextElement("文档示例 AppBar", ui.TextSize(14)),
+						nil,
+						[]ui.Element{
+							ui.ButtonElement(
+								ui.TextElement("Action"),
 								ui.ButtonPadding(ui.Symmetric(4, 8)),
 								ui.OnClick(func(ctx *ui.Context) {
 									appbarActionCount.Set(appbarActionCount.Value() + 1)
 								}),
 							),
-						),
+						},
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.Text(fmt.Sprintf("Action 点击次数: %d", appbarActionCount.Value()), ui.TextSize(13)),
+						ui.TextElement(fmt.Sprintf("Action 点击次数: %d", appbarActionCount.Value()), ui.TextSize(13)),
 					),
 				)
 			case "bottom_navigation_basic":
-				return ui.FixedHeight(
+				return ui.FixedHeightElement(
 					180,
-					ui.Column(
-						ui.Expanded(
-							ui.Center(
-								ui.Text("当前页面: "+bottomNavValue.Value(), ui.TextSize(14)),
+					ui.ColumnElement(
+						ui.ExpandedElement(
+							ui.CenterElement(
+								ui.TextElement("当前页面: "+bottomNavValue.Value(), ui.TextSize(14)),
 							),
 						),
-						ui.BottomNavigation(
+						ui.BottomNavigationElement(
 							bottomNavValue.Value(),
-							[]ui.NavItem{
-								{Key: "home", Label: "首页", Icon: ui.Text("H", ui.TextSize(12))},
-								{Key: "docs", Label: "文档", Icon: ui.Text("D", ui.TextSize(12))},
-								{Key: "profile", Label: "我的", Icon: ui.Text("P", ui.TextSize(12))},
+							[]ui.ElementNavItem{
+								{Key: "home", Label: "首页", Icon: ui.TextElement("H", ui.TextSize(12))},
+								{Key: "docs", Label: "文档", Icon: ui.TextElement("D", ui.TextSize(12))},
+								{Key: "profile", Label: "我的", Icon: ui.TextElement("P", ui.TextSize(12))},
 							},
 							ui.BottomNavAlignmentOf(ui.BottomNavAlignSpaceEvenly),
 							ui.BottomNavOnChange(func(ctx *ui.Context, key string) {
@@ -746,11 +730,11 @@ func main() {
 					{
 						Path: "/",
 						Builder: func(routeCtx *ui.Context) ui.Widget {
-							return ui.Column(
-								ui.Text("Home", ui.TextSize(14)),
-								ui.Padding(
+							return ui.RenderElement(ui.ColumnElement(
+								ui.TextElement("Home", ui.TextSize(14)),
+								ui.PaddingElement(
 									ui.Insets{Top: 6},
-									ui.TextField(
+									ui.TextFieldElement(
 										routerDemoUserID.Value(),
 										ui.InputPlaceholder("user id, e.g. u1002"),
 										ui.InputOnChange(func(ctx *ui.Context, value string) {
@@ -758,11 +742,11 @@ func main() {
 										}),
 									),
 								),
-								ui.Padding(
+								ui.PaddingElement(
 									ui.Insets{Top: 6},
-									ui.Row(
-										ui.Button(
-											ui.Text("Detail"),
+									ui.RowElement(
+										ui.ButtonElement(
+											ui.TextElement("Detail"),
 											ui.ButtonPadding(ui.Symmetric(4, 8)),
 											ui.OnClick(func(ctx *ui.Context) {
 												id := strings.TrimSpace(routerDemoUserID.Value())
@@ -773,20 +757,20 @@ func main() {
 												ui.Navigate(ctx, "/user/"+id+"?tab=profile")
 											}),
 										),
-										ui.Padding(
+										ui.PaddingElement(
 											ui.Insets{Left: 6},
-											ui.Button(
-												ui.Text("Settings"),
+											ui.ButtonElement(
+												ui.TextElement("Settings"),
 												ui.ButtonPadding(ui.Symmetric(4, 8)),
 												ui.OnClick(func(ctx *ui.Context) {
 													ui.Navigate(ctx, "/settings")
 												}),
 											),
 										),
-										ui.Padding(
+										ui.PaddingElement(
 											ui.Insets{Left: 6},
-											ui.Button(
-												ui.Text("404"),
+											ui.ButtonElement(
+												ui.TextElement("404"),
 												ui.ButtonPadding(ui.Symmetric(4, 8)),
 												ui.OnClick(func(ctx *ui.Context) {
 													ui.Navigate(ctx, "/not-found")
@@ -795,7 +779,7 @@ func main() {
 										),
 									),
 								),
-							)
+							))
 						},
 					},
 					{
@@ -807,25 +791,25 @@ func main() {
 							if tab == "" {
 								tab = "overview"
 							}
-							return ui.Column(
-								ui.Text("User Detail", ui.TextSize(14)),
-								ui.Padding(ui.Insets{Top: 6}, ui.Text("id: "+id)),
-								ui.Padding(ui.Insets{Top: 4}, ui.Text("name: "+findUserName(id))),
-								ui.Padding(ui.Insets{Top: 4}, ui.Text("tab: "+tab)),
-								ui.Padding(
+							return ui.RenderElement(ui.ColumnElement(
+								ui.TextElement("User Detail", ui.TextSize(14)),
+								ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("id: "+id)),
+								ui.PaddingElement(ui.Insets{Top: 4}, ui.TextElement("name: "+findUserName(id))),
+								ui.PaddingElement(ui.Insets{Top: 4}, ui.TextElement("tab: "+tab)),
+								ui.PaddingElement(
 									ui.Insets{Top: 8},
-									ui.Row(
-										ui.Button(
-											ui.Text("Replace tab=activity"),
+									ui.RowElement(
+										ui.ButtonElement(
+											ui.TextElement("Replace tab=activity"),
 											ui.ButtonPadding(ui.Symmetric(4, 8)),
 											ui.OnClick(func(ctx *ui.Context) {
 												ui.NavigateReplace(ctx, "/user/"+id+"?tab=activity", ui.WithNavTransition(ui.TransitionFade))
 											}),
 										),
-										ui.Padding(
+										ui.PaddingElement(
 											ui.Insets{Left: 6},
-											ui.Button(
-												ui.Text("Back"),
+											ui.ButtonElement(
+												ui.TextElement("Back"),
 												ui.ButtonPadding(ui.Symmetric(4, 8)),
 												ui.OnClick(func(ctx *ui.Context) {
 													ui.NavigateBack(ctx)
@@ -834,26 +818,26 @@ func main() {
 										),
 									),
 								),
-							)
+							))
 						},
 					},
 					{
 						Path: "/settings",
 						Builder: func(routeCtx *ui.Context) ui.Widget {
-							return ui.Column(
-								ui.Text("Settings", ui.TextSize(14)),
-								ui.Padding(ui.Insets{Top: 6}, ui.Text("guard 通过后才可进入")),
-								ui.Padding(
+							return ui.RenderElement(ui.ColumnElement(
+								ui.TextElement("Settings", ui.TextSize(14)),
+								ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("guard 通过后才可进入")),
+								ui.PaddingElement(
 									ui.Insets{Top: 8},
-									ui.Button(
-										ui.Text("Back"),
+									ui.ButtonElement(
+										ui.TextElement("Back"),
 										ui.ButtonPadding(ui.Symmetric(4, 8)),
 										ui.OnClick(func(ctx *ui.Context) {
 											ui.NavigateBack(ctx)
 										}),
 									),
 								),
-							)
+							))
 						},
 					},
 				}
@@ -872,20 +856,20 @@ func main() {
 						return true
 					}),
 					ui.RouterNotFound(func(routeCtx *ui.Context) ui.Widget {
-						return ui.Column(
-							ui.Text("404", ui.TextSize(16), ui.TextColor(ui.NRGBA(220, 38, 38, 255))),
-							ui.Padding(ui.Insets{Top: 6}, ui.Text("path: "+ui.CurrentPath(routeCtx), ui.TextSize(12))),
-							ui.Padding(
+						return ui.RenderElement(ui.ColumnElement(
+							ui.TextElement("404", ui.TextSize(16), ui.TextColor(ui.NRGBA(220, 38, 38, 255))),
+							ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("path: "+ui.CurrentPath(routeCtx), ui.TextSize(12))),
+							ui.PaddingElement(
 								ui.Insets{Top: 8},
-								ui.Button(
-									ui.Text("Go Home"),
+								ui.ButtonElement(
+									ui.TextElement("Go Home"),
 									ui.ButtonPadding(ui.Symmetric(4, 8)),
 									ui.OnClick(func(ctx *ui.Context) {
 										ui.NavigateReplace(ctx, "/")
 									}),
 								),
 							),
-						)
+						))
 					}),
 				)
 
@@ -894,11 +878,11 @@ func main() {
 					current = "/"
 				}
 
-				return ui.Column(
-					ui.Text(fmt.Sprintf("path=%s | depth=%d", current, ui.StackDepth(ctx)), ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
-					ui.Padding(
+				return ui.ColumnElement(
+					ui.TextElement(fmt.Sprintf("path=%s | depth=%d", current, ui.StackDepth(ctx)), ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
+					ui.PaddingElement(
 						ui.Insets{Top: 6},
-						ui.Checkbox(
+						ui.CheckboxElement(
 							"allow settings",
 							routerDemoAllowSettings.Value(),
 							ui.CheckboxOnChange(func(ctx *ui.Context, checked bool) {
@@ -906,20 +890,16 @@ func main() {
 							}),
 						),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 6},
-						ui.Text(routerDemoLog.Value(), ui.TextSize(12), ui.TextColor(ui.NRGBA(51, 65, 85, 255))),
+						ui.TextElement(routerDemoLog.Value(), ui.TextSize(12), ui.TextColor(ui.NRGBA(51, 65, 85, 255))),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.Expanded(
-							ui.Container(
-								ui.Style{
-									Background: ui.NRGBA(241, 245, 249, 255),
-									Padding:    ui.All(8),
-									Radius:     6,
-								},
-								routerDemo,
+						ui.ExpandedElement(
+							ui.ContainerDecorationElement(
+								ui.Bg(ui.NRGBA(241, 245, 249, 255)).WithPad(ui.All(8)).WithRad(6),
+								ui.FromWidget(routerDemo),
 							),
 						),
 					),
@@ -937,13 +917,13 @@ func main() {
 					return nil
 				})
 
-				content := []ui.Widget{
-					ui.Text(fmt.Sprintf("count = %d", hookDemoCount.Value())),
-					ui.Row(
-						ui.Padding(ui.All(4), ui.Button(ui.Text("+1"), ui.OnClick(func(ctx *ui.Context) {
+				content := []ui.Element{
+					ui.TextElement(fmt.Sprintf("count = %d", hookDemoCount.Value())),
+					ui.RowElement(
+						ui.PaddingElement(ui.All(4), ui.ButtonElement(ui.TextElement("+1"), ui.OnClick(func(ctx *ui.Context) {
 							hookDemoCount.Set(hookDemoCount.Value() + 1)
 						}))),
-						ui.Padding(ui.All(4), ui.Button(ui.Text("切换子组件"), ui.OnClick(func(ctx *ui.Context) {
+						ui.PaddingElement(ui.All(4), ui.ButtonElement(ui.TextElement("切换子组件"), ui.OnClick(func(ctx *ui.Context) {
 							hookDemoShowChild.Set(!hookDemoShowChild.Value())
 						}))),
 					),
@@ -957,41 +937,41 @@ func main() {
 						appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Child unmount")
 					})
 					content = append(content,
-						ui.Container(
+						ui.ContainerElement(
 							ui.Style{
 								Background: ui.NRGBA(226, 232, 240, 255),
 								Padding:    ui.All(8),
 								Radius:     6,
 							},
-							ui.Text("子组件已挂载"),
+							ui.TextElement("子组件已挂载"),
 						),
 					)
 				}
 
 				logItems := hookDemoLogs.Value()
 				if len(logItems) == 0 {
-					content = append(content, ui.Text("(暂无日志)", ui.TextSize(12), ui.TextColor(ui.NRGBA(100, 116, 139, 255))))
+					content = append(content, ui.TextElement("(暂无日志)", ui.TextSize(12), ui.TextColor(ui.NRGBA(100, 116, 139, 255))))
 				} else {
 					for _, item := range logItems {
-						content = append(content, ui.Text(item, ui.TextSize(12), ui.TextColor(ui.NRGBA(51, 65, 85, 255))))
+						content = append(content, ui.TextElement(item, ui.TextSize(12), ui.TextColor(ui.NRGBA(51, 65, 85, 255))))
 					}
 				}
 
-				return ui.Column(content...)
+				return ui.ColumnElement(content...)
 			default:
-				return ui.Text("该文档未配置可执行示例。")
+				return ui.TextElement("该文档未配置可执行示例。")
 			}
 		}
 
 		menuEntries := buildMenuEntries(filteredDocs)
-		leftMenuItems := make([]ui.Widget, 0, len(menuEntries)+1)
+		leftMenuItems := make([]ui.Element, 0, len(menuEntries)+1)
 		for idx := range menuEntries {
 			entry := menuEntries[idx]
 			if entry.IsCategory {
 				leftMenuItems = append(leftMenuItems,
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 10, Bottom: 4},
-						ui.Text(entry.Category, ui.TextSize(12), ui.TextColor(ui.NRGBA(100, 116, 139, 255))),
+						ui.TextElement(entry.Category, ui.TextSize(12), ui.TextColor(ui.NRGBA(100, 116, 139, 255))),
 					),
 				)
 				continue
@@ -1010,18 +990,18 @@ func main() {
 			}
 
 			leftMenuItems = append(leftMenuItems,
-				ui.Padding(
+				ui.PaddingElement(
 					ui.Insets{Bottom: 6},
-					ui.FillWidth(
-						ui.Button(
-							ui.FillWidth(
-								ui.Container(
+					ui.FillWidthElement(
+						ui.ButtonElement(
+							ui.FillWidthElement(
+								ui.ContainerElement(
 									ui.Style{
 										Background: bg,
 										Padding:    ui.Symmetric(8, 10),
 										Radius:     6,
 									},
-									ui.Text(doc.Meta.Title, ui.TextSize(13), ui.TextColor(textColor)),
+									ui.TextElement(doc.Meta.Title, ui.TextSize(13), ui.TextColor(textColor)),
 								),
 							),
 							ui.ButtonBackground(ui.NRGBA(0, 0, 0, 0)),
@@ -1043,26 +1023,26 @@ func main() {
 			docCountText = "本地文档不可用，正在异步加载在线文档..."
 		}
 
-		leftPanel := ui.FixedWidth(
+		leftPanel := ui.FixedWidthElement(
 			300,
-			ui.Container(
+			ui.ContainerElement(
 				ui.Style{
 					Background: ui.NRGBA(248, 250, 252, 255),
 					Padding:    ui.All(12),
 				},
-				ui.Column(
-					ui.Text("FluxUI 控件文档", ui.TextSize(18)),
-					ui.Padding(
+				ui.ColumnElement(
+					ui.TextElement("FluxUI 控件文档", ui.TextSize(18)),
+					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.Text(
+						ui.TextElement(
 							docCountText,
 							ui.TextSize(12),
 							ui.TextColor(ui.NRGBA(100, 116, 139, 255)),
 						),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 10},
-						ui.TextField(
+						ui.TextFieldElement(
 							searchKeyword.Value(),
 							ui.InputPlaceholder("搜索控件 / 分类"),
 							ui.InputOnChange(func(ctx *ui.Context, value string) {
@@ -1070,28 +1050,28 @@ func main() {
 							}),
 						),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 10},
-						ui.Divider(ui.DividerColor(ui.NRGBA(203, 213, 225, 255))),
+						ui.DividerElement(ui.DividerColor(ui.NRGBA(203, 213, 225, 255))),
 					),
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 10},
-						ui.Expanded(
-							ui.ScrollView(
-								ui.Column(leftMenuItems...),
+						ui.ExpandedElement(
+							ui.ScrollViewElement(
+								ui.ColumnElement(leftMenuItems...),
 								ui.ScrollVertical(true),
 							),
 						),
 					),
-					func() ui.Widget {
+					func() ui.Element {
 						if onlineLoading {
 							msg := "本地文档读取失败，正在加载 GitHub 在线文档..."
 							if loadErr != nil {
 								msg += " 原因: " + loadErr.Error()
 							}
-							return ui.Padding(
+							return ui.PaddingElement(
 								ui.Insets{Top: 8},
-								ui.Text(
+								ui.TextElement(
 									msg,
 									ui.TextSize(11),
 									ui.TextColor(ui.NRGBA(180, 83, 9, 255)),
@@ -1099,11 +1079,11 @@ func main() {
 							)
 						}
 						if loadErr == nil {
-							return ui.Spacer(0, 0)
+							return ui.SpacerElement(0, 0)
 						}
-						return ui.Padding(
+						return ui.PaddingElement(
 							ui.Insets{Top: 8},
-							ui.Text(
+							ui.TextElement(
 								"文档加载警告: "+loadErr.Error(),
 								ui.TextSize(11),
 								ui.TextColor(ui.NRGBA(185, 28, 28, 255)),
@@ -1114,15 +1094,15 @@ func main() {
 			),
 		)
 
-		rightPanelContent := []ui.Widget{}
+		rightPanelContent := []ui.Element{}
 		if currentDoc != nil {
 			rightPanelContent = append(rightPanelContent,
-				ui.Text(currentDoc.Meta.Title, ui.TextSize(26)),
+				ui.TextElement(currentDoc.Meta.Title, ui.TextSize(26)),
 			)
 			rightPanelContent = append(rightPanelContent,
-				ui.Padding(
+				ui.PaddingElement(
 					ui.Insets{Top: 6},
-					ui.Text(
+					ui.TextElement(
 						fmt.Sprintf("组件ID: %s  |  分类: %s", currentDoc.Meta.ID, currentDoc.Meta.Category),
 						ui.TextSize(12),
 						ui.TextColor(ui.NRGBA(100, 116, 139, 255)),
@@ -1132,102 +1112,105 @@ func main() {
 
 			if strings.TrimSpace(currentDoc.Meta.Summary) != "" {
 				rightPanelContent = append(rightPanelContent,
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 10},
-						ui.Text(currentDoc.Meta.Summary, ui.TextSize(13), ui.TextColor(ui.NRGBA(51, 65, 85, 255))),
+						ui.TextElement(currentDoc.Meta.Summary, ui.TextSize(13), ui.TextColor(ui.NRGBA(51, 65, 85, 255))),
 					),
 				)
 			}
 
 			rightPanelContent = append(rightPanelContent,
-				ui.Padding(
+				ui.PaddingElement(
 					ui.Insets{Top: 16},
-					ui.Text("组件示例", ui.TextSize(17)),
+					ui.TextElement("组件示例", ui.TextSize(17)),
 				),
 			)
 			rightPanelContent = append(rightPanelContent,
-				ui.Padding(
+				ui.PaddingElement(
 					ui.Insets{Top: 8},
-					ui.Container(
+					ui.ContainerElement(
 						ui.Style{
 							Background: ui.NRGBA(248, 250, 252, 255),
 							Padding:    ui.All(12),
 							Radius:     10,
 						},
-						ui.FixedHeight(
+						ui.FixedHeightElement(
 							230,
-							ui.Fill(buildDemo(currentDoc)),
+							ui.FillElement(buildDemo(currentDoc)),
 						),
 					),
 				),
 			)
 
 			if len(currentDoc.Meta.APIs) > 0 {
-				apiWidgets := make([]ui.Widget, 0, len(currentDoc.Meta.APIs))
+				apiWidgets := make([]ui.Element, 0, len(currentDoc.Meta.APIs))
 				for i := range currentDoc.Meta.APIs {
 					apiWidgets = append(apiWidgets,
-						ui.Padding(
+						ui.PaddingElement(
 							ui.Insets{Bottom: 6},
-							ui.Container(
+							ui.ContainerElement(
 								ui.Style{
 									Background: ui.NRGBA(241, 245, 249, 255),
 									Padding:    ui.Symmetric(6, 8),
 									Radius:     6,
 								},
-								ui.Text(currentDoc.Meta.APIs[i], ui.TextSize(12), ui.TextColor(ui.NRGBA(30, 41, 59, 255))),
+								ui.TextElement(currentDoc.Meta.APIs[i], ui.TextSize(12), ui.TextColor(ui.NRGBA(30, 41, 59, 255))),
 							),
 						),
 					)
 				}
 				rightPanelContent = append(rightPanelContent,
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 14},
-						ui.Text("API 索引", ui.TextSize(17)),
+						ui.TextElement("API 索引", ui.TextSize(17)),
 					),
 				)
 				rightPanelContent = append(rightPanelContent,
-					ui.Padding(
+					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.Column(apiWidgets...),
+						ui.ColumnElement(apiWidgets...),
 					),
 				)
 			}
 
 			rightPanelContent = append(rightPanelContent,
-				ui.Padding(
+				ui.PaddingElement(
 					ui.Insets{Top: 14},
-					ui.Text("文档正文", ui.TextSize(17)),
+					ui.TextElement("文档正文", ui.TextSize(17)),
 				),
 			)
 			rightPanelContent = append(rightPanelContent,
-				ui.Padding(
+				ui.PaddingElement(
 					ui.Insets{Top: 8},
-					ui.Column(renderMarkdownWidgets(currentDoc.Content)...),
+					ui.ColumnElement(renderMarkdownWidgets(currentDoc.Content)...),
 				),
 			)
 		}
 
-		rightPanel := ui.Expanded(
-			ui.Container(
+		rightPanel := ui.ExpandedElement(
+			ui.ContainerElement(
 				ui.Style{
 					Background: th.Surface,
 					Padding:    ui.All(16),
 				},
-				ui.ScrollView(
-					ui.Column(rightPanelContent...),
+				ui.ScrollViewElement(
+					ui.ColumnElement(rightPanelContent...),
 					ui.ScrollVertical(true),
 				),
 			),
 		)
 
-		return ui.Container(
+		return ui.ContainerElement(
 			ui.Style{Background: th.Surface},
-			ui.Row(
+			ui.RowElement(
 				leftPanel,
 				rightPanel,
 			),
 		)
-	}, ui.Title("FluxUI Docs Browser"), ui.Size(1360, 880))
+
+	}
+
+	_ = ui.RunElement(app, ui.Title("FluxUI Docs Browser"), ui.Size(1360, 880))
 }
 
 func applyRemoteDocsResult(state *docsRuntimeState) {
@@ -1303,11 +1286,11 @@ func findDocByID(docs []widgetDoc, id string) *widgetDoc {
 	return nil
 }
 
-func renderMarkdownWidgets(content string) []ui.Widget {
+func renderMarkdownWidgets(content string) []ui.Element {
 	normalized := strings.ReplaceAll(content, "\r\n", "\n")
 	lines := strings.Split(normalized, "\n")
 
-	widgets := make([]ui.Widget, 0, len(lines)+8)
+	widgets := make([]ui.Element, 0, len(lines)+8)
 	inCode := false
 	codeLines := make([]string, 0, 12)
 
@@ -1317,16 +1300,16 @@ func renderMarkdownWidgets(content string) []ui.Widget {
 		}
 		text := strings.Join(codeLines, "\n")
 		widgets = append(widgets,
-			ui.Container(
+			ui.ContainerElement(
 				ui.Style{
 					Background: ui.NRGBA(15, 23, 42, 255),
 					Padding:    ui.All(10),
 					Radius:     8,
 				},
-				ui.Text(text, ui.TextSize(12), ui.TextColor(ui.NRGBA(226, 232, 240, 255))),
+				ui.TextElement(text, ui.TextSize(12), ui.TextColor(ui.NRGBA(226, 232, 240, 255))),
 			),
 		)
-		widgets = append(widgets, ui.VSpacer(10))
+		widgets = append(widgets, ui.VSpacerElement(10))
 		codeLines = codeLines[:0]
 	}
 
@@ -1351,21 +1334,21 @@ func renderMarkdownWidgets(content string) []ui.Widget {
 		}
 
 		if trimmed == "" {
-			widgets = append(widgets, ui.VSpacer(8))
+			widgets = append(widgets, ui.VSpacerElement(8))
 			continue
 		}
 
 		switch {
 		case strings.HasPrefix(trimmed, "### "):
-			widgets = append(widgets, ui.Text(strings.TrimSpace(strings.TrimPrefix(trimmed, "### ")), ui.TextSize(16)))
+			widgets = append(widgets, ui.TextElement(strings.TrimSpace(strings.TrimPrefix(trimmed, "### ")), ui.TextSize(16)))
 		case strings.HasPrefix(trimmed, "## "):
-			widgets = append(widgets, ui.Text(strings.TrimSpace(strings.TrimPrefix(trimmed, "## ")), ui.TextSize(19)))
+			widgets = append(widgets, ui.TextElement(strings.TrimSpace(strings.TrimPrefix(trimmed, "## ")), ui.TextSize(19)))
 		case strings.HasPrefix(trimmed, "# "):
-			widgets = append(widgets, ui.Text(strings.TrimSpace(strings.TrimPrefix(trimmed, "# ")), ui.TextSize(23)))
+			widgets = append(widgets, ui.TextElement(strings.TrimSpace(strings.TrimPrefix(trimmed, "# ")), ui.TextSize(23)))
 		case strings.HasPrefix(trimmed, "- "):
-			widgets = append(widgets, ui.Text("• "+strings.TrimSpace(strings.TrimPrefix(trimmed, "- ")), ui.TextSize(13)))
+			widgets = append(widgets, ui.TextElement("• "+strings.TrimSpace(strings.TrimPrefix(trimmed, "- ")), ui.TextSize(13)))
 		default:
-			widgets = append(widgets, ui.Text(line, ui.TextSize(13), ui.TextColor(ui.NRGBA(51, 65, 85, 255))))
+			widgets = append(widgets, ui.TextElement(line, ui.TextSize(13), ui.TextColor(ui.NRGBA(51, 65, 85, 255))))
 		}
 	}
 
