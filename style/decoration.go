@@ -18,6 +18,15 @@ type Decoration struct {
 	Opacity    *float32
 	CircleClip bool
 	Shadow     *BoxShadow
+
+	Hover    *Decoration
+	Pressed  *Decoration
+	Focused  *Decoration
+	Disabled *Decoration
+
+	Image *ImageFill
+
+	Transform *Transform2D
 }
 
 // WithBg 设置纯色背景。
@@ -74,6 +83,42 @@ func (d Decoration) WithShadow(s BoxShadow) Decoration {
 	return d
 }
 
+// WithHover 设置悬浮态装饰。
+func (d Decoration) WithHover(h Decoration) Decoration {
+	d.Hover = &h
+	return d
+}
+
+// WithPressed 设置按下态装饰。
+func (d Decoration) WithPressed(p Decoration) Decoration {
+	d.Pressed = &p
+	return d
+}
+
+// WithFocused 设置聚焦态装饰。
+func (d Decoration) WithFocused(f Decoration) Decoration {
+	d.Focused = &f
+	return d
+}
+
+// WithDisabled 设置禁用态装饰。
+func (d Decoration) WithDisabled(dd Decoration) Decoration {
+	d.Disabled = &dd
+	return d
+}
+
+// WithImage 设置背景图片。
+func (d Decoration) WithImage(f ImageFill) Decoration {
+	d.Image = &f
+	return d
+}
+
+// WithTransform 设置 2D 仿射变换。
+func (d Decoration) WithTransform(t Transform2D) Decoration {
+	d.Transform = &t
+	return d
+}
+
 // Merge 返回新的 Decoration，其中 other 的非 nil 字段覆盖当前值。
 func (d Decoration) Merge(other Decoration) Decoration {
 	if other.Background != nil {
@@ -102,6 +147,24 @@ func (d Decoration) Merge(other Decoration) Decoration {
 	}
 	if other.Shadow != nil {
 		d.Shadow = other.Shadow
+	}
+	if other.Hover != nil {
+		d.Hover = other.Hover
+	}
+	if other.Pressed != nil {
+		d.Pressed = other.Pressed
+	}
+	if other.Focused != nil {
+		d.Focused = other.Focused
+	}
+	if other.Disabled != nil {
+		d.Disabled = other.Disabled
+	}
+	if other.Image != nil {
+		d.Image = other.Image
+	}
+	if other.Transform != nil {
+		d.Transform = other.Transform
 	}
 	return d
 }
@@ -162,4 +225,34 @@ func (d Decoration) ResolveOpacity() float32 {
 // ResolveShadow 若 Shadow 已设置则返回其值，否则返回 nil。
 func (d Decoration) ResolveShadow() *BoxShadow {
 	return d.Shadow
+}
+
+// ResolveHover 返回悬浮态装饰。
+func (d Decoration) ResolveHover() *Decoration {
+	return d.Hover
+}
+
+// ResolvePressed 返回按下态装饰。
+func (d Decoration) ResolvePressed() *Decoration {
+	return d.Pressed
+}
+
+// ResolveFocused 返回聚焦态装饰。
+func (d Decoration) ResolveFocused() *Decoration {
+	return d.Focused
+}
+
+// ResolveDisabled 返回禁用态装饰。
+func (d Decoration) ResolveDisabled() *Decoration {
+	return d.Disabled
+}
+
+// ResolveImage 返回背景图片（未设置返回 nil）。
+func (d Decoration) ResolveImage() *ImageFill {
+	return d.Image
+}
+
+// ResolveTransform 返回变换（未设置返回 nil）。
+func (d Decoration) ResolveTransform() *Transform2D {
+	return d.Transform
 }

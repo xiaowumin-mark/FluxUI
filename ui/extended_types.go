@@ -183,8 +183,8 @@ func ContainerElement(st Style, child Element) Element {
 }
 
 // ContainerDecorationElement 创建可参与 reconciler 的装饰容器 Element。
-func ContainerDecorationElement(d Decoration, child Element) Element {
-	return &layoutElement{kind: "container-decoration", decoration: d, child: child}
+func ContainerDecorationElement(d Decoration, child Element, opts ...ContainerDecorationOption) Element {
+	return &layoutElement{kind: "container-decoration", decoration: d, decoOpts: append([]ContainerDecorationOption(nil), opts...), child: child}
 }
 
 // ButtonElement 创建可参与 reconciler 的按钮 Element。
@@ -527,6 +527,7 @@ type layoutElement struct {
 	style      Style
 	insets     Insets
 	decoration Decoration
+	decoOpts   []ContainerDecorationOption
 	child      Element
 	children   []Element
 }
@@ -546,7 +547,7 @@ func (e *layoutElement) render() widget.Widget {
 	case "container":
 		return widget.Container(e.style, renderElement(e.child))
 	case "container-decoration":
-		return widget.ContainerDecoration(e.decoration, renderElement(e.child))
+		return widget.ContainerDecoration(e.decoration, renderElement(e.child), e.decoOpts...)
 	default:
 		return nil
 	}
@@ -599,7 +600,7 @@ func (e *layoutElement) RenderWithChildren(ctx *Context, children []Widget) Widg
 	case "container":
 		return widget.Container(e.style, firstWidget(children))
 	case "container-decoration":
-		return widget.ContainerDecoration(e.decoration, firstWidget(children))
+		return widget.ContainerDecoration(e.decoration, firstWidget(children), e.decoOpts...)
 	default:
 		return nil
 	}

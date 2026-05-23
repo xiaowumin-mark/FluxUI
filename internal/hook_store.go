@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 )
@@ -9,10 +10,12 @@ import (
 type HookKind string
 
 const (
-	HookState  HookKind = "state"
-	HookMemo   HookKind = "memo"
-	HookRef    HookKind = "ref"
-	HookEffect HookKind = "effect"
+	HookState     HookKind = "state"
+	HookMemo      HookKind = "memo"
+	HookRef       HookKind = "ref"
+	HookEffect    HookKind = "effect"
+	HookAnimValue HookKind = "anim_value"
+	HookAnimDeco  HookKind = "anim_deco"
 )
 
 // ComponentIdentity describes the stable identity input for a component.
@@ -81,6 +84,12 @@ func (i *ComponentInstance) NextHook(kind HookKind) *HookSlot {
 	slot := &i.hooks[idx]
 	if slot.Kind == "" {
 		slot.Kind = kind
+	} else if slot.Kind != kind {
+		panic(fmt.Sprintf(
+			"FluxUI: component %q rendered hook #%d as %q, but it was %q before -- "+
+				"hooks must be called in the same order every render",
+			i.ID, idx, kind, slot.Kind,
+		))
 	}
 	return slot
 }

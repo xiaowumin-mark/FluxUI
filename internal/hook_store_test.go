@@ -1,6 +1,9 @@
 package internal
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestComponentIdentityStableIDUsesKey(t *testing.T) {
 	id0 := ComponentIdentity{ParentID: "root", TypeID: "Todo", Key: "a", Position: 0}.StableID()
@@ -48,6 +51,30 @@ func TestHookStoreReusesInstanceAndSlots(t *testing.T) {
 		t.Fatalf("expected persisted slot value 41, got %d", got)
 	}
 	store.EndFrame()
+}
+
+func TestComponentInstanceHookKindMismatchPanics(t *testing.T) {
+	store := NewHookStore()
+	identity := ComponentIdentity{ParentID: "root", TypeID: "Switcher", Key: "main"}
+
+	store.BeginFrame()
+	inst := store.BeginInstance(identity)
+	inst.NextHook(HookState)
+	store.EndFrame()
+
+	store.BeginFrame()
+	inst = store.BeginInstance(identity)
+	defer func() {
+		r := recover()
+		store.EndFrame()
+		if r == nil {
+			t.Fatal("expected panic when hook kind changes")
+		}
+		if msg := r.(string); !strings.Contains(msg, "rendered hook #0 as") {
+			t.Fatalf("unexpected panic message: %s", msg)
+		}
+	}()
+	inst.NextHook(HookAnimValue)
 }
 
 func TestHookStoreUnmountRunsCleanups(t *testing.T) {

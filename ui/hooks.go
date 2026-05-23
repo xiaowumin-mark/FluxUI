@@ -2,8 +2,10 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"time"
 
+	anim "github.com/xiaowumin-mark/FluxUI/anim"
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
 	state "github.com/xiaowumin-mark/FluxUI/state"
 )
@@ -162,4 +164,304 @@ func hookTypeMismatch[T any](ctx *Context, kind string) string {
 		path = ctx.TreePath()
 	}
 	return fmt.Sprintf("github.com/xiaowumin-mark/FluxUI/ui: %s hook type mismatch at %q for %T", kind, path, *new(T))
+}
+
+type animNum interface {
+	~float32 | ~int | ~float64
+}
+
+type animValueState[T animNum] struct {
+	startedAt time.Time
+	from      T
+	to        T
+	duration  time.Duration
+	easing    anim.Easing
+}
+
+func animNumLerp[T animNum](from, to T, t float32) T {
+	t = animClamp01(t)
+	return T(float32(from) + (float32(to)-float32(from))*t)
+}
+
+func animClamp01(v float32) float32 {
+	if math.IsNaN(float64(v)) {
+		return 0
+	}
+	if v < 0 {
+		return 0
+	}
+	if v > 1 {
+		return 1
+	}
+	return v
+}
+
+func animProgress(now, startedAt time.Time, duration time.Duration) (float32, bool) {
+	if duration <= 0 {
+		return 1, false
+	}
+	elapsed := now.Sub(startedAt)
+	if elapsed <= 0 {
+		return 0, true
+	}
+	if elapsed >= duration {
+		return 1, false
+	}
+	return animClamp01(float32(elapsed) / float32(duration)), true
+}
+
+func animEasedProgress(easing anim.Easing, progress float32) float32 {
+	if easing == nil {
+		easing = anim.Linear
+	}
+	v := easing(animClamp01(progress))
+	if math.IsNaN(float64(v)) {
+		return 0
+	}
+	if math.IsInf(float64(v), 1) {
+		return 1
+	}
+	if math.IsInf(float64(v), -1) {
+		return 0
+	}
+	return v
+}
+
+func UseAnimatedValue[T animNum](ctx *Context, target T, duration time.Duration, easing anim.Easing) T {
+	if easing == nil {
+		easing = anim.Linear
+	}
+	if ctx == nil {
+		return target
+	}
+
+	if hook := ctx.NextHookSlot(internal.HookAnimValue); hook != nil {
+		return useHookAnimValue(ctx, hook, target, duration, easing)
+	}
+	return useLegacyAnimValue(ctx, target, duration, easing)
+}
+
+func useHookAnimValue[T animNum](ctx *Context, hook *internal.HookSlot, target T, duration time.Duration, easing anim.Easing) T {
+	if hook.Initialized {
+		state, ok := hook.Value.(*animValueState[T])
+		if !ok {
+			panic(hookTypeMismatch[T](ctx, "anim_value"))
+		}
+		if duration <= 0 {
+			state.snap(ctx.Now(), target, duration, easing)
+			return target
+		}
+		if state.to == target && state.duration == duration {
+			p, running := animProgress(ctx.Now(), state.startedAt, duration)
+			state.easing = easing
+			if !running {
+				return target
+			}
+			ctx.RequestFrameRedraw()
+			return animNumLerp(state.from, state.to, animEasedProgress(easing, p))
+		}
+
+		now := ctx.Now()
+		var currentValue T
+		oldP, running := animProgress(now, state.startedAt, state.duration)
+		if !running {
+			currentValue = state.to
+		} else {
+			currentValue = animNumLerp(state.from, state.to, animEasedProgress(state.easing, oldP))
+		}
+		state.startedAt = now
+		state.from = currentValue
+		state.to = target
+		state.duration = duration
+		state.easing = easing
+		ctx.RequestFrameRedraw()
+		return state.from
+	}
+
+	state := &animValueState[T]{
+		startedAt: ctx.Now(),
+		from:      target,
+		to:        target,
+		duration:  duration,
+		easing:    easing,
+	}
+	hook.Value = state
+	hook.Initialized = true
+	return target
+}
+
+func (state *animValueState[T]) snap(now time.Time, target T, duration time.Duration, easing anim.Easing) {
+	state.startedAt = now
+	state.from = target
+	state.to = target
+	state.duration = duration
+	state.easing = easing
+}
+
+func useLegacyAnimValue[T animNum](ctx *Context, target T, duration time.Duration, easing anim.Easing) T {
+	key := ctx.NextKey("anim_value")
+	value := ctx.Persistent(key, func() any {
+		return &animValueState[T]{startedAt: ctx.Now(), from: target, to: target, duration: duration, easing: easing}
+	})
+	state, ok := value.(*animValueState[T])
+	if !ok {
+		panic(hookTypeMismatch[T](ctx, "anim_value"))
+	}
+	if duration <= 0 {
+		state.snap(ctx.Now(), target, duration, easing)
+		return target
+	}
+
+	if state.to == target && state.duration == duration {
+		p, running := animProgress(ctx.Now(), state.startedAt, duration)
+		state.easing = easing
+		if !running {
+			return target
+		}
+		ctx.RequestFrameRedraw()
+		return animNumLerp(state.from, state.to, animEasedProgress(easing, p))
+	}
+
+	now := ctx.Now()
+	oldP, running := animProgress(now, state.startedAt, state.duration)
+	if !running {
+		state.from = state.to
+	} else {
+		state.from = animNumLerp(state.from, state.to, animEasedProgress(state.easing, oldP))
+	}
+	state.startedAt = now
+	state.to = target
+	state.duration = duration
+	state.easing = easing
+	ctx.RequestFrameRedraw()
+	return animNumLerp(state.from, state.to, 0)
+}
+
+func UseAnimatedDecoration(ctx *Context, target Decoration, duration time.Duration, easing anim.Easing) Decoration {
+	if easing == nil {
+		easing = anim.Linear
+	}
+	if ctx == nil {
+		return target
+	}
+
+	if hook := ctx.NextHookSlot(internal.HookAnimDeco); hook != nil {
+		return useHookAnimDeco(ctx, hook, target, duration, easing)
+	}
+	return useLegacyAnimDeco(ctx, target, duration, easing)
+}
+
+type animDecoState struct {
+	startedAt time.Time
+	from      Decoration
+	current   Decoration
+	to        Decoration
+	duration  time.Duration
+	easing    anim.Easing
+}
+
+func useHookAnimDeco(ctx *Context, hook *internal.HookSlot, target Decoration, duration time.Duration, easing anim.Easing) Decoration {
+	if hook.Initialized {
+		state, ok := hook.Value.(*animDecoState)
+		if !ok {
+			panic(hookTypeMismatch[Decoration](ctx, "anim_deco"))
+		}
+		if duration <= 0 {
+			state.snap(ctx.Now(), target, duration, easing)
+			return target
+		}
+		if anim.DecorationEqual(state.to, target) && state.duration == duration {
+			p, running := animProgress(ctx.Now(), state.startedAt, duration)
+			state.easing = easing
+			if !running {
+				return target
+			}
+			ctx.RequestFrameRedraw()
+			return anim.LerpDecoration(state.from, state.to, animEasedProgress(easing, p))
+		}
+
+		now := ctx.Now()
+		p, running := animProgress(now, state.startedAt, state.duration)
+		if !running {
+			state.current = state.to
+		} else {
+			state.current = anim.LerpDecoration(state.from, state.to, animEasedProgress(state.easing, p))
+		}
+		state.startedAt = now
+		state.from = state.current
+		state.to = target
+		state.duration = duration
+		state.easing = easing
+		ctx.RequestFrameRedraw()
+		return state.from
+	}
+
+	state := &animDecoState{
+		startedAt: ctx.Now(),
+		from:      target,
+		current:   target,
+		to:        target,
+		duration:  duration,
+		easing:    easing,
+	}
+	hook.Value = state
+	hook.Initialized = true
+	return target
+}
+
+func (state *animDecoState) snap(now time.Time, target Decoration, duration time.Duration, easing anim.Easing) {
+	state.startedAt = now
+	state.from = target
+	state.current = target
+	state.to = target
+	state.duration = duration
+	state.easing = easing
+}
+
+func useLegacyAnimDeco(ctx *Context, target Decoration, duration time.Duration, easing anim.Easing) Decoration {
+	key := ctx.NextKey("anim_deco")
+	value := ctx.Persistent(key, func() any {
+		return &animDecoState{
+			startedAt: ctx.Now(),
+			from:      target,
+			current:   target,
+			to:        target,
+			duration:  duration,
+			easing:    easing,
+		}
+	})
+	state, ok := value.(*animDecoState)
+	if !ok {
+		panic(hookTypeMismatch[Decoration](ctx, "anim_deco"))
+	}
+	if duration <= 0 {
+		state.snap(ctx.Now(), target, duration, easing)
+		return target
+	}
+
+	if anim.DecorationEqual(state.to, target) && state.duration == duration {
+		p, running := animProgress(ctx.Now(), state.startedAt, duration)
+		state.easing = easing
+		if !running {
+			return target
+		}
+		ctx.RequestFrameRedraw()
+		return anim.LerpDecoration(state.from, state.to, animEasedProgress(easing, p))
+	}
+
+	now := ctx.Now()
+	p, running := animProgress(now, state.startedAt, state.duration)
+	if !running {
+		state.current = state.to
+	} else {
+		state.current = anim.LerpDecoration(state.from, state.to, animEasedProgress(state.easing, p))
+	}
+
+	state.startedAt = now
+	state.from = state.current
+	state.to = target
+	state.duration = duration
+	state.easing = easing
+	ctx.RequestFrameRedraw()
+	return state.from
 }

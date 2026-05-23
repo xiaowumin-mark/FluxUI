@@ -15,6 +15,8 @@ import (
 )
 
 // Widget 是对外暴露的统一组件接口。
+//
+// Deprecated: Widget 已不再维护，推荐使用 React-style Element API (RunElement + Element)。
 type Widget = widget.Widget
 
 // Context 是对外暴露的 frame 上下文。
@@ -90,9 +92,14 @@ const (
 )
 
 var (
-	Linear    anim.Easing = anim.Linear
-	EaseOut   anim.Easing = anim.EaseOut
-	EaseInOut anim.Easing = anim.EaseInOut
+	Linear        anim.Easing = anim.Linear
+	EaseOut       anim.Easing = anim.EaseOut
+	EaseInOut     anim.Easing = anim.EaseInOut
+	EaseIn        anim.Easing = anim.EaseInQuad
+	EaseInBack    anim.Easing = anim.EaseInBack
+	EaseOutBack   anim.Easing = anim.EaseOutBack
+	EaseInOutBack anim.Easing = anim.EaseInOutBack
+	EaseOutBounce anim.Easing = anim.EaseOutBounce
 )
 
 const (
@@ -113,6 +120,8 @@ const (
 )
 
 // App 创建应用对象。
+//
+// Deprecated: App 已不再维护。请使用 RunElement 配合组件函数 (Component)。
 func App(root func(ctx *Context) Widget, opts ...AppOption) *fluxapp.Application {
 	return fluxapp.New(func(ctx *internal.Context) widget.Widget {
 		return root(ctx)
@@ -120,6 +129,8 @@ func App(root func(ctx *Context) Widget, opts ...AppOption) *fluxapp.Application
 }
 
 // Run 启动应用。
+//
+// Deprecated: Run 已不再维护。请使用 RunElement 配合组件函数 (Component)。
 func Run(root func(ctx *Context) Widget, opts ...AppOption) error {
 	return fluxapp.Run(func(ctx *internal.Context) widget.Widget {
 		return root(ctx)
@@ -127,6 +138,8 @@ func Run(root func(ctx *Context) Widget, opts ...AppOption) error {
 }
 
 // Window 创建多窗口启动中的单个窗口定义。
+//
+// Deprecated: Window 已不再维护。请使用 RunElement。
 func Window(root func(ctx *Context) Widget, opts ...AppOption) WindowSpec {
 	return fluxapp.Window(func(ctx *internal.Context) widget.Widget {
 		return root(ctx)
@@ -134,6 +147,8 @@ func Window(root func(ctx *Context) Widget, opts ...AppOption) WindowSpec {
 }
 
 // RunMulti 同时启动多个窗口（桌面端）。
+//
+// Deprecated: RunMulti 已不再维护。请使用 RunElement。
 func RunMulti(windows ...WindowSpec) error {
 	return fluxapp.RunMulti(windows...)
 }
@@ -375,9 +390,13 @@ func Container(st Style, child Widget) Widget {
 	return widget.Container(st, child)
 }
 
+// ContainerDecorationOption 是装饰容器的可选配置项。
+type ContainerDecorationOption = widget.ContainerDecorationOption
+
 // ContainerDecoration 基于 Decoration 创建装饰容器。
-func ContainerDecoration(d Decoration, child Widget) Widget {
-	return widget.ContainerDecoration(d, child)
+// 可选 opts 支持交互状态和事件回调。
+func ContainerDecoration(d Decoration, child Widget, opts ...ContainerDecorationOption) Widget {
+	return widget.ContainerDecoration(d, child, opts...)
 }
 
 // WithFont 在子树中覆盖默认字体。
@@ -394,6 +413,9 @@ func Padding(insets Insets, child Widget) Widget {
 func State[T any](ctx *Context) *state.State[T] {
 	return state.Use[T](ctx)
 }
+
+// Easing 定义插值曲线类型。
+type Easing = anim.Easing
 
 // Animate 创建动画定义。
 func Animate(opts ...anim.Option) *anim.Animation {
@@ -418,6 +440,11 @@ func To(value float32) anim.Option {
 // Ease 配置动画缓动函数。
 func Ease(easing anim.Easing) anim.Option {
 	return anim.Ease(easing)
+}
+
+// CubicBezier 创建自定义三次贝塞尔缓动曲线 (x1,y1,x2,y2 均在 [0,1])。
+func CubicBezier(x1, y1, x2, y2 float32) anim.Easing {
+	return anim.CubicBezier(x1, y1, x2, y2)
 }
 
 // TextSize 设置文本字号。
@@ -532,6 +559,33 @@ type Border = style.Border
 // LinearGradient 定义线性渐变。
 type LinearGradient = style.LinearGradient
 
+// ImageFill 定义背景图片及其缩放模式。
+type ImageFill = style.ImageFill
+
+// ImageFillFit 定义背景图片缩放模式。
+type ImageFillFit = style.ImageFillFit
+
+// Transform2D 定义 2D 仿射变换。
+type Transform2D = style.Transform2D
+
+// TransformOrigin 定义变换原点。
+type TransformOrigin = style.TransformOrigin
+
+const (
+	ImageFillContain = style.ImageFillContain
+	ImageFillCover   = style.ImageFillCover
+	ImageFillFill    = style.ImageFillFill
+	ImageFillNone    = style.ImageFillNone
+)
+
+const (
+	TransformCenter      = style.TransformCenter
+	TransformTopLeft     = style.TransformTopLeft
+	TransformTopRight    = style.TransformTopRight
+	TransformBottomLeft  = style.TransformBottomLeft
+	TransformBottomRight = style.TransformBottomRight
+)
+
 // Bg 创建仅设置背景色的装饰。
 func Bg(c color.NRGBA) style.Decoration {
 	return style.Decoration{}.WithBg(c)
@@ -593,6 +647,79 @@ func Shadow(offX, offY, blur float32, col color.NRGBA) style.Decoration {
 func Elevation(level int) style.Decoration {
 	s := style.ElevationBoxShadow(level)
 	return style.Decoration{}.WithShadow(s)
+}
+
+// Hover 创建仅设置悬浮态装饰的 Decoration。
+func Hover(d Decoration) style.Decoration {
+	return style.Decoration{}.WithHover(d)
+}
+
+// Pressed 创建仅设置按下态装饰的 Decoration。
+func Pressed(d Decoration) style.Decoration {
+	return style.Decoration{}.WithPressed(d)
+}
+
+// Focused 创建仅设置聚焦态装饰的 Decoration。
+func Focused(d Decoration) style.Decoration {
+	return style.Decoration{}.WithFocused(d)
+}
+
+// DisabledDeco 创建仅设置禁用态装饰的 Decoration。
+func DisabledDeco(d Decoration) style.Decoration {
+	return style.Decoration{}.WithDisabled(d)
+}
+
+// HoverBg 创建悬浮时背景色变化的 Decoration 快捷方式。
+func HoverBg(c color.NRGBA) style.Decoration {
+	return Hover(Bg(c))
+}
+
+// PressedBg 创建按下时背景色变化的 Decoration 快捷方式。
+func PressedBg(c color.NRGBA) style.Decoration {
+	return Pressed(Bg(c))
+}
+
+// ImageBg 创建仅设置背景图片的 Decoration。
+func ImageBg(src image.Image, fit ImageFillFit) style.Decoration {
+	return style.Decoration{}.WithImage(style.ImageFill{Src: src, Fit: fit})
+}
+
+// LoadImage 自动检测 URL 或文件路径，解码图片。
+func LoadImage(src string) (image.Image, error) {
+	return style.LoadImage(src)
+}
+
+// DecodeImageURL 通过 HTTP(S) 下载并解码图片。
+func DecodeImageURL(url string) (image.Image, error) {
+	return style.DecodeImageURL(url)
+}
+
+// DecodeImageFile 从本地文件路径解码图片。
+func DecodeImageFile(path string) (image.Image, error) {
+	return style.DecodeImageFile(path)
+}
+
+// TransformDeco 创建仅设置变换的 Decoration。
+func TransformDeco(rotateDeg, scaleX, scaleY, transX, transY float32, origin TransformOrigin) style.Decoration {
+	return style.Decoration{}.WithTransform(style.Transform2D{
+		RotateDeg: rotateDeg, ScaleX: scaleX, ScaleY: scaleY,
+		TranslateX: transX, TranslateY: transY, Origin: origin,
+	})
+}
+
+// Rotate 创建仅设置旋转的 Decoration。
+func Rotate(deg float32) style.Decoration {
+	return TransformDeco(deg, 1, 1, 0, 0, TransformCenter)
+}
+
+// ScaleDeco 创建仅设置缩放的 Decoration。
+func ScaleDeco(sx, sy float32) style.Decoration {
+	return TransformDeco(0, sx, sy, 0, 0, TransformCenter)
+}
+
+// TranslateDeco 创建仅设置平移的 Decoration。
+func TranslateDeco(tx, ty float32) style.Decoration {
+	return TransformDeco(0, 1, 1, tx, ty, TransformCenter)
 }
 
 // InputPlaceholder 设置输入框占位符。
@@ -810,4 +937,34 @@ func NewSliderRef() *SliderRef {
 
 func SliderAttachRef(ref *SliderRef) SliderOption {
 	return widget.SliderAttachRef(ref)
+}
+
+// ContainerDecorationDisabled 设置容器禁用状态。
+func ContainerDecorationDisabled(disabled bool) ContainerDecorationOption {
+	return widget.ContainerDecorationDisabled(disabled)
+}
+
+// OnDecoClick 设置装饰容器点击回调。
+func OnDecoClick(fn func(ctx *Context)) ContainerDecorationOption {
+	return widget.ContainerDecorationOnClick(fn)
+}
+
+// OnDecoHoverEnter 设置鼠标进入装饰容器回调。
+func OnDecoHoverEnter(fn func(ctx *Context)) ContainerDecorationOption {
+	return widget.ContainerDecorationOnHoverEnter(fn)
+}
+
+// OnDecoHoverLeave 设置鼠标离开装饰容器回调。
+func OnDecoHoverLeave(fn func(ctx *Context)) ContainerDecorationOption {
+	return widget.ContainerDecorationOnHoverLeave(fn)
+}
+
+// OnDecoHover 设置装饰容器悬浮态每帧回调。
+func OnDecoHover(fn func(ctx *Context, hovering bool)) ContainerDecorationOption {
+	return widget.ContainerDecorationOnHover(fn)
+}
+
+// OnDecoPressed 设置装饰容器按下/释放回调。
+func OnDecoPressed(fn func(ctx *Context, pressed bool)) ContainerDecorationOption {
+	return widget.ContainerDecorationOnPressed(fn)
 }

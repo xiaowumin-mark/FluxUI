@@ -1,11 +1,13 @@
 package anim
 
 import (
+	"image/color"
 	"math"
 	"testing"
 	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/style"
 
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"
@@ -26,6 +28,12 @@ func TestClamp01(t *testing.T) {
 		if got != c.out {
 			t.Errorf("clamp01(%v) = %v, want %v", c.in, got, c.out)
 		}
+	}
+}
+
+func TestClamp01HandlesNaN(t *testing.T) {
+	if got := clamp01(float32(math.NaN())); got != 0 {
+		t.Fatalf("clamp01(NaN) = %v, want 0", got)
 	}
 }
 
@@ -138,6 +146,13 @@ func TestAnimationNil(t *testing.T) {
 	}
 }
 
+func TestAnimationNilContextReturnsTarget(t *testing.T) {
+	a := New(From(10), To(20))
+	if got := a.Value(nil); got != 20 {
+		t.Fatalf("nil context should return target, got %v", got)
+	}
+}
+
 func TestAnimationValue(t *testing.T) {
 	rt := internal.NewRuntime(nil)
 	var ops op.Ops
@@ -194,5 +209,68 @@ func TestAnimationEaseNil(t *testing.T) {
 	a := New(Ease(nil))
 	if a.easing == nil {
 		t.Fatal("Ease(nil) should not override default easing")
+	}
+}
+
+func TestAnimationValueHandlesNilEasingField(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	a := New(From(10), To(20), Duration(100*time.Millisecond))
+	a.easing = nil
+
+	rt.BeginFrame()
+	ctx0 := internal.NewContext(gioLayout.Context{Ops: &ops, Now: now}, rt)
+	_ = a.Value(ctx0)
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	ctx50 := internal.NewContext(gioLayout.Context{Ops: &ops, Now: now.Add(50 * time.Millisecond)}, rt)
+	if got := a.Value(ctx50); got != 15 {
+		t.Fatalf("nil easing field should use linear easing, got %v", got)
+	}
+	rt.EndFrame()
+}
+
+func TestAnimationHandlesInvalidEasingOutput(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	a := New(From(10), To(20), Duration(100*time.Millisecond), Ease(func(float32) float32 {
+		return float32(math.NaN())
+	}))
+
+	rt.BeginFrame()
+	ctx0 := internal.NewContext(gioLayout.Context{Ops: &ops, Now: now}, rt)
+	_ = a.Value(ctx0)
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	ctx50 := internal.NewContext(gioLayout.Context{Ops: &ops, Now: now.Add(50 * time.Millisecond)}, rt)
+	if got := a.Value(ctx50); got != 10 {
+		t.Fatalf("invalid easing output should fall back to from value, got %v", got)
+	}
+	rt.EndFrame()
+}
+
+func TestDecorationTimelineUsesLinearWhenEasingNil(t *testing.T) {
+	from := style.Decoration{}.WithBg(color.NRGBA{A: 255})
+	to := style.Decoration{}.WithBg(color.NRGBA{R: 100, A: 255})
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	timeline := &decorationTimeline{startedAt: now, from: from, target: to, duration: 100 * time.Millisecond}
+
+	got := timeline.value(now.Add(50*time.Millisecond), nil)
+	if got.Background == nil || got.Background.R != 50 {
+		t.Fatalf("expected linear midpoint red=50, got %#v", got.Background)
+	}
+}
+
+func TestCubicBezierClampsNaNControlPoint(t *testing.T) {
+	easing := CubicBezier(float32(math.NaN()), 0.1, 0.25, 1)
+	if got := easing(0); got != 0 {
+		t.Fatalf("bezier at 0 = %v, want 0", got)
+	}
+	if got := easing(1); got != 1 {
+		t.Fatalf("bezier at 1 = %v, want 1", got)
 	}
 }

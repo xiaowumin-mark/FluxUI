@@ -1,8 +1,12 @@
 package ui
 
 import (
+	"fmt"
+	"image/color"
 	"testing"
+	"time"
 
+	anim "github.com/xiaowumin-mark/FluxUI/anim"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/state"
 	widgetpkg "github.com/xiaowumin-mark/FluxUI/widget"
@@ -867,6 +871,138 @@ func TestCompositeElementChildrenCanUseHooksAndContext(t *testing.T) {
 	if len(seenState) != 2 || seenState[0] != 1 || seenState[1] != 2 {
 		t.Fatalf("expected nested component state to persist, got %v", seenState)
 	}
+}
+
+func TestTabbedAnimatedSectionsKeepIndependentHookSlots(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	gtx := gioLayout.Context{Ops: &ops, Now: now}
+	r := newReconciler()
+	tab := "easing"
+
+	root := func(ctx *Context) Element {
+		var content Element
+		switch tab {
+		case "value":
+			content = ComponentElement(func(ctx *Context) Element {
+				target := UseState(ctx, float32(200))
+				animated := UseAnimatedValue(ctx, target.Value(), 100*time.Millisecond, EaseOutBack)
+				return FixedWidthElement(animated, TextElement("value"))
+			})
+		case "deco":
+			content = ComponentElement(func(ctx *Context) Element {
+				toggle := UseState(ctx, true)
+				bg := color.NRGBA{R: 59, G: 130, B: 246, A: 255}
+				if !toggle.Value() {
+					bg = color.NRGBA{R: 234, G: 88, B: 12, A: 255}
+				}
+				deco := UseAnimatedDecoration(ctx, Bg(bg).WithRad(8), 100*time.Millisecond, EaseInOut)
+				return ContainerDecorationElement(deco, TextElement("deco"))
+			})
+		case "pulse":
+			content = ComponentElement(func(ctx *Context) Element {
+				active := UseState(ctx, false)
+				target := float32(0)
+				if active.Value() {
+					target = 1
+				}
+				pulse := UseAnimatedValue(ctx, target, 100*time.Millisecond, EaseInOut)
+				return TextElement(fmt.Sprintf("%.2f", pulse))
+			})
+		default:
+			content = ComponentElement(func(ctx *Context) Element {
+				playing := UseState(ctx, false)
+				target := float32(0)
+				if playing.Value() {
+					target = 1
+				}
+				for range 6 {
+					UseAnimatedValue(ctx, target, 100*time.Millisecond, anim.EaseOutElastic)
+				}
+				return TextElement("easing")
+			})
+		}
+		return ColumnElement(content)
+	}
+
+	for idx, nextTab := range []string{"easing", "value", "deco", "pulse", "easing", "deco"} {
+		tab = nextTab
+		rt.BeginFrame()
+		gtx.Now = now.Add(time.Duration(idx) * 16 * time.Millisecond)
+		r.Render(internal.NewContext(gtx, rt), root)
+		rt.EndFrame()
+	}
+}
+
+func TestUseAnimatedValueZeroDurationResetsHookState(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	gtx := gioLayout.Context{Ops: &ops, Now: now}
+	identity := internal.ComponentIdentity{ParentID: "root", TypeID: "AnimValue", Key: "main"}
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gtx, rt)
+	inst := rt.HookStore().BeginInstance(identity)
+	if got := UseAnimatedValue(ctx.WithComponentInstance(inst), float32(10), 100*time.Millisecond, EaseOut); got != 10 {
+		t.Fatalf("initial animated value = %v, want 10", got)
+	}
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	gtx.Now = now.Add(50 * time.Millisecond)
+	ctx = internal.NewContext(gtx, rt)
+	inst = rt.HookStore().BeginInstance(identity)
+	if got := UseAnimatedValue(ctx.WithComponentInstance(inst), float32(30), 0, EaseOut); got != 30 {
+		t.Fatalf("zero duration animated value = %v, want 30", got)
+	}
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	gtx.Now = now.Add(60 * time.Millisecond)
+	ctx = internal.NewContext(gtx, rt)
+	inst = rt.HookStore().BeginInstance(identity)
+	if got := UseAnimatedValue(ctx.WithComponentInstance(inst), float32(40), 100*time.Millisecond, EaseOut); got != 30 {
+		t.Fatalf("animation after zero-duration snap should start at 30, got %v", got)
+	}
+	rt.EndFrame()
+}
+
+func TestUseAnimatedDecorationZeroDurationResetsHookState(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	gtx := gioLayout.Context{Ops: &ops, Now: now}
+	identity := internal.ComponentIdentity{ParentID: "root", TypeID: "AnimDeco", Key: "main"}
+	blue := Bg(color.NRGBA{R: 59, G: 130, B: 246, A: 255}).WithRad(8)
+	orange := Bg(color.NRGBA{R: 234, G: 88, B: 12, A: 255}).WithRad(24)
+	green := Bg(color.NRGBA{R: 22, G: 163, B: 74, A: 255}).WithRad(40)
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gtx, rt)
+	inst := rt.HookStore().BeginInstance(identity)
+	_ = UseAnimatedDecoration(ctx.WithComponentInstance(inst), blue, 100*time.Millisecond, EaseOut)
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	gtx.Now = now.Add(50 * time.Millisecond)
+	ctx = internal.NewContext(gtx, rt)
+	inst = rt.HookStore().BeginInstance(identity)
+	if got := UseAnimatedDecoration(ctx.WithComponentInstance(inst), orange, 0, EaseOut); !anim.DecorationEqual(got, orange) {
+		t.Fatalf("zero duration decoration should return target")
+	}
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	gtx.Now = now.Add(60 * time.Millisecond)
+	ctx = internal.NewContext(gtx, rt)
+	inst = rt.HookStore().BeginInstance(identity)
+	got := UseAnimatedDecoration(ctx.WithComponentInstance(inst), green, 100*time.Millisecond, EaseOut)
+	if got.Background == nil || *got.Background != *orange.Background {
+		t.Fatalf("animation after zero-duration snap should start from orange, got %#v", got.Background)
+	}
+	rt.EndFrame()
 }
 
 func TestKeyedComponentsInsideCompositeElementsPreserveStateAcrossReorder(t *testing.T) {

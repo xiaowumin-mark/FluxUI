@@ -87,6 +87,9 @@ type SurfaceSpec struct {
 	ShadowOffsetY float32
 	ShadowBlur    float32
 	ShadowColor   color.NRGBA
+	HasImage      bool
+	ImageOp       paint.ImageOp
+	ImageFit      int
 }
 
 // ButtonSpec 描述按钮样式。
@@ -277,7 +280,21 @@ func (c *Context) layoutRoundedSurface(gtx gioLayout.Context, size image.Point, 
 	rect := image.Rectangle{Max: size}
 	defer clip.UniformRRect(rect, rr).Push(gtx.Ops).Pop()
 
-	if spec.HasGradient {
+	if spec.HasImage {
+		if spec.HasGradient {
+			grad := paint.LinearGradientOp{
+				Stop1:  spec.GradientStart,
+				Color1: spec.GradientFrom,
+				Stop2:  spec.GradientEnd,
+				Color2: spec.GradientTo,
+			}
+			grad.Add(gtx.Ops)
+			paint.PaintOp{}.Add(gtx.Ops)
+		} else if spec.Background.A > 0 {
+			paint.Fill(gtx.Ops, spec.Background)
+		}
+		renderImage(gtx, size, spec)
+	} else if spec.HasGradient {
 		grad := paint.LinearGradientOp{
 			Stop1:  spec.GradientStart,
 			Color1: spec.GradientFrom,
@@ -312,7 +329,21 @@ func (c *Context) layoutCircleSurface(gtx gioLayout.Context, size image.Point, s
 	ellipse := clip.Ellipse(circleRect)
 	defer ellipse.Push(gtx.Ops).Pop()
 
-	if spec.HasGradient {
+	if spec.HasImage {
+		if spec.HasGradient {
+			grad := paint.LinearGradientOp{
+				Stop1:  spec.GradientStart,
+				Color1: spec.GradientFrom,
+				Stop2:  spec.GradientEnd,
+				Color2: spec.GradientTo,
+			}
+			grad.Add(gtx.Ops)
+			paint.PaintOp{}.Add(gtx.Ops)
+		} else if spec.Background.A > 0 {
+			paint.Fill(gtx.Ops, spec.Background)
+		}
+		renderImage(gtx, size, spec)
+	} else if spec.HasGradient {
 		grad := paint.LinearGradientOp{
 			Stop1:  spec.GradientStart,
 			Color1: spec.GradientFrom,
@@ -340,6 +371,31 @@ func (c *Context) layoutCircleSurface(gtx gioLayout.Context, size image.Point, s
 			}
 		}
 	}
+}
+
+func renderImage(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
+	if size.X <= 0 || size.Y <= 0 {
+		return
+	}
+	var fit widget.Fit
+	switch spec.ImageFit {
+	case 1:
+		fit = widget.Cover
+	case 2:
+		fit = widget.Fill
+	case 3:
+		fit = widget.Unscaled
+	default:
+		fit = widget.Contain
+	}
+	imgWidget := widget.Image{
+		Src:      spec.ImageOp,
+		Fit:      fit,
+		Position: gioLayout.Center,
+	}
+	imgCtx := gtx
+	imgCtx.Constraints = gioLayout.Exact(size)
+	imgWidget.Layout(imgCtx)
 }
 
 // LayoutButton 绘制按钮并注册点击区域。

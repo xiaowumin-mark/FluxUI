@@ -63,7 +63,46 @@
 - **新增 `ui` 包导出**：`ColorScheme`、`NewTheme(cs)`、`LightColors()`、`DarkColors()`
 - **示例重写**：`theme_custom` 从手动颜色传递升级为 ColorScheme + 语义色板展示 + 五主题动态切换
 
+### 交互状态（Phase 7）
+
+- **`style.Decoration` 扩展**：新增 `Hover *Decoration`、`Pressed *Decoration`、`Focused *Decoration`、`Disabled *Decoration` 四个交互态字段
+- **新增 With* 方法**：`WithHover(d)`、`WithPressed(d)`、`WithFocused(d)`、`WithDisabled(d)`
+- **`ContainerDecoration` 集成交互**：内部使用 `event.Clickable` 追踪 `Hovered()` / `Pressed()` / `Clicked()` 状态，按 Pressed > Hover > 默认优先级自动切换装饰
+- **新增事件回调**（ContainerDecorationOption）：`OnClick`、`OnHoverEnter`、`OnHoverLeave`、`OnHover`、`OnPressed`
+- **`ContainerDecoration` 签名变更为 variadic**：`ContainerDecoration(d, child, opts...)` ← 向后兼容，无 opts 时行为不变
+- **`ContainerDecorationElement` 同步支持**：Element 版本同样接受 variadic opts
+- **新增 `ui` 包导出**：`ContainerDecorationOption`、`Hover(d)`、`Pressed(d)`、`Focused(d)`、`DisabledDeco(d)`、`HoverBg(c)`、`PressedBg(c)`、`OnDecoClick`、`OnDecoHoverEnter`、`OnDecoHoverLeave`、`OnDecoHover`、`OnDecoPressed`、`ContainerDecorationDisabled`
+- **新增示例**：`interactive_decoration` 展示 Hover 背景变化、Pressed 反馈、Click 事件、卡片组合、Disabled 状态
+
+### 背景图片（Phase 8）
+
+- **新增 `style.ImageFill` 类型**：`{Src image.Image, Fit ImageFillFit}` — 背景图片 + 缩放模式
+- **新增 `style.ImageFillFit` 枚举**：`ImageFillContain` / `ImageFillCover` / `ImageFillFill` / `ImageFillNone`
+- **`style.Decoration` 扩展**：新增 `Image *ImageFill` 字段 + `WithImage` / `ResolveImage` 方法
+- **新增图片加载工具**：`LoadImage(src)`（自动检测 URL / 文件路径）、`DecodeImageURL(url)`、`DecodeImageFile(path)`
+- **`internal.SurfaceSpec` 扩展**：`HasImage` / `ImageOp` / `ImageFit` 字段
+- **渲染集成**：`layoutRoundedSurface` / `layoutCircleSurface` 均支持图片背景，图片叠加在底色/渐变之上，透明区域露出 fallback 底色
+- **交互兼容**：`Hover` / `Pressed` 态通过 `Merge` 继承 Image。圆形裁切 + 图片背景正常渲染
+- **新增 `ui` 包导出**：`ImageFill`、`ImageFillFit`、`ImageBg(src, fit)`、`LoadImage`、`DecodeImageURL`、`DecodeImageFile`
+- **新增示例**：`image_background` — Cover/Contain/Fill/None 四模式 + 圆形裁切 + Hover 换图 + 边框组合
+
+### 废弃标记
+
+- `Widget` 类型标记为 Deprecated：推荐使用 React-style `Element` API (`RunElement`)
+- `Run` / `App` / `Window` / `RunMulti` 标记为 Deprecated：不再维护，使用 `RunElement`
+
+### 2D 变换（Phase 9）
+
+- **新增 `style.Transform2D` 类型**：`{RotateDeg, ScaleX, ScaleY, TranslateX, TranslateY, Origin TransformOrigin}` — 旋转/缩放/平移
+- **新增 `style.TransformOrigin` 枚举**：`TransformCenter` / `TransformTopLeft` / `TransformTopRight` / `TransformBottomLeft` / `TransformBottomRight`
+- **`style.Decoration` 扩展**：新增 `Transform *Transform2D` 字段 + `WithTransform` / `ResolveTransform` / `Merge`
+- **`internal.SurfaceSpec` 扩展**：+`HasTransform` / `TransformMatrix`
+- **渲染集成**：ContainerDecoration 在 `LayoutSurface` 前推入 `op.Affine` 栈，影响阴影/背景/图片/边框/子控件全部渲染。不影响占位空间（与 CSS `transform` 行为一致）
+- **便捷构造器**：`Rotate(deg)` / `ScaleDeco(sx,sy)` / `TranslateDeco(tx,ty)` / `TransformDeco(...)`
+- **交互兼容**：Hover/Press 态通过 Merge 继承 Transform，可实现 hover 放大等效果
+- **新增示例**：`transform_demo` — 旋转/缩放/平移/原点/组合/圆形+旋转/交互 hover 放大
+
 ### 示例
 
-- 新增：`react_workspace`、`router`、`popup_demo`、`team_workspace`、`virtual_scroll`、`fonts`、`horizontal_scroll`
+- 新增：`react_workspace`、`router`、`popup_demo`、`team_workspace`、`virtual_scroll`、`fonts`、`horizontal_scroll`、`interactive_decoration`、`image_background`、`transform_demo`
 - 移除冗余示例：`animation`、`react_counter`、`router_element`

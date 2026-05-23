@@ -2,6 +2,7 @@ package anim
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
@@ -74,6 +75,9 @@ func (a *Animation) Value(ctx *internal.Context) float32 {
 	if a == nil {
 		return 0
 	}
+	if ctx == nil {
+		return a.to
+	}
 
 	value := ctx.Memo("animation", func() any {
 		return &track{}
@@ -102,5 +106,17 @@ func (a *Animation) Value(ctx *internal.Context) float32 {
 	}
 
 	progress := clamp01(float32(elapsed) / float32(a.duration))
-	return lerp(a.from, a.to, a.easing(progress))
+	easing := a.easing
+	if easing == nil {
+		easing = Linear
+	}
+	eased := easing(progress)
+	if math.IsNaN(float64(eased)) {
+		eased = 0
+	} else if math.IsInf(float64(eased), 1) {
+		eased = 1
+	} else if math.IsInf(float64(eased), -1) {
+		eased = 0
+	}
+	return lerp(a.from, a.to, eased)
 }
