@@ -1,5 +1,9 @@
 # FluxUI
 
+[![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/xiaowumin-mark/FluxUI)](https://goreportcard.com/report/github.com/xiaowumin-mark/FluxUI)
+
 FluxUI 是一个基于 [Gio](https://gioui.org/) 的声明式 Go UI 框架。  
 它不是替代 Gio，而是在 Gio 之上提供更易用的组件化 API、状态管理与动画能力。
 

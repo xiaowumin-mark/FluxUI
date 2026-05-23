@@ -1,5 +1,9 @@
 # FluxUI
 
+[![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/xiaowumin-mark/FluxUI)](https://goreportcard.com/report/github.com/xiaowumin-mark/FluxUI)
+
 FluxUI is a declarative Go UI framework built on top of [Gio](https://gioui.org/).  
 It does not replace Gio. Instead, it provides a higher-level API layer with components, state handling, and frame-based animation.
 
