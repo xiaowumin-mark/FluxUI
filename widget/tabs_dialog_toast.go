@@ -139,11 +139,8 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				Text(item.Label, TextColor(txtColor)),
 				Padding(
 					style.Insets{Top: 4},
-					Container(
-						style.Style{
-							Background: indicatorBar,
-							Radius:     2,
-						},
+					ContainerDecoration(
+						style.Decoration{}.WithBg(indicatorBar).WithRad(2),
 						(&fixedSizeWidget{
 							width:  22,
 							height: 3,
@@ -345,12 +342,8 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		parts = append(parts, Padding(style.Insets{Top: 12}, Row(actions...)))
 	}
 
-	panel := Container(
-		style.Style{
-			Background: d.config.decoration.ResolveBg(ctx.Theme().Surface),
-			Padding:    d.config.decoration.ResolvePad(style.All(12)),
-			Radius:     d.config.decoration.ResolveRad(d.config.radius),
-		},
+	panel := ContainerDecoration(
+		style.Decoration{}.WithBg(d.config.decoration.ResolveBg(ctx.Theme().Surface)).WithPad(d.config.decoration.ResolvePad(style.All(12))).WithRad(d.config.decoration.ResolveRad(d.config.radius)),
 		Column(parts...),
 	)
 	if d.config.width > 0 {
@@ -502,12 +495,8 @@ func (t *toastWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		bg = t.config.decoration.ResolveBg(color.NRGBA{R: 220, G: 53, B: 69, A: 230})
 	}
 
-	body := Container(
-		style.Style{
-			Background: bg,
-			Padding:    t.config.decoration.ResolvePad(style.Symmetric(8, 12)),
-			Radius:     t.config.decoration.ResolveRad(8),
-		},
+	body := ContainerDecoration(
+		style.Decoration{}.WithBg(bg).WithPad(t.config.decoration.ResolvePad(style.Symmetric(8, 12))).WithRad(t.config.decoration.ResolveRad(8)),
 		Text(t.message, TextColor(color.NRGBA{R: 255, G: 255, B: 255, A: 255})),
 	)
 
@@ -754,12 +743,8 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	radius := p.config.decoration.ResolveRad(p.config.radius)
 
 	var panel Widget
-	panel = Container(
-		style.Style{
-			Background: bg,
-			Padding:    padding,
-			Radius:     radius,
-		},
+	panel = ContainerDecoration(
+		style.Decoration{}.WithBg(bg).WithPad(padding).WithRad(radius),
 		p.child,
 	)
 	if p.config.width > 0 {

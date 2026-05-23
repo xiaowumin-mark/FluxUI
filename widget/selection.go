@@ -399,12 +399,8 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 		ListVirtualized(true),
 	)
 	panel := expandWidth(
-		Container(
-			style.Style{
-				Background: s.config.decoration.ResolveBg(ctx.Theme().Surface),
-				Padding:    s.config.decoration.ResolvePad(style.All(6)),
-				Radius:     s.config.decoration.ResolveRad(8),
-			},
+		ContainerDecoration(
+			style.Decoration{}.WithBg(s.config.decoration.ResolveBg(ctx.Theme().Surface)).WithPad(s.config.decoration.ResolvePad(style.All(6))).WithRad(s.config.decoration.ResolveRad(8)),
 			list,
 		),
 	)

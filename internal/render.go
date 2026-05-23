@@ -10,6 +10,7 @@ import (
 
 	"gioui.org/f32"
 	gioFont "gioui.org/font"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	gioText "gioui.org/text"
@@ -69,9 +70,23 @@ type TextSpec struct {
 
 // SurfaceSpec 描述容器样式。
 type SurfaceSpec struct {
-	Background color.NRGBA
-	Radius     float32
-	Padding    Insets
+	Background    color.NRGBA
+	Radius        float32
+	Padding       Insets
+	BorderColor   color.NRGBA
+	BorderWidth   float32
+	Opacity       float32
+	GradientStart f32.Point
+	GradientEnd   f32.Point
+	GradientFrom  color.NRGBA
+	GradientTo    color.NRGBA
+	HasGradient   bool
+	CircleClip    bool
+	HasShadow     bool
+	ShadowOffsetX float32
+	ShadowOffsetY float32
+	ShadowBlur    float32
+	ShadowColor   color.NRGBA
 }
 
 // ButtonSpec 描述按钮样式。
@@ -169,10 +184,26 @@ func (c *Context) LayoutInset(insets Insets, child func(*Context) image.Point) i
 
 // LayoutSurface 绘制带背景的容器。
 func (c *Context) LayoutSurface(spec SurfaceSpec, child func(*Context) image.Point) image.Point {
-	dims := gioLayout.Background{}.Layout(c.Gtx,
+	gtx := c.Gtx
+	if spec.Opacity > 0 && spec.Opacity < 1 {
+		defer paint.PushOpacity(gtx.Ops, spec.Opacity).Pop()
+	}
+
+	dims := gioLayout.Background{}.Layout(gtx,
 		func(gtx gioLayout.Context) gioLayout.Dimensions {
-			fillRoundedRect(gtx, gtx.Constraints.Min, spec.Background, spec.Radius)
-			return gioLayout.Dimensions{Size: gtx.Constraints.Min}
+			size := gtx.Constraints.Min
+
+			if spec.HasShadow {
+				c.drawShadowLayers(gtx, size, spec)
+			}
+
+			if spec.CircleClip {
+				c.layoutCircleSurface(gtx, size, spec)
+			} else {
+				c.layoutRoundedSurface(gtx, size, spec)
+			}
+
+			return gioLayout.Dimensions{Size: size}
 		},
 		func(gtx gioLayout.Context) gioLayout.Dimensions {
 			next := c.sameScope(gtx)
@@ -182,6 +213,133 @@ func (c *Context) LayoutSurface(spec SurfaceSpec, child func(*Context) image.Poi
 		},
 	)
 	return dims.Size
+}
+
+func (c *Context) drawShadowLayers(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
+	n := shadowLayerCount(spec.ShadowBlur)
+	if n <= 0 {
+		return
+	}
+	baseAlpha := float32(spec.ShadowColor.A) / 255.0
+	for i := 0; i < n; i++ {
+		t := float32(i+1) / float32(n)
+		offX := int(float32(gtx.Dp(unit.Dp(spec.ShadowOffsetX))) * t * 2.0)
+		offY := int(float32(gtx.Dp(unit.Dp(spec.ShadowOffsetY))) * t * 2.0)
+		alpha := baseAlpha * (1.0 - t*0.4)
+		spread := gtx.Dp(unit.Dp(spec.ShadowBlur * t * 0.5))
+
+		sc := spec.ShadowColor
+		sc.A = uint8(alpha*255.0 + 0.5)
+
+		offStack := op.Offset(image.Pt(offX, offY)).Push(gtx.Ops)
+
+		if spec.CircleClip {
+			dim := size.X
+			if size.Y < dim {
+				dim = size.Y
+			}
+			offXc := (size.X - dim) / 2
+			offYc := (size.Y - dim) / 2
+			outer := image.Rect(offXc-spread, offYc-spread, offXc+dim+spread, offYc+dim+spread)
+			clipStack := clip.Ellipse(outer).Push(gtx.Ops)
+			paint.Fill(gtx.Ops, sc)
+			clipStack.Pop()
+		} else {
+			rad := gtx.Dp(unit.Dp(spec.Radius)) + spread
+			rr := clampRoundedRadiusPx(size, rad)
+			clipStack := clip.UniformRRect(image.Rectangle{Max: size}, rr).Push(gtx.Ops)
+			paint.Fill(gtx.Ops, sc)
+			clipStack.Pop()
+		}
+
+		offStack.Pop()
+	}
+}
+
+func shadowLayerCount(blur float32) int {
+	if blur <= 0 {
+		return 0
+	}
+	if blur <= 4 {
+		return 2
+	}
+	if blur <= 12 {
+		return 3
+	}
+	if blur <= 24 {
+		return 4
+	}
+	return 5
+}
+
+func (c *Context) layoutRoundedSurface(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
+	rr := clampRoundedRadiusPx(size, gtx.Dp(unit.Dp(spec.Radius)))
+	rect := image.Rectangle{Max: size}
+	defer clip.UniformRRect(rect, rr).Push(gtx.Ops).Pop()
+
+	if spec.HasGradient {
+		grad := paint.LinearGradientOp{
+			Stop1:  spec.GradientStart,
+			Color1: spec.GradientFrom,
+			Stop2:  spec.GradientEnd,
+			Color2: spec.GradientTo,
+		}
+		grad.Add(gtx.Ops)
+		paint.PaintOp{}.Add(gtx.Ops)
+	} else {
+		paint.Fill(gtx.Ops, spec.Background)
+	}
+
+	if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
+		bw := gtx.Dp(unit.Dp(spec.BorderWidth))
+		if bw > 0 {
+			paint.FillShape(gtx.Ops, spec.BorderColor, clip.Stroke{
+				Path:  clip.UniformRRect(rect, rr).Path(gtx.Ops),
+				Width: float32(bw),
+			}.Op())
+		}
+	}
+}
+
+func (c *Context) layoutCircleSurface(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
+	dim := size.X
+	if size.Y < dim {
+		dim = size.Y
+	}
+	offX := (size.X - dim) / 2
+	offY := (size.Y - dim) / 2
+	circleRect := image.Rect(offX, offY, offX+dim, offY+dim)
+	ellipse := clip.Ellipse(circleRect)
+	defer ellipse.Push(gtx.Ops).Pop()
+
+	if spec.HasGradient {
+		grad := paint.LinearGradientOp{
+			Stop1:  spec.GradientStart,
+			Color1: spec.GradientFrom,
+			Stop2:  spec.GradientEnd,
+			Color2: spec.GradientTo,
+		}
+		grad.Add(gtx.Ops)
+		paint.PaintOp{}.Add(gtx.Ops)
+	} else {
+		paint.Fill(gtx.Ops, spec.Background)
+	}
+
+	if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
+		bw := gtx.Dp(unit.Dp(spec.BorderWidth))
+		if bw > 0 {
+			whalf := (bw + 1) / 2
+			inner := circleRect
+			inner.Min = inner.Min.Add(image.Point{X: whalf, Y: whalf})
+			inner.Max = inner.Max.Sub(image.Point{X: whalf, Y: whalf})
+			if inner.Dx() > 0 && inner.Dy() > 0 {
+				paint.FillShape(gtx.Ops, spec.BorderColor, clip.Stroke{
+					Path:  clip.Ellipse(inner).Path(gtx.Ops),
+					Width: float32(bw),
+				}.Op())
+			}
+		}
+	}
 }
 
 // LayoutButton 绘制按钮并注册点击区域。

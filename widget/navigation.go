@@ -107,11 +107,8 @@ func (a *appBarWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		)
 	}
 
-	bar := Container(
-		style.Style{
-			Background: bg,
-			Padding:    style.Symmetric(8, 12),
-		},
+	bar := ContainerDecoration(
+		style.Decoration{}.WithBg(bg).WithPad(style.Symmetric(8, 12)),
 		content,
 	)
 	bar = expandWidth(bar)
@@ -290,11 +287,8 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		)
 	}
 
-	return expandWidth(Container(
-		style.Style{
-			Background: bg,
-			Padding:    style.Symmetric(8, 8),
-		},
+	return expandWidth(ContainerDecoration(
+		style.Decoration{}.WithBg(bg).WithPad(style.Symmetric(8, 8)),
 		content,
 	)).Layout(ctx.Child(0))
 }

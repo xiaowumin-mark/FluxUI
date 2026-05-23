@@ -177,9 +177,14 @@ func PaddingElement(insets Insets, child Element) Element {
 	return &layoutElement{kind: "padding", insets: insets, child: child}
 }
 
-// ContainerElement 创建可参与 reconciler 的容器布局 Element。
+// Deprecated: ContainerElement 已被 ContainerDecorationElement 取代。
 func ContainerElement(st Style, child Element) Element {
 	return &layoutElement{kind: "container", style: st, child: child}
+}
+
+// ContainerDecorationElement 创建可参与 reconciler 的装饰容器 Element。
+func ContainerDecorationElement(d Decoration, child Element) Element {
+	return &layoutElement{kind: "container-decoration", decoration: d, child: child}
 }
 
 // ButtonElement 创建可参与 reconciler 的按钮 Element。
@@ -471,12 +476,59 @@ func DividerMargin(insets Insets) DividerOption {
 	return widget.DividerMargin(insets)
 }
 
+type themeProviderElement struct {
+	theme *Theme
+	child Element
+}
+
+// ThemeProviderElement 为子树提供局部主题。子树的 Widget 通过 UseTheme 读取到该主题，
+// 而非运行时全局主题。可用于实现局部深色模式等场景。
+func ThemeProviderElement(th *Theme, child Element) Element {
+	if child == nil {
+		return nil
+	}
+	return &themeProviderElement{theme: th, child: child}
+}
+
+func (e *themeProviderElement) render() widget.Widget {
+	ctx := &Context{}
+	ctx.SetThemeOverride(e.theme)
+	return renderElement(e.child)
+}
+
+func (e *themeProviderElement) renderWithContext(ctx *Context) widget.Widget {
+	return renderCompositeElementWithContext(ctx, e, 0, "")
+}
+
+func (e *themeProviderElement) identity() ElementIdentity {
+	return ElementIdentity{Kind: "theme-provider", ChildCount: 1}
+}
+
+func (e *themeProviderElement) HostChildren() []Element {
+	if e == nil {
+		return nil
+	}
+	return []Element{e.child}
+}
+
+func (e *themeProviderElement) ChildContext(ctx *Context) *Context {
+	if ctx == nil || e == nil || e.theme == nil {
+		return ctx
+	}
+	return ctx.WithTheme(e.theme)
+}
+
+func (e *themeProviderElement) RenderWithChildren(ctx *Context, children []Widget) Widget {
+	return firstWidget(children)
+}
+
 type layoutElement struct {
-	kind     string
-	style    Style
-	insets   Insets
-	child    Element
-	children []Element
+	kind       string
+	style      Style
+	insets     Insets
+	decoration Decoration
+	child      Element
+	children   []Element
 }
 
 func (e *layoutElement) render() widget.Widget {
@@ -493,6 +545,8 @@ func (e *layoutElement) render() widget.Widget {
 		return widget.Padding(e.insets, renderElement(e.child))
 	case "container":
 		return widget.Container(e.style, renderElement(e.child))
+	case "container-decoration":
+		return widget.ContainerDecoration(e.decoration, renderElement(e.child))
 	default:
 		return nil
 	}
@@ -520,7 +574,7 @@ func (e *layoutElement) HostChildren() []Element {
 	switch e.kind {
 	case "column", "row", "stack":
 		return append([]Element(nil), e.children...)
-	case "center", "padding", "container":
+	case "center", "padding", "container", "container-decoration":
 		return []Element{e.child}
 	default:
 		return nil
@@ -544,6 +598,8 @@ func (e *layoutElement) RenderWithChildren(ctx *Context, children []Widget) Widg
 		return widget.Padding(e.insets, firstWidget(children))
 	case "container":
 		return widget.Container(e.style, firstWidget(children))
+	case "container-decoration":
+		return widget.ContainerDecoration(e.decoration, firstWidget(children))
 	default:
 		return nil
 	}

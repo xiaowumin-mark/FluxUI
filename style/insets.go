@@ -28,6 +28,26 @@ func Symmetric(vertical, horizontal float32) Insets {
 	}
 }
 
+// Only 为四个边分别设置不同值。
+func Only(top, right, bottom, left float32) Insets {
+	return Insets{
+		Top:    top,
+		Right:  right,
+		Bottom: bottom,
+		Left:   left,
+	}
+}
+
+// Horizontal 设置左右水平边距。
+func Horizontal(v float32) Insets {
+	return Insets{Right: v, Left: v}
+}
+
+// Vertical 设置上下垂直边距。
+func Vertical(v float32) Insets {
+	return Insets{Top: v, Bottom: v}
+}
+
 // IsZero 返回是否为零边距。
 func (i Insets) IsZero() bool {
 	return i.Top == 0 && i.Right == 0 && i.Bottom == 0 && i.Left == 0

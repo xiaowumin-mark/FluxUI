@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image"
 	"image/color"
 	"time"
 
@@ -39,6 +40,9 @@ type Style = style.Style
 
 // Theme 是公开主题类型。
 type Theme = theme.Theme
+
+// ColorScheme 定义语义化色板。
+type ColorScheme = theme.ColorScheme
 
 // FontSpec 是公开字体规格。
 type FontSpec = theme.FontSpec
@@ -157,6 +161,21 @@ func Size(width, height int) AppOption {
 // WithTheme 设置应用主题。
 func WithTheme(th *Theme) AppOption {
 	return fluxapp.WithTheme(th)
+}
+
+// NewTheme 从色板创建主题。
+func NewTheme(cs ColorScheme) *Theme {
+	return theme.New(cs)
+}
+
+// LightColors 返回浅色色板。
+func LightColors() ColorScheme {
+	return theme.LightColors()
+}
+
+// DarkColors 返回深色色板。
+func DarkColors() ColorScheme {
+	return theme.DarkColors()
 }
 
 // WithFonts 追加全局字体集合。
@@ -350,8 +369,15 @@ func Slider(value float32, opts ...SliderOption) Widget {
 }
 
 // Container 创建容器组件。
+//
+// Deprecated: Container 已被 ContainerDecoration 取代。
 func Container(st Style, child Widget) Widget {
 	return widget.Container(st, child)
+}
+
+// ContainerDecoration 基于 Decoration 创建装饰容器。
+func ContainerDecoration(d Decoration, child Widget) Widget {
+	return widget.ContainerDecoration(d, child)
 }
 
 // WithFont 在子树中覆盖默认字体。
@@ -477,13 +503,34 @@ func Symmetric(vertical, horizontal float32) Insets {
 	return style.Symmetric(vertical, horizontal)
 }
 
+// Only 创建四周独立的边距。
+func Only(top, right, bottom, left float32) Insets {
+	return style.Only(top, right, bottom, left)
+}
+
+// LeftRight 创建左右水平边距。
+func LeftRight(v float32) Insets {
+	return style.Horizontal(v)
+}
+
+// TopBottom 创建上下垂直边距。
+func TopBottom(v float32) Insets {
+	return style.Vertical(v)
+}
+
 // NRGBA 创建颜色。
 func NRGBA(r, g, b, a uint8) color.NRGBA {
 	return style.NRGBA(r, g, b, a)
 }
 
-// Decoration 提供可选的可视装饰属性（背景 / 内边距 / 圆角）。
+// Decoration 提供可选的可视装饰属性（背景 / 内边距 / 外边距 / 圆角 / 边框 / 渐变 / 透明度 / 圆形裁切）。
 type Decoration = style.Decoration
+
+// Border 定义边框样式。
+type Border = style.Border
+
+// LinearGradient 定义线性渐变。
+type LinearGradient = style.LinearGradient
 
 // Bg 创建仅设置背景色的装饰。
 func Bg(c color.NRGBA) style.Decoration {
@@ -495,9 +542,57 @@ func Pad(p Insets) style.Decoration {
 	return style.Decoration{}.WithPad(p)
 }
 
+// Margin 创建仅设置外边距的装饰。
+func Margin(m Insets) style.Decoration {
+	return style.Decoration{}.WithMargin(m)
+}
+
 // Rad 创建仅设置圆角的装饰。
 func Rad(r float32) style.Decoration {
 	return style.Decoration{}.WithRad(r)
+}
+
+// BorderDeco 创建仅设置边框的装饰。
+func BorderDeco(width float32, col color.NRGBA) style.Decoration {
+	return style.Decoration{}.WithBorder(style.Border{Width: width, Color: col})
+}
+
+// Opacity 创建仅设置不透明度的装饰（0 完全透明 ~ 1 完全不透明）。
+func Opacity(v float32) style.Decoration {
+	return style.Decoration{}.WithOpacity(v)
+}
+
+// LinearGrad 创建仅设置线性渐变的装饰。
+// start 和 end 为组件本地坐标系内的渐变方向点。
+func LinearGrad(start, end image.Point, from, to color.NRGBA) style.Decoration {
+	return style.Decoration{}.WithGradient(style.LinearGradient{
+		Start: start,
+		End:   end,
+		From:  from,
+		To:    to,
+	})
+}
+
+// Circle 创建仅启用圆形裁切的装饰。
+func Circle() style.Decoration {
+	return style.Decoration{}.WithCircleClip()
+}
+
+// Shadow 创建仅设置阴影的装饰。offset/blur 单位为 dp。
+func Shadow(offX, offY, blur float32, col color.NRGBA) style.Decoration {
+	return style.Decoration{}.WithShadow(style.BoxShadow{
+		OffsetX: offX,
+		OffsetY: offY,
+		Blur:    blur,
+		Color:   col,
+	})
+}
+
+// Elevation 创建 Material Design 高度等级对应的阴影装饰（1~5）。
+// 1=按钮hover 2=卡片 3=浮卡/FAB 4=对话框 5=模态。
+func Elevation(level int) style.Decoration {
+	s := style.ElevationBoxShadow(level)
+	return style.Decoration{}.WithShadow(s)
 }
 
 // InputPlaceholder 设置输入框占位符。

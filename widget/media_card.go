@@ -515,10 +515,14 @@ func CardBorder(col color.NRGBA, width float32) CardOption {
 	}
 }
 
-// CardShadow 设置阴影等级（当前为预留参数）。
+// CardShadow 设置阴影高度等级（1~5，映射为 Material Design elevation）。
 func CardShadow(level int) CardOption {
 	return func(cfg *cardConfig) {
 		cfg.shadowLevel = level
+		if cfg.decoration.Shadow == nil {
+			s := style.ElevationBoxShadow(level)
+			cfg.decoration = cfg.decoration.WithShadow(s)
+		}
 	}
 }
 
@@ -552,44 +556,19 @@ func (c *cardWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	padding := c.config.decoration.ResolvePad(c.config.padding)
 	radius := c.config.decoration.ResolveRad(c.config.radius)
 
-	inner := Container(
-		style.Style{
-			Background: bg,
-			Padding:    padding,
-			Radius:     radius,
-		},
-		c.child,
-	)
-
-	var root Widget = inner
-	if c.config.hasBorderColor && c.config.borderWidth > 0 {
-		innerRadius := c.config.radius - c.config.borderWidth
-		if innerRadius < 0 {
-			innerRadius = 0
-		}
-		root = Container(
-			style.Style{
-				Background: c.config.borderColor,
-				Padding:    style.All(c.config.borderWidth),
-				Radius:     c.config.radius,
-			},
-			Container(
-				style.Style{
-					Background: bg,
-					Padding:    c.config.padding,
-					Radius:     innerRadius,
-				},
-				c.child,
-			),
-		)
+	deco := c.config.decoration.WithBg(bg).WithPad(padding).WithRad(radius)
+	if c.config.hasBorderColor {
+		deco = deco.WithBorder(style.Border{Width: c.config.borderWidth, Color: c.config.borderColor})
 	}
+
+	var root Widget = ContainerDecoration(deco, c.child)
 
 	if c.config.onClick != nil || c.config.ref != nil {
 		opts := []ButtonOption{
 			ButtonBackground(color.NRGBA{}),
 			ButtonForeground(ctx.Theme().TextColor),
 			ButtonPadding(style.All(0)),
-			ButtonRadius(c.config.radius),
+			ButtonRadius(radius),
 		}
 		if c.config.onClick != nil {
 			opts = append(opts, OnClick(c.config.onClick))

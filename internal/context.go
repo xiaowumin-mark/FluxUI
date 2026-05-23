@@ -16,15 +16,16 @@ import (
 
 // Context 是每一帧传递给组件树的执行上下文。
 type Context struct {
-	Gtx        gioLayout.Context
-	runtime    *Runtime
-	path       string
-	hookIndex  int
-	foreground color.NRGBA
-	font       theme.FontSpec
-	hasFont    bool
-	instance   *ComponentInstance
-	providers  map[reflect.Type]any
+	Gtx           gioLayout.Context
+	runtime       *Runtime
+	path          string
+	hookIndex     int
+	foreground    color.NRGBA
+	font          theme.FontSpec
+	hasFont       bool
+	instance      *ComponentInstance
+	providers     map[reflect.Type]any
+	themeOverride *theme.Theme
 }
 
 // NewContext 创建 frame 级上下文。
@@ -42,9 +43,18 @@ func (c *Context) Runtime() *Runtime {
 	return c.runtime
 }
 
-// Theme 返回当前主题。
+// Theme 返回当前作用域的主题。若当前上下文有 theme 覆盖（通过 ThemeProvider），
+// 则返回覆盖的主题；否则返回运行时全局主题。
 func (c *Context) Theme() *theme.Theme {
+	if c.themeOverride != nil {
+		return c.themeOverride
+	}
 	return c.runtime.Theme()
+}
+
+// SetThemeOverride sets a scoped theme on this context (used by ThemeProvider).
+func (c *Context) SetThemeOverride(th *theme.Theme) {
+	c.themeOverride = th
 }
 
 // MaterialTheme 返回内部 Gio 主题。
@@ -267,6 +277,13 @@ func (c *Context) WithFont(spec theme.FontSpec) *Context {
 	next := c.sameScope(c.Gtx)
 	next.font = spec.Normalize()
 	next.hasFont = true
+	return next
+}
+
+// WithTheme 覆盖当前作用域主题（返回新上下文，原上下文不变）。
+func (c *Context) WithTheme(th *theme.Theme) *Context {
+	next := c.sameScope(c.Gtx)
+	next.themeOverride = th
 	return next
 }
 
