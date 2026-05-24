@@ -33,6 +33,8 @@ type tabsConfig struct {
 	activeTextColor color.NRGBA
 	hasActiveColor  bool
 	ref             *TabsRef
+	decoration      style.Decoration
+	tabDecoration   style.Decoration
 }
 
 type tabsWidget struct {
@@ -94,6 +96,20 @@ func TabsAttachRef(ref *TabsRef) TabsOption {
 	}
 }
 
+// TabsDecoration 通过 Decoration 统一设置标签栏外层装饰。
+func TabsDecoration(d style.Decoration) TabsOption {
+	return func(cfg *tabsConfig) {
+		cfg.decoration = d
+	}
+}
+
+// TabsTabDecoration 通过 Decoration 统一设置单个标签项装饰和交互态。
+func TabsTabDecoration(d style.Decoration) TabsOption {
+	return func(cfg *tabsConfig) {
+		cfg.tabDecoration = d
+	}
+}
+
 func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	activeKey := t.active
 	if t.config.ref != nil {
@@ -129,10 +145,23 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 		txtColor := normalText
 		indicatorBar := color.NRGBA{A: 0}
+		tabBg := color.NRGBA{}
 		if active {
 			txtColor = activeText
 			indicatorBar = indicator
+			tabBg = withAlpha(indicator, 20)
 		}
+
+		tabDecoration := componentDecoration(
+			withDefaultStates(t.config.tabDecoration,
+				style.Decoration{}.WithBg(withAlpha(indicator, 18)),
+				style.Decoration{}.WithBg(withAlpha(indicator, 28)),
+				style.Decoration{}.WithBg(withAlpha(ctx.Theme().Disabled, 14)),
+			),
+			tabBg,
+			style.Symmetric(8, 10),
+			8,
+		)
 
 		tab := Button(
 			Column(
@@ -149,10 +178,8 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 					),
 				),
 			),
-			ButtonBackground(color.NRGBA{}),
 			ButtonForeground(txtColor),
-			ButtonRadius(8),
-			ButtonPadding(style.Symmetric(8, 10)),
+			ButtonDecoration(tabDecoration),
 			OnClick(func(ctx *internal.Context) {
 				activeKey = item.Key
 				if t.config.onChange != nil {
@@ -164,6 +191,9 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	row := Row(children...)
+	if hasDecorationVisual(t.config.decoration) {
+		row = ContainerDecoration(t.config.decoration, row)
+	}
 	if t.config.scrollable {
 		return ScrollView(
 			row,
@@ -189,6 +219,8 @@ type dialogConfig struct {
 	onCancel     func(ctx *internal.Context)
 	ref          *DialogRef
 	decoration   style.Decoration
+	maskColor    color.NRGBA
+	hasMaskColor bool
 }
 
 type dialogWidget struct {
@@ -289,6 +321,19 @@ func DialogDecoration(d style.Decoration) DialogOption {
 	}
 }
 
+// DialogMaskColor 设置对话框遮罩颜色。
+func DialogMaskColor(col color.NRGBA) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.maskColor = col
+		cfg.hasMaskColor = true
+	}
+}
+
+// DialogMaskAlpha 设置对话框遮罩透明度。
+func DialogMaskAlpha(alpha uint8) DialogOption {
+	return DialogMaskColor(color.NRGBA{A: alpha})
+}
+
 func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	open := d.open
 	if d.config.ref != nil {
@@ -314,11 +359,15 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 
+	maskColor := withAlpha(ctx.Theme().TextColor, 120)
+	if d.config.hasMaskColor {
+		maskColor = d.config.maskColor
+	}
 	mask := fillWidget(func(maskCtx *internal.Context, size image.Point) {
 		if size.X <= 0 || size.Y <= 0 {
 			return
 		}
-		paint.FillShape(maskCtx.Gtx.Ops, color.NRGBA{A: 120}, clip.Rect(image.Rectangle{Max: size}).Op())
+		paint.FillShape(maskCtx.Gtx.Ops, maskColor, clip.Rect(image.Rectangle{Max: size}).Op())
 	}, d.config.maskClosable && d.config.onOpenChange != nil, func(maskCtx *internal.Context) {
 		d.config.onOpenChange(maskCtx, false)
 	})
@@ -395,11 +444,13 @@ const (
 type ToastOption func(*toastConfig)
 
 type toastConfig struct {
-	kind       ToastType
-	duration   time.Duration
-	position   ToastPosition
-	onClose    func(ctx *internal.Context)
-	decoration style.Decoration
+	kind         ToastType
+	duration     time.Duration
+	position     ToastPosition
+	onClose      func(ctx *internal.Context)
+	decoration   style.Decoration
+	textColor    color.NRGBA
+	hasTextColor bool
 }
 
 type toastWidget struct {
@@ -458,6 +509,14 @@ func ToastDecoration(d style.Decoration) ToastOption {
 	}
 }
 
+// ToastTextColor 设置吐司文本颜色。
+func ToastTextColor(col color.NRGBA) ToastOption {
+	return func(cfg *toastConfig) {
+		cfg.textColor = col
+		cfg.hasTextColor = true
+	}
+}
+
 func (t *toastWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if t.message == "" {
 		return layout.Dimensions{}
@@ -485,19 +544,28 @@ func (t *toastWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 
-	bg := t.config.decoration.ResolveBg(color.NRGBA{R: 60, G: 60, B: 60, A: 220})
+	bg := t.config.decoration.ResolveBg(withAlpha(ctx.Theme().SurfaceMuted, 230))
+	fg := ctx.Theme().TextColor
 	switch t.config.kind {
 	case ToastSuccess:
-		bg = t.config.decoration.ResolveBg(color.NRGBA{R: 40, G: 167, B: 69, A: 220})
+		bg = t.config.decoration.ResolveBg(withAlpha(ctx.Theme().Colors.Success, 230))
+		fg = ctx.Theme().Colors.OnSuccess
 	case ToastWarning:
-		bg = t.config.decoration.ResolveBg(color.NRGBA{R: 255, G: 193, B: 7, A: 230})
+		bg = t.config.decoration.ResolveBg(withAlpha(ctx.Theme().Colors.Warning, 235))
+		fg = ctx.Theme().Colors.OnWarning
 	case ToastError:
-		bg = t.config.decoration.ResolveBg(color.NRGBA{R: 220, G: 53, B: 69, A: 230})
+		bg = t.config.decoration.ResolveBg(withAlpha(ctx.Theme().Colors.Error, 235))
+		fg = ctx.Theme().Colors.OnError
+	case ToastInfo:
+		fg = ctx.Theme().TextColor
+	}
+	if t.config.hasTextColor {
+		fg = t.config.textColor
 	}
 
 	body := ContainerDecoration(
 		style.Decoration{}.WithBg(bg).WithPad(t.config.decoration.ResolvePad(style.Symmetric(8, 12))).WithRad(t.config.decoration.ResolveRad(8)),
-		Text(t.message, TextColor(color.NRGBA{R: 255, G: 255, B: 255, A: 255})),
+		Text(t.message, TextColor(fg)),
 	)
 
 	anchor := gioLayout.S
@@ -616,6 +684,8 @@ type popupConfig struct {
 	onOpenChange  func(ctx *internal.Context, open bool)
 	ref           *PopupRef
 	decoration    style.Decoration
+	maskColor     color.NRGBA
+	hasMaskColor  bool
 }
 
 type popupWidget struct {
@@ -698,6 +768,19 @@ func PopupDecoration(d style.Decoration) PopupOption {
 	}
 }
 
+// PopupMaskColor 设置弹窗遮罩颜色。
+func PopupMaskColor(col color.NRGBA) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.maskColor = col
+		cfg.hasMaskColor = true
+	}
+}
+
+// PopupMaskAlpha 设置弹窗遮罩透明度。
+func PopupMaskAlpha(alpha uint8) PopupOption {
+	return PopupMaskColor(color.NRGBA{A: alpha})
+}
+
 func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	open := p.open
 	if p.config.ref != nil {
@@ -723,11 +806,15 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 
+	maskColor := withAlpha(ctx.Theme().TextColor, 120)
+	if p.config.hasMaskColor {
+		maskColor = p.config.maskColor
+	}
 	mask := fillWidget(func(maskCtx *internal.Context, size image.Point) {
 		if size.X <= 0 || size.Y <= 0 {
 			return
 		}
-		paint.FillShape(maskCtx.Gtx.Ops, color.NRGBA{A: 120}, clip.Rect(image.Rectangle{Max: size}).Op())
+		paint.FillShape(maskCtx.Gtx.Ops, maskColor, clip.Rect(image.Rectangle{Max: size}).Op())
 	}, p.config.maskClosable && p.config.onOpenChange != nil, func(maskCtx *internal.Context) {
 		p.config.onOpenChange(maskCtx, false)
 	})

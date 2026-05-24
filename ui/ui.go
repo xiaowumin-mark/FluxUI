@@ -893,6 +893,11 @@ func SwitchThumbColor(color color.NRGBA) SwitchOption {
 	return widget.SwitchThumbColor(color)
 }
 
+// SwitchDecoration 通过 Decoration 统一设置开关外层装饰和交互态。
+func SwitchDecoration(d Decoration) SwitchOption {
+	return widget.SwitchDecoration(d)
+}
+
 // SwitchOnChange 绑定开关变化事件。
 func SwitchOnChange(fn func(ctx *Context, checked bool)) SwitchOption {
 	return widget.SwitchOnChange(fn)
@@ -944,6 +949,11 @@ func SliderThumbColor(color color.NRGBA) SliderOption {
 // SliderProgressColor 设置滑块进度颜色。
 func SliderProgressColor(color color.NRGBA) SliderOption {
 	return widget.SliderProgressColor(color)
+}
+
+// SliderDecoration 通过 Decoration 统一设置滑块外层装饰和交互态。
+func SliderDecoration(d Decoration) SliderOption {
+	return widget.SliderDecoration(d)
 }
 
 // SliderOnChange 绑定滑块变化事件。

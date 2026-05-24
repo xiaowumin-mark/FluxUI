@@ -10,8 +10,11 @@ import (
 	layout "github.com/xiaowumin-mark/FluxUI/layout"
 	style "github.com/xiaowumin-mark/FluxUI/style"
 
+	"gioui.org/f32"
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 )
 
 // RadioItem 单选项。
@@ -24,13 +27,14 @@ type RadioItem struct {
 type RadioGroupOption func(*radioGroupConfig)
 
 type radioGroupConfig struct {
-	direction Axis
-	disabled  bool
-	onChange  func(ctx *internal.Context, value string)
-	size      float32
-	color     color.NRGBA
-	hasColor  bool
-	ref       *RadioGroupRef
+	direction  Axis
+	disabled   bool
+	onChange   func(ctx *internal.Context, value string)
+	size       float32
+	color      color.NRGBA
+	hasColor   bool
+	ref        *RadioGroupRef
+	decoration style.Decoration
 }
 
 type radioGroupWidget struct {
@@ -98,6 +102,13 @@ func RadioGroupAttachRef(ref *RadioGroupRef) RadioGroupOption {
 	}
 }
 
+// RadioGroupDecoration 通过 Decoration 统一设置选项外层装饰和交互态。
+func RadioGroupDecoration(d style.Decoration) RadioGroupOption {
+	return func(cfg *radioGroupConfig) {
+		cfg.decoration = d
+	}
+}
+
 func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	currentValue := r.value
 	if r.config.ref != nil {
@@ -141,33 +152,53 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				}
 			}
 
-			dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(rowCtx.Gtx,
-				gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
-					next := *rowCtx
-					next.Gtx = gtx
-					size := next.LayoutRadio(clickable.Handle(), checked, internal.RadioSpec{
-						Size:     r.config.size,
-						Color:    mainColor,
-						Disabled: r.config.disabled,
-					})
-					return gioLayout.Dimensions{Size: size}
-				}),
-				gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
-					next := *rowCtx
-					next.Gtx = gtx
-					next.Gtx.Constraints.Min = image.Point{}
-					size := next.LayoutInset(internal.Insets{Left: 8}, func(contentCtx *internal.Context) image.Point {
-						return contentCtx.LayoutText(internal.TextSpec{
-							Content:   item.Label,
-							Size:      contentCtx.Theme().TextSize,
-							Color:     labelColor,
-							Alignment: internal.AlignStart,
+			itemLabelColor := labelColor
+			if !r.config.disabled && clickable.Hovered() {
+				itemLabelColor = internal.MixNRGBA(mainColor, itemLabelColor, 0.15)
+			}
+
+			content := func(contentCtx *internal.Context) image.Point {
+				dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(contentCtx.Gtx,
+					gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+						next := *contentCtx
+						next.Gtx = gtx
+						size := next.LayoutRadio(clickable.Handle(), checked, internal.RadioSpec{
+							Size:     r.config.size,
+							Color:    mainColor,
+							Disabled: r.config.disabled,
+							Hovered:  clickable.Hovered(),
+							Pressed:  clickable.Pressed(),
 						})
-					})
-					return gioLayout.Dimensions{Size: size}
-				}),
-			)
-			return layout.Dimensions{Size: dims.Size}
+						return gioLayout.Dimensions{Size: size}
+					}),
+					gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+						next := *contentCtx
+						next.Gtx = gtx
+						next.Gtx.Constraints.Min = image.Point{}
+						size := next.LayoutInset(internal.Insets{Left: 8}, func(labelCtx *internal.Context) image.Point {
+							return labelCtx.LayoutText(internal.TextSpec{
+								Content:   item.Label,
+								Size:      labelCtx.Theme().TextSize,
+								Color:     itemLabelColor,
+								Alignment: internal.AlignStart,
+							})
+						})
+						return gioLayout.Dimensions{Size: size}
+					}),
+				)
+				return dims.Size
+			}
+
+			if hasAnyDecoration(r.config.decoration) {
+				deco := withDefaultStates(r.config.decoration,
+					style.Decoration{}.WithBg(withAlpha(mainColor, 14)).WithRad(8),
+					style.Decoration{}.WithBg(withAlpha(mainColor, 24)).WithRad(8),
+					style.Decoration{}.WithBg(withAlpha(ctx.Theme().Disabled, 12)).WithRad(8),
+				)
+				return layoutDecoratedClickTarget(rowCtx.Child(0), clickable.Handle(), clickable.Hovered(), clickable.Pressed(), deco, r.config.disabled, content)
+			}
+
+			return layout.Dimensions{Size: content(rowCtx.Child(0))}
 		})
 
 		if r.config.direction == Horizontal {
@@ -322,15 +353,10 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 
 	label, currentIndex := s.resolveCurrentLabel(currentValue)
 
-	arrow := "v"
-	if state.opened {
-		arrow = "^"
-	}
-
 	toggle := Button(
 		Row(
 			Text(label),
-			Padding(style.Insets{Left: 8}, Text(arrow, TextColor(ctx.Theme().SurfaceMuted))),
+			Padding(style.Insets{Left: 8}, selectArrow(state.opened, ctx.Theme().SurfaceMuted)),
 		),
 		Disabled(s.config.disabled),
 		OnClick(func(ctx *internal.Context) {
@@ -367,7 +393,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 		row := Button(
 			Row(
 				Text(itemLabel),
-				Padding(style.Insets{Left: 8}, Text(selectMark(isActive), TextColor(ctx.Theme().Primary))),
+				Padding(style.Insets{Left: 8}, selectCheckMark(isActive, ctx.Theme().Primary)),
 			),
 			ButtonBackground(bg),
 			ButtonForeground(ctx.Theme().TextColor),
@@ -471,9 +497,51 @@ func selectStateFor(ctx *internal.Context) *selectState {
 	return state
 }
 
-func selectMark(active bool) string {
-	if active {
-		return "✓"
+func selectArrow(open bool, col color.NRGBA) Widget {
+	return &selectArrowWidget{open: open, color: col}
+}
+
+type selectArrowWidget struct {
+	open  bool
+	color color.NRGBA
+}
+
+func (s *selectArrowWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	size := ctx.Gtx.Dp(safeDp(10))
+	if size < 8 {
+		size = 8
 	}
-	return ""
+	var path clip.Path
+	path.Begin(ctx.Gtx.Ops)
+	if s.open {
+		path.MoveTo(f32.Pt(1, float32(size)*0.65))
+		path.LineTo(f32.Pt(float32(size)*0.5, float32(size)*0.25))
+		path.LineTo(f32.Pt(float32(size)-1, float32(size)*0.65))
+	} else {
+		path.MoveTo(f32.Pt(1, float32(size)*0.35))
+		path.LineTo(f32.Pt(float32(size)*0.5, float32(size)*0.75))
+		path.LineTo(f32.Pt(float32(size)-1, float32(size)*0.35))
+	}
+	paint.FillShape(ctx.Gtx.Ops, s.color, clip.Stroke{Path: path.End(), Width: 2}.Op())
+	return layout.Dimensions{Size: image.Point{X: size, Y: size}}
+}
+
+func selectCheckMark(active bool, col color.NRGBA) Widget {
+	return &selectCheckMarkWidget{active: active, color: col}
+}
+
+type selectCheckMarkWidget struct {
+	active bool
+	color  color.NRGBA
+}
+
+func (s *selectCheckMarkWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	size := ctx.Gtx.Dp(safeDp(14))
+	if size < 10 {
+		size = 10
+	}
+	if s.active {
+		internal.DrawCheckMark(ctx.Gtx, size, s.color)
+	}
+	return layout.Dimensions{Size: image.Point{X: size, Y: size}}
 }

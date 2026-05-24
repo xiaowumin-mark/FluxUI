@@ -15,6 +15,9 @@
     "PopupBackground(bg color.NRGBA) PopupOption",
     "PopupPadding(insets Insets) PopupOption",
     "PopupOnOpenChange(fn func(ctx *Context, open bool)) PopupOption",
+    "PopupDecoration(d Decoration) PopupOption",
+    "PopupMaskColor(col color.NRGBA) PopupOption",
+    "PopupMaskAlpha(alpha uint8) PopupOption",
     "NewPopupRef() *PopupRef",
     "PopupAttachRef(ref *PopupRef) PopupOption"
   ]

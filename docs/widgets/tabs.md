@@ -14,6 +14,8 @@
     "TabsIndicatorColor(col color.NRGBA) TabsOption",
     "TabsTextColor(col color.NRGBA) TabsOption",
     "TabsActiveTextColor(col color.NRGBA) TabsOption",
+    "TabsDecoration(d Decoration) TabsOption",
+    "TabsTabDecoration(d Decoration) TabsOption",
     "NewTabsRef() *TabsRef",
     "TabsAttachRef(ref *TabsRef) TabsOption",
     "(*TabsRef).SetActive(key string)"

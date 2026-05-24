@@ -131,15 +131,19 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	background := b.config.decoration.ResolveBg(ctx.Theme().Primary)
-	radius := b.config.decoration.ResolveRad(b.config.radius)
-	padding := b.config.decoration.ResolvePad(b.config.padding)
+	activeDecoration := resolveDecorationState(b.config.decoration, clickable.Hovered(), clickable.Pressed(), b.config.disabled)
+	backgroundDefault := ctx.Theme().Primary
 	if b.config.hasBackground {
-		background = b.config.background
+		backgroundDefault = b.config.background
 	}
+	background := activeDecoration.ResolveBg(backgroundDefault)
 	if b.config.disabled {
-		background = ctx.Theme().Disabled
+		if b.config.decoration.Disabled == nil || b.config.decoration.Disabled.Background == nil {
+			background = ctx.Theme().Disabled
+		}
 	}
+	radius := activeDecoration.ResolveRad(b.config.radius)
+	padding := activeDecoration.ResolvePad(b.config.padding)
 
 	foreground := ctx.Theme().TextOnPrimary
 	if b.config.hasForeground {
@@ -160,13 +164,4 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	})
 
 	return layout.Dimensions{Size: size}
-}
-
-func toInternalInsets(insets style.Insets) internal.Insets {
-	return internal.Insets{
-		Top:    insets.Top,
-		Right:  insets.Right,
-		Bottom: insets.Bottom,
-		Left:   insets.Left,
-	}
 }

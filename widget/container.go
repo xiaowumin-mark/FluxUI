@@ -2,6 +2,7 @@ package widget
 
 import (
 	"image"
+	"image/color"
 
 	event "github.com/xiaowumin-mark/FluxUI/event"
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
@@ -198,12 +199,13 @@ func (c *decorationContainerWidget) layoutInteractive(ctx *internal.Context) lay
 		}
 	}
 
-	spec := c.doBuildSpec(activeDeco, ctx)
+	spec := decorationSurfaceSpec(activeDeco, ctx, ctx.Theme().Surface)
 	baseMargin := c.decoration.ResolveMargin(style.Insets{})
+	transform := activeDeco.ResolveTransform()
 
 	visualMacro := op.Record(ctx.Gtx.Ops)
 	dims := ctx.LayoutInset(toInternalInsets(baseMargin), func(marginCtx *internal.Context) image.Point {
-		return layoutSurfaceWithTransform(marginCtx, spec, activeDeco.ResolveTransform(), func(contentCtx *internal.Context) image.Point {
+		return layoutSurfaceWithTransform(marginCtx, spec, transform, func(contentCtx *internal.Context) image.Point {
 			if c.child == nil {
 				return image.Point{}
 			}
@@ -212,9 +214,7 @@ func (c *decorationContainerWidget) layoutInteractive(ctx *internal.Context) lay
 	})
 	visualCall := visualMacro.Stop()
 
-	ctx.LayoutClickArea(clickable.Handle(), func(*internal.Context) image.Point {
-		return dims
-	})
+	layoutTransformedClickArea(ctx, clickable.Handle(), baseMargin, transform, dims)
 	visualCall.Add(ctx.Gtx.Ops)
 
 	return layout.Dimensions{Size: dims}
@@ -243,11 +243,11 @@ func decorationTransformMatrix(gtx gioLayout.Context, transform style.Transform2
 }
 
 func (c *decorationContainerWidget) buildSpec(ctx *internal.Context) internal.SurfaceSpec {
-	return c.doBuildSpec(c.decoration, ctx)
+	return decorationSurfaceSpec(c.decoration, ctx, ctx.Theme().Surface)
 }
 
-func (c *decorationContainerWidget) doBuildSpec(d style.Decoration, ctx *internal.Context) internal.SurfaceSpec {
-	bg := d.ResolveBg(ctx.Theme().Surface)
+func decorationSurfaceSpec(d style.Decoration, ctx *internal.Context, defaultBg color.NRGBA) internal.SurfaceSpec {
+	bg := d.ResolveBg(defaultBg)
 	rad := d.ResolveRad(0)
 	border := d.ResolveBorder(style.Border{})
 	opacity := d.ResolveOpacity()

@@ -12,7 +12,9 @@
     "ToastTypeOf(kind ToastType) ToastOption",
     "ToastDuration(duration time.Duration) ToastOption",
     "ToastPositionOf(position ToastPosition) ToastOption",
-    "ToastOnClose(fn func(ctx *Context)) ToastOption"
+    "ToastOnClose(fn func(ctx *Context)) ToastOption",
+    "ToastDecoration(d Decoration) ToastOption",
+    "ToastTextColor(col color.NRGBA) ToastOption"
   ]
 }
 -->

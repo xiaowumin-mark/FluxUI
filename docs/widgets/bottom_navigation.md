@@ -12,6 +12,7 @@
     "type ElementNavItem struct { Key string; Label string; Icon Element }",
     "BottomNavOnChange(fn func(ctx *Context, key string)) BottomNavOption",
     "BottomNavBackground(col color.NRGBA) BottomNavOption",
+    "BottomNavDecoration(d Decoration) BottomNavOption",
     "BottomNavActiveColor(col color.NRGBA) BottomNavOption",
     "BottomNavInactiveColor(col color.NRGBA) BottomNavOption",
     "BottomNavAlignmentOf(alignment BottomNavAlignment) BottomNavOption",

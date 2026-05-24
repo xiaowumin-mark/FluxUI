@@ -15,7 +15,8 @@
     "CardBorder(col color.NRGBA, width float32) CardOption",
     "CardShadow(level int) CardOption",
     "CardOnClick(fn func(ctx *Context)) CardOption",
-    "CardAttachRef(ref *ButtonRef) CardOption"
+    "CardAttachRef(ref *ButtonRef) CardOption",
+    "CardDecoration(d Decoration) CardOption"
   ]
 }
 -->

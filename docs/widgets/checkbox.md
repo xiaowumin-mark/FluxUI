@@ -13,6 +13,7 @@
     "CheckboxDisabled(disabled bool) CheckboxOption",
     "CheckboxSize(size float32) CheckboxOption",
     "CheckboxColor(color color.NRGBA) CheckboxOption",
+    "CheckboxDecoration(d Decoration) CheckboxOption",
     "NewCheckboxRef() *CheckboxRef",
     "CheckboxAttachRef(ref *CheckboxRef) CheckboxOption",
     "(*CheckboxRef).SetChecked(checked bool)",

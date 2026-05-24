@@ -13,7 +13,8 @@
     "DividerThickness(thickness float32) DividerOption",
     "DividerColor(col color.NRGBA) DividerOption",
     "DividerLength(length float32) DividerOption",
-    "DividerMargin(insets Insets) DividerOption"
+    "DividerMargin(insets Insets) DividerOption",
+    "DividerDecoration(d Decoration) DividerOption"
   ]
 }
 -->

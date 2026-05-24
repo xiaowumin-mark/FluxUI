@@ -16,12 +16,13 @@ import (
 type DividerOption func(*dividerConfig)
 
 type dividerConfig struct {
-	vertical  bool
-	thickness float32
-	color     color.NRGBA
-	hasColor  bool
-	length    float32
-	margin    style.Insets
+	vertical   bool
+	thickness  float32
+	color      color.NRGBA
+	hasColor   bool
+	length     float32
+	margin     style.Insets
+	decoration style.Decoration
 }
 
 type dividerWidget struct {
@@ -75,17 +76,27 @@ func DividerMargin(insets style.Insets) DividerOption {
 	}
 }
 
+// DividerDecoration 通过 Decoration 统一设置分割线颜色、外边距和圆角。
+func DividerDecoration(d style.Decoration) DividerOption {
+	return func(cfg *dividerConfig) {
+		cfg.decoration = d
+	}
+}
+
 func (d *dividerWidget) Layout(ctx *internal.Context) layout.Dimensions {
-	col := ctx.Theme().SurfaceMuted
+	col := d.config.decoration.ResolveBg(ctx.Theme().SurfaceMuted)
 	if d.config.hasColor {
 		col = d.config.color
 	}
+	margin := d.config.decoration.ResolveMargin(d.config.margin)
+	radiusDp := d.config.decoration.ResolveRad(0)
 
-	size := ctx.LayoutInset(insetsToInternal(d.config.margin), func(contentCtx *internal.Context) image.Point {
+	size := ctx.LayoutInset(toInternalInsets(margin), func(contentCtx *internal.Context) image.Point {
 		thickness := contentCtx.Gtx.Dp(safeDp(d.config.thickness))
 		if thickness < 1 {
 			thickness = 1
 		}
+		radius := contentCtx.Gtx.Dp(safeDp(radiusDp))
 
 		length := 0
 		if d.config.length > 0 {
@@ -106,7 +117,11 @@ func (d *dividerWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			if size.X <= 0 || size.Y <= 0 {
 				return image.Point{}
 			}
-			paint.FillShape(contentCtx.Gtx.Ops, col, clip.Rect(image.Rectangle{Max: size}).Op())
+			if radius > 0 {
+				paint.FillShape(contentCtx.Gtx.Ops, col, clip.UniformRRect(image.Rectangle{Max: size}, clampRRectRadiusPx(size, radius)).Op(contentCtx.Gtx.Ops))
+			} else {
+				paint.FillShape(contentCtx.Gtx.Ops, col, clip.Rect(image.Rectangle{Max: size}).Op())
+			}
 			return size
 		}
 
@@ -123,17 +138,12 @@ func (d *dividerWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		if size.X <= 0 || size.Y <= 0 {
 			return image.Point{}
 		}
-		paint.FillShape(contentCtx.Gtx.Ops, col, clip.Rect(image.Rectangle{Max: size}).Op())
+		if radius > 0 {
+			paint.FillShape(contentCtx.Gtx.Ops, col, clip.UniformRRect(image.Rectangle{Max: size}, clampRRectRadiusPx(size, radius)).Op(contentCtx.Gtx.Ops))
+		} else {
+			paint.FillShape(contentCtx.Gtx.Ops, col, clip.Rect(image.Rectangle{Max: size}).Op())
+		}
 		return size
 	})
 	return layout.Dimensions{Size: size}
-}
-
-func insetsToInternal(insets style.Insets) internal.Insets {
-	return internal.Insets{
-		Top:    insets.Top,
-		Right:  insets.Right,
-		Bottom: insets.Bottom,
-		Left:   insets.Left,
-	}
 }

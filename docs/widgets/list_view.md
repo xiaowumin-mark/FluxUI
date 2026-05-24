@@ -13,6 +13,7 @@
     "ListVirtualized(virtualized bool) ListOption",
     "ListItemSpacing(spacing float32) ListOption",
     "ListPadding(insets Insets) ListOption",
+    "ListDecoration(d Decoration) ListOption",
     "ListOnReachEnd(fn func(ctx *Context)) ListOption"
   ]
 }

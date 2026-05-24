@@ -18,6 +18,7 @@
     "SliderTrackColor(color color.NRGBA) SliderOption",
     "SliderThumbColor(color color.NRGBA) SliderOption",
     "SliderProgressColor(color color.NRGBA) SliderOption",
+    "SliderDecoration(d Decoration) SliderOption",
     "NewSliderRef() *SliderRef",
     "SliderAttachRef(ref *SliderRef) SliderOption",
     "(*SliderRef).SetValue(value float32)",

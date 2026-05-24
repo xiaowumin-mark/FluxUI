@@ -7,6 +7,7 @@ import (
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
+	"github.com/xiaowumin-mark/FluxUI/style"
 
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"
@@ -29,6 +30,7 @@ type progressConfig struct {
 	size          float32
 	hasTrackColor bool
 	hasFillColor  bool
+	decoration    style.Decoration
 }
 
 type progressWidget struct {
@@ -123,6 +125,13 @@ func ProgressSize(size float32) ProgressOption {
 	}
 }
 
+// ProgressDecoration 通过 Decoration 统一设置进度组件外层装饰。
+func ProgressDecoration(d style.Decoration) ProgressOption {
+	return func(cfg *progressConfig) {
+		cfg.decoration = d
+	}
+}
+
 func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	gtx := ctx.Gtx
 	// 线性进度条不应继承父级强制最小尺寸，否则在某些 Flex/List 场景会被拉成整行高度。
@@ -151,6 +160,18 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		ctx.RequestFrameRedraw()
 	}
 
+	layoutProgress := func(progressCtx *internal.Context) layout.Dimensions {
+		return p.layoutProgress(progressCtx, track, fill, progress)
+	}
+
+	if hasDecorationVisual(p.config.decoration) {
+		return ContainerDecoration(p.config.decoration, layoutWidgetFunc(layoutProgress)).Layout(ctx.Child(0))
+	}
+
+	return layoutProgress(ctx.Child(0))
+}
+
+func (p *progressWidget) layoutProgress(ctx *internal.Context, track, fill color.NRGBA, progress float32) layout.Dimensions {
 	if p.circular {
 		sizePx := ctx.Gtx.Dp(safeDp(p.config.size))
 		if sizePx <= 0 {
@@ -163,10 +184,6 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		gtx := ctx.Gtx
 		drawCtx := gtx
 		drawCtx.Constraints = gioLayout.Exact(image.Point{X: sizePx, Y: sizePx})
-
-		trackStyle := material.ProgressCircle(ctx.MaterialTheme(), 1)
-		trackStyle.Color = track
-		_ = trackStyle.Layout(drawCtx)
 
 		fillStyle := material.ProgressCircle(ctx.MaterialTheme(), progress)
 		fillStyle.Color = fill

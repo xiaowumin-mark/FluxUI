@@ -72,18 +72,13 @@ func inputStateFor(ctx *internal.Context) *inputState {
 
 func TextField(value string, opts ...InputOption) Widget {
 	cfg := inputConfig{
-		padding:        style.Symmetric(8, 12),
-		radius:         8,
-		border:         color.NRGBA{R: 200, G: 200, B: 200, A: 255},
-		borderFocus:    color.NRGBA{R: 66, G: 133, B: 244, A: 255},
-		background:     color.NRGBA{R: 255, G: 255, B: 255, A: 255},
-		foreground:     color.NRGBA{R: 0, G: 0, B: 0, A: 255},
-		placeholder:    "Enter text...",
-		textSize:       16,
-		maxLen:         0,
-		password:       false,
-		singleLine:     true,
-		hasBorderFocus: true,
+		padding:     style.Symmetric(8, 12),
+		radius:      8,
+		placeholder: "Enter text...",
+		textSize:    16,
+		maxLen:      0,
+		password:    false,
+		singleLine:  true,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -291,9 +286,16 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	bg := t.config.decoration.ResolveBg(t.config.background)
+	activeDecoration := t.config.decoration
+	if t.config.disabled {
+		activeDecoration = resolveDecorationState(activeDecoration, false, false, true)
+	} else if focused && activeDecoration.Focused != nil {
+		activeDecoration = activeDecoration.Merge(*activeDecoration.Focused)
+	}
+
+	bg := activeDecoration.ResolveBg(t.config.background)
 	if !t.config.hasBackground {
-		bg = t.config.decoration.ResolveBg(ctx.Theme().Surface)
+		bg = activeDecoration.ResolveBg(ctx.Theme().Surface)
 	}
 
 	fg := t.config.foreground
@@ -304,16 +306,23 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		fg = ctx.Theme().Disabled
 	}
 
-	border := t.config.border
+	border := activeDecoration.ResolveBorder(style.Border{Width: 1, Color: ctx.Theme().Colors.Outline}).Color
+	if t.config.hasBorder {
+		border = t.config.border
+	}
 	if focused && t.config.hasBorderFocus {
 		border = t.config.borderFocus
+	} else if focused {
+		border = ctx.Theme().Primary
 	}
 	if t.config.disabled {
-		border = ctx.Theme().Disabled
+		if t.config.decoration.Disabled == nil || t.config.decoration.Disabled.Border == nil {
+			border = ctx.Theme().Disabled
+		}
 	}
 
-	radius := t.config.decoration.ResolveRad(t.config.radius)
-	padding := t.config.decoration.ResolvePad(t.config.padding)
+	radius := activeDecoration.ResolveRad(t.config.radius)
+	padding := activeDecoration.ResolvePad(t.config.padding)
 
 	font := ctx.Font()
 	if t.config.hasFamily && strings.TrimSpace(t.config.font.Family) != "" {

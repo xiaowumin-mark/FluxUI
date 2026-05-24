@@ -14,6 +14,7 @@
     "RadioGroupOnChange(fn func(ctx *Context, value string)) RadioGroupOption",
     "RadioGroupSize(size float32) RadioGroupOption",
     "RadioGroupColor(col color.NRGBA) RadioGroupOption",
+    "RadioGroupDecoration(d Decoration) RadioGroupOption",
     "NewRadioGroupRef() *RadioGroupRef",
     "RadioGroupAttachRef(ref *RadioGroupRef) RadioGroupOption",
     "(*RadioGroupRef).SetValue(value string)"

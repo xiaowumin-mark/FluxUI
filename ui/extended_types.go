@@ -476,6 +476,10 @@ func DividerMargin(insets Insets) DividerOption {
 	return widget.DividerMargin(insets)
 }
 
+func DividerDecoration(d Decoration) DividerOption {
+	return widget.DividerDecoration(d)
+}
+
 type themeProviderElement struct {
 	theme *Theme
 	child Element
@@ -1037,6 +1041,10 @@ func RadioGroupAttachRef(ref *RadioGroupRef) RadioGroupOption {
 	return widget.RadioGroupAttachRef(ref)
 }
 
+func RadioGroupDecoration(d Decoration) RadioGroupOption {
+	return widget.RadioGroupDecoration(d)
+}
+
 func Select[T comparable](value T, options []SelectOptionItem[T], opts ...SelectOption[T]) Widget {
 	return widget.Select(value, options, opts...)
 }
@@ -1113,6 +1121,10 @@ func ProgressSize(size float32) ProgressOption {
 	return widget.ProgressSize(size)
 }
 
+func ProgressDecoration(d Decoration) ProgressOption {
+	return widget.ProgressDecoration(d)
+}
+
 func Tabs(active string, items []TabItem, opts ...TabsOption) Widget {
 	return widget.Tabs(active, items, opts...)
 }
@@ -1143,6 +1155,14 @@ func NewTabsRef() *TabsRef {
 
 func TabsAttachRef(ref *TabsRef) TabsOption {
 	return widget.TabsAttachRef(ref)
+}
+
+func TabsDecoration(d Decoration) TabsOption {
+	return widget.TabsDecoration(d)
+}
+
+func TabsTabDecoration(d Decoration) TabsOption {
+	return widget.TabsTabDecoration(d)
 }
 
 func Dialog(open bool, child Widget, opts ...DialogOption) Widget {
@@ -1197,6 +1217,14 @@ func DialogDecoration(d Decoration) DialogOption {
 	return widget.DialogDecoration(d)
 }
 
+func DialogMaskColor(col color.NRGBA) DialogOption {
+	return widget.DialogMaskColor(col)
+}
+
+func DialogMaskAlpha(alpha uint8) DialogOption {
+	return widget.DialogMaskAlpha(alpha)
+}
+
 func Popup(open bool, child Widget, opts ...PopupOption) Widget {
 	return widget.Popup(open, child, opts...)
 }
@@ -1237,6 +1265,14 @@ func PopupDecoration(d Decoration) PopupOption {
 	return widget.PopupDecoration(d)
 }
 
+func PopupMaskColor(col color.NRGBA) PopupOption {
+	return widget.PopupMaskColor(col)
+}
+
+func PopupMaskAlpha(alpha uint8) PopupOption {
+	return widget.PopupMaskAlpha(alpha)
+}
+
 func Toast(message string, opts ...ToastOption) Widget {
 	return widget.Toast(message, opts...)
 }
@@ -1259,6 +1295,10 @@ func ToastOnClose(fn func(ctx *Context)) ToastOption {
 
 func ToastDecoration(d Decoration) ToastOption {
 	return widget.ToastDecoration(d)
+}
+
+func ToastTextColor(col color.NRGBA) ToastOption {
+	return widget.ToastTextColor(col)
 }
 
 func ScrollView(child Widget, opts ...ScrollOption) Widget {

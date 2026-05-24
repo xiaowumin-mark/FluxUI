@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
 	"image/color"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -65,9 +67,11 @@ type githubContentEntry struct {
 }
 
 const (
-	githubWidgetsAPIURL = "https://api.github.com/repos/xiaowumin-mark/FluxUI/contents/docs/widgets?ref=main"
-	githubWidgetsRawURL = "https://raw.githubusercontent.com/xiaowumin-mark/FluxUI/main/docs/widgets/"
+	githubDocsAPIBase = "https://api.github.com/repos/xiaowumin-mark/FluxUI/contents/docs"
+	githubDocsRawBase = "https://raw.githubusercontent.com/xiaowumin-mark/FluxUI/main/docs"
 )
+
+var docsSubdirs = []string{"widgets", "style", "theme", "guides"}
 
 func main() {
 	initialDocs, loadErr := loadWidgetDocs()
@@ -104,6 +108,9 @@ func main() {
 		checkboxValue := ui.UseState(ctx, true)
 		switchValue := ui.UseState(ctx, true)
 		sliderValue := ui.UseState(ctx, float32(40))
+		styleDemoActive := ui.UseState(ctx, false)
+		animationDemoActive := ui.UseState(ctx, false)
+		themeDemoDark := ui.UseState(ctx, false)
 		radioValue := ui.UseState(ctx, "layout")
 		selectValue := ui.UseState(ctx, "medium")
 		tabValue := ui.UseState(ctx, "overview")
@@ -130,6 +137,181 @@ func main() {
 		if currentDoc == nil && len(docs) > 0 {
 			selectedDocID.Set(docs[0].Meta.ID)
 			currentDoc = &docs[0]
+		}
+
+		animationDemo := func(demoCtx *ui.Context) ui.Element {
+			const (
+				trackWidth  = float32(156)
+				squareSize  = float32(28)
+				trackHeight = float32(36)
+			)
+			target := float32(0)
+			if animationDemoActive.Value() {
+				target = trackWidth - squareSize
+			}
+
+			type curveDemo struct {
+				name   string
+				short  string
+				color  color.NRGBA
+				easing ui.Easing
+			}
+
+			curves := []curveDemo{
+				{name: "EaseOut", short: "EO", color: ui.NRGBA(59, 130, 246, 255), easing: ui.EaseOut},
+				{name: "EaseInOut", short: "IO", color: ui.NRGBA(34, 197, 94, 255), easing: ui.EaseInOut},
+				{name: "OutBack", short: "BK", color: ui.NRGBA(251, 146, 60, 255), easing: ui.EaseOutBack},
+				{name: "Elastic", short: "EL", color: ui.NRGBA(168, 85, 247, 255), easing: easeOutElastic},
+				{name: "Bounce", short: "BO", color: ui.NRGBA(239, 68, 68, 255), easing: ui.EaseOutBounce},
+				{name: "Linear", short: "LN", color: ui.NRGBA(100, 116, 139, 255), easing: ui.Linear},
+			}
+
+			curveCard := func(curve curveDemo, index int) ui.Element {
+				return ui.Key(curve.name, ui.ComponentElement(func(squareCtx *ui.Context) ui.Element {
+					hovered := ui.UseState(squareCtx, false)
+					x := ui.UseAnimatedValue(squareCtx, target, 640*time.Millisecond, curve.easing)
+					scale := ui.UseAnimatedValue(squareCtx, hoverScale(hovered.Value()), 150*time.Millisecond, ui.EaseOut)
+
+					square := ui.ContainerDecorationElement(
+						ui.Bg(curve.color).
+							WithRad(8).
+							Merge(ui.Shadow(0, 6, 14, color.NRGBA{R: curve.color.R, G: curve.color.G, B: curve.color.B, A: 56})).
+							WithTransform(ui.Transform2D{ScaleX: scale, ScaleY: scale, Origin: ui.TransformCenter}),
+						ui.FixedSizeElement(
+							28,
+							28,
+							ui.CenterElement(ui.TextElement(curve.short, ui.TextSize(10), ui.TextColor(ui.NRGBA(255, 255, 255, 255)))),
+						),
+						ui.OnDecoHover(func(ctx *ui.Context, hovering bool) {
+							hovered.Set(hovering)
+						}),
+					)
+
+					track := ui.FixedSizeElement(
+						trackWidth,
+						trackHeight,
+						ui.StackElement(
+							ui.ContainerDecorationElement(
+								ui.Bg(ui.NRGBA(226, 232, 240, 255)).WithRad(12),
+								ui.SpacerElement(trackWidth, trackHeight),
+							),
+							ui.PaddingElement(
+								ui.Insets{Left: x, Top: (trackHeight - squareSize) / 2},
+								square,
+							),
+						),
+					)
+
+					return ui.ContainerDecorationElement(
+						ui.Bg(ui.NRGBA(248, 250, 252, 255)).
+							WithPad(ui.All(8)).
+							WithRad(12).
+							WithBorder(ui.Border{Width: 1, Color: ui.NRGBA(226, 232, 240, 255)}),
+						ui.ColumnElement(
+							ui.RowElement(
+								ui.FixedWidthElement(86, ui.TextElement(curve.name, ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255)))),
+								ui.TextElement(fmt.Sprintf("#%d", index+1), ui.TextSize(11), ui.TextColor(ui.NRGBA(148, 163, 184, 255))),
+							),
+							ui.PaddingElement(ui.Insets{Top: 6}, track),
+						),
+					)
+				}))
+			}
+
+			rows := make([]ui.Element, 0, 3)
+			for i := 0; i < len(curves); i += 2 {
+				rowItems := []ui.Element{
+					ui.FixedWidthElement(245, curveCard(curves[i], i)),
+				}
+				if i+1 < len(curves) {
+					rowItems = append(rowItems,
+						ui.PaddingElement(ui.Insets{Left: 10}, ui.FixedWidthElement(245, curveCard(curves[i+1], i+1))),
+					)
+				}
+				rows = append(rows, ui.PaddingElement(ui.Insets{Bottom: 8}, ui.RowElement(rowItems...)))
+			}
+
+			return ui.ColumnElement(
+				ui.TextElement("Easing 曲线对比", ui.TextSize(15), ui.TextColor(ui.NRGBA(15, 23, 42, 255))),
+				ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("点击触发位移动画；悬浮方块查看 transform hover 缩放。", ui.TextSize(12), ui.TextColor(ui.NRGBA(100, 116, 139, 255)))),
+				ui.PaddingElement(ui.Insets{Top: 10}, ui.ColumnElement(rows...)),
+				ui.PaddingElement(
+					ui.Insets{Top: 8, Bottom: 8},
+					ui.FixedWidthElement(
+						160,
+						ui.ButtonElement(
+							ui.TextElement("触发动画"),
+							ui.ButtonDecoration(
+								ui.Bg(ui.NRGBA(15, 23, 42, 255)).
+									WithPad(ui.Symmetric(8, 12)).
+									WithRad(10).
+									WithHover(ui.Bg(ui.NRGBA(30, 41, 59, 255))).
+									WithPressed(ui.Bg(ui.NRGBA(51, 65, 85, 255))),
+							),
+							ui.ButtonForeground(ui.NRGBA(255, 255, 255, 255)),
+							ui.OnClick(func(ctx *ui.Context) {
+								animationDemoActive.Set(!animationDemoActive.Value())
+							}),
+						),
+					),
+				),
+			)
+		}
+
+		hooksLifecycleDemo := func(demoCtx *ui.Context) ui.Element {
+			ui.UseMount(demoCtx, func() func() {
+				appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Demo mount")
+				return func() {
+					appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Demo unmount")
+				}
+			})
+			ui.UseEffectWithDeps(demoCtx, []any{hookDemoCount.Value()}, func() func() {
+				appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, fmt.Sprintf("count changed -> %d", hookDemoCount.Value()))
+				return nil
+			})
+
+			content := []ui.Element{
+				ui.TextElement(fmt.Sprintf("count = %d", hookDemoCount.Value())),
+				ui.RowElement(
+					ui.PaddingElement(ui.All(4), ui.ButtonElement(ui.TextElement("+1"), ui.OnClick(func(ctx *ui.Context) {
+						hookDemoCount.Set(hookDemoCount.Value() + 1)
+					}))),
+					ui.PaddingElement(ui.All(4), ui.ButtonElement(ui.TextElement("切换子组件"), ui.OnClick(func(ctx *ui.Context) {
+						hookDemoShowChild.Set(!hookDemoShowChild.Value())
+					}))),
+				),
+			}
+
+			if hookDemoShowChild.Value() {
+				content = append(content,
+					ui.ComponentElement(func(childCtx *ui.Context) ui.Element {
+						ui.UseLifecycle(childCtx, func() {
+							appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Child mount")
+						}, func() {
+							appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Child unmount")
+						})
+						return ui.ContainerElement(
+							ui.Style{
+								Background: ui.NRGBA(226, 232, 240, 255),
+								Padding:    ui.All(8),
+								Radius:     6,
+							},
+							ui.TextElement("子组件已挂载"),
+						)
+					}),
+				)
+			}
+
+			logItems := hookDemoLogs.Value()
+			if len(logItems) == 0 {
+				content = append(content, ui.TextElement("(暂无日志)", ui.TextSize(12), ui.TextColor(ui.NRGBA(100, 116, 139, 255))))
+			} else {
+				for _, item := range logItems {
+					content = append(content, ui.TextElement(item, ui.TextSize(12), ui.TextColor(ui.NRGBA(51, 65, 85, 255))))
+				}
+			}
+
+			return ui.ColumnElement(content...)
 		}
 
 		buildDemo := func(doc *widgetDoc) ui.Element {
@@ -221,6 +403,131 @@ func main() {
 					},
 					ui.TextElement("Container: 背景 + 内边距 + 圆角", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
 				)
+			case "decoration_basic", "decoration_guide_basic":
+				base := ui.Bg(ui.NRGBA(255, 255, 255, 255)).
+					WithPad(ui.All(16)).
+					WithMargin(ui.All(8)).
+					WithRad(16).
+					WithBorder(ui.Border{Width: 1, Color: ui.NRGBA(203, 213, 225, 255)}).
+					WithHover(ui.Bg(ui.NRGBA(239, 246, 255, 255))).
+					WithPressed(ui.Bg(ui.NRGBA(219, 234, 254, 255)))
+				if styleDemoActive.Value() {
+					base = base.Merge(ui.Elevation(2)).WithBorder(ui.Border{Width: 1, Color: th.Primary})
+				}
+				return ui.PaddingElement(
+					ui.Symmetric(8, 12),
+					ui.ClickAreaElement(
+						ui.FixedWidthElement(
+							340,
+							ui.ContainerDecorationElement(
+								base,
+								ui.ColumnElement(
+									ui.TextElement("Decoration 卡片", ui.TextSize(16), ui.TextColor(th.TextColor)),
+									ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("点击切换边框和阴影", ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255)))),
+								),
+							),
+						),
+						func(ctx *ui.Context) { styleDemoActive.Set(!styleDemoActive.Value()) },
+					),
+				)
+			case "insets_basic":
+				return ui.ContainerDecorationElement(
+					ui.Bg(ui.NRGBA(239, 246, 255, 255)).WithRad(12),
+					ui.PaddingElement(
+						ui.Symmetric(10, 18),
+						ui.TextElement("Symmetric(10, 18): 上下 10 / 左右 18", ui.TextColor(ui.NRGBA(30, 64, 175, 255))),
+					),
+				)
+			case "border_basic":
+				return ui.ContainerDecorationElement(
+					ui.Bg(ui.NRGBA(255, 255, 255, 255)).
+						WithPad(ui.All(14)).
+						WithRad(12).
+						WithBorder(ui.Border{Width: 2, Color: th.Primary}),
+					ui.TextElement("Border: width + color", ui.TextColor(th.Primary)),
+				)
+			case "shadow_basic":
+				return ui.PaddingElement(
+					ui.Symmetric(8, 12),
+					ui.FixedWidthElement(
+						280,
+						ui.ContainerDecorationElement(
+							ui.Bg(ui.NRGBA(255, 255, 255, 255)).
+								WithPad(ui.All(16)).
+								WithMargin(ui.All(8)).
+								WithRad(16).
+								Merge(ui.Elevation(3)),
+							ui.TextElement("Elevation(3) 阴影卡片"),
+						),
+					),
+				)
+			case "gradient_basic":
+				return ui.ContainerDecorationElement(
+					ui.LinearGrad(
+						image.Point{X: 0, Y: 0},
+						image.Point{X: 260, Y: 120},
+						ui.NRGBA(14, 165, 233, 255),
+						ui.NRGBA(34, 197, 94, 255),
+					).WithPad(ui.All(18)).WithRad(18),
+					ui.TextElement("LinearGradient 渐变背景", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(16)),
+				)
+			case "transform_basic":
+				return ui.PaddingElement(
+					ui.All(10),
+					ui.ContainerDecorationElement(
+						ui.Bg(ui.NRGBA(254, 243, 199, 255)).
+							WithPad(ui.All(14)).
+							WithRad(12).
+							Merge(ui.Rotate(-4)),
+						ui.TextElement("Rotate(-4)"),
+					),
+				)
+			case "image_fill_basic":
+				return ui.ContainerDecorationElement(
+					ui.Bg(ui.NRGBA(15, 23, 42, 255)).WithPad(ui.All(16)).WithRad(14),
+					ui.ColumnElement(
+						ui.TextElement("ImageBg(img, ImageFillCover)", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
+						ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("背景图建议在 effect/async 中加载后传入", ui.TextSize(12), ui.TextColor(ui.NRGBA(203, 213, 225, 255)))),
+					),
+				)
+			case "theme_basic":
+				localTheme := ui.NewTheme(ui.LightColors())
+				label := "局部浅色主题"
+				if themeDemoDark.Value() {
+					localTheme = ui.NewTheme(ui.DarkColors())
+					label = "局部深色主题"
+				}
+				return ui.ColumnElement(
+					ui.ButtonElement(ui.TextElement("切换局部主题"), ui.OnClick(func(ctx *ui.Context) {
+						themeDemoDark.Set(!themeDemoDark.Value())
+					})),
+					ui.PaddingElement(
+						ui.Insets{Top: 8},
+						ui.ThemeProviderElement(
+							localTheme,
+							ui.ContainerDecorationElement(
+								ui.Bg(localTheme.Surface).WithPad(ui.All(14)).WithRad(12),
+								ui.TextElement(label, ui.TextColor(localTheme.TextColor)),
+							),
+						),
+					),
+				)
+			case "color_scheme_basic":
+				return ui.RowElement(
+					ui.ContainerDecorationElement(ui.Bg(th.Primary).WithPad(ui.All(10)).WithRad(8), ui.TextElement("Primary", ui.TextColor(th.TextOnPrimary))),
+					ui.PaddingElement(ui.Insets{Left: 8}, ui.ContainerDecorationElement(ui.Bg(th.Colors.Warning).WithPad(ui.All(10)).WithRad(8), ui.TextElement("Warning", ui.TextColor(th.Colors.OnWarning)))),
+					ui.PaddingElement(ui.Insets{Left: 8}, ui.ContainerDecorationElement(ui.Bg(th.Colors.Success).WithPad(ui.All(10)).WithRad(8), ui.TextElement("Success", ui.TextColor(th.Colors.OnSuccess)))),
+				)
+			case "getting_started_basic":
+				return ui.ColumnElement(
+					ui.TextElement("Hello FluxUI", ui.TextSize(18)),
+					ui.PaddingElement(ui.Insets{Top: 8}, ui.ButtonElement(ui.TextElement("count +1"), ui.OnClick(func(ctx *ui.Context) {
+						buttonCount.Set(buttonCount.Value() + 1)
+					}))),
+					ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement(fmt.Sprintf("count = %d", buttonCount.Value()), ui.TextColor(th.Primary))),
+				)
+			case "animation_basic":
+				return ui.Key("docs-demo-animation", ui.ComponentElement(animationDemo))
 			case "padding_basic":
 				return ui.ContainerElement(
 					ui.Style{
@@ -905,59 +1212,7 @@ func main() {
 					),
 				)
 			case "hooks_lifecycle_basic":
-				hookScope := ctx.Scope("docs-hooks-demo")
-				ui.UseMount(hookScope, func() func() {
-					appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Demo mount")
-					return func() {
-						appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Demo unmount")
-					}
-				})
-				ui.UseEffectWithDeps(hookScope, []any{hookDemoCount.Value()}, func() func() {
-					appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, fmt.Sprintf("count changed -> %d", hookDemoCount.Value()))
-					return nil
-				})
-
-				content := []ui.Element{
-					ui.TextElement(fmt.Sprintf("count = %d", hookDemoCount.Value())),
-					ui.RowElement(
-						ui.PaddingElement(ui.All(4), ui.ButtonElement(ui.TextElement("+1"), ui.OnClick(func(ctx *ui.Context) {
-							hookDemoCount.Set(hookDemoCount.Value() + 1)
-						}))),
-						ui.PaddingElement(ui.All(4), ui.ButtonElement(ui.TextElement("切换子组件"), ui.OnClick(func(ctx *ui.Context) {
-							hookDemoShowChild.Set(!hookDemoShowChild.Value())
-						}))),
-					),
-				}
-
-				if hookDemoShowChild.Value() {
-					childScope := hookScope.Scope("child")
-					ui.UseLifecycle(childScope, func() {
-						appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Child mount")
-					}, func() {
-						appendDemoLog(hookDemoLogs.Value, hookDemoLogs.Set, "Child unmount")
-					})
-					content = append(content,
-						ui.ContainerElement(
-							ui.Style{
-								Background: ui.NRGBA(226, 232, 240, 255),
-								Padding:    ui.All(8),
-								Radius:     6,
-							},
-							ui.TextElement("子组件已挂载"),
-						),
-					)
-				}
-
-				logItems := hookDemoLogs.Value()
-				if len(logItems) == 0 {
-					content = append(content, ui.TextElement("(暂无日志)", ui.TextSize(12), ui.TextColor(ui.NRGBA(100, 116, 139, 255))))
-				} else {
-					for _, item := range logItems {
-						content = append(content, ui.TextElement(item, ui.TextSize(12), ui.TextColor(ui.NRGBA(51, 65, 85, 255))))
-					}
-				}
-
-				return ui.ColumnElement(content...)
+				return ui.Key("docs-demo-hooks", ui.ComponentElement(hooksLifecycleDemo))
 			default:
 				return ui.TextElement("该文档未配置可执行示例。")
 			}
@@ -1015,7 +1270,7 @@ func main() {
 			)
 		}
 
-		docCountText := fmt.Sprintf("已加载 %d 个控件文档（%s）", len(docs), map[string]string{
+		docCountText := fmt.Sprintf("已加载 %d 篇文档（%s）", len(docs), map[string]string{
 			"online": "在线",
 			"local":  "本地",
 		}[docsSource])
@@ -1031,7 +1286,7 @@ func main() {
 					Padding:    ui.All(12),
 				},
 				ui.ColumnElement(
-					ui.TextElement("FluxUI 控件文档", ui.TextSize(18)),
+					ui.TextElement("FluxUI 文档", ui.TextSize(18)),
 					ui.PaddingElement(
 						ui.Insets{Top: 8},
 						ui.TextElement(
@@ -1044,7 +1299,7 @@ func main() {
 						ui.Insets{Top: 10},
 						ui.TextFieldElement(
 							searchKeyword.Value(),
-							ui.InputPlaceholder("搜索控件 / 分类"),
+							ui.InputPlaceholder("搜索文档 / 分类"),
 							ui.InputOnChange(func(ctx *ui.Context, value string) {
 								searchKeyword.Set(value)
 							}),
@@ -1096,6 +1351,15 @@ func main() {
 
 		rightPanelContent := []ui.Element{}
 		if currentDoc != nil {
+			demoHeight := float32(230)
+			if currentDoc.Meta.Example.ID == "animation_basic" {
+				demoHeight = 300
+			}
+			demoContent := buildDemo(currentDoc)
+			if currentDoc.Meta.Example.ID == "animation_basic" {
+				demoContent = ui.ScrollViewElement(demoContent, ui.ScrollVertical(true))
+			}
+
 			rightPanelContent = append(rightPanelContent,
 				ui.TextElement(currentDoc.Meta.Title, ui.TextSize(26)),
 			)
@@ -1135,8 +1399,8 @@ func main() {
 							Radius:     10,
 						},
 						ui.FixedHeightElement(
-							230,
-							ui.FillElement(buildDemo(currentDoc)),
+							demoHeight,
+							ui.FillElement(demoContent),
 						),
 					),
 				),
@@ -1359,96 +1623,109 @@ func renderMarkdownWidgets(content string) []ui.Element {
 }
 
 func loadWidgetDocs() ([]widgetDoc, error) {
-	dir, err := resolveDocsWidgetsDir()
+	docsRoot, err := resolveDocsRootDir()
 	if err != nil {
 		return nil, err
 	}
 
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	docs := make([]widgetDoc, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		if !strings.HasSuffix(strings.ToLower(entry.Name()), ".md") {
+	docs := make([]widgetDoc, 0, 48)
+	for _, subdir := range docsSubdirs {
+		dir := filepath.Join(docsRoot, subdir)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
 			continue
 		}
 
-		path := filepath.Join(dir, entry.Name())
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			continue
-		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			if !strings.HasSuffix(strings.ToLower(entry.Name()), ".md") {
+				continue
+			}
 
-		doc, parseErr := parseWidgetDoc(path, string(data))
-		if parseErr != nil {
-			continue
+			path := filepath.Join(dir, entry.Name())
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				continue
+			}
+
+			doc, parseErr := parseWidgetDoc(path, string(data))
+			if parseErr != nil {
+				continue
+			}
+			docs = append(docs, doc)
 		}
-		docs = append(docs, doc)
 	}
 
 	if len(docs) == 0 {
-		return nil, errors.New("docs/widgets 下没有可解析的组件文档")
+		return nil, errors.New("docs 下没有可解析的 Markdown 文档")
 	}
 
-	sort.Slice(docs, func(i, j int) bool {
-		a := docs[i].Meta
-		b := docs[j].Meta
-		if a.Category != b.Category {
-			return a.Category < b.Category
-		}
-		if a.Order != b.Order {
-			return a.Order < b.Order
-		}
-		return a.Title < b.Title
-	})
+	sortDocs(docs)
 
 	return docs, nil
 }
 
 func loadWidgetDocsFromGitHub() ([]widgetDoc, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
-	entries, err := fetchGitHubDocsEntries(client)
-	if err != nil {
-		return nil, err
-	}
-
-	docs := make([]widgetDoc, 0, len(entries))
-	for _, entry := range entries {
-		if entry.Type != "file" {
-			continue
-		}
-		if !strings.HasSuffix(strings.ToLower(entry.Name), ".md") {
-			continue
-		}
-
-		url := strings.TrimSpace(entry.DownloadURL)
-		if url == "" {
-			url = githubWidgetsRawURL + entry.Name
-		}
-
-		text, err := fetchHTTPText(client, url)
+	docs := make([]widgetDoc, 0, 48)
+	var firstErr error
+	for _, subdir := range docsSubdirs {
+		entries, err := fetchGitHubDocsEntries(client, subdir)
 		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
-		doc, err := parseWidgetDoc(url, text)
-		if err != nil {
-			continue
+
+		for _, entry := range entries {
+			if entry.Type != "file" {
+				continue
+			}
+			if !strings.HasSuffix(strings.ToLower(entry.Name), ".md") {
+				continue
+			}
+
+			url := strings.TrimSpace(entry.DownloadURL)
+			if url == "" {
+				url = githubDocsRawBase + "/" + subdir + "/" + entry.Name
+			}
+
+			text, err := fetchHTTPText(client, url)
+			if err != nil {
+				continue
+			}
+			doc, err := parseWidgetDoc(url, text)
+			if err != nil {
+				continue
+			}
+			docs = append(docs, doc)
 		}
-		docs = append(docs, doc)
 	}
 
 	if len(docs) == 0 {
-		return nil, errors.New("GitHub docs/widgets 下没有可解析的组件文档")
+		if firstErr != nil {
+			return nil, firstErr
+		}
+		return nil, errors.New("GitHub docs 下没有可解析的 Markdown 文档")
 	}
 
+	sortDocs(docs)
+
+	return docs, nil
+}
+
+func sortDocs(docs []widgetDoc) {
 	sort.Slice(docs, func(i, j int) bool {
 		a := docs[i].Meta
 		b := docs[j].Meta
+		aRank := categoryRank(a.Category)
+		bRank := categoryRank(b.Category)
+		if aRank != bRank {
+			return aRank < bRank
+		}
 		if a.Category != b.Category {
 			return a.Category < b.Category
 		}
@@ -1457,12 +1734,37 @@ func loadWidgetDocsFromGitHub() ([]widgetDoc, error) {
 		}
 		return a.Title < b.Title
 	})
-
-	return docs, nil
 }
 
-func fetchGitHubDocsEntries(client *http.Client) ([]githubContentEntry, error) {
-	body, err := fetchHTTPBytes(client, githubWidgetsAPIURL, true)
+func categoryRank(category string) int {
+	switch category {
+	case "使用指南":
+		return 10
+	case "样式系统":
+		return 20
+	case "主题系统":
+		return 30
+	case "状态与副作用":
+		return 40
+	case "布局系统":
+		return 50
+	case "基础显示":
+		return 60
+	case "输入交互":
+		return 70
+	case "反馈组件":
+		return 80
+	case "导航组件":
+		return 90
+	case "系统":
+		return 100
+	default:
+		return 999
+	}
+}
+
+func fetchGitHubDocsEntries(client *http.Client, subdir string) ([]githubContentEntry, error) {
+	body, err := fetchHTTPBytes(client, githubDocsAPIBase+"/"+subdir+"?ref=main", true)
 	if err != nil {
 		return nil, err
 	}
@@ -1524,10 +1826,10 @@ func buildOnlineLoadingDoc(localErr error) widgetDoc {
 	lines := []string{
 		"# 正在加载在线文档",
 		"",
-		"本地 `docs/widgets` 不可用，正在从 GitHub 拉取在线 Markdown 文档。",
+		"本地 `docs` 文档目录不可用，正在从 GitHub 拉取在线 Markdown 文档。",
 		"",
 		"在线来源：",
-		"- https://github.com/xiaowumin-mark/FluxUI/tree/main/docs/widgets",
+		"- https://github.com/xiaowumin-mark/FluxUI/tree/main/docs",
 	}
 	if localErr != nil {
 		lines = append(lines, "", "本地错误："+localErr.Error())
@@ -1542,7 +1844,7 @@ func buildOnlineLoadingDoc(localErr error) widgetDoc {
 			Example:  docDemo{ID: "fallback"},
 		},
 		Content: strings.Join(lines, "\n"),
-		Path:    githubWidgetsAPIURL,
+		Path:    githubDocsAPIBase,
 	}
 }
 
@@ -1551,7 +1853,7 @@ func buildOnlineLoadFailedDoc(localErr, onlineErr error) widgetDoc {
 		"# 文档加载失败",
 		"",
 		"本地与在线文档都未能加载，请检查：",
-		"- 本地 `docs/widgets` 目录是否存在且可读",
+		"- 本地 `docs` 目录是否存在且可读",
 		"- 网络连接是否可访问 GitHub",
 		"- 文档文件是否包含 `fluxui-doc-meta` 元数据块",
 	}
@@ -1571,33 +1873,33 @@ func buildOnlineLoadFailedDoc(localErr, onlineErr error) widgetDoc {
 			Example:  docDemo{ID: "fallback"},
 		},
 		Content: strings.Join(lines, "\n"),
-		Path:    githubWidgetsAPIURL,
+		Path:    githubDocsAPIBase,
 	}
 }
 
-func resolveDocsWidgetsDir() (string, error) {
+func resolveDocsRootDir() (string, error) {
 	candidates := make([]string, 0, 12)
 	candidates = append(candidates,
-		filepath.Join("docs", "widgets"),
-		filepath.Join("..", "docs", "widgets"),
-		filepath.Join("..", "..", "docs", "widgets"),
+		"docs",
+		filepath.Join("..", "docs"),
+		filepath.Join("..", "..", "docs"),
 	)
 
 	if cwd, err := os.Getwd(); err == nil {
 		candidates = append(candidates,
-			filepath.Join(cwd, "docs", "widgets"),
-			filepath.Join(cwd, "..", "docs", "widgets"),
-			filepath.Join(cwd, "..", "..", "docs", "widgets"),
+			filepath.Join(cwd, "docs"),
+			filepath.Join(cwd, "..", "docs"),
+			filepath.Join(cwd, "..", "..", "docs"),
 		)
 	}
 
 	if exe, err := os.Executable(); err == nil {
 		exeDir := filepath.Dir(exe)
 		candidates = append(candidates,
-			filepath.Join(exeDir, "docs", "widgets"),
-			filepath.Join(exeDir, "..", "docs", "widgets"),
-			filepath.Join(exeDir, "..", "..", "docs", "widgets"),
-			filepath.Join(exeDir, "..", "..", "..", "docs", "widgets"),
+			filepath.Join(exeDir, "docs"),
+			filepath.Join(exeDir, "..", "docs"),
+			filepath.Join(exeDir, "..", "..", "docs"),
+			filepath.Join(exeDir, "..", "..", "..", "docs"),
 		)
 	}
 
@@ -1616,7 +1918,7 @@ func resolveDocsWidgetsDir() (string, error) {
 			return cleaned, nil
 		}
 	}
-	return "", errors.New("未找到 docs/widgets 文档目录")
+	return "", errors.New("未找到 docs 文档目录")
 }
 
 func parseWidgetDoc(path string, raw string) (widgetDoc, error) {
@@ -1668,6 +1970,31 @@ func rowColor(index int) color.NRGBA {
 		return ui.NRGBA(241, 245, 249, 255)
 	}
 	return ui.NRGBA(226, 232, 240, 255)
+}
+
+func hoverScale(hovered bool) float32 {
+	if hovered {
+		return 1.18
+	}
+	return 1
+}
+
+func easeOutElastic(v float32) float32 {
+	v = clamp01(v)
+	if v == 0 || v == 1 {
+		return v
+	}
+	return float32(math.Pow(2, -10*float64(v)))*float32(math.Sin(float64(v*10-0.75)*2*math.Pi/3)) + 1
+}
+
+func clamp01(v float32) float32 {
+	if math.IsNaN(float64(v)) || v < 0 {
+		return 0
+	}
+	if v > 1 {
+		return 1
+	}
+	return v
 }
 
 func appendDemoLog(getLogs func() []string, setLogs func([]string), message string) {

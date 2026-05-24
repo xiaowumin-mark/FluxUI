@@ -13,7 +13,8 @@
     "AppBarLeading(leading Widget) AppBarOption",
     "AppBarActions(actions ...Widget) AppBarOption",
     "AppBarHeight(height float32) AppBarOption",
-    "AppBarBackground(col color.NRGBA) AppBarOption"
+    "AppBarBackground(col color.NRGBA) AppBarOption",
+    "AppBarDecoration(d Decoration) AppBarOption"
   ]
 }
 -->

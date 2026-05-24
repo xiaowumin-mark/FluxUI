@@ -1,11 +1,13 @@
 package widget
 
 import (
+	"image"
 	"image/color"
 
 	event "github.com/xiaowumin-mark/FluxUI/event"
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
 	layout "github.com/xiaowumin-mark/FluxUI/layout"
+	style "github.com/xiaowumin-mark/FluxUI/style"
 )
 
 type SwitchOption func(*switchConfig)
@@ -22,6 +24,7 @@ type switchConfig struct {
 	hasThumbColor bool
 	onChange      func(ctx *internal.Context, checked bool)
 	ref           *SwitchRef
+	decoration    style.Decoration
 }
 
 type switchWidget struct {
@@ -31,11 +34,8 @@ type switchWidget struct {
 
 func Switch(checked bool, opts ...SwitchOption) Widget {
 	cfg := switchConfig{
-		width:      50,
-		height:     26,
-		color:      color.NRGBA{R: 66, G: 133, B: 244, A: 255},
-		trackColor: color.NRGBA{R: 200, G: 200, B: 200, A: 255},
-		thumbColor: color.NRGBA{R: 255, G: 255, B: 255, A: 255},
+		width:  50,
+		height: 26,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -98,6 +98,13 @@ func SwitchThumbColor(color color.NRGBA) SwitchOption {
 	}
 }
 
+// SwitchDecoration 通过 Decoration 统一设置开关外层装饰和交互态。
+func SwitchDecoration(d style.Decoration) SwitchOption {
+	return func(cfg *switchConfig) {
+		cfg.decoration = d
+	}
+}
+
 func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
 	if s.config.ref != nil {
@@ -143,14 +150,26 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if s.config.hasThumbColor {
 		thumbColor = s.config.thumbColor
 	}
+	content := func(contentCtx *internal.Context) image.Point {
+		return contentCtx.LayoutSwitch(clickable.Handle(), s.value, internal.SwitchSpec{
+			Width:      s.config.width,
+			Height:     s.config.height,
+			TrackColor: trackColor,
+			ThumbColor: thumbColor,
+			Disabled:   s.config.disabled,
+			Hovered:    clickable.Hovered(),
+			Pressed:    clickable.Pressed(),
+		})
+	}
 
-	size := ctx.LayoutSwitch(clickable.Handle(), s.value, internal.SwitchSpec{
-		Width:      s.config.width,
-		Height:     s.config.height,
-		TrackColor: trackColor,
-		ThumbColor: thumbColor,
-		Disabled:   s.config.disabled,
-	})
+	if hasAnyDecoration(s.config.decoration) {
+		deco := withDefaultStates(s.config.decoration,
+			style.Decoration{}.WithBg(withAlpha(trackColor, 18)).WithRad(s.config.height/2),
+			style.Decoration{}.WithBg(withAlpha(trackColor, 28)).WithRad(s.config.height/2),
+			style.Decoration{}.WithBg(withAlpha(ctx.Theme().Disabled, 14)).WithRad(s.config.height/2),
+		)
+		return layoutDecoratedClickTarget(ctx.Child(0), clickable.Handle(), clickable.Hovered(), clickable.Pressed(), deco, s.config.disabled, content)
+	}
 
-	return layout.Dimensions{Size: size}
+	return layout.Dimensions{Size: content(ctx.Child(0))}
 }

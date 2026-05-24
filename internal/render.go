@@ -121,6 +121,8 @@ type CheckboxSpec struct {
 	Size     float32
 	Color    color.NRGBA
 	Disabled bool
+	Hovered  bool
+	Pressed  bool
 }
 
 // RadioSpec 描述单选框样式。
@@ -128,6 +130,8 @@ type RadioSpec struct {
 	Size     float32
 	Color    color.NRGBA
 	Disabled bool
+	Hovered  bool
+	Pressed  bool
 }
 
 // SwitchSpec 描述开关样式。
@@ -137,6 +141,8 @@ type SwitchSpec struct {
 	TrackColor color.NRGBA
 	ThumbColor color.NRGBA
 	Disabled   bool
+	Hovered    bool
+	Pressed    bool
 }
 
 // SliderSpec 描述滑块样式。
@@ -146,6 +152,8 @@ type SliderSpec struct {
 	ThumbColor    color.NRGBA
 	ProgressColor color.NRGBA
 	Disabled      bool
+	Hovered       bool
+	Pressed       bool
 }
 
 // LayoutText 渲染文本。
@@ -525,14 +533,23 @@ func (c *Context) LayoutCheckbox(clickable *ClickableState, checked bool, spec C
 			onColor = c.Theme().Primary
 		}
 		fillColor := c.Theme().Surface
-		borderColor := c.Theme().SurfaceMuted
+		borderColor := colorOrNRGBA(c.Theme().Colors.Outline, c.Theme().SurfaceMuted)
 		if spec.Disabled {
 			onColor = c.Theme().Disabled
 			borderColor = c.Theme().Disabled
+			fillColor = MixNRGBA(c.Theme().Disabled, fillColor, 0.12)
 		}
 		if checked {
 			fillColor = onColor
 			borderColor = onColor
+		}
+		if !spec.Disabled && !checked && spec.Hovered {
+			fillColor = MixNRGBA(onColor, fillColor, 0.08)
+			borderColor = MixNRGBA(onColor, borderColor, 0.45)
+		}
+		if !spec.Disabled && spec.Pressed {
+			fillColor = MixNRGBA(onColor, fillColor, 0.18)
+			borderColor = MixNRGBA(onColor, borderColor, 0.55)
 		}
 
 		radius := size / 5
@@ -594,16 +611,24 @@ func (c *Context) LayoutRadio(clickable *ClickableState, checked bool, spec Radi
 		if onColor.A == 0 {
 			onColor = c.Theme().Primary
 		}
-		borderColor := c.Theme().SurfaceMuted
+		borderColor := colorOrNRGBA(c.Theme().Colors.Outline, c.Theme().SurfaceMuted)
+		bg := c.Theme().Surface
 		if spec.Disabled {
 			onColor = c.Theme().Disabled
 			borderColor = c.Theme().Disabled
+			bg = MixNRGBA(c.Theme().Disabled, bg, 0.12)
 		}
 		if checked {
 			borderColor = onColor
 		}
-
-		bg := c.Theme().Surface
+		if !spec.Disabled && !checked && spec.Hovered {
+			bg = MixNRGBA(onColor, bg, 0.08)
+			borderColor = MixNRGBA(onColor, borderColor, 0.45)
+		}
+		if !spec.Disabled && spec.Pressed {
+			bg = MixNRGBA(onColor, bg, 0.16)
+			borderColor = MixNRGBA(onColor, borderColor, 0.55)
+		}
 		paint.FillShape(gtx.Ops, bg, clip.UniformRRect(rect, radius).Op(gtx.Ops))
 		strokeWidth := gtx.Dp(unit.Dp(1))
 		if strokeWidth < 1 {
@@ -671,8 +696,12 @@ func (c *Context) LayoutSwitch(clickable *ClickableState, checked bool, spec Swi
 		trackColor := spec.TrackColor
 		thumbColor := spec.ThumbColor
 		if spec.Disabled {
-			trackColor = c.Theme().Disabled
-			thumbColor = c.Theme().Surface
+			trackColor = MixNRGBA(c.Theme().Disabled, c.Theme().SurfaceMuted, 0.5)
+			thumbColor = MixNRGBA(c.Theme().Disabled, c.Theme().Surface, 0.25)
+		} else if spec.Pressed {
+			trackColor = MixNRGBA(thumbColor, trackColor, 0.28)
+		} else if spec.Hovered {
+			trackColor = MixNRGBA(thumbColor, trackColor, 0.18)
 		}
 
 		rr := height / 2
@@ -767,8 +796,15 @@ func (c *Context) LayoutSlider(slider *widget.Float, spec SliderSpec) image.Poin
 	thumbColor := spec.ThumbColor
 	trackColor := spec.TrackColor
 	if spec.Disabled {
+		trackColor = MixNRGBA(c.Theme().Disabled, c.Theme().SurfaceMuted, 0.35)
 		progressColor = c.Theme().Disabled
 		thumbColor = c.Theme().Disabled
+	} else if spec.Pressed {
+		thumbColor = MixNRGBA(c.Theme().TextOnPrimary, thumbColor, 0.22)
+		trackColor = MixNRGBA(progressColor, trackColor, 0.18)
+	} else if spec.Hovered {
+		thumbColor = MixNRGBA(c.Theme().TextOnPrimary, thumbColor, 0.12)
+		trackColor = MixNRGBA(progressColor, trackColor, 0.10)
 	}
 
 	if trackWidth > 0 {
@@ -815,6 +851,11 @@ func drawCheckMark(gtx gioLayout.Context, size int, col color.NRGBA) {
 		Path:  path.End(),
 		Width: stroke,
 	}.Op())
+}
+
+// DrawCheckMark 绘制一个复用的勾选标记。
+func DrawCheckMark(gtx gioLayout.Context, size int, col color.NRGBA) {
+	drawCheckMark(gtx, size, col)
 }
 
 // LayoutFlex 执行 Flex 布局。
@@ -904,6 +945,30 @@ func clampRoundedRadiusPx(size image.Point, rr int) int {
 		return limit
 	}
 	return rr
+}
+
+// MixNRGBA blends fg over bg by amount in [0, 1].
+func MixNRGBA(fg, bg color.NRGBA, amount float32) color.NRGBA {
+	if amount < 0 {
+		amount = 0
+	}
+	if amount > 1 {
+		amount = 1
+	}
+	inv := 1 - amount
+	return color.NRGBA{
+		R: uint8(float32(bg.R)*inv + float32(fg.R)*amount + 0.5),
+		G: uint8(float32(bg.G)*inv + float32(fg.G)*amount + 0.5),
+		B: uint8(float32(bg.B)*inv + float32(fg.B)*amount + 0.5),
+		A: uint8(float32(bg.A)*inv + float32(fg.A)*amount + 0.5),
+	}
+}
+
+func colorOrNRGBA(col, fallback color.NRGBA) color.NRGBA {
+	if col.A == 0 {
+		return fallback
+	}
+	return col
 }
 
 func toTextAlignment(alignment Alignment) gioText.Alignment {

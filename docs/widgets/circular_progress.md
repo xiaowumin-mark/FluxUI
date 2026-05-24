@@ -14,7 +14,8 @@
     "ProgressThickness(thickness float32) ProgressOption",
     "ProgressSize(size float32) ProgressOption",
     "ProgressTrackColor(col color.NRGBA) ProgressOption",
-    "ProgressFillColor(col color.NRGBA) ProgressOption"
+    "ProgressFillColor(col color.NRGBA) ProgressOption",
+    "ProgressDecoration(d Decoration) ProgressOption"
   ]
 }
 -->

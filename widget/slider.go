@@ -1,11 +1,13 @@
 package widget
 
 import (
+	"image"
 	"image/color"
 	"math"
 
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
 	layout "github.com/xiaowumin-mark/FluxUI/layout"
+	style "github.com/xiaowumin-mark/FluxUI/style"
 
 	gioWidget "gioui.org/widget"
 )
@@ -27,22 +29,25 @@ type sliderConfig struct {
 	hasProgressColor bool
 	onChange         func(ctx *internal.Context, value float32)
 	ref              *SliderRef
+	decoration       style.Decoration
 }
 
 type sliderWidget struct {
 	config sliderConfig
 }
 
+type sliderState struct {
+	value *gioWidget.Float
+	hover *internal.ClickableState
+}
+
 func Slider(value float32, opts ...SliderOption) Widget {
 	cfg := sliderConfig{
-		min:           0,
-		max:           100,
-		value:         value,
-		step:          1,
-		trackColor:    color.NRGBA{R: 200, G: 200, B: 200, A: 255},
-		thumbColor:    color.NRGBA{R: 66, G: 133, B: 244, A: 255},
-		progressColor: color.NRGBA{R: 66, G: 133, B: 244, A: 255},
-		width:         200,
+		min:   0,
+		max:   100,
+		value: value,
+		step:  1,
+		width: 200,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -116,8 +121,17 @@ func SliderProgressColor(color color.NRGBA) SliderOption {
 	}
 }
 
+// SliderDecoration 通过 Decoration 统一设置滑块外层装饰和交互态。
+func SliderDecoration(d style.Decoration) SliderOption {
+	return func(cfg *sliderConfig) {
+		cfg.decoration = d
+	}
+}
+
 func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
-	sliderState := sliderStateFor(ctx)
+	state := sliderStateFor(ctx)
+	sliderValue := state.value
+	clickable := state.hover
 	currentValue := applySliderStep(s.config.value, s.config.min, s.config.max, s.config.step)
 	if s.config.ref != nil {
 		s.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
@@ -134,8 +148,8 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 	progress := toSliderProgress(currentValue, s.config.min, s.config.max)
-	sliderState.Value = progress
-	before := sliderState.Value
+	sliderValue.Value = progress
+	before := sliderValue.Value
 
 	trackColor := ctx.Theme().SurfaceMuted
 	if s.config.hasTrackColor {
@@ -149,34 +163,58 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if s.config.hasProgressColor {
 		progressColor = s.config.progressColor
 	}
+	content := func(contentCtx *internal.Context) image.Point {
+		return contentCtx.LayoutSlider(sliderValue, internal.SliderSpec{
+			Width:         s.config.width,
+			TrackColor:    trackColor,
+			ThumbColor:    thumbColor,
+			ProgressColor: progressColor,
+			Disabled:      s.config.disabled,
+			Hovered:       clickable != nil && clickable.Hovered(),
+			Pressed:       clickable != nil && clickable.Pressed(),
+		})
+	}
 
-	size := ctx.LayoutSlider(sliderState, internal.SliderSpec{
-		Width:         s.config.width,
-		TrackColor:    trackColor,
-		ThumbColor:    thumbColor,
-		ProgressColor: progressColor,
-		Disabled:      s.config.disabled,
-	})
+	var dims layout.Dimensions
+	if hasAnyDecoration(s.config.decoration) {
+		deco := withDefaultStates(s.config.decoration,
+			style.Decoration{}.WithBg(withAlpha(progressColor, 16)).WithRad(12),
+			style.Decoration{}.WithBg(withAlpha(progressColor, 24)).WithRad(12),
+			style.Decoration{}.WithBg(withAlpha(ctx.Theme().Disabled, 14)).WithRad(12),
+		)
+		dims = layoutDecoratedClickTarget(ctx.Child(0), clickable, clickable != nil && clickable.Hovered(), clickable != nil && clickable.Pressed(), deco, s.config.disabled, content)
+	} else {
+		dims = layout.Dimensions{Size: content(ctx.Child(0))}
+	}
 
-	if !s.config.disabled && math.Abs(float64(sliderState.Value-before)) > 0.0001 {
-		next := s.config.min + sliderState.Value*(s.config.max-s.config.min)
+	if !s.config.disabled && math.Abs(float64(sliderValue.Value-before)) > 0.0001 {
+		next := s.config.min + sliderValue.Value*(s.config.max-s.config.min)
 		next = applySliderStep(next, s.config.min, s.config.max, s.config.step)
-		sliderState.Value = toSliderProgress(next, s.config.min, s.config.max)
+		sliderValue.Value = toSliderProgress(next, s.config.min, s.config.max)
 		if s.config.onChange != nil {
 			s.config.onChange(ctx, next)
 		}
 	}
 
-	return layout.Dimensions{Size: size}
+	return dims
 }
 
-func sliderStateFor(ctx *internal.Context) *gioWidget.Float {
+func sliderStateFor(ctx *internal.Context) *sliderState {
 	value := ctx.Memo("slider", func() any {
-		return &gioWidget.Float{}
+		return &sliderState{
+			value: &gioWidget.Float{},
+			hover: internal.NewClickableState(),
+		}
 	})
-	state, ok := value.(*gioWidget.Float)
+	state, ok := value.(*sliderState)
 	if !ok {
 		panic("github.com/xiaowumin-mark/FluxUIwidget: slider state type mismatch")
+	}
+	if state.value == nil {
+		state.value = &gioWidget.Float{}
+	}
+	if state.hover == nil {
+		state.hover = internal.NewClickableState()
 	}
 	return state
 }

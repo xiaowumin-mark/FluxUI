@@ -14,6 +14,7 @@
     "ImageFitMode(fit ImageFit) ImageOption",
     "ImageRadius(radius float32) ImageOption",
     "ImageBackground(col color.NRGBA) ImageOption",
+    "ImageDecoration(d Decoration) ImageOption",
     "ImageOnClick(fn func(ctx *Context)) ImageOption",
     "ImageAttachRef(ref *ButtonRef) ImageOption"
   ]

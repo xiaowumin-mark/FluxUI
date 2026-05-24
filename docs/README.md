@@ -1,6 +1,11 @@
 # FluxUI 文档结构
 
-当前文档已重构为“每个控件一个 Markdown 文件”，位于 `docs/widgets` 目录。
+当前文档已重构为“每个主题一个 Markdown 文件”，文档浏览器会扫描以下目录：
+
+- `docs/widgets`: 组件文档
+- `docs/style`: 样式系统 API 文档
+- `docs/theme`: 主题系统 API 文档
+- `docs/guides`: 使用指南与动画文档
 
 ## 当前状态入口
 
@@ -17,7 +22,7 @@
 - `docs/phase6-root-element-plan.md`
 - `docs/phase7-legacy-api-plan.md`
 
-每个控件文档必须包含 `fluxui-doc-meta` 元数据块，格式如下：
+每篇可被文档浏览器加载的 Markdown 文档都必须包含 `fluxui-doc-meta` 元数据块，格式如下：
 
 ```md
 <!-- fluxui-doc-meta
@@ -38,15 +43,15 @@
 
 字段说明：
 
-- `id`: 控件唯一标识（用于菜单选择与路由）
-- `title`: 控件标题
-- `category`: 控件分类（用于左侧菜单分组）
+- `id`: 文档唯一标识（用于菜单选择与路由）
+- `title`: 文档标题
+- `category`: 文档分类（用于左侧菜单分组）
 - `order`: 同分类内排序
 - `summary`: 控件摘要
 - `example.id`: 示例渲染器 ID（由示例程序映射）
 - `apis`: 需要重点展示的 API 列表
 
-示例应用：`examples/docs_browser/main.go`
+示例应用：`examples/docs_browser/main.go`。本地加载失败时，示例应用会从 GitHub `docs/widgets`、`docs/style`、`docs/theme`、`docs/guides` 拉取在线 Markdown 文档。
 
 ## 编码与终端显示说明
 

@@ -13,6 +13,7 @@
     "GridViewElement(count int, columns int, itemBuilder func(ctx *Context, index int) Element, opts ...GridOption) Element",
     "GridGap(rowGap, colGap float32) GridOption",
     "GridPadding(insets Insets) GridOption",
+    "GridDecoration(d Decoration) GridOption",
     "GridMinItemWidth(width float32) GridOption",
     "GridOnReachEnd(fn func(ctx *Context)) GridOption"
   ]

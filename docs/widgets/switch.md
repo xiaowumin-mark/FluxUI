@@ -16,6 +16,7 @@
     "SwitchColor(color color.NRGBA) SwitchOption",
     "SwitchTrackColor(color color.NRGBA) SwitchOption",
     "SwitchThumbColor(color color.NRGBA) SwitchOption",
+    "SwitchDecoration(d Decoration) SwitchOption",
     "NewSwitchRef() *SwitchRef",
     "SwitchAttachRef(ref *SwitchRef) SwitchOption",
     "(*SwitchRef).SetChecked(checked bool)",

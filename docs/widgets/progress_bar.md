@@ -14,7 +14,8 @@
     "ProgressIndeterminate(indeterminate bool) ProgressOption",
     "ProgressThickness(thickness float32) ProgressOption",
     "ProgressTrackColor(col color.NRGBA) ProgressOption",
-    "ProgressFillColor(col color.NRGBA) ProgressOption"
+    "ProgressFillColor(col color.NRGBA) ProgressOption",
+    "ProgressDecoration(d Decoration) ProgressOption"
   ]
 }
 -->

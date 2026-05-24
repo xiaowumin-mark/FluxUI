@@ -16,6 +16,7 @@
     "InputBorderFocus(color color.NRGBA) InputOption",
     "InputBackground(color color.NRGBA) InputOption",
     "InputForeground(color color.NRGBA) InputOption",
+    "InputDecoration(d Decoration) InputOption",
     "InputTextSize(size float32) InputOption",
     "InputMaxLen(maxLen int) InputOption",
     "InputPassword(password bool) InputOption",

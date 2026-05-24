@@ -16,6 +16,7 @@
     "ButtonRadius(radius float32) ButtonOption",
     "ButtonBackground(value color.NRGBA) ButtonOption",
     "ButtonForeground(value color.NRGBA) ButtonOption",
+    "ButtonDecoration(d Decoration) ButtonOption",
     "NewButtonRef() *ButtonRef",
     "ButtonAttachRef(ref *ButtonRef) ButtonOption",
     "(*ButtonRef).Click()"

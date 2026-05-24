@@ -15,15 +15,13 @@ import (
 type CheckboxOption func(*checkboxConfig)
 
 type checkboxConfig struct {
-	dispatcher    event.Dispatcher
-	disabled      bool
-	size          float32
-	color         color.NRGBA
-	hasColor      bool
-	hasBackground bool
-	onChange      func(ctx *internal.Context, checked bool)
-	ref           *CheckboxRef
-	decoration    style.Decoration
+	disabled   bool
+	size       float32
+	color      color.NRGBA
+	hasColor   bool
+	onChange   func(ctx *internal.Context, checked bool)
+	ref        *CheckboxRef
+	decoration style.Decoration
 }
 
 type checkboxWidget struct {
@@ -118,45 +116,64 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if c.config.hasColor {
 		checkColor = c.config.color
 	}
+	if c.config.disabled {
+		checkColor = ctx.Theme().Disabled
+	}
 
 	boxWidget := layoutWidgetFunc(func(childCtx *internal.Context) layout.Dimensions {
 		size := childCtx.LayoutCheckbox(clickable.Handle(), c.value, internal.CheckboxSpec{
 			Size:     c.config.size,
 			Color:    checkColor,
 			Disabled: c.config.disabled,
+			Hovered:  clickable.Hovered(),
+			Pressed:  clickable.Pressed(),
 		})
 		return layout.Dimensions{Size: size}
 	})
 
-	if c.label == "" {
-		return boxWidget.Layout(ctx.Child(0))
-	}
-
 	labelColor := ctx.Theme().TextColor
 	if c.config.disabled {
 		labelColor = ctx.Theme().Disabled
+	} else if clickable.Hovered() {
+		labelColor = internal.MixNRGBA(checkColor, labelColor, 0.15)
 	}
 
-	dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(ctx.Gtx,
-		gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
-			next := *ctx
-			next.Gtx = gtx
-			return gioLayout.Dimensions{Size: boxWidget.Layout(next.Child(0)).Size}
-		}),
-		gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
-			next := *ctx
-			next.Gtx = gtx
-			next.Gtx.Constraints.Min = image.Point{}
-			size := next.LayoutInset(internal.Insets{Left: 8}, func(contentCtx *internal.Context) image.Point {
-				return contentCtx.LayoutText(internal.TextSpec{
-					Content:   c.label,
-					Size:      contentCtx.Theme().TextSize,
-					Color:     labelColor,
-					Alignment: internal.AlignStart,
+	content := func(contentCtx *internal.Context) image.Point {
+		if c.label == "" {
+			return boxWidget.Layout(contentCtx.Child(0)).Size
+		}
+		dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(contentCtx.Gtx,
+			gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+				next := *contentCtx
+				next.Gtx = gtx
+				return gioLayout.Dimensions{Size: boxWidget.Layout(next.Child(0)).Size}
+			}),
+			gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+				next := *contentCtx
+				next.Gtx = gtx
+				next.Gtx.Constraints.Min = image.Point{}
+				size := next.LayoutInset(internal.Insets{Left: 8}, func(labelCtx *internal.Context) image.Point {
+					return labelCtx.LayoutText(internal.TextSpec{
+						Content:   c.label,
+						Size:      labelCtx.Theme().TextSize,
+						Color:     labelColor,
+						Alignment: internal.AlignStart,
+					})
 				})
-			})
-			return gioLayout.Dimensions{Size: size}
-		}),
-	)
-	return layout.Dimensions{Size: dims.Size}
+				return gioLayout.Dimensions{Size: size}
+			}),
+		)
+		return dims.Size
+	}
+
+	if hasAnyDecoration(c.config.decoration) {
+		baseDeco := withDefaultStates(c.config.decoration,
+			style.Decoration{}.WithBg(withAlpha(checkColor, 18)),
+			style.Decoration{}.WithBg(withAlpha(checkColor, 28)),
+			style.Decoration{}.WithBg(withAlpha(ctx.Theme().Disabled, 18)),
+		)
+		return layoutDecoratedClickTarget(ctx.Child(0), clickable.Handle(), clickable.Hovered(), clickable.Pressed(), baseDeco, c.config.disabled, content)
+	}
+
+	return layout.Dimensions{Size: content(ctx.Child(0))}
 }
