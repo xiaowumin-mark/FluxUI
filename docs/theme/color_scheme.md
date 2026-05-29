@@ -19,27 +19,48 @@
 # ColorScheme 语义色板
 
 ## API 说明
-ColorScheme 是 Theme 的语义色核心。它不仅包含背景色，还包含每个主色上的前景色，确保文本对比度可控。
+ColorScheme 是 Theme 的语义色核心。FluxUI 默认色板已按 Material Design 3 roles 组织：主色、容器色、surface 层级、outline、inverse surface、scrim、shadow 以及项目保留的 success/warning 业务色。
 
 ```go
 type ColorScheme struct {
-    Primary      color.NRGBA
-    OnPrimary    color.NRGBA
-    Secondary    color.NRGBA
-    OnSecondary  color.NRGBA
-    Surface      color.NRGBA
-    OnSurface    color.NRGBA
-    SurfaceMuted color.NRGBA
-    Background   color.NRGBA
-    OnBackground color.NRGBA
-    Error        color.NRGBA
-    OnError      color.NRGBA
-    Success      color.NRGBA
-    OnSuccess    color.NRGBA
-    Warning      color.NRGBA
-    OnWarning    color.NRGBA
-    Disabled     color.NRGBA
-    Outline      color.NRGBA
+    Primary            color.NRGBA
+    OnPrimary          color.NRGBA
+    PrimaryContainer   color.NRGBA
+    OnPrimaryContainer color.NRGBA
+    Secondary          color.NRGBA
+    OnSecondary        color.NRGBA
+    SecondaryContainer color.NRGBA
+    OnSecondaryContainer color.NRGBA
+    Tertiary           color.NRGBA
+    OnTertiary         color.NRGBA
+    Error              color.NRGBA
+    OnError            color.NRGBA
+    ErrorContainer     color.NRGBA
+    OnErrorContainer   color.NRGBA
+    Background         color.NRGBA
+    OnBackground       color.NRGBA
+    Surface            color.NRGBA
+    OnSurface          color.NRGBA
+    SurfaceVariant     color.NRGBA
+    OnSurfaceVariant   color.NRGBA
+    SurfaceContainerLowest  color.NRGBA
+    SurfaceContainerLow     color.NRGBA
+    SurfaceContainer        color.NRGBA
+    SurfaceContainerHigh    color.NRGBA
+    SurfaceContainerHighest color.NRGBA
+    Outline           color.NRGBA
+    OutlineVariant    color.NRGBA
+    InverseSurface    color.NRGBA
+    InverseOnSurface  color.NRGBA
+    InversePrimary    color.NRGBA
+    Scrim             color.NRGBA
+    Shadow            color.NRGBA
+    Success           color.NRGBA
+    OnSuccess         color.NRGBA
+    Warning           color.NRGBA
+    OnWarning         color.NRGBA
+    Disabled          color.NRGBA
+    SurfaceMuted      color.NRGBA
 }
 ```
 
@@ -58,7 +79,9 @@ cs.OnWarning = ui.NRGBA(17, 24, 39, 255)
 th := ui.NewTheme(cs)
 ```
 
-## 使用建议
+## MD3 使用建议
 - `OnXxx` 应始终能在对应 `Xxx` 背景上清晰可读。
-- Toast、按钮、表单焦点态等组件会读取语义色，不建议直接硬编码同一套色值。
-- `Outline` 用于边框；`SurfaceMuted` 用于次级背景、轨道、分割区域。
+- Button、TextField、Card、Selection、Navigation、Overlay 默认样式会优先读取 MD3 roles。
+- `SurfaceContainer*` 用于卡片、导航栏、弹层等容器层级。
+- `Outline` 用于交互控件边框；`OutlineVariant` 用于较弱的信息容器边框。
+- `SurfaceMuted` 是兼容字段，新代码优先使用 `SurfaceVariant` 或 `SurfaceContainer*`。

@@ -27,6 +27,13 @@
 ## 组件说明
 Checkbox 适用于“可多选”或“布尔开关”场景，常见于表单协议、筛选项、功能开关。
 
+## MD3 默认样式
+
+- checked 使用 `Primary`，勾选标记使用 `OnPrimary`。
+- unchecked 边框使用 `Outline`，背景使用 `Surface`。
+- hover/pressed 使用统一 state layer。
+- disabled 使用 `OnSurface` 12% / 38%。
+
 ## 使用方法
 - 通过 `checked` 传入当前值。
 - 用 `CheckboxOnChange` 回传新值。

@@ -1,6 +1,9 @@
 package router
 
-import "strings"
+import (
+	"net/url"
+	"strings"
+)
 
 // matchResult 保存路径匹配的结果。
 type matchResult struct {
@@ -62,20 +65,21 @@ func extractQueryParams(fullPath string) (path string, query map[string]string) 
 	}
 
 	path = fullPath[:idx]
-	queryStr := fullPath[idx+1:]
-	query = map[string]string{}
+	values, err := url.ParseQuery(fullPath[idx+1:])
+	if err != nil {
+		return path, nil
+	}
+	if len(values) == 0 {
+		return path, map[string]string{}
+	}
 
-	pairs := strings.Split(queryStr, "&")
-	for _, pair := range pairs {
-		if pair == "" {
+	query = make(map[string]string, len(values))
+	for key, value := range values {
+		if len(value) == 0 {
+			query[key] = ""
 			continue
 		}
-		eqIdx := strings.IndexByte(pair, '=')
-		if eqIdx < 0 {
-			query[pair] = ""
-		} else {
-			query[pair[:eqIdx]] = pair[eqIdx+1:]
-		}
+		query[key] = value[len(value)-1]
 	}
 
 	return path, query

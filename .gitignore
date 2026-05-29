@@ -8,6 +8,7 @@ project_structure.md
 saga.db
 saga.db-shm
 saga.db-wal
+*saga.db*
 
 *.log
 *.exe

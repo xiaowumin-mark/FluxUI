@@ -15,7 +15,15 @@ import (
 
 type InputOption func(*inputConfig)
 
+type inputVariant int
+
+const (
+	inputVariantOutlined inputVariant = iota
+	inputVariantFilled
+)
+
 type inputConfig struct {
+	variant        inputVariant
 	disabled       bool
 	padding        style.Insets
 	radius         float32
@@ -71,11 +79,22 @@ func inputStateFor(ctx *internal.Context) *inputState {
 }
 
 func TextField(value string, opts ...InputOption) Widget {
+	return newTextField(inputVariantOutlined, value, opts...)
+}
+
+func OutlinedTextField(value string, opts ...InputOption) Widget {
+	return newTextField(inputVariantOutlined, value, opts...)
+}
+
+func FilledTextField(value string, opts ...InputOption) Widget {
+	return newTextField(inputVariantFilled, value, opts...)
+}
+
+func newTextField(variant inputVariant, value string, opts ...InputOption) Widget {
 	cfg := inputConfig{
+		variant:     variant,
 		padding:     style.Symmetric(8, 12),
-		radius:      8,
 		placeholder: "Enter text...",
-		textSize:    16,
 		maxLen:      0,
 		password:    false,
 		singleLine:  true,
@@ -293,35 +312,43 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		activeDecoration = activeDecoration.Merge(*activeDecoration.Focused)
 	}
 
-	bg := activeDecoration.ResolveBg(t.config.background)
-	if !t.config.hasBackground {
-		bg = activeDecoration.ResolveBg(ctx.Theme().Surface)
+	th := ctx.Theme()
+	cs := th.Colors
+	defaults := resolveInputDefaults(t.config.variant, th)
+
+	bg := activeDecoration.ResolveBg(defaults.background)
+	if t.config.hasBackground {
+		bg = activeDecoration.ResolveBg(t.config.background)
 	}
 
 	fg := t.config.foreground
 	if !t.config.hasForeground {
-		fg = ctx.Theme().TextColor
+		fg = defaults.foreground
 	}
 	if t.config.disabled {
-		fg = ctx.Theme().Disabled
+		fg = style.DisabledContent(cs.OnSurface)
 	}
 
-	border := activeDecoration.ResolveBorder(style.Border{Width: 1, Color: ctx.Theme().Colors.Outline}).Color
+	border := activeDecoration.ResolveBorder(style.Border{Width: defaults.borderWidth, Color: defaults.border}).Color
 	if t.config.hasBorder {
 		border = t.config.border
 	}
 	if focused && t.config.hasBorderFocus {
 		border = t.config.borderFocus
 	} else if focused {
-		border = ctx.Theme().Primary
+		border = cs.Primary
 	}
 	if t.config.disabled {
 		if t.config.decoration.Disabled == nil || t.config.decoration.Disabled.Border == nil {
-			border = ctx.Theme().Disabled
+			border = style.DisabledContent(cs.OnSurface)
 		}
 	}
 
-	radius := activeDecoration.ResolveRad(t.config.radius)
+	radiusDefault := defaults.radius
+	if t.config.radius > 0 {
+		radiusDefault = t.config.radius
+	}
+	radius := activeDecoration.ResolveRad(radiusDefault)
 	padding := activeDecoration.ResolvePad(t.config.padding)
 
 	font := ctx.Font()
@@ -337,20 +364,64 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	font = font.Normalize()
 
 	size := ctx.LayoutInput(editor, internal.InputSpec{
-		Background:  bg,
-		Foreground:  fg,
-		Border:      border,
-		Radius:      radius,
-		Padding:     toInternalInsets(padding),
-		TextSize:    t.config.textSize,
-		Placeholder: t.config.placeholder,
-		Password:    t.config.password,
-		MaxLen:      t.config.maxLen,
-		SingleLine:  t.config.singleLine,
-		Font:        font,
+		Background:       bg,
+		Foreground:       fg,
+		PlaceholderColor: defaults.placeholder,
+		Border:           border,
+		Radius:           radius,
+		Padding:          toInternalInsets(padding),
+		TextSize:         firstPositive(t.config.textSize, defaults.text.Size),
+		LineHeight:       defaults.text.LineHeight,
+		Placeholder:      t.config.placeholder,
+		Password:         t.config.password,
+		MaxLen:           t.config.maxLen,
+		SingleLine:       t.config.singleLine,
+		Font:             font,
 	})
 
 	return layout.Dimensions{Size: size}
+}
+
+type inputDefaults struct {
+	background  color.NRGBA
+	foreground  color.NRGBA
+	placeholder color.NRGBA
+	border      color.NRGBA
+	borderWidth float32
+	radius      float32
+	text        theme.TextStyle
+}
+
+func resolveInputDefaults(variant inputVariant, th *theme.Theme) inputDefaults {
+	if th == nil {
+		th = theme.Default()
+	}
+	cs := th.Colors
+	defaults := inputDefaults{
+		background:  cs.Surface,
+		foreground:  cs.OnSurface,
+		placeholder: cs.OnSurfaceVariant,
+		border:      cs.Outline,
+		borderWidth: 1,
+		radius:      th.Shapes.ExtraSmall,
+		text:        th.Types.BodyLarge,
+	}
+	if variant == inputVariantFilled {
+		defaults.background = cs.SurfaceContainerHighest
+		defaults.border = color.NRGBA{}
+		defaults.borderWidth = 0
+		defaults.radius = th.Shapes.Small
+	}
+	return defaults
+}
+
+func firstPositive(values ...float32) float32 {
+	for _, value := range values {
+		if value > 0 {
+			return value
+		}
+	}
+	return 0
 }
 
 func shouldRecreateEditorForMemory(prev, next string) bool {

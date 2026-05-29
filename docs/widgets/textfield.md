@@ -8,7 +8,11 @@
   "example": { "id": "textfield_basic" },
   "apis": [
     "TextField(value string, opts ...InputOption) Widget",
+    "OutlinedTextField(value string, opts ...InputOption) Widget",
+    "FilledTextField(value string, opts ...InputOption) Widget",
     "TextFieldElement(value string, opts ...InputOption) Element",
+    "OutlinedTextFieldElement(value string, opts ...InputOption) Element",
+    "FilledTextFieldElement(value string, opts ...InputOption) Element",
     "InputPlaceholder(text string) InputOption",
     "InputPadding(insets Insets) InputOption",
     "InputRadius(radius float32) InputOption",
@@ -38,7 +42,15 @@
 # TextField 输入框
 
 ## 组件说明
-TextField 是受控输入组件，值由外部状态提供，输入变化通过 `InputOnChange` 回传。
+TextField 是受控输入组件，值由外部状态提供，输入变化通过 `InputOnChange` 回传。默认 `TextField` 映射到 MD3 Outlined Text Field。
+
+## MD3 变体
+
+- `OutlinedTextField`: `Surface` 背景，`Outline` 边框，focus 使用 `Primary`。
+- `FilledTextField`: `SurfaceContainerHighest` 背景，无外边框。
+- 输入文字默认使用 `Theme.Types.BodyLarge`。
+- placeholder 使用 `OnSurfaceVariant`。
+- disabled 使用统一 disabled opacity。
 
 ## 使用方法
 - 受控绑定：`value -> TextField(value)`，`InputOnChange -> state.Set(value)`。
@@ -61,6 +73,13 @@ ui.TextField(
     ui.InputOnChange(func(ctx *ui.Context, value string) {
         name.Set(value)
     }),
+)
+```
+
+```go
+ui.Row(
+    ui.OutlinedTextField("Outlined", ui.InputPlaceholder("Outlined")),
+    ui.FilledTextField("Filled", ui.InputPlaceholder("Filled")),
 )
 ```
 

@@ -8,6 +8,9 @@
   "example": { "id": "theme_basic" },
   "apis": [
     "type Theme = theme.Theme",
+    "type ShapeScale = theme.ShapeScale",
+    "type TypeScale = theme.TypeScale",
+    "type TextStyle = theme.TextStyle",
     "NewTheme(cs ColorScheme) *Theme",
     "WithTheme(th *Theme) AppOption",
     "UseTheme(ctx *Context) *Theme",
@@ -23,11 +26,13 @@
 # Theme 主题
 
 ## API 说明
-Theme 是 FluxUI 的全局视觉上下文，包含语义色板、兼容字段、默认字号、默认字体和系统字体回退配置。
+Theme 是 FluxUI 的全局视觉上下文，包含 MD3 语义色板、shape scale、type scale、兼容字段、默认字号、默认字体和系统字体回退配置。
 
 ```go
 type Theme struct {
     Colors ColorScheme
+    Shapes ShapeScale
+    Types  TypeScale
 
     Primary        color.NRGBA
     Surface        color.NRGBA
@@ -41,6 +46,13 @@ type Theme struct {
     Fonts          []FontFace
 }
 ```
+
+## MD3 Token
+
+- `Theme.Colors`: Material Design 3 color roles。
+- `Theme.Shapes`: `None`、`ExtraSmall`、`Small`、`Medium`、`Large`、`ExtraLarge`、`Full`。
+- `Theme.Types`: Display、Headline、Title、Body、Label 字体层级。
+- 旧字段如 `Primary`、`Surface`、`TextColor` 继续保留，创建主题时从 `Colors` 同步。
 
 ## 全局主题
 ```go
@@ -79,3 +91,4 @@ return ui.ThemeProviderElement(
 - 组件样式优先读取 `ctx.Theme()`，避免硬编码黑白色。
 - 新主题应先定义 `ColorScheme`，再通过 `NewTheme` 创建。
 - 局部主题适合预览卡片、嵌入式面板、主题切换示例。
+- 新默认样式优先使用 `Colors` / `Shapes` / `Types`；兼容字段只作为旧代码过渡。

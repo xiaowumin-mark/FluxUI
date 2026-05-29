@@ -4,6 +4,8 @@ import "image/color"
 
 type Theme struct {
 	Colors ColorScheme
+	Shapes ShapeScale
+	Types  TypeScale
 
 	// Backward-compatible flat fields, synced from Colors by Default() / DarkTheme().
 	Primary        color.NRGBA
@@ -26,11 +28,14 @@ func DarkTheme() *Theme { return New(DarkColors()) }
 
 // New creates a Theme from a ColorScheme, syncing the flat backward-compatible fields.
 func New(cs ColorScheme) *Theme {
+	cs = normalizeColorScheme(cs)
 	return &Theme{
 		Colors:         cs,
+		Shapes:         DefaultShapeScale(),
+		Types:          DefaultTypeScale(),
 		Primary:        cs.Primary,
 		Surface:        cs.Surface,
-		SurfaceMuted:   cs.SurfaceMuted,
+		SurfaceMuted:   cs.SurfaceVariant,
 		TextColor:      cs.OnSurface,
 		TextOnPrimary:  cs.OnPrimary,
 		Disabled:       cs.Disabled,

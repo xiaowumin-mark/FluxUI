@@ -1,5 +1,11 @@
 # FluxUI 文档结构
 
+当前设计规划入口：
+
+- `docs/material3-design-plan.md`: Material Design 3 默认样式规范、FluxUI 当前差距和分阶段实施计划。
+- `docs/material3-roadmap.md`: Material Design 3 长期路线图，记录当前融合进展、组件覆盖矩阵、交互反馈计划和长期验收标准。
+- `docs/guides/material3.md`: 文档浏览器中的 Material Design 3 默认样式指南。
+
 当前文档已重构为“每个主题一个 Markdown 文件”，文档浏览器会扫描以下目录：
 
 - `docs/widgets`: 组件文档

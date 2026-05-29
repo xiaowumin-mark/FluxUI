@@ -112,12 +112,13 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	checkColor := ctx.Theme().Primary
+	cs := ctx.Theme().Colors
+	checkColor := cs.Primary
 	if c.config.hasColor {
 		checkColor = c.config.color
 	}
 	if c.config.disabled {
-		checkColor = ctx.Theme().Disabled
+		checkColor = style.DisabledContent(cs.OnSurface)
 	}
 
 	boxWidget := layoutWidgetFunc(func(childCtx *internal.Context) layout.Dimensions {
@@ -131,11 +132,11 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{Size: size}
 	})
 
-	labelColor := ctx.Theme().TextColor
+	labelColor := cs.OnSurface
 	if c.config.disabled {
-		labelColor = ctx.Theme().Disabled
+		labelColor = style.DisabledContent(cs.OnSurface)
 	} else if clickable.Hovered() {
-		labelColor = internal.MixNRGBA(checkColor, labelColor, 0.15)
+		labelColor = style.StateLayer(labelColor, checkColor, style.StateLayerHoverOpacity)
 	}
 
 	content := func(contentCtx *internal.Context) image.Point {
@@ -155,7 +156,7 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				size := next.LayoutInset(internal.Insets{Left: 8}, func(labelCtx *internal.Context) image.Point {
 					return labelCtx.LayoutText(internal.TextSpec{
 						Content:   c.label,
-						Size:      labelCtx.Theme().TextSize,
+						Size:      labelCtx.Theme().Types.BodyMedium.Size,
 						Color:     labelColor,
 						Alignment: internal.AlignStart,
 					})
@@ -168,9 +169,9 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	if hasAnyDecoration(c.config.decoration) {
 		baseDeco := withDefaultStates(c.config.decoration,
-			style.Decoration{}.WithBg(withAlpha(checkColor, 18)),
-			style.Decoration{}.WithBg(withAlpha(checkColor, 28)),
-			style.Decoration{}.WithBg(withAlpha(ctx.Theme().Disabled, 18)),
+			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, checkColor, style.StateLayerHoverOpacity)),
+			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, checkColor, style.StateLayerPressedOpacity)),
+			style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)),
 		)
 		return layoutDecoratedClickTarget(ctx.Child(0), clickable.Handle(), clickable.Hovered(), clickable.Pressed(), baseDeco, c.config.disabled, content)
 	}

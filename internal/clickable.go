@@ -27,6 +27,11 @@ func (c *ClickableState) Pressed() bool {
 	return c.button.Pressed()
 }
 
+// History 返回近期按压历史，用于绘制 ripple 等交互反馈。
+func (c *ClickableState) History() []gioWidget.Press {
+	return c.button.History()
+}
+
 func (c *ClickableState) raw() *gioWidget.Clickable {
 	return &c.button
 }

@@ -124,13 +124,14 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	mainColor := ctx.Theme().Primary
+	cs := ctx.Theme().Colors
+	mainColor := cs.Primary
 	if r.config.hasColor {
 		mainColor = r.config.color
 	}
-	labelColor := ctx.Theme().TextColor
+	labelColor := cs.OnSurface
 	if r.config.disabled {
-		labelColor = ctx.Theme().Disabled
+		labelColor = style.DisabledContent(cs.OnSurface)
 	}
 
 	children := make([]Widget, 0, len(r.items))
@@ -154,7 +155,7 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 			itemLabelColor := labelColor
 			if !r.config.disabled && clickable.Hovered() {
-				itemLabelColor = internal.MixNRGBA(mainColor, itemLabelColor, 0.15)
+				itemLabelColor = style.StateLayer(itemLabelColor, mainColor, style.StateLayerHoverOpacity)
 			}
 
 			content := func(contentCtx *internal.Context) image.Point {
@@ -178,7 +179,7 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 						size := next.LayoutInset(internal.Insets{Left: 8}, func(labelCtx *internal.Context) image.Point {
 							return labelCtx.LayoutText(internal.TextSpec{
 								Content:   item.Label,
-								Size:      labelCtx.Theme().TextSize,
+								Size:      labelCtx.Theme().Types.BodyMedium.Size,
 								Color:     itemLabelColor,
 								Alignment: internal.AlignStart,
 							})
@@ -191,9 +192,9 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 			if hasAnyDecoration(r.config.decoration) {
 				deco := withDefaultStates(r.config.decoration,
-					style.Decoration{}.WithBg(withAlpha(mainColor, 14)).WithRad(8),
-					style.Decoration{}.WithBg(withAlpha(mainColor, 24)).WithRad(8),
-					style.Decoration{}.WithBg(withAlpha(ctx.Theme().Disabled, 12)).WithRad(8),
+					style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, mainColor, style.StateLayerHoverOpacity)).WithRad(8),
+					style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, mainColor, style.StateLayerPressedOpacity)).WithRad(8),
+					style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)).WithRad(8),
 				)
 				return layoutDecoratedClickTarget(rowCtx.Child(0), clickable.Handle(), clickable.Hovered(), clickable.Pressed(), deco, r.config.disabled, content)
 			}

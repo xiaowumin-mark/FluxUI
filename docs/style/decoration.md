@@ -18,6 +18,11 @@
     "LinearGrad(start, end image.Point, from, to color.NRGBA) Decoration",
     "Shadow(offX, offY, blur float32, col color.NRGBA) Decoration",
     "Elevation(level int) Decoration",
+    "style.StateLayer(container, onColor color.NRGBA, opacity float32) color.NRGBA",
+    "style.DisabledContainer(onSurface color.NRGBA) color.NRGBA",
+    "style.DisabledContent(onSurface color.NRGBA) color.NRGBA",
+    "style.SurfaceAtElevation(cs theme.ColorScheme, level int) color.NRGBA",
+    "style.ElevationShadow(cs theme.ColorScheme, level int) BoxShadow",
     "Hover(d Decoration) Decoration",
     "Pressed(d Decoration) Decoration",
     "Focused(d Decoration) Decoration",
@@ -52,6 +57,16 @@
 Decoration 是 FluxUI 推荐的统一样式入口。它用可选字段描述视觉外观：背景、渐变、内边距、外边距、圆角、边框、透明度、圆形裁切、阴影、背景图片、2D 变换，以及 hover / pressed / focused / disabled 状态装饰。
 
 所有字段都是“可选覆盖”。字段未设置时，组件会继续使用自身默认样式或主题回退值。
+
+## MD3 辅助函数
+
+`style/material3.go` 提供默认组件共用的视觉 helper：
+
+- `StateLayer`: hover/focus/pressed/dragged 的统一状态层混色。
+- `DisabledContainer`: `OnSurface` 12% 容器禁用色。
+- `DisabledContent`: `OnSurface` 38% 内容禁用色。
+- `SurfaceAtElevation`: tonal elevation surface。
+- `ElevationShadow`: 与 MD3 surface 层级配套的轻量阴影。
 
 ## 使用方法
 - 使用 `ui.Bg(...)`、`ui.Pad(...)`、`ui.Rad(...)` 等快捷函数创建单项装饰。

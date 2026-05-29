@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/style"
 
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"
@@ -56,4 +57,33 @@ func TestDefaultInteractiveWidgetsDoNotAddDecorationPadding(t *testing.T) {
 	}
 
 	rt.EndFrame()
+}
+
+func TestMD3SelectionNavigationAndOverlayDefaultsLayout(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+
+	cases := []struct {
+		name string
+		w    Widget
+	}{
+		{name: "checkbox disabled", w: Checkbox("Check", true, CheckboxDisabled(true))},
+		{name: "switch disabled", w: Switch(true, SwitchDisabled(true))},
+		{name: "slider disabled", w: Slider(40, SliderDisabled(true))},
+		{name: "radio disabled", w: RadioGroup("a", []RadioItem{{Label: "A", Value: "a"}, {Label: "B", Value: "b"}}, RadioGroupDisabled(true))},
+		{name: "appbar", w: AppBar(Text("Title"))},
+		{name: "bottom navigation", w: BottomNavigation("home", []NavItem{{Key: "home", Label: "Home", Icon: Text("H")}, {Key: "settings", Label: "Settings", Icon: Text("S")}})},
+		{name: "tabs", w: Tabs("one", []TabItem{{Key: "one", Label: "One"}, {Key: "two", Label: "Two"}})},
+		{name: "dialog", w: Dialog(true, Text("Dialog"), DialogTitle("Title"))},
+		{name: "popup", w: Popup(true, Text("Popup"), PopupPadding(style.All(12)))},
+		{name: "toast", w: Toast("Toast", ToastDuration(0))},
+	}
+
+	for _, tc := range cases {
+		rt.BeginFrame()
+		dims := tc.w.Layout(newInteractiveLayoutTestContext(rt))
+		rt.EndFrame()
+		if dims.Size.X <= 0 || dims.Size.Y <= 0 {
+			t.Fatalf("%s returned empty size %v", tc.name, dims.Size)
+		}
+	}
 }

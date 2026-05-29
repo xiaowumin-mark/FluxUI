@@ -24,6 +24,13 @@
 ## 组件说明
 Toast 用于完成提示、错误提示、状态提醒等短时反馈，不打断主流程。
 
+## MD3 默认样式
+
+- 默认信息类 toast 使用 `InverseSurface` / `InverseOnSurface`。
+- success/warning/error 继续使用项目业务色 roles。
+- 文本默认使用 `BodyMedium`。
+- shape 使用 `ExtraSmall`。
+
 ## 使用方法
 - 通过状态控制是否渲染 Toast。
 - `ToastOnClose` 中清理消息状态，避免重复展示。

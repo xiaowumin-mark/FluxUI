@@ -125,15 +125,16 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	normalText := ctx.Theme().TextColor
+	cs := ctx.Theme().Colors
+	normalText := cs.OnSurfaceVariant
 	if t.config.hasTextColor {
 		normalText = t.config.textColor
 	}
-	activeText := ctx.Theme().Primary
+	activeText := cs.Primary
 	if t.config.hasActiveColor {
 		activeText = t.config.activeTextColor
 	}
-	indicator := ctx.Theme().Primary
+	indicator := cs.Primary
 	if t.config.hasIndicator {
 		indicator = t.config.indicatorColor
 	}
@@ -154,9 +155,9 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 		tabDecoration := componentDecoration(
 			withDefaultStates(t.config.tabDecoration,
-				style.Decoration{}.WithBg(withAlpha(indicator, 18)),
-				style.Decoration{}.WithBg(withAlpha(indicator, 28)),
-				style.Decoration{}.WithBg(withAlpha(ctx.Theme().Disabled, 14)),
+				style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, indicator, style.StateLayerHoverOpacity)),
+				style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, indicator, style.StateLayerPressedOpacity)),
+				style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)),
 			),
 			tabBg,
 			style.Symmetric(8, 10),
@@ -165,7 +166,7 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 		tab := Button(
 			Column(
-				Text(item.Label, TextColor(txtColor)),
+				Text(item.Label, TextColor(txtColor), TextSize(ctx.Theme().Types.LabelLarge.Size)),
 				Padding(
 					style.Insets{Top: 4},
 					ContainerDecoration(
@@ -236,7 +237,6 @@ type dialogState struct {
 // Dialog 创建对话框。
 func Dialog(open bool, child Widget, opts ...DialogOption) Widget {
 	cfg := dialogConfig{
-		radius:       12,
 		maskClosable: true,
 		confirmText:  "确定",
 		cancelText:   "取消",
@@ -359,7 +359,8 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 
-	maskColor := withAlpha(ctx.Theme().TextColor, 120)
+	cs := ctx.Theme().Colors
+	maskColor := withAlpha(cs.Scrim, 120)
 	if d.config.hasMaskColor {
 		maskColor = d.config.maskColor
 	}
@@ -374,7 +375,7 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	parts := make([]Widget, 0, 3)
 	if d.config.title != "" {
-		parts = append(parts, Padding(style.Insets{Bottom: 8}, Text(d.config.title, TextSize(18))))
+		parts = append(parts, Padding(style.Insets{Bottom: 8}, Text(d.config.title, TextSize(ctx.Theme().Types.HeadlineSmall.Size), TextColor(cs.OnSurface))))
 	}
 	if d.child != nil {
 		parts = append(parts, d.child)
@@ -391,10 +392,23 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		parts = append(parts, Padding(style.Insets{Top: 12}, Row(actions...)))
 	}
 
-	panel := ContainerDecoration(
-		style.Decoration{}.WithBg(d.config.decoration.ResolveBg(ctx.Theme().Surface)).WithPad(d.config.decoration.ResolvePad(style.All(12))).WithRad(d.config.decoration.ResolveRad(d.config.radius)),
-		Column(parts...),
-	)
+	radiusDefault := ctx.Theme().Shapes.ExtraLarge
+	if d.config.radius > 0 {
+		radiusDefault = d.config.radius
+	}
+	panelDeco := style.Decoration{}.
+		WithBg(d.config.decoration.ResolveBg(cs.SurfaceContainerHigh)).
+		WithPad(d.config.decoration.ResolvePad(style.All(24))).
+		WithRad(d.config.decoration.ResolveRad(radiusDefault))
+	if d.config.decoration.Shadow != nil {
+		panelDeco = panelDeco.WithShadow(*d.config.decoration.Shadow)
+	} else {
+		panelDeco = panelDeco.WithShadow(style.ElevationShadow(cs, 3))
+	}
+	if d.config.decoration.Border != nil {
+		panelDeco = panelDeco.WithBorder(*d.config.decoration.Border)
+	}
+	panel := ContainerDecoration(panelDeco, Column(parts...))
 	if d.config.width > 0 {
 		panel = &fixedSizeWidget{
 			width: d.config.width,
@@ -544,28 +558,29 @@ func (t *toastWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 
-	bg := t.config.decoration.ResolveBg(withAlpha(ctx.Theme().SurfaceMuted, 230))
-	fg := ctx.Theme().TextColor
+	cs := ctx.Theme().Colors
+	bg := t.config.decoration.ResolveBg(cs.InverseSurface)
+	fg := cs.InverseOnSurface
 	switch t.config.kind {
 	case ToastSuccess:
-		bg = t.config.decoration.ResolveBg(withAlpha(ctx.Theme().Colors.Success, 230))
-		fg = ctx.Theme().Colors.OnSuccess
+		bg = t.config.decoration.ResolveBg(cs.Success)
+		fg = cs.OnSuccess
 	case ToastWarning:
-		bg = t.config.decoration.ResolveBg(withAlpha(ctx.Theme().Colors.Warning, 235))
-		fg = ctx.Theme().Colors.OnWarning
+		bg = t.config.decoration.ResolveBg(cs.Warning)
+		fg = cs.OnWarning
 	case ToastError:
-		bg = t.config.decoration.ResolveBg(withAlpha(ctx.Theme().Colors.Error, 235))
-		fg = ctx.Theme().Colors.OnError
+		bg = t.config.decoration.ResolveBg(cs.Error)
+		fg = cs.OnError
 	case ToastInfo:
-		fg = ctx.Theme().TextColor
+		fg = cs.InverseOnSurface
 	}
 	if t.config.hasTextColor {
 		fg = t.config.textColor
 	}
 
 	body := ContainerDecoration(
-		style.Decoration{}.WithBg(bg).WithPad(t.config.decoration.ResolvePad(style.Symmetric(8, 12))).WithRad(t.config.decoration.ResolveRad(8)),
-		Text(t.message, TextColor(fg)),
+		style.Decoration{}.WithBg(bg).WithPad(t.config.decoration.ResolvePad(style.Symmetric(8, 16))).WithRad(t.config.decoration.ResolveRad(ctx.Theme().Shapes.ExtraSmall)),
+		Text(t.message, TextColor(fg), TextSize(ctx.Theme().Types.BodyMedium.Size)),
 	)
 
 	anchor := gioLayout.S
@@ -697,7 +712,6 @@ type popupWidget struct {
 // Popup 创建自定义内容弹窗，内部内容完全由用户定义。
 func Popup(open bool, child Widget, opts ...PopupOption) Widget {
 	cfg := popupConfig{
-		radius:       12,
 		maskClosable: true,
 	}
 	for _, opt := range opts {
@@ -806,7 +820,8 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 
-	maskColor := withAlpha(ctx.Theme().TextColor, 120)
+	cs := ctx.Theme().Colors
+	maskColor := withAlpha(cs.Scrim, 120)
 	if p.config.hasMaskColor {
 		maskColor = p.config.maskColor
 	}
@@ -819,7 +834,7 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		p.config.onOpenChange(maskCtx, false)
 	})
 
-	bg := p.config.decoration.ResolveBg(ctx.Theme().Surface)
+	bg := p.config.decoration.ResolveBg(cs.SurfaceContainer)
 	if p.config.hasBackground {
 		bg = p.config.background
 	}
@@ -827,13 +842,23 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if p.config.hasPadding {
 		padding = p.config.padding
 	}
-	radius := p.config.decoration.ResolveRad(p.config.radius)
+	radiusDefault := ctx.Theme().Shapes.Small
+	if p.config.radius > 0 {
+		radiusDefault = p.config.radius
+	}
+	radius := p.config.decoration.ResolveRad(radiusDefault)
 
 	var panel Widget
-	panel = ContainerDecoration(
-		style.Decoration{}.WithBg(bg).WithPad(padding).WithRad(radius),
-		p.child,
-	)
+	panelDeco := style.Decoration{}.WithBg(bg).WithPad(padding).WithRad(radius)
+	if p.config.decoration.Shadow != nil {
+		panelDeco = panelDeco.WithShadow(*p.config.decoration.Shadow)
+	} else {
+		panelDeco = panelDeco.WithShadow(style.ElevationShadow(cs, 2))
+	}
+	if p.config.decoration.Border != nil {
+		panelDeco = panelDeco.WithBorder(*p.config.decoration.Border)
+	}
+	panel = ContainerDecoration(panelDeco, p.child)
 	if p.config.width > 0 {
 		panel = &fixedSizeWidget{
 			width: p.config.width,

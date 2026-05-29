@@ -16,13 +16,20 @@ func UseInterval(ctx *internal.Context, interval time.Duration, fn func()) {
 	rt := ctx.Runtime()
 	UseMount(ctx, func() func() {
 		stop := make(chan struct{})
+		done := make(chan struct{})
 		var once sync.Once
 		go func() {
+			defer close(done)
 			ticker := time.NewTicker(interval)
 			defer ticker.Stop()
 			for {
 				select {
 				case <-ticker.C:
+					select {
+					case <-stop:
+						return
+					default:
+					}
 					fn()
 					if rt != nil {
 						rt.RequestRedraw()
@@ -33,7 +40,10 @@ func UseInterval(ctx *internal.Context, interval time.Duration, fn func()) {
 			}
 		}()
 		return func() {
-			once.Do(func() { close(stop) })
+			once.Do(func() {
+				close(stop)
+				<-done
+			})
 		}
 	})
 }

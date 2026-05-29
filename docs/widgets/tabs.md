@@ -28,6 +28,13 @@
 ## 组件说明
 Tabs 用于在同一层级内容中切换不同子页面，适合文档页、设置页、详情页多标签场景。
 
+## MD3 默认样式
+
+- inactive label 使用 `OnSurfaceVariant`。
+- active label 和 indicator 使用 `Primary`。
+- 标签文字默认使用 `LabelLarge`。
+- hover/pressed 使用统一 state layer。
+
 ## 使用方法
 - `active` 标识当前选中标签 key。
 - `items` 定义可切换标签集合。

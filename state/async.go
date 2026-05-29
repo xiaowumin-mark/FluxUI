@@ -34,6 +34,9 @@ type AsyncHandle[T any] struct {
 
 // UseAsync 创建或读取当前作用域下的异步状态。
 func UseAsync[T any](ctx *internal.Context) *AsyncHandle[T] {
+	if ctx == nil {
+		return &AsyncHandle[T]{}
+	}
 	key := ctx.NextKey("async")
 	value := ctx.Persistent(key, func() any {
 		return &asyncSlot[T]{}

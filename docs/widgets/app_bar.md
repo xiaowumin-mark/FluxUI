@@ -24,6 +24,13 @@
 ## 组件说明
 AppBar 是页面级顶部导航组件，适合放页面标题、返回入口和全局操作按钮。
 
+## MD3 默认样式
+
+- container 使用 `SurfaceContainer`。
+- 默认高度 56dp。
+- 默认带 level 2 轻量 elevation。
+- title 推荐使用 `TitleLarge`。
+
 ## 使用方法
 - 标题作为第一个参数传入。
 - 左侧入口用 `AppBarLeading`。

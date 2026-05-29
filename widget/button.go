@@ -8,16 +8,29 @@ import (
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
 	layout "github.com/xiaowumin-mark/FluxUI/layout"
 	style "github.com/xiaowumin-mark/FluxUI/style"
+	theme "github.com/xiaowumin-mark/FluxUI/theme"
 )
 
 // ButtonOption 定义按钮配置项。
 type ButtonOption func(*buttonConfig)
 
+type buttonVariant int
+
+const (
+	buttonVariantFilled buttonVariant = iota
+	buttonVariantFilledTonal
+	buttonVariantOutlined
+	buttonVariantText
+	buttonVariantElevated
+)
+
 type buttonConfig struct {
 	dispatcher    event.Dispatcher
+	variant       buttonVariant
 	disabled      bool
 	padding       style.Insets
 	radius        float32
+	hasRadius     bool
 	background    color.NRGBA
 	foreground    color.NRGBA
 	hasBackground bool
@@ -33,9 +46,33 @@ type buttonWidget struct {
 
 // Button 创建按钮组件。
 func Button(child Widget, opts ...ButtonOption) Widget {
+	return newButton(buttonVariantFilled, child, opts...)
+}
+
+func FilledButton(child Widget, opts ...ButtonOption) Widget {
+	return newButton(buttonVariantFilled, child, opts...)
+}
+
+func FilledTonalButton(child Widget, opts ...ButtonOption) Widget {
+	return newButton(buttonVariantFilledTonal, child, opts...)
+}
+
+func OutlinedButton(child Widget, opts ...ButtonOption) Widget {
+	return newButton(buttonVariantOutlined, child, opts...)
+}
+
+func TextButton(child Widget, opts ...ButtonOption) Widget {
+	return newButton(buttonVariantText, child, opts...)
+}
+
+func ElevatedButton(child Widget, opts ...ButtonOption) Widget {
+	return newButton(buttonVariantElevated, child, opts...)
+}
+
+func newButton(variant buttonVariant, child Widget, opts ...ButtonOption) Widget {
 	cfg := buttonConfig{
-		padding: style.Symmetric(10, 14),
-		radius:  8,
+		variant: variant,
+		padding: style.Symmetric(10, 24),
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -78,6 +115,7 @@ func ButtonPadding(insets style.Insets) ButtonOption {
 func ButtonRadius(radius float32) ButtonOption {
 	return func(cfg *buttonConfig) {
 		cfg.radius = radius
+		cfg.hasRadius = true
 	}
 }
 
@@ -131,31 +169,62 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
+	th := ctx.Theme()
+	cs := th.Colors
+	spec := resolveButtonDefaults(b.config.variant, th)
 	activeDecoration := resolveDecorationState(b.config.decoration, clickable.Hovered(), clickable.Pressed(), b.config.disabled)
-	backgroundDefault := ctx.Theme().Primary
+
+	backgroundDefault := spec.background
 	if b.config.hasBackground {
 		backgroundDefault = b.config.background
 	}
 	background := activeDecoration.ResolveBg(backgroundDefault)
-	if b.config.disabled {
-		if b.config.decoration.Disabled == nil || b.config.decoration.Disabled.Background == nil {
-			background = ctx.Theme().Disabled
-		}
-	}
-	radius := activeDecoration.ResolveRad(b.config.radius)
-	padding := activeDecoration.ResolvePad(b.config.padding)
-
-	foreground := ctx.Theme().TextOnPrimary
+	foreground := spec.foreground
 	if b.config.hasForeground {
 		foreground = b.config.foreground
 	}
 
+	if !b.config.disabled && (clickable.Hovered() || clickable.Pressed()) {
+		opacity := style.StateLayerHoverOpacity
+		if clickable.Pressed() {
+			opacity = style.StateLayerPressedOpacity
+		}
+		background = style.StateLayer(background, foreground, opacity)
+	}
+	if b.config.disabled {
+		if b.config.decoration.Disabled == nil || b.config.decoration.Disabled.Background == nil {
+			if spec.disabledContainer {
+				background = style.DisabledContainer(cs.OnSurface)
+			} else {
+				background = color.NRGBA{}
+			}
+		}
+		if !b.config.hasForeground {
+			foreground = style.DisabledContent(cs.OnSurface)
+		}
+	}
+	radiusDefault := spec.radius
+	if b.config.hasRadius {
+		radiusDefault = b.config.radius
+	}
+	radius := activeDecoration.ResolveRad(radiusDefault)
+	padding := activeDecoration.ResolvePad(b.config.padding)
+
 	size := ctx.LayoutButton(clickable.Handle(), internal.ButtonSpec{
-		Background: background,
-		Foreground: foreground,
-		Radius:     radius,
-		Padding:    toInternalInsets(padding),
-		Disabled:   b.config.disabled,
+		Background:  background,
+		Foreground:  foreground,
+		Radius:      radius,
+		Padding:     toInternalInsets(padding),
+		BorderColor: spec.border.Color,
+		BorderWidth: spec.border.Width,
+		HasShadow:   !spec.shadow.IsZero(),
+		Shadow: internal.ShadowSpec{
+			OffsetX: spec.shadow.OffsetX,
+			OffsetY: spec.shadow.OffsetY,
+			Blur:    spec.shadow.Blur,
+			Color:   spec.shadow.Color,
+		},
+		Disabled: b.config.disabled,
 	}, func(childCtx *internal.Context) image.Point {
 		if b.child == nil {
 			return image.Point{}
@@ -164,4 +233,43 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	})
 
 	return layout.Dimensions{Size: size}
+}
+
+type buttonDefaults struct {
+	background        color.NRGBA
+	foreground        color.NRGBA
+	radius            float32
+	border            style.Border
+	shadow            style.BoxShadow
+	disabledContainer bool
+}
+
+func resolveButtonDefaults(variant buttonVariant, th *theme.Theme) buttonDefaults {
+	if th == nil {
+		th = theme.Default()
+	}
+	cs := th.Colors
+	defaults := buttonDefaults{
+		background:        cs.Primary,
+		foreground:        cs.OnPrimary,
+		radius:            th.Shapes.Full,
+		disabledContainer: true,
+	}
+	switch variant {
+	case buttonVariantFilledTonal:
+		defaults.background = cs.SecondaryContainer
+		defaults.foreground = cs.OnSecondaryContainer
+	case buttonVariantOutlined, buttonVariantText:
+		defaults.background = color.NRGBA{}
+		defaults.foreground = cs.Primary
+		defaults.disabledContainer = false
+		if variant == buttonVariantOutlined {
+			defaults.border = style.Border{Width: 1, Color: cs.Outline}
+		}
+	case buttonVariantElevated:
+		defaults.background = style.SurfaceAtElevation(cs, 1)
+		defaults.foreground = cs.Primary
+		defaults.shadow = style.ElevationShadow(cs, 1)
+	}
+	return defaults
 }

@@ -8,7 +8,13 @@
   "example": { "id": "card_basic" },
   "apis": [
     "Card(child Widget, opts ...CardOption) Widget",
+    "FilledCard(child Widget, opts ...CardOption) Widget",
+    "ElevatedCard(child Widget, opts ...CardOption) Widget",
+    "OutlinedCard(child Widget, opts ...CardOption) Widget",
     "CardElement(child Element, opts ...CardOption) Element",
+    "FilledCardElement(child Element, opts ...CardOption) Element",
+    "ElevatedCardElement(child Element, opts ...CardOption) Element",
+    "OutlinedCardElement(child Element, opts ...CardOption) Element",
     "CardPadding(insets Insets) CardOption",
     "CardRadius(radius float32) CardOption",
     "CardBackground(col color.NRGBA) CardOption",
@@ -24,7 +30,14 @@
 # Card 卡片
 
 ## 组件说明
-Card 适合信息摘要、列表条目、统计块等场景。它是“有视觉结构”的内容容器。
+Card 适合信息摘要、列表条目、统计块等场景。默认 `Card` 映射到 MD3 Filled Card。
+
+## MD3 变体
+
+- `FilledCard`: `SurfaceContainerHighest`，无阴影。
+- `ElevatedCard`: tonal elevation level 1 surface，并带轻量阴影。
+- `OutlinedCard`: `Surface` 背景，`OutlineVariant` 边框。
+- 所有默认变体使用 `Theme.Shapes.Medium`。
 
 ## 使用方法
 - 内容区域直接作为 child 传入。
@@ -39,6 +52,14 @@ ui.Card(
         ui.Text("卡片标题"),
         ui.Padding(ui.Insets{Top: 6}, ui.Text("卡片内容")),
     ),
+)
+```
+
+```go
+ui.Row(
+    ui.FilledCard(ui.Text("Filled")),
+    ui.ElevatedCard(ui.Text("Elevated")),
+    ui.OutlinedCard(ui.Text("Outlined")),
 )
 ```
 

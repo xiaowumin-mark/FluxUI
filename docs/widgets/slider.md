@@ -32,6 +32,13 @@
 ## 组件说明
 Slider 适用于音量、进度、阈值等连续数值场景。
 
+## MD3 默认样式
+
+- active track 和 thumb 使用 `Primary`。
+- inactive track 使用 `SurfaceVariant`。
+- hover/pressed 使用统一 state layer。
+- disabled 使用 `OnSurface` 12% / 38%。
+
 ## 使用方法
 - 设定取值范围：`SliderMin` + `SliderMax`。
 - 离散步进：`SliderStep`。

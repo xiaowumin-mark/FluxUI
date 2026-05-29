@@ -11,6 +11,10 @@ type BoxShadow struct {
 	Color   color.NRGBA
 }
 
+func (s BoxShadow) IsZero() bool {
+	return s.Blur <= 0 || s.Color.A == 0
+}
+
 // ElevationBoxShadow 返回 Material Design 高度等级对应的阴影预设。
 // level [1,5] 映射：1=按钮hover, 2=卡片, 3=浮卡/FAB,
 // 4=对话框, 5=模态/抽屉。

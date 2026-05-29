@@ -151,17 +151,23 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	sliderValue.Value = progress
 	before := sliderValue.Value
 
-	trackColor := ctx.Theme().SurfaceMuted
+	cs := ctx.Theme().Colors
+	trackColor := cs.SurfaceVariant
 	if s.config.hasTrackColor {
 		trackColor = s.config.trackColor
 	}
-	thumbColor := ctx.Theme().Primary
+	thumbColor := cs.Primary
 	if s.config.hasThumbColor {
 		thumbColor = s.config.thumbColor
 	}
-	progressColor := ctx.Theme().Primary
+	progressColor := cs.Primary
 	if s.config.hasProgressColor {
 		progressColor = s.config.progressColor
+	}
+	if s.config.disabled {
+		trackColor = style.DisabledContainer(cs.OnSurface)
+		thumbColor = style.DisabledContent(cs.OnSurface)
+		progressColor = style.DisabledContent(cs.OnSurface)
 	}
 	content := func(contentCtx *internal.Context) image.Point {
 		return contentCtx.LayoutSlider(sliderValue, internal.SliderSpec{
@@ -178,9 +184,9 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	var dims layout.Dimensions
 	if hasAnyDecoration(s.config.decoration) {
 		deco := withDefaultStates(s.config.decoration,
-			style.Decoration{}.WithBg(withAlpha(progressColor, 16)).WithRad(12),
-			style.Decoration{}.WithBg(withAlpha(progressColor, 24)).WithRad(12),
-			style.Decoration{}.WithBg(withAlpha(ctx.Theme().Disabled, 14)).WithRad(12),
+			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, progressColor, style.StateLayerHoverOpacity)).WithRad(12),
+			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, progressColor, style.StateLayerPressedOpacity)).WithRad(12),
+			style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)).WithRad(12),
 		)
 		dims = layoutDecoratedClickTarget(ctx.Child(0), clickable, clickable != nil && clickable.Hovered(), clickable != nil && clickable.Pressed(), deco, s.config.disabled, content)
 	} else {

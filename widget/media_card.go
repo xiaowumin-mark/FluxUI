@@ -13,6 +13,7 @@ import (
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
+	"github.com/xiaowumin-mark/FluxUI/theme"
 
 	gioLayout "gioui.org/layout"
 	"gioui.org/op/clip"
@@ -450,7 +451,16 @@ func (i *iconWidget) Layout(ctx *internal.Context) layout.Dimensions {
 // CardOption 定义卡片配置。
 type CardOption func(*cardConfig)
 
+type cardVariant int
+
+const (
+	cardVariantFilled cardVariant = iota
+	cardVariantElevated
+	cardVariantOutlined
+)
+
 type cardConfig struct {
+	variant        cardVariant
 	padding        style.Insets
 	radius         float32
 	background     color.NRGBA
@@ -471,9 +481,25 @@ type cardWidget struct {
 
 // Card 创建卡片组件。
 func Card(child Widget, opts ...CardOption) Widget {
+	return newCard(cardVariantFilled, child, opts...)
+}
+
+func FilledCard(child Widget, opts ...CardOption) Widget {
+	return newCard(cardVariantFilled, child, opts...)
+}
+
+func ElevatedCard(child Widget, opts ...CardOption) Widget {
+	return newCard(cardVariantElevated, child, opts...)
+}
+
+func OutlinedCard(child Widget, opts ...CardOption) Widget {
+	return newCard(cardVariantOutlined, child, opts...)
+}
+
+func newCard(variant cardVariant, child Widget, opts ...CardOption) Widget {
 	cfg := cardConfig{
+		variant: variant,
 		padding: style.All(12),
-		radius:  12,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -548,17 +574,27 @@ func CardDecoration(d style.Decoration) CardOption {
 }
 
 func (c *cardWidget) Layout(ctx *internal.Context) layout.Dimensions {
-	bg := c.config.decoration.ResolveBg(ctx.Theme().Surface)
+	defaults := resolveCardDefaults(c.config.variant, ctx.Theme())
+	bg := c.config.decoration.ResolveBg(defaults.background)
 	if c.config.hasBackground {
 		bg = c.config.background
 	}
 
 	padding := c.config.decoration.ResolvePad(c.config.padding)
-	radius := c.config.decoration.ResolveRad(c.config.radius)
+	radiusDefault := defaults.radius
+	if c.config.radius > 0 {
+		radiusDefault = c.config.radius
+	}
+	radius := c.config.decoration.ResolveRad(radiusDefault)
 
 	deco := c.config.decoration.WithBg(bg).WithPad(padding).WithRad(radius)
 	if c.config.hasBorderColor {
 		deco = deco.WithBorder(style.Border{Width: c.config.borderWidth, Color: c.config.borderColor})
+	} else if !defaults.border.IsZero() && c.config.decoration.Border == nil {
+		deco = deco.WithBorder(defaults.border)
+	}
+	if !defaults.shadow.IsZero() && c.config.decoration.Shadow == nil {
+		deco = deco.WithShadow(defaults.shadow)
 	}
 
 	var root Widget = ContainerDecoration(deco, c.child)
@@ -583,6 +619,33 @@ func (c *cardWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	return root.Layout(ctx.Child(0))
+}
+
+type cardDefaults struct {
+	background color.NRGBA
+	radius     float32
+	border     style.Border
+	shadow     style.BoxShadow
+}
+
+func resolveCardDefaults(variant cardVariant, th *theme.Theme) cardDefaults {
+	if th == nil {
+		th = theme.Default()
+	}
+	cs := th.Colors
+	defaults := cardDefaults{
+		background: cs.SurfaceContainerHighest,
+		radius:     th.Shapes.Medium,
+	}
+	switch variant {
+	case cardVariantElevated:
+		defaults.background = style.SurfaceAtElevation(cs, 1)
+		defaults.shadow = style.ElevationShadow(cs, 1)
+	case cardVariantOutlined:
+		defaults.background = cs.Surface
+		defaults.border = style.Border{Width: 1, Color: cs.OutlineVariant}
+	}
+	return defaults
 }
 
 type fixedSizeWidget struct {

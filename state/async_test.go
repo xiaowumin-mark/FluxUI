@@ -170,6 +170,25 @@ func TestAsyncNilSafety(t *testing.T) {
 	h.Reset()
 }
 
+func TestUseAsyncNilContext(t *testing.T) {
+	h := state.UseAsync[int](nil)
+
+	if h.Status() != state.AsyncIdle {
+		t.Fatal("nil context handle Status() should return AsyncIdle")
+	}
+	if h.Loading() {
+		t.Fatal("nil context handle Loading() should return false")
+	}
+	if h.Data() != 0 {
+		t.Fatal("nil context handle Data() should return zero")
+	}
+	if h.Error() != nil {
+		t.Fatal("nil context handle Error() should return nil")
+	}
+	h.Run(func() (int, error) { return 1, nil })
+	h.Reset()
+}
+
 func TestAsyncConcurrent(t *testing.T) {
 	_, ctx := newAsyncTestCtx()
 	h := state.UseAsync[int](ctx)

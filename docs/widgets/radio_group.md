@@ -27,6 +27,14 @@
 ## 组件说明
 RadioGroup 用于“多个选项中只能选一个”的场景，例如排序模式、视图模式选择。
 
+## MD3 默认样式
+
+- selected 使用 `Primary`。
+- unchecked 边框使用 `Outline`，背景使用 `Surface`。
+- label 使用 `BodyMedium`。
+- hover/pressed 使用统一 state layer。
+- disabled 使用 `OnSurface` 12% / 38%。
+
 ## 使用方法
 - 当前值通过 `value` 传入。
 - 所有候选项放在 `[]RadioItem` 中。

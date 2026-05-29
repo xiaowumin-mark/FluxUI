@@ -30,45 +30,70 @@ type Context struct {
 
 // NewContext 创建 frame 级上下文。
 func NewContext(gtx gioLayout.Context, runtime *Runtime) *Context {
+	foreground := theme.Default().TextColor
+	if runtime != nil && runtime.Theme() != nil {
+		foreground = runtime.Theme().TextColor
+	}
 	return &Context{
 		Gtx:        gtx,
 		runtime:    runtime,
 		path:       "root",
-		foreground: runtime.Theme().TextColor,
+		foreground: foreground,
 	}
 }
 
 // Runtime 返回运行时实例。
 func (c *Context) Runtime() *Runtime {
+	if c == nil {
+		return nil
+	}
 	return c.runtime
 }
 
 // Theme 返回当前作用域的主题。若当前上下文有 theme 覆盖（通过 ThemeProvider），
 // 则返回覆盖的主题；否则返回运行时全局主题。
 func (c *Context) Theme() *theme.Theme {
+	if c == nil {
+		return theme.Default()
+	}
 	if c.themeOverride != nil {
 		return c.themeOverride
+	}
+	if c.runtime == nil {
+		return theme.Default()
 	}
 	return c.runtime.Theme()
 }
 
 // SetThemeOverride sets a scoped theme on this context (used by ThemeProvider).
 func (c *Context) SetThemeOverride(th *theme.Theme) {
+	if c == nil {
+		return
+	}
 	c.themeOverride = th
 }
 
 // MaterialTheme 返回内部 Gio 主题。
 func (c *Context) MaterialTheme() *material.Theme {
+	if c == nil || c.runtime == nil {
+		return material.NewTheme()
+	}
 	return c.runtime.MaterialTheme()
 }
 
 // Foreground 返回当前默认前景色。
 func (c *Context) Foreground() color.NRGBA {
+	if c == nil {
+		return theme.Default().TextColor
+	}
 	return c.foreground
 }
 
 // Font 返回当前默认字体。
 func (c *Context) Font() theme.FontSpec {
+	if c == nil {
+		return theme.DefaultFontSpec()
+	}
 	if c.hasFont {
 		return c.font.Normalize()
 	}
@@ -81,16 +106,25 @@ func (c *Context) Font() theme.FontSpec {
 
 // Now 返回当前 frame 时间。
 func (c *Context) Now() time.Time {
+	if c == nil {
+		return time.Time{}
+	}
 	return c.Gtx.Now
 }
 
 // MinConstraints 返回当前最小约束。
 func (c *Context) MinConstraints() image.Point {
+	if c == nil {
+		return image.Point{}
+	}
 	return c.Gtx.Constraints.Min
 }
 
 // MaxConstraints 返回当前最大约束。
 func (c *Context) MaxConstraints() image.Point {
+	if c == nil {
+		return image.Point{}
+	}
 	return c.Gtx.Constraints.Max
 }
 
@@ -115,6 +149,9 @@ func (c *Context) RequestFrameRedraw() {
 
 // WindowID 返回当前窗口 ID。
 func (c *Context) WindowID() WindowID {
+	if c == nil || c.runtime == nil {
+		return 0
+	}
 	ctrl := c.runtime.WindowController()
 	if ctrl == nil {
 		return 0
@@ -124,72 +161,108 @@ func (c *Context) WindowID() WindowID {
 
 // WindowClose 请求关闭当前窗口。
 func (c *Context) WindowClose() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.Close()
 }
 
 // WindowMinimize 请求最小化当前窗口。
 func (c *Context) WindowMinimize() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.Minimize()
 }
 
 // WindowMaximize 请求最大化当前窗口。
 func (c *Context) WindowMaximize() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.Maximize()
 }
 
 // WindowRestore 请求还原当前窗口。
 func (c *Context) WindowRestore() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.Restore()
 }
 
 // WindowFullscreen 请求全屏当前窗口。
 func (c *Context) WindowFullscreen() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.Fullscreen()
 }
 
 // WindowRaise 请求将当前窗口置顶。
 func (c *Context) WindowRaise() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.Raise()
 }
 
 // WindowCenter 请求将当前窗口居中。
 func (c *Context) WindowCenter() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.Center()
 }
 
 // WindowSetTitle 更新当前窗口标题。
 func (c *Context) WindowSetTitle(title string) bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.SetTitle(title)
 }
 
 // WindowSetSize 更新当前窗口尺寸（单位 dp）。
 func (c *Context) WindowSetSize(width, height int) bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.SetSize(width, height)
 }
 
 // WindowInvalidate 请求当前窗口立即重绘。
 func (c *Context) WindowInvalidate() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.Invalidate()
 }
 
 // WindowIsAlive 返回当前窗口是否仍然存活。
 func (c *Context) WindowIsAlive() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.IsAlive()
 }
 
 // NextKey 生成当前作用域下稳定的 hook key。
 func (c *Context) NextKey(namespace string) string {
+	if c == nil {
+		return namespace + ":0"
+	}
 	key := c.path + "/" + namespace + ":" + strconv.Itoa(c.hookIndex)
 	c.hookIndex++
 	if c.runtime != nil {
@@ -200,6 +273,12 @@ func (c *Context) NextKey(namespace string) string {
 
 // Persistent 读取或创建稳定对象。
 func (c *Context) Persistent(key string, factory func() any) any {
+	if c == nil || c.runtime == nil {
+		if factory == nil {
+			return nil
+		}
+		return factory()
+	}
 	return c.runtime.remember(key, factory)
 }
 
@@ -210,6 +289,9 @@ func (c *Context) Memo(namespace string, factory func() any) any {
 
 // WithComponentInstance binds this context to a component hook instance.
 func (c *Context) WithComponentInstance(instance *ComponentInstance) *Context {
+	if c == nil {
+		return nil
+	}
 	next := c.sameScope(c.Gtx)
 	next.instance = instance
 	return next
@@ -257,16 +339,25 @@ func ProviderValue[T any](c *Context, fallback T) T {
 
 // Child 为子组件创建独立作用域。
 func (c *Context) Child(index int) *Context {
+	if c == nil {
+		return nil
+	}
 	return c.childWithGtx(c.Gtx, strconv.Itoa(index))
 }
 
 // Scope 创建命名作用域。
 func (c *Context) Scope(name string) *Context {
+	if c == nil {
+		return nil
+	}
 	return c.childWithGtx(c.Gtx, name)
 }
 
 // WithForeground 覆盖当前默认前景色。
 func (c *Context) WithForeground(col color.NRGBA) *Context {
+	if c == nil {
+		return nil
+	}
 	next := c.sameScope(c.Gtx)
 	next.foreground = col
 	return next
@@ -274,6 +365,9 @@ func (c *Context) WithForeground(col color.NRGBA) *Context {
 
 // WithFont 覆盖当前作用域默认字体。
 func (c *Context) WithFont(spec theme.FontSpec) *Context {
+	if c == nil {
+		return nil
+	}
 	next := c.sameScope(c.Gtx)
 	next.font = spec.Normalize()
 	next.hasFont = true
@@ -282,12 +376,18 @@ func (c *Context) WithFont(spec theme.FontSpec) *Context {
 
 // WithTheme 覆盖当前作用域主题（返回新上下文，原上下文不变）。
 func (c *Context) WithTheme(th *theme.Theme) *Context {
+	if c == nil {
+		return nil
+	}
 	next := c.sameScope(c.Gtx)
 	next.themeOverride = th
 	return next
 }
 
 func (c *Context) sameScope(gtx gioLayout.Context) *Context {
+	if c == nil {
+		return nil
+	}
 	next := *c
 	next.Gtx = gtx
 	return &next
@@ -306,6 +406,9 @@ func contextKeyType[T any]() reflect.Type {
 }
 
 func (c *Context) childWithGtx(gtx gioLayout.Context, segment string) *Context {
+	if c == nil {
+		return nil
+	}
 	next := c.sameScope(gtx)
 	next.path = c.path + "/" + segment
 	next.hookIndex = 0

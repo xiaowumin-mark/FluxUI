@@ -134,7 +134,8 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	trackColor := ctx.Theme().SurfaceMuted
+	cs := ctx.Theme().Colors
+	trackColor := cs.SurfaceVariant
 	if s.config.hasTrackColor {
 		trackColor = s.config.trackColor
 	}
@@ -142,13 +143,20 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		if s.config.hasColor {
 			trackColor = s.config.color
 		} else {
-			trackColor = ctx.Theme().Primary
+			trackColor = cs.Primary
 		}
 	}
 
-	thumbColor := ctx.Theme().Surface
+	thumbColor := cs.Outline
+	if s.value {
+		thumbColor = cs.OnPrimary
+	}
 	if s.config.hasThumbColor {
 		thumbColor = s.config.thumbColor
+	}
+	if s.config.disabled {
+		trackColor = style.DisabledContainer(cs.OnSurface)
+		thumbColor = style.DisabledContent(cs.OnSurface)
 	}
 	content := func(contentCtx *internal.Context) image.Point {
 		return contentCtx.LayoutSwitch(clickable.Handle(), s.value, internal.SwitchSpec{
@@ -164,9 +172,9 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	if hasAnyDecoration(s.config.decoration) {
 		deco := withDefaultStates(s.config.decoration,
-			style.Decoration{}.WithBg(withAlpha(trackColor, 18)).WithRad(s.config.height/2),
-			style.Decoration{}.WithBg(withAlpha(trackColor, 28)).WithRad(s.config.height/2),
-			style.Decoration{}.WithBg(withAlpha(ctx.Theme().Disabled, 14)).WithRad(s.config.height/2),
+			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, trackColor, style.StateLayerHoverOpacity)).WithRad(s.config.height/2),
+			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, trackColor, style.StateLayerPressedOpacity)).WithRad(s.config.height/2),
+			style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)).WithRad(s.config.height/2),
 		)
 		return layoutDecoratedClickTarget(ctx.Child(0), clickable.Handle(), clickable.Hovered(), clickable.Pressed(), deco, s.config.disabled, content)
 	}

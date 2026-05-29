@@ -194,6 +194,34 @@ func TestWindowMethodsNilController(t *testing.T) {
 	}
 }
 
+func TestContextNilRuntimeFallbacks(t *testing.T) {
+	var ops op.Ops
+	ctx := NewContext(gioLayout.Context{Ops: &ops}, nil)
+
+	if ctx.Runtime() != nil {
+		t.Fatal("expected nil runtime")
+	}
+	if ctx.Theme() == nil {
+		t.Fatal("expected default theme")
+	}
+	if ctx.MaterialTheme() == nil {
+		t.Fatal("expected fallback material theme")
+	}
+	if ctx.Foreground().A == 0 {
+		t.Fatal("expected fallback foreground color")
+	}
+	if ctx.Font() == (theme.FontSpec{}) {
+		t.Fatal("expected fallback font")
+	}
+	if ctx.WindowID() != 0 || ctx.WindowClose() || ctx.WindowIsAlive() {
+		t.Fatal("expected nil-runtime window methods to be inert")
+	}
+	got := ctx.Persistent("fallback", func() any { return "value" })
+	if got != "value" {
+		t.Fatalf("expected fallback persistent factory value, got %v", got)
+	}
+}
+
 func TestRequestRedrawFromCapturedFrameContextUsesRuntimeInvalidator(t *testing.T) {
 	const frames = 5
 

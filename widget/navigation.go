@@ -72,7 +72,8 @@ func AppBarDecoration(d style.Decoration) AppBarOption {
 }
 
 func (a *appBarWidget) Layout(ctx *internal.Context) layout.Dimensions {
-	bg := a.config.decoration.ResolveBg(ctx.Theme().Surface)
+	cs := ctx.Theme().Colors
+	bg := a.config.decoration.ResolveBg(cs.SurfaceContainer)
 	if a.config.hasBG {
 		bg = a.config.background
 	}
@@ -107,10 +108,19 @@ func (a *appBarWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		)
 	}
 
-	bar := ContainerDecoration(
-		style.Decoration{}.WithBg(bg).WithPad(style.Symmetric(8, 12)),
-		content,
-	)
+	barDeco := style.Decoration{}.
+		WithBg(bg).
+		WithPad(a.config.decoration.ResolvePad(style.Symmetric(8, 12))).
+		WithRad(a.config.decoration.ResolveRad(0))
+	if a.config.decoration.Shadow != nil {
+		barDeco = barDeco.WithShadow(*a.config.decoration.Shadow)
+	} else {
+		barDeco = barDeco.WithShadow(style.ElevationShadow(cs, 2))
+	}
+	if a.config.decoration.Border != nil {
+		barDeco = barDeco.WithBorder(*a.config.decoration.Border)
+	}
+	bar := ContainerDecoration(barDeco, content)
 	bar = expandWidth(bar)
 
 	return (&fixedSizeWidget{
@@ -235,15 +245,16 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	bg := b.config.decoration.ResolveBg(ctx.Theme().Surface)
+	cs := ctx.Theme().Colors
+	bg := b.config.decoration.ResolveBg(cs.SurfaceContainer)
 	if b.config.hasBG {
 		bg = b.config.background
 	}
-	activeColor := ctx.Theme().Primary
+	activeColor := cs.OnSecondaryContainer
 	if b.config.hasActive {
 		activeColor = b.config.activeColor
 	}
-	inactiveColor := ctx.Theme().TextColor
+	inactiveColor := cs.OnSurfaceVariant
 	if b.config.hasInactive {
 		inactiveColor = b.config.inactiveColor
 	}
@@ -253,8 +264,10 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		item := b.items[idx]
 		isActive := item.Key == activeKey
 		col := inactiveColor
+		tabBg := color.NRGBA{}
 		if isActive {
 			col = activeColor
+			tabBg = cs.SecondaryContainer
 		}
 
 		icon := item.Icon
@@ -264,10 +277,12 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		tab := Button(
 			Column(
 				icon,
-				Padding(style.Insets{Top: 4}, Text(item.Label, TextColor(col), TextSize(12))),
+				Padding(style.Insets{Top: 4}, Text(item.Label, TextColor(col), TextSize(ctx.Theme().Types.LabelMedium.Size))),
 			),
-			ButtonBackground(color.NRGBA{}),
+			ButtonBackground(tabBg),
+			ButtonForeground(col),
 			ButtonPadding(style.Symmetric(6, 10)),
+			ButtonRadius(ctx.Theme().Shapes.Full),
 			OnClick(func(ctx *internal.Context) {
 				activeKey = item.Key
 				if b.config.onChange != nil {

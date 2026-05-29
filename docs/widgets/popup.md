@@ -31,6 +31,13 @@ Popup 是一个纯净的弹窗容器，只提供遮罩层和居中面板，不�
 
 与 Dialog 的区别：Dialog 自带标题、确认/取消按钮等结构化布局；Popup 则是一个空壳，类似 Web 中的 Modal 组件。
 
+## MD3 默认样式
+
+- container 使用 `SurfaceContainer`。
+- shape 使用 `Small`。
+- elevation 使用 level 2。
+- mask 使用 `Scrim`。
+
 ## 使用方法
 - `open` 控制显示与隐藏（受控模式）。
 - 通过 `PopupOnOpenChange` 同步遮罩点击关闭和外部状态。

@@ -35,6 +35,14 @@
 ## 组件说明
 Dialog 用于确认、警告、补充输入等高优先级交互，通常以遮罩方式覆盖当前内容。
 
+## MD3 默认样式
+
+- container 使用 `SurfaceContainerHigh`。
+- shape 使用 `ExtraLarge`。
+- elevation 使用 level 3。
+- mask 使用 `Scrim`。
+- title 推荐使用 `HeadlineSmall`。
+
 ## 使用方法
 - `open` 控制显示与隐藏（受控模式）。
 - 推荐统一处理 `DialogOnOpenChange`，保证遮罩点击关闭和外部状态同步。

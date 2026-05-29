@@ -46,6 +46,15 @@ type Theme = theme.Theme
 // ColorScheme 定义语义化色板。
 type ColorScheme = theme.ColorScheme
 
+// ShapeScale 定义 Material Design 3 圆角刻度。
+type ShapeScale = theme.ShapeScale
+
+// TypeScale 定义 Material Design 3 字体层级。
+type TypeScale = theme.TypeScale
+
+// TextStyle 定义 TypeScale 中的单个文字样式。
+type TextStyle = theme.TextStyle
+
 // FontSpec 是公开字体规格。
 type FontSpec = theme.FontSpec
 
@@ -77,6 +86,7 @@ type SwitchOption = widget.SwitchOption
 type SliderOption = widget.SliderOption
 type ButtonRef = widget.ButtonRef
 type ClickAreaRef = widget.ClickAreaRef
+type PressableRef = widget.PressableRef
 type InputRef = widget.InputRef
 type CheckboxRef = widget.CheckboxRef
 type SwitchRef = widget.SwitchRef
@@ -373,9 +383,37 @@ func Button(child Widget, opts ...ButtonOption) Widget {
 	return widget.Button(child, opts...)
 }
 
+func FilledButton(child Widget, opts ...ButtonOption) Widget {
+	return widget.FilledButton(child, opts...)
+}
+
+func FilledTonalButton(child Widget, opts ...ButtonOption) Widget {
+	return widget.FilledTonalButton(child, opts...)
+}
+
+func OutlinedButton(child Widget, opts ...ButtonOption) Widget {
+	return widget.OutlinedButton(child, opts...)
+}
+
+func TextButton(child Widget, opts ...ButtonOption) Widget {
+	return widget.TextButton(child, opts...)
+}
+
+func ElevatedButton(child Widget, opts ...ButtonOption) Widget {
+	return widget.ElevatedButton(child, opts...)
+}
+
 // TextField 创建输入框组件。
 func TextField(value string, opts ...InputOption) Widget {
 	return widget.TextField(value, opts...)
+}
+
+func OutlinedTextField(value string, opts ...InputOption) Widget {
+	return widget.OutlinedTextField(value, opts...)
+}
+
+func FilledTextField(value string, opts ...InputOption) Widget {
+	return widget.FilledTextField(value, opts...)
 }
 
 // Checkbox 创建复选框组件。

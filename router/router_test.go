@@ -98,6 +98,22 @@ func TestExtractQueryParams(t *testing.T) {
 	}
 }
 
+func TestExtractQueryParamsDecodesURLValues(t *testing.T) {
+	path, query := extractQueryParams("/search?q=hello+world&path=a%2Fb&tag=old&tag=new")
+	if path != "/search" {
+		t.Fatalf("expected path=/search, got %s", path)
+	}
+	if query["q"] != "hello world" {
+		t.Fatalf("expected decoded q, got %q", query["q"])
+	}
+	if query["path"] != "a/b" {
+		t.Fatalf("expected decoded path query, got %q", query["path"])
+	}
+	if query["tag"] != "new" {
+		t.Fatalf("expected last repeated tag value, got %q", query["tag"])
+	}
+}
+
 func TestExtractQueryParamsNone(t *testing.T) {
 	path, query := extractQueryParams("/users/42")
 	if path != "/users/42" {

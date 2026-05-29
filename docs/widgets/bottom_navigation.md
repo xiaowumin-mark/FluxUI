@@ -28,6 +28,13 @@
 ## 组件说明
 BottomNavigation 适用于移动端或工具型应用的一级页面切换。
 
+## MD3 默认样式
+
+- container 使用 `SurfaceContainer`。
+- selected item 使用 `SecondaryContainer` indicator 和 `OnSecondaryContainer` 内容色。
+- inactive item 使用 `OnSurfaceVariant`。
+- label 使用 `LabelMedium`。
+
 ## 使用方法
 - `active` 保存当前页面 key。
 - `items` 定义导航项。

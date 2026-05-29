@@ -70,8 +70,14 @@ type ClickAreaRef struct {
 	queue commandQueue[struct{}]
 }
 
+type PressableRef = ClickAreaRef
+
 func NewClickAreaRef() *ClickAreaRef {
 	return &ClickAreaRef{}
+}
+
+func NewPressableRef() *PressableRef {
+	return NewClickAreaRef()
 }
 
 func (r *ClickAreaRef) Click() {

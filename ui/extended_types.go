@@ -42,6 +42,7 @@ type ToastPosition = widget.ToastPosition
 type ScrollOption = widget.ScrollOption
 type ScrollRef = widget.ScrollRef
 type ClickAreaOption = widget.ClickAreaOption
+type PressableOption = widget.PressableOption
 type RadioGroupRef = widget.RadioGroupRef
 type TabsRef = widget.TabsRef
 type DialogRef = widget.DialogRef
@@ -194,10 +195,47 @@ func ButtonElement(child Element, opts ...ButtonOption) Element {
 	}}
 }
 
+func FilledButtonElement(child Element, opts ...ButtonOption) Element {
+	return &singleChildElement{kind: "filled-button", child: child, renderFn: func(child Widget) Widget {
+		return widget.FilledButton(child, opts...)
+	}}
+}
+
+func FilledTonalButtonElement(child Element, opts ...ButtonOption) Element {
+	return &singleChildElement{kind: "filled-tonal-button", child: child, renderFn: func(child Widget) Widget {
+		return widget.FilledTonalButton(child, opts...)
+	}}
+}
+
+func OutlinedButtonElement(child Element, opts ...ButtonOption) Element {
+	return &singleChildElement{kind: "outlined-button", child: child, renderFn: func(child Widget) Widget {
+		return widget.OutlinedButton(child, opts...)
+	}}
+}
+
+func TextButtonElement(child Element, opts ...ButtonOption) Element {
+	return &singleChildElement{kind: "text-button", child: child, renderFn: func(child Widget) Widget {
+		return widget.TextButton(child, opts...)
+	}}
+}
+
+func ElevatedButtonElement(child Element, opts ...ButtonOption) Element {
+	return &singleChildElement{kind: "elevated-button", child: child, renderFn: func(child Widget) Widget {
+		return widget.ElevatedButton(child, opts...)
+	}}
+}
+
 // ClickAreaElement 创建可参与 reconciler 的可点击区域 Element。
+//
+// Deprecated: 请使用 PressableElement。
 func ClickAreaElement(child Element, onClick func(ctx *Context), opts ...ClickAreaOption) Element {
-	return &singleChildElement{kind: "click-area", child: child, renderFn: func(child Widget) Widget {
-		return widget.ClickArea(child, onClick, opts...)
+	return PressableElement(child, onClick, opts...)
+}
+
+// PressableElement 创建无固定视觉样式、可参与 reconciler 的通用可点击区域 Element。
+func PressableElement(child Element, onClick func(ctx *Context), opts ...PressableOption) Element {
+	return &singleChildElement{kind: "pressable", child: child, renderFn: func(child Widget) Widget {
+		return widget.Pressable(child, onClick, opts...)
 	}}
 }
 
@@ -214,6 +252,14 @@ func SwitchElement(checked bool, opts ...SwitchOption) Element {
 // TextFieldElement 创建可参与 reconciler 的受控输入框 Element。
 func TextFieldElement(value string, opts ...InputOption) Element {
 	return FromWidget(widget.TextField(value, opts...))
+}
+
+func OutlinedTextFieldElement(value string, opts ...InputOption) Element {
+	return FromWidget(widget.OutlinedTextField(value, opts...))
+}
+
+func FilledTextFieldElement(value string, opts ...InputOption) Element {
+	return FromWidget(widget.FilledTextField(value, opts...))
 }
 
 // SliderElement 创建可参与 reconciler 的受控滑块 Element。
@@ -255,6 +301,24 @@ func IconElement(name string, opts ...IconOption) Element {
 func CardElement(child Element, opts ...CardOption) Element {
 	return &singleChildElement{kind: "card", child: child, renderFn: func(child Widget) Widget {
 		return widget.Card(child, opts...)
+	}}
+}
+
+func FilledCardElement(child Element, opts ...CardOption) Element {
+	return &singleChildElement{kind: "filled-card", child: child, renderFn: func(child Widget) Widget {
+		return widget.FilledCard(child, opts...)
+	}}
+}
+
+func ElevatedCardElement(child Element, opts ...CardOption) Element {
+	return &singleChildElement{kind: "elevated-card", child: child, renderFn: func(child Widget) Widget {
+		return widget.ElevatedCard(child, opts...)
+	}}
+}
+
+func OutlinedCardElement(child Element, opts ...CardOption) Element {
+	return &singleChildElement{kind: "outlined-card", child: child, renderFn: func(child Widget) Widget {
+		return widget.OutlinedCard(child, opts...)
 	}}
 }
 
@@ -409,15 +473,27 @@ func VSpacerElement(height float32) Element {
 }
 
 func ClickArea(child Widget, onClick func(ctx *Context), opts ...ClickAreaOption) Widget {
-	return widget.ClickArea(child, onClick, opts...)
+	return Pressable(child, onClick, opts...)
+}
+
+func Pressable(child Widget, onClick func(ctx *Context), opts ...PressableOption) Widget {
+	return widget.Pressable(child, onClick, opts...)
 }
 
 func NewClickAreaRef() *ClickAreaRef {
 	return widget.NewClickAreaRef()
 }
 
+func NewPressableRef() *PressableRef {
+	return widget.NewPressableRef()
+}
+
 func ClickAreaAttachRef(ref *ClickAreaRef) ClickAreaOption {
 	return widget.ClickAreaAttachRef(ref)
+}
+
+func PressableAttachRef(ref *PressableRef) PressableOption {
+	return widget.PressableAttachRef(ref)
 }
 
 func FixedWidth(width float32, child Widget) Widget {
@@ -975,6 +1051,18 @@ func IconAttachRef(ref *ButtonRef) IconOption {
 
 func Card(child Widget, opts ...CardOption) Widget {
 	return widget.Card(child, opts...)
+}
+
+func FilledCard(child Widget, opts ...CardOption) Widget {
+	return widget.FilledCard(child, opts...)
+}
+
+func ElevatedCard(child Widget, opts ...CardOption) Widget {
+	return widget.ElevatedCard(child, opts...)
+}
+
+func OutlinedCard(child Widget, opts ...CardOption) Widget {
+	return widget.OutlinedCard(child, opts...)
 }
 
 func CardPadding(insets Insets) CardOption {

@@ -10,12 +10,22 @@ import (
 
 type ClickAreaOption func(*clickAreaConfig)
 
+// PressableOption 定义通用可点击区域配置项。
+type PressableOption = ClickAreaOption
+
 type clickAreaConfig struct {
 	ref *ClickAreaRef
 }
 
 // ClickArea 创建无视觉反馈的可点击区域。
+//
+// Deprecated: 请使用 Pressable。ClickArea 作为兼容旧代码的低层别名保留。
 func ClickArea(child Widget, onClick func(ctx *internal.Context), opts ...ClickAreaOption) Widget {
+	return Pressable(child, onClick, opts...)
+}
+
+// Pressable 创建无固定视觉样式的通用可点击区域。
+func Pressable(child Widget, onClick func(ctx *internal.Context), opts ...PressableOption) Widget {
 	cfg := clickAreaConfig{}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -25,6 +35,10 @@ func ClickArea(child Widget, onClick func(ctx *internal.Context), opts ...ClickA
 		onClick: onClick,
 		config:  cfg,
 	}
+}
+
+func PressableAttachRef(ref *PressableRef) PressableOption {
+	return ClickAreaAttachRef(ref)
 }
 
 func ClickAreaAttachRef(ref *ClickAreaRef) ClickAreaOption {

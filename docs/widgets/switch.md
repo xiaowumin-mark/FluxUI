@@ -30,6 +30,13 @@
 ## 组件说明
 Switch 常用于“立即生效”的开关项，比如通知开关、实验特性开关。
 
+## MD3 默认样式
+
+- checked track 使用 `Primary`，thumb 使用 `OnPrimary`。
+- unchecked track 使用 `SurfaceVariant`，thumb 使用 `Outline`。
+- hover/pressed 使用统一 state layer。
+- disabled 使用 `OnSurface` 12% / 38%。
+
 ## 使用方法
 - 通过 `checked` 传值。
 - 变化回调用 `SwitchOnChange`。
