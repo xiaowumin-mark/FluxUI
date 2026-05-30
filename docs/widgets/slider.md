@@ -51,17 +51,6 @@ Slider 适用于音量、进度、阈值等连续数值场景。
 - `value` 仍由调用方状态驱动；拖拽过程中的 host state 和 `SliderRef` 命令队列仍由底层 slider widget 管理。
 
 ## 使用示例
-```go
-value := ui.State[float32](ctx)
-ui.Slider(
-    value.Value(),
-    ui.SliderMin(0),
-    ui.SliderMax(100),
-    ui.SliderOnChange(func(ctx *ui.Context, v float32) {
-        value.Set(v)
-    }),
-)
-```
 
 ### React-style Element
 
@@ -77,4 +66,19 @@ func VolumeSlider(ctx *ui.Context) ui.Element {
         }),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.Slider` / `Widget` 写法继续可用：
+
+```go
+value := ui.State[float32](ctx)
+ui.Slider(
+    value.Value(),
+    ui.SliderMin(0),
+    ui.SliderMax(100),
+    ui.SliderOnChange(func(ctx *ui.Context, v float32) {
+        value.Set(v)
+    }),
+)
 ```

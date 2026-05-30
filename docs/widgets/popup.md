@@ -52,6 +52,29 @@ Popup 是一个纯净的弹窗容器，只提供遮罩层和居中面板，不�
 - mask click、overlay stacking、焦点归属和 ref command queue 仍属于底层 popup host lifecycle，不迁入 component HookSlot。
 
 ## 使用示例
+
+### React-style Element
+
+```go
+func CustomPopup(ctx *ui.Context) ui.Element {
+    open := ui.UseState(ctx, true)
+    return ui.PopupElement(
+        open.Value(),
+        ui.ColumnElement(
+            ui.TextElement("自定义标题", ui.TextSize(18)),
+            ui.SpacerElement(0, 8),
+            ui.TextElement("这里可以放任意 Element。"),
+        ),
+        ui.PopupWidth(320),
+        ui.PopupPadding(ui.All(16)),
+        ui.PopupOnOpenChange(func(ctx *ui.Context, v bool) { open.Set(v) }),
+    )
+}
+```
+
+### Legacy Widget
+旧 `ui.Popup` / `Widget` 写法继续可用：
+
 ```go
 open := ui.State[bool](ctx)
 ui.Popup(
@@ -74,23 +97,4 @@ ui.Popup(
         open.Set(v)
     }),
 )
-```
-
-### React-style Element
-
-```go
-func CustomPopup(ctx *ui.Context) ui.Element {
-    open := ui.UseState(ctx, true)
-    return ui.PopupElement(
-        open.Value(),
-        ui.ColumnElement(
-            ui.TextElement("自定义标题", ui.TextSize(18)),
-            ui.SpacerElement(0, 8),
-            ui.TextElement("这里可以放任意 Element。"),
-        ),
-        ui.PopupWidth(320),
-        ui.PopupPadding(ui.All(16)),
-        ui.PopupOnOpenChange(func(ctx *ui.Context, v bool) { open.Set(v) }),
-    )
-}
 ```

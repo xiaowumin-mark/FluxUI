@@ -114,9 +114,78 @@ func TestThemeNormalizesLegacyColorScheme(t *testing.T) {
 	}
 }
 
+func TestThemeNormalizesSparseLegacyColorScheme(t *testing.T) {
+	th := New(ColorScheme{
+		Primary:   color.NRGBA{R: 1, A: 255},
+		OnPrimary: color.NRGBA{R: 2, A: 255},
+		Surface:   color.NRGBA{R: 3, A: 255},
+		OnSurface: color.NRGBA{R: 4, A: 255},
+	})
+
+	assertCompleteColorSchemeForTheme(t, th.Colors)
+	if th.Colors.Background != th.Colors.Surface {
+		t.Fatal("sparse scheme should backfill Background from Surface")
+	}
+	if th.Colors.OnBackground != th.Colors.OnSurface {
+		t.Fatal("sparse scheme should backfill OnBackground from OnSurface")
+	}
+}
+
 func assertColorSet(t *testing.T, name string, col color.NRGBA) {
 	t.Helper()
 	if col.A == 0 {
 		t.Fatalf("%s alpha should be set", name)
+	}
+}
+
+func assertCompleteColorSchemeForTheme(t *testing.T, cs ColorScheme) {
+	t.Helper()
+	fields := []struct {
+		name string
+		col  color.NRGBA
+	}{
+		{"Primary", cs.Primary},
+		{"OnPrimary", cs.OnPrimary},
+		{"PrimaryContainer", cs.PrimaryContainer},
+		{"OnPrimaryContainer", cs.OnPrimaryContainer},
+		{"Secondary", cs.Secondary},
+		{"OnSecondary", cs.OnSecondary},
+		{"SecondaryContainer", cs.SecondaryContainer},
+		{"OnSecondaryContainer", cs.OnSecondaryContainer},
+		{"Tertiary", cs.Tertiary},
+		{"OnTertiary", cs.OnTertiary},
+		{"TertiaryContainer", cs.TertiaryContainer},
+		{"OnTertiaryContainer", cs.OnTertiaryContainer},
+		{"Error", cs.Error},
+		{"OnError", cs.OnError},
+		{"ErrorContainer", cs.ErrorContainer},
+		{"OnErrorContainer", cs.OnErrorContainer},
+		{"Background", cs.Background},
+		{"OnBackground", cs.OnBackground},
+		{"Surface", cs.Surface},
+		{"OnSurface", cs.OnSurface},
+		{"SurfaceVariant", cs.SurfaceVariant},
+		{"OnSurfaceVariant", cs.OnSurfaceVariant},
+		{"SurfaceContainerLowest", cs.SurfaceContainerLowest},
+		{"SurfaceContainerLow", cs.SurfaceContainerLow},
+		{"SurfaceContainer", cs.SurfaceContainer},
+		{"SurfaceContainerHigh", cs.SurfaceContainerHigh},
+		{"SurfaceContainerHighest", cs.SurfaceContainerHighest},
+		{"Outline", cs.Outline},
+		{"OutlineVariant", cs.OutlineVariant},
+		{"InverseSurface", cs.InverseSurface},
+		{"InverseOnSurface", cs.InverseOnSurface},
+		{"InversePrimary", cs.InversePrimary},
+		{"Scrim", cs.Scrim},
+		{"Shadow", cs.Shadow},
+		{"Success", cs.Success},
+		{"OnSuccess", cs.OnSuccess},
+		{"Warning", cs.Warning},
+		{"OnWarning", cs.OnWarning},
+		{"Disabled", cs.Disabled},
+		{"SurfaceMuted", cs.SurfaceMuted},
+	}
+	for _, field := range fields {
+		assertColorSet(t, field.name, field.col)
 	}
 }

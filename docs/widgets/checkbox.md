@@ -42,20 +42,6 @@ Checkbox 适用于“可多选”或“布尔开关”场景，常见于表单�
 
 ## 使用示例
 
-### Legacy Widget
-旧 `ui.Checkbox` / `Widget` 写法继续可用：
-
-```go
-agree := ui.State[bool](ctx)
-ui.Checkbox(
-    "同意服务协议",
-    agree.Value(),
-    ui.CheckboxOnChange(func(ctx *ui.Context, checked bool) {
-        agree.Set(checked)
-    }),
-)
-```
-
 ### React-style Element
 新代码可在 `RunElement` root 下返回 `CheckboxElement`：
 
@@ -74,4 +60,18 @@ func AgreementRow(ctx *ui.Context) ui.Element {
         ui.TextElement(fmt.Sprintf("协议状态: %v", agree.Value())),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.Checkbox` / `Widget` 写法继续可用：
+
+```go
+agree := ui.State[bool](ctx)
+ui.Checkbox(
+    "同意服务协议",
+    agree.Value(),
+    ui.CheckboxOnChange(func(ctx *ui.Context, checked bool) {
+        agree.Set(checked)
+    }),
+)
 ```

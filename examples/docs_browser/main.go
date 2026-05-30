@@ -602,12 +602,12 @@ func main() {
 						),
 					),
 				)
-			case "click_area_basic":
+			case "pressable_basic", "click_area_basic":
 				return ui.ColumnElement(
 					ui.TextElement(fmt.Sprintf("点击次数: %d", clickCount.Value())),
 					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.ClickAreaElement(
+						ui.PressableElement(
 							ui.FillWidthElement(
 								ui.ContainerElement(
 									ui.Style{
@@ -615,7 +615,7 @@ func main() {
 										Padding:    ui.All(14),
 										Radius:     8,
 									},
-									ui.TextElement("这是 ClickArea（无默认按钮动画）"),
+									ui.TextElement("这是 Pressable（无固定视觉样式）"),
 								),
 							),
 							func(ctx *ui.Context) {

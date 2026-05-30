@@ -65,23 +65,6 @@ TextField 是受控输入组件，值由外部状态提供，输入变化通过 
 - 编辑器焦点、光标、选择区和 `InputRef` 命令队列仍由底层 input host state 管理，不迁入 component HookSlot。
 
 ## 使用示例
-```go
-name := ui.State[string](ctx)
-ui.TextField(
-    name.Value(),
-    ui.InputPlaceholder("请输入名称"),
-    ui.InputOnChange(func(ctx *ui.Context, value string) {
-        name.Set(value)
-    }),
-)
-```
-
-```go
-ui.Row(
-    ui.OutlinedTextField("Outlined", ui.InputPlaceholder("Outlined")),
-    ui.FilledTextField("Filled", ui.InputPlaceholder("Filled")),
-)
-```
 
 ### React-style Element
 
@@ -96,4 +79,25 @@ func NameField(ctx *ui.Context) ui.Element {
         }),
     )
 }
+```
+
+```go
+ui.RowElement(
+    ui.OutlinedTextFieldElement("Outlined", ui.InputPlaceholder("Outlined")),
+    ui.FilledTextFieldElement("Filled", ui.InputPlaceholder("Filled")),
+)
+```
+
+### Legacy Widget
+旧 `ui.TextField` / `Widget` 写法继续可用：
+
+```go
+name := ui.State[string](ctx)
+ui.TextField(
+    name.Value(),
+    ui.InputPlaceholder("请输入名称"),
+    ui.InputOnChange(func(ctx *ui.Context, value string) {
+        name.Set(value)
+    }),
+)
 ```

@@ -42,25 +42,10 @@ BottomNavigation 适用于移动端或工具型应用的一级页面切换。
 - 外部程序切页可通过 `BottomNavAttachRef` 绑定后调用 `SetActive`。
 
 ## 使用示例
-```go
-active := ui.State[string](ctx)
-ui.BottomNavigation(
-    active.Value(),
-    []ui.NavItem{
-        {Key: "home", Label: "首页", Icon: ui.Text("H")},
-        {Key: "docs", Label: "文档", Icon: ui.Text("D")},
-    },
-    ui.BottomNavOnChange(func(ctx *ui.Context, key string) {
-        active.Set(key)
-    }),
-)
-```
 
-## React-style Element
+### React-style Element
 
-- `BottomNavigationElement` 已可在 `RunElement` root 下直接使用。
-- React-style 版本使用 `[]ElementNavItem`，因此每个 item 的 icon 可以是 `Element`。
-- `active` key、`BottomNavOnChange`、`BottomNavAttachRef` 和页面切换状态仍由调用方/底层 navigation host 管理。
+`BottomNavigationElement` 已可在 `RunElement` root 下直接使用。React-style 版本使用 `[]ElementNavItem`，因此每个 item 的 icon 可以是 `Element`。
 
 ```go
 func BottomTabs(ctx *ui.Context) ui.Element {
@@ -74,4 +59,23 @@ func BottomTabs(ctx *ui.Context) ui.Element {
         ui.BottomNavOnChange(func(ctx *ui.Context, key string) { active.Set(key) }),
     )
 }
+```
+
+`active` key、`BottomNavOnChange`、`BottomNavAttachRef` 和页面切换状态仍由调用方/底层 navigation host 管理。
+
+### Legacy Widget
+旧 `ui.BottomNavigation` / `Widget` 写法继续可用：
+
+```go
+active := ui.State[string](ctx)
+ui.BottomNavigation(
+    active.Value(),
+    []ui.NavItem{
+        {Key: "home", Label: "首页", Icon: ui.Text("H")},
+        {Key: "docs", Label: "文档", Icon: ui.Text("D")},
+    },
+    ui.BottomNavOnChange(func(ctx *ui.Context, key string) {
+        active.Set(key)
+    }),
+)
 ```

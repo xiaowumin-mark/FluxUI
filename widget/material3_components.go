@@ -313,7 +313,7 @@ func (m *menuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	var body Widget = Column(children...)
-	estimatedHeight := float32(len(children)*40 + 12)
+	estimatedHeight := float32(len(children))*densityHeight(ctx, 40, 36) + densityMetric(ctx, 12, 8)
 	if m.config.maxHeight > 0 && estimatedHeight > m.config.maxHeight {
 		body = FixedHeight(m.config.maxHeight, ScrollView(body, ScrollVertical(true)))
 	}
@@ -321,7 +321,7 @@ func (m *menuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	cs := ctx.Theme().Colors
 	deco := style.Decoration{}.
 		WithBg(m.config.decoration.ResolveBg(cs.SurfaceContainer)).
-		WithPad(m.config.decoration.ResolvePad(style.All(8))).
+		WithPad(m.config.decoration.ResolvePad(densityInsets(ctx, style.All(8), style.All(6)))).
 		WithRad(m.config.decoration.ResolveRad(ctx.Theme().Shapes.ExtraSmall))
 	if m.config.decoration.Shadow != nil {
 		deco = deco.WithShadow(*m.config.decoration.Shadow)
@@ -381,8 +381,8 @@ func (m *menuWidget) menuRow(item MenuItem, selected bool, showSelection bool) W
 			Background: bg,
 			Foreground: fg,
 			Radius:     rowCtx.Theme().Shapes.ExtraSmall,
-			Padding:    style.Symmetric(6, 12),
-			MinHeight:  40,
+			Padding:    densityInsets(rowCtx, style.Symmetric(6, 12), style.Symmetric(4, 12)),
+			MinHeight:  densityHeight(rowCtx, 40, 36),
 			FillWidth:  true,
 			Disabled:   item.Disabled,
 		}, content)
@@ -604,7 +604,7 @@ func (l *listItemWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		)
 	}
 
-	minHeight := float32(0)
+	minHeight := densityHeight(ctx, 56, 48)
 	if l.config.minHeight > 0 {
 		minHeight = l.config.minHeight
 	}
@@ -622,7 +622,7 @@ func (l *listItemWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		Background: bg,
 		Foreground: fg,
 		Radius:     l.config.decoration.ResolveRad(ctx.Theme().Shapes.ExtraSmall),
-		Padding:    l.config.decoration.ResolvePad(style.Symmetric(8, 16)),
+		Padding:    l.config.decoration.ResolvePad(densityInsets(ctx, style.Symmetric(8, 16), style.Symmetric(6, 16))),
 		Border:     border,
 		Shadow:     shadow,
 		MinHeight:  minHeight,
@@ -1163,7 +1163,7 @@ func (n *navigationDrawerWidget) Layout(ctx *internal.Context) layout.Dimensions
 	bg := n.config.decoration.ResolveBg(cs.SurfaceContainerLow)
 	deco := style.Decoration{}.
 		WithBg(bg).
-		WithPad(n.config.decoration.ResolvePad(style.All(12))).
+		WithPad(n.config.decoration.ResolvePad(densityInsets(ctx, style.All(12), style.All(8)))).
 		WithRad(n.config.decoration.ResolveRad(0))
 	if n.config.decoration.Border != nil {
 		deco = deco.WithBorder(*n.config.decoration.Border)
@@ -1214,8 +1214,8 @@ func (n *navigationDrawerWidget) drawerItem(item NavItem) Widget {
 			Background: bg,
 			Foreground: fg,
 			Radius:     itemCtx.Theme().Shapes.Full,
-			Padding:    style.Symmetric(4, 16),
-			MinHeight:  48,
+			Padding:    densityInsets(itemCtx, style.Symmetric(4, 16), style.Symmetric(2, 16)),
+			MinHeight:  densityHeight(itemCtx, 48, 40),
 			FillWidth:  true,
 		}, content)
 	})

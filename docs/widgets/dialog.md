@@ -57,6 +57,24 @@ Dialog 用于确认、警告、补充输入等高优先级交互，通常以遮�
 - overlay/mask/panel、open-change 去重、焦点归属和 ref command queue 仍属于底层 dialog host lifecycle，不迁入 component HookSlot。
 
 ## 使用示例
+
+### React-style Element
+
+```go
+func ConfirmDialog(ctx *ui.Context) ui.Element {
+    open := ui.UseState(ctx, false)
+    return ui.DialogElement(
+        open.Value(),
+        ui.TextElement("确认执行该操作吗？"),
+        ui.DialogTitle("操作确认"),
+        ui.DialogOnOpenChange(func(ctx *ui.Context, v bool) { open.Set(v) }),
+    )
+}
+```
+
+### Legacy Widget
+旧 `ui.Dialog` / `Widget` 写法继续可用：
+
 ```go
 open := ui.State[bool](ctx)
 ui.Dialog(
@@ -71,18 +89,4 @@ ui.Dialog(
         open.Set(false)
     }),
 )
-```
-
-### React-style Element
-
-```go
-func ConfirmDialog(ctx *ui.Context) ui.Element {
-    open := ui.UseState(ctx, false)
-    return ui.DialogElement(
-        open.Value(),
-        ui.TextElement("确认执行该操作吗？"),
-        ui.DialogTitle("操作确认"),
-        ui.DialogOnOpenChange(func(ctx *ui.Context, v bool) { open.Set(v) }),
-    )
-}
 ```

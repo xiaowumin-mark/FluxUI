@@ -40,6 +40,27 @@ ScrollView 用于承载超出可视区的内容。常见于文档区、表单区
 - `ScrollRef` 的命令会跨 frame 排队并在布局时消费；调用方仍负责在组件卸载后停止发送无意义命令。
 
 ## 使用示例
+
+### React-style Element
+
+```go
+func LogPanel(ctx *ui.Context) ui.Element {
+    return ui.FixedHeightElement(
+        220,
+        ui.ScrollViewElement(
+            ui.ColumnElement(
+                ui.TextElement("长内容 1"),
+                ui.TextElement("长内容 2"),
+            ),
+            ui.ScrollVertical(true),
+        ),
+    )
+}
+```
+
+### Legacy Widget
+旧 `ui.ScrollView` / `Widget` 写法继续可用：
+
 ```go
 ref := ui.NewScrollRef()
 
@@ -60,21 +81,4 @@ ref.ScrollToBottom()
 ref.ScrollToTop()
 ref.ScrollToOffset(120)
 ref.ScrollBy(2.0)
-```
-
-### React-style Element
-
-```go
-func LogPanel(ctx *ui.Context) ui.Element {
-    return ui.FixedHeightElement(
-        220,
-        ui.ScrollViewElement(
-            ui.ColumnElement(
-                ui.TextElement("长内容 1"),
-                ui.TextElement("长内容 2"),
-            ),
-            ui.ScrollVertical(true),
-        ),
-    )
-}
 ```

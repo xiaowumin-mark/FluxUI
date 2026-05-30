@@ -45,19 +45,6 @@ Switch 常用于“立即生效”的开关项，比如通知开关、实验特�
 
 ## 使用示例
 
-### Legacy Widget
-旧 `ui.Switch` / `Widget` 写法继续可用：
-
-```go
-enabled := ui.State[bool](ctx)
-ui.Switch(
-    enabled.Value(),
-    ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
-        enabled.Set(checked)
-    }),
-)
-```
-
 ### React-style Element
 新代码可在 `RunElement` root 下返回 `SwitchElement`：
 
@@ -75,4 +62,17 @@ func FeatureToggle(ctx *ui.Context) ui.Element {
         ui.TextElement(fmt.Sprintf("功能开关: %v", enabled.Value())),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.Switch` / `Widget` 写法继续可用：
+
+```go
+enabled := ui.State[bool](ctx)
+ui.Switch(
+    enabled.Value(),
+    ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
+        enabled.Set(checked)
+    }),
+)
 ```

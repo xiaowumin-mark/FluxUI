@@ -108,6 +108,84 @@ func TestSelectTriggerKeepsMD3Height(t *testing.T) {
 	}
 }
 
+func TestCompactDensityShrinksCoreDefaults(t *testing.T) {
+	th := theme.New(theme.LightColors())
+	th.SetDensity(theme.CompactDensityScale())
+	rt := internal.NewRuntime(th)
+	var ops op.Ops
+	gtx := gioLayout.Context{
+		Ops: &ops,
+		Constraints: gioLayout.Constraints{
+			Max: image.Pt(230, 600),
+		},
+	}
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gtx, rt)
+	selectDims := Select("medium", []SelectOptionItem[string]{
+		{Label: "Low priority", Value: "low"},
+		{Label: "Medium priority", Value: "medium"},
+	}).Layout(ctx)
+	rt.EndFrame()
+
+	wantSelectHeight := gtx.Dp(safeDp(48))
+	if selectDims.Size.Y != wantSelectHeight {
+		t.Fatalf("compact select trigger height = %d, want %d", selectDims.Size.Y, wantSelectHeight)
+	}
+
+	rt.BeginFrame()
+	ctx = internal.NewContext(gtx, rt)
+	drawerDims := (&navigationDrawerWidget{active: "home"}).drawerItem(NavItem{Key: "home", Label: "Home"}).Layout(ctx)
+	rt.EndFrame()
+
+	wantDrawerItemHeight := gtx.Dp(safeDp(40))
+	if drawerDims.Size.Y != wantDrawerItemHeight {
+		t.Fatalf("compact drawer item height = %d, want %d", drawerDims.Size.Y, wantDrawerItemHeight)
+	}
+}
+
+func TestDisabledSelectionRefsDoNotDispatch(t *testing.T) {
+	rt := internal.NewRuntime(theme.New(theme.LightColors()))
+	var ops op.Ops
+	gtx := gioLayout.Context{
+		Ops: &ops,
+		Constraints: gioLayout.Constraints{
+			Max: image.Pt(230, 600),
+		},
+	}
+
+	radioRef := NewRadioGroupRef()
+	radioRef.SetValue("b")
+	radioChanges := 0
+	rt.BeginFrame()
+	RadioGroup("a", []RadioItem{{Label: "A", Value: "a"}, {Label: "B", Value: "b"}},
+		RadioGroupDisabled(true),
+		RadioGroupAttachRef(radioRef),
+		RadioGroupOnChange(func(ctx *internal.Context, value string) { radioChanges++ }),
+	).Layout(internal.NewContext(gtx, rt))
+	rt.EndFrame()
+	if radioChanges != 0 {
+		t.Fatalf("disabled radio ref dispatched %d changes, want 0", radioChanges)
+	}
+
+	selectRef := NewSelectRef[string]()
+	selectRef.Open()
+	selectRef.SetValue("b")
+	selectChanges := 0
+	openChanges := 0
+	rt.BeginFrame()
+	Select("a", []SelectOptionItem[string]{{Label: "A", Value: "a"}, {Label: "B", Value: "b"}},
+		SelectDisabled[string](true),
+		SelectAttachRef(selectRef),
+		SelectOnChange(func(ctx *internal.Context, value string) { selectChanges++ }),
+		SelectOnOpenChange[string](func(ctx *internal.Context, opened bool) { openChanges++ }),
+	).Layout(internal.NewContext(gtx, rt))
+	rt.EndFrame()
+	if selectChanges != 0 || openChanges != 0 {
+		t.Fatalf("disabled select ref dispatched change=%d open=%d, want 0/0", selectChanges, openChanges)
+	}
+}
+
 func TestCardMD3VariantDefaults(t *testing.T) {
 	th := theme.New(theme.LightColors())
 

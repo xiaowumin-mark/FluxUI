@@ -33,17 +33,8 @@ ProgressBar 适用于上传、下载、任务执行等线性进度展示。
 - 通过 `ProgressTrackColor/ProgressFillColor` 自定义样式。
 
 ## 使用示例
-```go
-ui.ProgressBar(
-    40,
-    ui.ProgressMin(0),
-    ui.ProgressMax(100),
-    ui.ProgressTrackColor(ui.NRGBA(226, 232, 240, 255)),
-    ui.ProgressFillColor(ui.NRGBA(30, 136, 229, 255)),
-)
-```
 
-## React-style Element
+### React-style Element
 
 `ProgressBarElement` 已可在 `RunElement` root 下直接使用。进度值仍由调用方状态驱动；`ProgressIndeterminate` 的 frame redraw lifecycle 仍由底层 progress widget 管理。
 
@@ -61,4 +52,17 @@ func UploadProgress(ctx *ui.Context) ui.Element {
         ),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.ProgressBar` / `Widget` 写法继续可用：
+
+```go
+ui.ProgressBar(
+    40,
+    ui.ProgressMin(0),
+    ui.ProgressMax(100),
+    ui.ProgressTrackColor(ui.NRGBA(226, 232, 240, 255)),
+    ui.ProgressFillColor(ui.NRGBA(30, 136, 229, 255)),
+)
 ```

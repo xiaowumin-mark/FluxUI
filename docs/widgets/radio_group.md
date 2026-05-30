@@ -47,19 +47,6 @@ RadioGroup 用于“多个选项中只能选一个”的场景，例如排序模
 - `value` 仍由调用方状态驱动；选项点击和 `RadioGroupRef` 命令队列仍由底层 radio group widget 管理。
 
 ## 使用示例
-```go
-mode := ui.State[string](ctx)
-ui.RadioGroup(
-    mode.Value(),
-    []ui.RadioItem{
-        {Label: "布局", Value: "layout"},
-        {Label: "输入", Value: "input"},
-    },
-    ui.RadioGroupOnChange(func(ctx *ui.Context, value string) {
-        mode.Set(value)
-    }),
-)
-```
 
 ### React-style Element
 
@@ -74,4 +61,21 @@ func ModePicker(ctx *ui.Context) ui.Element {
         }),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.RadioGroup` / `Widget` 写法继续可用：
+
+```go
+mode := ui.State[string](ctx)
+ui.RadioGroup(
+    mode.Value(),
+    []ui.RadioItem{
+        {Label: "布局", Value: "layout"},
+        {Label: "输入", Value: "input"},
+    },
+    ui.RadioGroupOnChange(func(ctx *ui.Context, value string) {
+        mode.Set(value)
+    }),
+)
 ```

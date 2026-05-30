@@ -50,35 +50,6 @@ Router 是 FluxUI 的页面级导航能力，支持以下核心场景：
 
 ## 基础用法
 
-```go
-routes := []ui.Route{
-    {
-        Path: "/",
-        Builder: func(ctx *ui.Context) ui.Widget {
-            return ui.Text("首页")
-        },
-    },
-    {
-        Path: "/users/:id",
-        Builder: func(ctx *ui.Context) ui.Widget {
-            params := ui.UseParams(ctx)
-            return ui.Text("用户ID: " + params.Path("id"))
-        },
-    },
-}
-
-router := ui.Router(
-    ctx,
-    routes,
-    ui.RouterTransition(ui.TransitionSlideLeft),
-    ui.RouterNotFound(func(ctx *ui.Context) ui.Widget {
-        return ui.Text("404 Not Found")
-    }),
-)
-```
-
-## React-style 用法
-
 新代码推荐使用 `RunElement` + `RouterElement` 组合：
 
 ```go
@@ -124,6 +95,37 @@ func UserPage(ctx *ui.Context) ui.Element {
         ),
     )
 }
+```
+
+## 兼容用法
+
+旧 `Router` / `Navigate` API 仍然保留，参数读取统一使用 `UseParams`：
+
+```go
+routes := []ui.Route{
+    {
+        Path: "/",
+        Builder: func(ctx *ui.Context) ui.Widget {
+            return ui.Text("首页")
+        },
+    },
+    {
+        Path: "/users/:id",
+        Builder: func(ctx *ui.Context) ui.Widget {
+            params := ui.UseParams(ctx)
+            return ui.Text("用户ID: " + params.Path("id"))
+        },
+    },
+}
+
+router := ui.Router(
+    ctx,
+    routes,
+    ui.RouterTransition(ui.TransitionSlideLeft),
+    ui.RouterNotFound(func(ctx *ui.Context) ui.Widget {
+        return ui.Text("404 Not Found")
+    }),
+)
 ```
 
 如果需要强制重建某个页面实例，可以给 `RouteElement` 加 `RouteKey`：

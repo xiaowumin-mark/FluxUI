@@ -46,6 +46,9 @@ type Theme = theme.Theme
 // ColorScheme 定义语义化色板。
 type ColorScheme = theme.ColorScheme
 
+// ColorOption configures seed-generated Material Design 3 color schemes.
+type ColorOption = theme.ColorOption
+
 // ShapeScale 定义 Material Design 3 圆角刻度。
 type ShapeScale = theme.ShapeScale
 
@@ -207,9 +210,29 @@ func WithTheme(th *Theme) AppOption {
 	return fluxapp.WithTheme(th)
 }
 
+// WithDensity 设置应用主题密度。默认密度保持 MD3 可触控目标，compact 用于更紧凑的桌面 UI。
+func WithDensity(density DensityScale) AppOption {
+	return fluxapp.WithDensity(density)
+}
+
 // NewTheme 从色板创建主题。
 func NewTheme(cs ColorScheme) *Theme {
 	return theme.New(cs)
+}
+
+// ThemeFromSeed creates a theme from a Material Design 3 seed color.
+func ThemeFromSeed(seed color.NRGBA, opts ...ColorOption) *Theme {
+	return theme.ThemeFromSeed(seed, opts...)
+}
+
+// LightThemeFromSeed creates a light theme from a Material Design 3 seed color.
+func LightThemeFromSeed(seed color.NRGBA, opts ...ColorOption) *Theme {
+	return theme.LightThemeFromSeed(seed, opts...)
+}
+
+// DarkThemeFromSeed creates a dark theme from a Material Design 3 seed color.
+func DarkThemeFromSeed(seed color.NRGBA, opts ...ColorOption) *Theme {
+	return theme.DarkThemeFromSeed(seed, opts...)
 }
 
 // LightColors 返回浅色色板。
@@ -220,6 +243,45 @@ func LightColors() ColorScheme {
 // DarkColors 返回深色色板。
 func DarkColors() ColorScheme {
 	return theme.DarkColors()
+}
+
+// ColorSchemeFromSeed creates a color scheme from a Material Design 3 seed color.
+func ColorSchemeFromSeed(seed color.NRGBA, opts ...ColorOption) ColorScheme {
+	return theme.ColorSchemeFromSeed(seed, opts...)
+}
+
+// LightColorSchemeFromSeed creates a light color scheme from a Material Design 3 seed color.
+func LightColorSchemeFromSeed(seed color.NRGBA, opts ...ColorOption) ColorScheme {
+	return theme.LightColorSchemeFromSeed(seed, opts...)
+}
+
+// DarkColorSchemeFromSeed creates a dark color scheme from a Material Design 3 seed color.
+func DarkColorSchemeFromSeed(seed color.NRGBA, opts ...ColorOption) ColorScheme {
+	return theme.DarkColorSchemeFromSeed(seed, opts...)
+}
+
+func WithColorSchemeDark(dark bool) ColorOption {
+	return theme.WithColorSchemeDark(dark)
+}
+
+func WithSecondarySeed(seed color.NRGBA) ColorOption {
+	return theme.WithSecondarySeed(seed)
+}
+
+func WithTertiarySeed(seed color.NRGBA) ColorOption {
+	return theme.WithTertiarySeed(seed)
+}
+
+func WithErrorSeed(seed color.NRGBA) ColorOption {
+	return theme.WithErrorSeed(seed)
+}
+
+func WithSuccessSeed(seed color.NRGBA) ColorOption {
+	return theme.WithSuccessSeed(seed)
+}
+
+func WithWarningSeed(seed color.NRGBA) ColorOption {
+	return theme.WithWarningSeed(seed)
 }
 
 // WithFonts 追加全局字体集合。
@@ -549,6 +611,11 @@ func TextFontWeight(weight FontWeight) TextOption {
 
 func DefaultDensityScale() DensityScale {
 	return theme.DefaultDensityScale()
+}
+
+// Density 根据级别创建规范化的密度配置。
+func Density(level DensityLevel) DensityScale {
+	return theme.Density(level)
 }
 
 func CompactDensityScale() DensityScale {

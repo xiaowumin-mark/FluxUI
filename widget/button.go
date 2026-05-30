@@ -29,6 +29,7 @@ type buttonConfig struct {
 	variant       buttonVariant
 	disabled      bool
 	padding       style.Insets
+	hasPadding    bool
 	radius        float32
 	hasRadius     bool
 	background    color.NRGBA
@@ -72,7 +73,6 @@ func ElevatedButton(child Widget, opts ...ButtonOption) Widget {
 func newButton(variant buttonVariant, child Widget, opts ...ButtonOption) Widget {
 	cfg := buttonConfig{
 		variant: variant,
-		padding: style.Symmetric(10, 24),
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -108,6 +108,7 @@ func Disabled(disabled bool) ButtonOption {
 func ButtonPadding(insets style.Insets) ButtonOption {
 	return func(cfg *buttonConfig) {
 		cfg.padding = insets
+		cfg.hasPadding = true
 	}
 }
 
@@ -208,7 +209,11 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		radiusDefault = b.config.radius
 	}
 	radius := activeDecoration.ResolveRad(radiusDefault)
-	padding := activeDecoration.ResolvePad(b.config.padding)
+	paddingDefault := densityInsets(ctx, style.Symmetric(10, 24), style.Symmetric(6, 16))
+	if b.config.hasPadding {
+		paddingDefault = b.config.padding
+	}
+	padding := activeDecoration.ResolvePad(paddingDefault)
 
 	size := ctx.LayoutButton(clickable.Handle(), internal.ButtonSpec{
 		Background:  background,

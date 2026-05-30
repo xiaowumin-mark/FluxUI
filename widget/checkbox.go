@@ -154,12 +154,7 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				next.Gtx = gtx
 				next.Gtx.Constraints.Min = image.Point{}
 				size := next.LayoutInset(internal.Insets{Left: 8}, func(labelCtx *internal.Context) image.Point {
-					return labelCtx.LayoutText(internal.TextSpec{
-						Content:   c.label,
-						Size:      labelCtx.Theme().Types.BodyMedium.Size,
-						Color:     labelColor,
-						Alignment: internal.AlignStart,
-					})
+					return Text(c.label, TextType(labelCtx.Theme().Types.BodyMedium), TextColor(labelColor)).Layout(labelCtx.Child(0)).Size
 				})
 				return gioLayout.Dimensions{Size: size}
 			}),

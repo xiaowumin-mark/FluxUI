@@ -40,14 +40,6 @@ Grid 适合图库、卡片矩阵、能力入口面板等“多列同级内容”
 - `GridMinItemWidth` 会根据约束改变实际列数，可能让同一个 index 映射到不同 row/column；不要把 row/column 当成业务 identity。
 
 ## 使用示例
-```go
-ui.Grid(
-    3,
-    ui.Text("A"),
-    ui.Text("B"),
-    ui.Text("C"),
-)
-```
 
 ### React-style Element
 
@@ -60,4 +52,16 @@ func CapabilityGrid(ctx *ui.Context) ui.Element {
         ui.TextElement("C"),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.Grid` / `Widget` 写法继续可用：
+
+```go
+ui.Grid(
+    3,
+    ui.Text("A"),
+    ui.Text("B"),
+    ui.Text("C"),
+)
 ```

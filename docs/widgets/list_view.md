@@ -38,15 +38,6 @@ ListView 用于长列表展示，适合日志、消息流、任务清单等场�
 - `itemBuilder` 仍按 index 构建；动态插入、删除或重排时，业务状态应由外部稳定 id 或 `Key` 显式表达。
 
 ## 使用示例
-```go
-ui.ListView(
-    100,
-    func(ctx *ui.Context, index int) ui.Widget {
-        return ui.Text(fmt.Sprintf("Item %d", index))
-    },
-    ui.ListItemSpacing(6),
-)
-```
 
 ### React-style Element
 
@@ -61,4 +52,17 @@ func TodoList(ctx *ui.Context) ui.Element {
         ui.ListItemSpacing(6),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.ListView` / `Widget` 写法继续可用：
+
+```go
+ui.ListView(
+    100,
+    func(ctx *ui.Context, index int) ui.Widget {
+        return ui.Text(fmt.Sprintf("Item %d", index))
+    },
+    ui.ListItemSpacing(6),
+)
 ```

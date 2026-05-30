@@ -113,13 +113,16 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	currentValue := r.value
 	if r.config.ref != nil {
 		r.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
-		for _, next := range r.config.ref.drainCommands() {
-			if next == currentValue {
-				continue
-			}
-			currentValue = next
-			if r.config.onChange != nil {
-				r.config.onChange(ctx, next)
+		commands := r.config.ref.drainCommands()
+		if !r.config.disabled {
+			for _, next := range commands {
+				if next == currentValue {
+					continue
+				}
+				currentValue = next
+				if r.config.onChange != nil {
+					r.config.onChange(ctx, next)
+				}
 			}
 		}
 	}
@@ -177,12 +180,7 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 						next.Gtx = gtx
 						next.Gtx.Constraints.Min = image.Point{}
 						size := next.LayoutInset(internal.Insets{Left: 8}, func(labelCtx *internal.Context) image.Point {
-							return labelCtx.LayoutText(internal.TextSpec{
-								Content:   item.Label,
-								Size:      labelCtx.Theme().Types.BodyMedium.Size,
-								Color:     itemLabelColor,
-								Alignment: internal.AlignStart,
-							})
+							return Text(item.Label, TextType(labelCtx.Theme().Types.BodyMedium), TextColor(itemLabelColor)).Layout(labelCtx.Child(0)).Size
 						})
 						return gioLayout.Dimensions{Size: size}
 					}),
@@ -333,33 +331,39 @@ func SelectDecoration[T comparable](d style.Decoration) SelectOption[T] {
 func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	state := selectStateFor(ctx)
 	currentValue := s.value
+	if s.config.disabled && state.opened {
+		state.opened = false
+	}
 	if s.config.ref != nil {
 		s.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
-		for _, cmd := range s.config.ref.drainCommands() {
-			switch cmd.kind {
-			case selectCmdSetValue:
-				if cmd.value != currentValue && s.config.onChange != nil {
-					s.config.onChange(ctx, cmd.value)
-				}
-				currentValue = cmd.value
-			case selectCmdOpen:
-				if !state.opened {
-					state.opened = true
-					if s.config.onOpen != nil {
-						s.config.onOpen(ctx, true)
+		commands := s.config.ref.drainCommands()
+		if !s.config.disabled {
+			for _, cmd := range commands {
+				switch cmd.kind {
+				case selectCmdSetValue:
+					if cmd.value != currentValue && s.config.onChange != nil {
+						s.config.onChange(ctx, cmd.value)
 					}
-				}
-			case selectCmdClose:
-				if state.opened {
-					state.opened = false
-					if s.config.onOpen != nil {
-						s.config.onOpen(ctx, false)
+					currentValue = cmd.value
+				case selectCmdOpen:
+					if !state.opened {
+						state.opened = true
+						if s.config.onOpen != nil {
+							s.config.onOpen(ctx, true)
+						}
 					}
-				}
-			case selectCmdToggle:
-				state.opened = !state.opened
-				if s.config.onOpen != nil {
-					s.config.onOpen(ctx, state.opened)
+				case selectCmdClose:
+					if state.opened {
+						state.opened = false
+						if s.config.onOpen != nil {
+							s.config.onOpen(ctx, false)
+						}
+					}
+				case selectCmdToggle:
+					state.opened = !state.opened
+					if s.config.onOpen != nil {
+						s.config.onOpen(ctx, state.opened)
+					}
 				}
 			}
 		}
@@ -417,9 +421,9 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			Background: bg,
 			Foreground: textColor,
 			Radius:     s.config.decoration.ResolveRad(triggerCtx.Theme().Shapes.ExtraSmall),
-			Padding:    s.config.decoration.ResolvePad(style.Insets{Top: 8, Right: 12, Bottom: 8, Left: 16}),
+			Padding:    s.config.decoration.ResolvePad(densityInsets(triggerCtx, style.Insets{Top: 8, Right: 12, Bottom: 8, Left: 16}, style.Insets{Top: 4, Right: 12, Bottom: 4, Left: 16})),
 			Border:     border,
-			MinHeight:  56,
+			MinHeight:  densityHeight(triggerCtx, 56, 48),
 			FillWidth:  true,
 			Disabled:   s.config.disabled,
 		}, content)
@@ -440,15 +444,17 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 		isActive := idx == currentIndex
 		var row Widget = layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
 			clickable := event.UseClickable(rowCtx)
-			for clickable.Clicked(rowCtx) {
-				currentValue = item.Value
-				if s.config.onChange != nil {
-					s.config.onChange(rowCtx, item.Value)
-				}
-				if state.opened {
-					state.opened = false
-					if s.config.onOpen != nil {
-						s.config.onOpen(rowCtx, false)
+			if !s.config.disabled {
+				for clickable.Clicked(rowCtx) {
+					currentValue = item.Value
+					if s.config.onChange != nil {
+						s.config.onChange(rowCtx, item.Value)
+					}
+					if state.opened {
+						state.opened = false
+						if s.config.onOpen != nil {
+							s.config.onOpen(rowCtx, false)
+						}
 					}
 				}
 			}
@@ -482,7 +488,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 				return layout.Dimensions{Size: dims.Size}
 			})
 			itemContent := ContainerDecoration(
-				style.Decoration{}.WithBg(bg).WithPad(style.Symmetric(8, 12)).WithRad(rowCtx.Theme().Shapes.ExtraSmall),
+				style.Decoration{}.WithBg(bg).WithPad(densityInsets(rowCtx, style.Symmetric(8, 12), style.Symmetric(6, 12))).WithRad(rowCtx.Theme().Shapes.ExtraSmall),
 				itemRow,
 			)
 			size := rowCtx.LayoutRippleArea(clickable.Handle(), internal.RippleSpec{

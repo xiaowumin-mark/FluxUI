@@ -31,20 +31,6 @@ Divider 用于视觉分组，帮助用户快速理解区域边界。可用于卡
 
 ## 使用示例
 
-### Legacy Widget
-旧 `ui.Divider` / `Widget` 写法继续可用：
-
-```go
-ui.Column(
-    ui.Text("Section A"),
-    ui.Divider(
-        ui.DividerThickness(1),
-        ui.DividerColor(ui.NRGBA(203, 213, 225, 255)),
-    ),
-    ui.Text("Section B"),
-)
-```
-
 ### React-style Element
 新代码可在 `RunElement` root 下组合 `ColumnElement` 和 `DividerElement`：
 
@@ -59,4 +45,18 @@ func App(ctx *ui.Context) ui.Element {
         ui.TextElement("Section B"),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.Divider` / `Widget` 写法继续可用：
+
+```go
+ui.Column(
+    ui.Text("Section A"),
+    ui.Divider(
+        ui.DividerThickness(1),
+        ui.DividerColor(ui.NRGBA(203, 213, 225, 255)),
+    ),
+    ui.Text("Section B"),
+)
 ```

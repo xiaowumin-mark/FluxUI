@@ -27,16 +27,6 @@ Padding 用于明确声明内容间距，避免在业务组件内部手工硬编
 
 ## 使用示例
 
-### Legacy Widget
-旧 `ui.Padding` / `Widget` 写法继续可用：
-
-```go
-ui.Padding(
-    ui.Symmetric(12, 16),
-    ui.Text("这段文本有上下 12、左右 16 的内边距"),
-)
-```
-
 ### React-style Element
 新代码可在 `RunElement` root 下返回 `PaddingElement`：
 
@@ -47,4 +37,14 @@ func App(ctx *ui.Context) ui.Element {
         ui.TextElement("这段文本有上下 12、左右 16 的内边距"),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.Padding` / `Widget` 写法继续可用：
+
+```go
+ui.Padding(
+    ui.Symmetric(12, 16),
+    ui.Text("这段文本有上下 12、左右 16 的内边距"),
+)
 ```

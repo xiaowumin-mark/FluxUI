@@ -28,21 +28,24 @@ Icon 用于表达操作和状态语义。当前实现为轻量占位图标，后
 - 有外部触发需求时，可通过 `IconAttachRef` 复用按钮 ref 行为。
 
 ## 使用示例
+
+### React-style Element
+
+`IconElement` 已可在 `RunElement` root 下直接使用。`IconOnClick` / `IconAttachRef` 仍复用底层 button-style 事件与 ref 行为。
+
+```go
+func StatusIcon(ctx *ui.Context) ui.Element {
+    return ui.IconElement("H", ui.IconSize(20), ui.IconColor(ui.NRGBA(30, 136, 229, 255)))
+}
+```
+
+### Legacy Widget
+旧 `ui.Icon` / `Widget` 写法继续可用：
+
 ```go
 ui.Icon(
     "H",
     ui.IconSize(20),
     ui.IconColor(ui.NRGBA(30, 136, 229, 255)),
 )
-```
-
-## React-style Element
-
-- `IconElement` 已可在 `RunElement` root 下直接使用。
-- `IconOnClick` / `IconAttachRef` 仍复用底层 button-style 事件与 ref 行为。
-
-```go
-func StatusIcon(ctx *ui.Context) ui.Element {
-    return ui.IconElement("H", ui.IconSize(20), ui.IconColor(ui.NRGBA(30, 136, 229, 255)))
-}
 ```

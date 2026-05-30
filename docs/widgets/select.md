@@ -41,21 +41,6 @@ Select 适用于中等数量的枚举值选择，支持占位文本、展开状�
 - `value` 仍由调用方状态驱动；展开状态、候选项命中和 `SelectRef[T]` 命令队列仍由底层 select host state 管理。
 
 ## 使用示例
-```go
-level := ui.State[string](ctx)
-ui.Select(
-    level.Value(),
-    []ui.SelectOptionItem[string]{
-        {Label: "低优先级", Value: "low"},
-        {Label: "中优先级", Value: "medium"},
-        {Label: "高优先级", Value: "high"},
-    },
-    ui.SelectPlaceholder[string]("请选择优先级"),
-    ui.SelectOnChange[string](func(ctx *ui.Context, value string) {
-        level.Set(value)
-    }),
-)
-```
 
 ### React-style Element
 
@@ -70,4 +55,23 @@ func PrioritySelect(ctx *ui.Context) ui.Element {
         }),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.Select` / `Widget` 写法继续可用：
+
+```go
+level := ui.State[string](ctx)
+ui.Select(
+    level.Value(),
+    []ui.SelectOptionItem[string]{
+        {Label: "低优先级", Value: "low"},
+        {Label: "中优先级", Value: "medium"},
+        {Label: "高优先级", Value: "high"},
+    },
+    ui.SelectPlaceholder[string]("请选择优先级"),
+    ui.SelectOnChange[string](func(ctx *ui.Context, value string) {
+        level.Set(value)
+    }),
+)
 ```

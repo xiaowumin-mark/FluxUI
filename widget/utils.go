@@ -116,6 +116,27 @@ func withDefaultStates(d style.Decoration, hover, pressed, disabled style.Decora
 	return d
 }
 
+func densityMetric(ctx *internal.Context, defaultValue, compactValue float32) float32 {
+	if ctx == nil {
+		return defaultValue
+	}
+	return ctx.Theme().Density.Metric(defaultValue, compactValue)
+}
+
+func densityHeight(ctx *internal.Context, defaultHeight, compactHeight float32) float32 {
+	if ctx == nil {
+		return defaultHeight
+	}
+	return ctx.Theme().Density.ComponentHeight(defaultHeight, compactHeight)
+}
+
+func densityInsets(ctx *internal.Context, defaultInsets, compactInsets style.Insets) style.Insets {
+	if ctx == nil || !ctx.Theme().Density.IsCompact() {
+		return defaultInsets
+	}
+	return compactInsets
+}
+
 func withAlpha(col color.NRGBA, alpha uint8) color.NRGBA {
 	col.A = alpha
 	return col

@@ -25,20 +25,6 @@ Container 是样式容器，负责背景色、内外边距、圆角等视觉外�
 
 ## 使用示例
 
-### Legacy Widget
-旧 `ui.Container` / `Widget` 写法继续可用：
-
-```go
-ui.Container(
-    ui.Style{
-        Background: ui.NRGBA(30, 136, 229, 255),
-        Padding:    ui.All(12),
-        Radius:     8,
-    },
-    ui.Text("容器内容", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
-)
-```
-
 ### React-style Element
 新代码可在 `RunElement` root 下返回 `ContainerElement`：
 
@@ -53,4 +39,18 @@ func App(ctx *ui.Context) ui.Element {
         ui.TextElement("容器内容", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.Container` / `Widget` 写法继续可用：
+
+```go
+ui.Container(
+    ui.Style{
+        Background: ui.NRGBA(30, 136, 229, 255),
+        Padding:    ui.All(12),
+        Radius:     8,
+    },
+    ui.Text("容器内容", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
+)
 ```

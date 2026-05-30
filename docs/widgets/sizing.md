@@ -37,19 +37,6 @@
 
 ## 使用示例
 
-### Legacy Widget
-旧 `Fixed` / `Fill` / `Widget` 写法继续可用：
-
-```go
-ui.Row(
-    ui.FixedWidth(120, ui.Text("固定宽度")),
-    ui.Padding(
-        ui.Insets{Left: 8},
-        ui.Expanded(ui.Text("剩余空间")),
-    ),
-)
-```
-
 ### React-style Element
 新代码可在 `RunElement` root 下直接使用 sizing Element wrappers：
 
@@ -78,4 +65,17 @@ func App(ctx *ui.Context) ui.Element {
         ui.TextElement("后续内容"),
     )
 }
+```
+
+### Legacy Widget
+旧 `Fixed` / `Fill` / `Widget` 写法继续可用：
+
+```go
+ui.Row(
+    ui.FixedWidth(120, ui.Text("固定宽度")),
+    ui.Padding(
+        ui.Insets{Left: 8},
+        ui.Expanded(ui.Text("剩余空间")),
+    ),
+)
 ```

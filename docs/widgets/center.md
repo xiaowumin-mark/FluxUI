@@ -24,21 +24,6 @@ Center 用于快速做居中布局，不负责背景和边距。常用于空状�
 
 ## 使用示例
 
-### Legacy Widget
-旧 `ui.Center` / `Widget` 写法继续可用：
-
-```go
-ui.FixedHeight(
-    120,
-    ui.Fill(
-        ui.Container(
-            ui.Style{Background: ui.NRGBA(240, 244, 248, 255), Radius: 8},
-            ui.Center(ui.Text("居中内容")),
-        ),
-    ),
-)
-```
-
 ### React-style Element
 新代码可在 `RunElement` root 下返回 `CenterElement`：
 
@@ -53,4 +38,19 @@ func App(ctx *ui.Context) ui.Element {
         ui.CenterElement(ui.TextElement("居中内容")),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.Center` / `Widget` 写法继续可用：
+
+```go
+ui.FixedHeight(
+    120,
+    ui.Fill(
+        ui.Container(
+            ui.Style{Background: ui.NRGBA(240, 244, 248, 255), Radius: 8},
+            ui.Center(ui.Text("居中内容")),
+        ),
+    )
+)
 ```

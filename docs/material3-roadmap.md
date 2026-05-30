@@ -23,12 +23,13 @@
 
 ## 当前进展
 
-截至 2026-05-30，FluxUI 已完成 MD3 融合的基础阶段、交互反馈统一的主要修复，以及 Phase C 常用组件扩展。
+截至 2026-05-31，FluxUI 已完成 MD3 融合的基础阶段、交互反馈统一的主要修复、Phase C 常用组件扩展、Phase D Typography 与 Density 完善、Phase E Dynamic Color 与品牌主题落地、Phase F 文档与示例全面迁移收尾，以及 Phase G 视觉回归体系第一版落地。
 
 ### 已完成的基础设施
 
 - `theme.ColorScheme` 已扩展为接近 MD3 的语义色板，覆盖 primary、secondary、tertiary、error、surface、container、outline、inverse、scrim、shadow 等角色。
-- `theme.Theme` 已加入 `Shapes` 和 `Types`，用于承载 MD3 shape scale 与 type scale。
+- `theme.Theme` 已加入 `Shapes`、`Types` 和 `Density`，用于承载 MD3 shape scale、type scale 与桌面 compact density 策略。
+- `theme.ColorSchemeFromSeed` / `LightColorSchemeFromSeed` / `DarkColorSchemeFromSeed` 以及 `ThemeFromSeed` / `LightThemeFromSeed` / `DarkThemeFromSeed` 已落地，支持从品牌 seed 生成完整 MD3 风格配色。
 - Light/Dark 默认主题已切换到 MD3 baseline，并继续同步旧字段，保证旧代码不被破坏。
 - `style/material3.go` 已提供 state layer、disabled color、tonal elevation、elevation shadow 等共享 helper。
 - `internal/ripple.go` 已新增可复用 ripple primitive，基于 Gio clickable history 绘制有界按压扩散动画。
@@ -45,6 +46,8 @@
 - Select、DropdownMenu、Menu、ListItem、IconButton、FloatingActionButton、NavigationRail、NavigationDrawer 已完成 MD3 默认样式、Element wrapper、docs 示例和 showcase 覆盖。
 - Snackbar、Tooltip、Badge、Chip、SearchBar、ProgressIndicators 已完成 Phase C 接入；ProgressIndicators 统一承载线性和环形进度文档入口。
 - `ClickArea` 已保留为兼容别名，新增更符合 GUI 语义的 `Pressable` / `PressableElement` 作为推荐无固定视觉点击区域。
+- 普通 `Text` / `TextElement` 已支持 `TextType(...)` 与 `TextLineHeight(...)`；Button、TextField、Tabs、Navigation、Dialog、Card、Menu、ListItem、Select、Snackbar、Tooltip、Badge、Chip、Progress label 等默认文字已从 `Types` 派生。
+- compact density 已接入 Button、TextField、Select、Menu、ListItem 和 NavigationDrawer item；默认 density 仍保持 MD3 可触控目标，显式传入的 padding / minHeight 不会被覆盖。
 
 ### 已完成的 React-style API 对齐
 
@@ -57,12 +60,17 @@
 - `docs/material3-design-plan.md` 已记录首轮 MD3 默认样式计划。
 - `docs/guides/material3.md` 已作为文档浏览器内的 MD3 使用指南入口。
 - `examples/material3_showcase` 已作为人工视觉回归基准。
+- `examples/material3_showcase` 已加入 type scale 样张，用于检查字号、行高、权重和组件默认文字层级。
+- `examples/material3_showcase` 已加入 Dynamic Color 区块，用于检查 seed theme preview、light/dark 差异和业务色扩展。
 - Phase C 新增组件均已提供中文 docs 页面、docs browser 示例 ID 和 showcase 分区；文档列表标题统一为“英文 中文”格式。
+- Phase F 已完成 `Pressable` 文档、`ClickArea` 兼容说明和 widget 文档示例迁移；所有 widget 文档首个 Go 示例已优先展示 React-style Element API，legacy Widget 写法保留为兼容说明。
+- Phase G 已新增 `docs/material3-visual-regression.md`，提供 `make visual` 截图入口、30 张 Light/Dark 视觉回归截图、pixel smoke check、交互状态关键帧和 CI artifact。
 - 当前验证命令已通过：
 
 ```sh
 go test ./...
 go vet ./...
+go test -tags visual ./examples/material3_showcase -run TestMaterial3ShowcaseScreenshots -count=1
 ```
 
 ## 长期目标
@@ -220,79 +228,109 @@ ListItemElement(...)
 - 新增文档均使用中文正文，列表标题采用“英文 中文”格式。
 - 已通过 `go test ./...` 和 `go vet ./...`。
 
-### Phase D: Typography 与 Density 完善
+### Phase D: Typography 与 Density 完善（已完成）
 
 目标：让 FluxUI 的文字层级、间距和密度更接近真实产品使用。
 
 任务：
 
-- `TextElement` 增加使用 type token 的推荐 option，例如 `TextType(th.Types.BodyMedium)` 或更符合本项目 API 风格的封装。
-- Button、TextField、Tabs、Navigation、Dialog、Card 默认文字全部从 `Types` 派生。
-- 检查组件 padding 是否符合 MD3 的默认触控尺寸与视觉密度。
-- 提供 density 配置策略，允许桌面应用使用 compact density，但默认仍保持 MD3 可触控目标。
-- 补充 line height 的实际渲染支持和测试。
+- 已新增 `TextType(style TextStyle)` 和 `TextLineHeight(lineHeight float32)`，`TextElement` 可直接使用 theme type token。
+- 普通 `Text` 渲染已实际传递 line height，`TextType` 会同时应用 size、line height 和 weight。
+- Button、TextField、Tabs、Navigation、Dialog、Card、Menu、ListItem、Select、Snackbar、Tooltip、Badge、Chip、Progress label 等默认文字已从 `Types` 派生。
+- 已新增 `theme.DensityScale`、`theme.Density(...)`、`Theme.SetDensity(...)`、`app.WithDensity(...)`、`ui.WithDensity(...)`；默认 density 保持 MD3 可触控目标，compact density 面向桌面紧凑 UI。
+- compact density 已接入 Button、TextField、Select、Menu、ListItem、NavigationDrawer item 的默认 padding / height；显式传入的 padding / minHeight 不被 density 覆盖。
+- `examples/material3_showcase` 已加入 type scale 样张。
 
 验收：
 
-- Button、Navigation、TextField、Dialog 的文字 token 有明确文档。
-- 组件不会因为字体变大导致裁剪或重叠。
-- showcase 中加入 type scale 样张。
+- `TextType`、`TextLineHeight`、scoped text style、density 默认/compact 策略和核心控件 compact 布局均已有测试覆盖。
+- 已确认组件内部不再使用 `TextSize(ctx.Theme().Types.*.Size)` 这类只取字号的旧写法。
+- 已通过 `go test ./...` 和 `go vet ./...`。
+- 详细组件文档说明并入 Phase F 的文档迁移任务继续补充。
 
-### Phase E: Dynamic Color 与品牌主题
+收尾记录：
+
+- 新增文件：`theme/density.go`、`widget/text_style_scope.go`、`widget/text_test.go`。
+- 重点修改：`app/app.go`、`theme/theme.go`、`theme/theme_test.go`、`ui/ui.go`、`widget/text.go`、`widget/material3_components.go`、`widget/selection.go`、`widget/tabs_dialog_toast.go`、`widget/progress.go`、`examples/material3_showcase/main.go`。
+
+### Phase E: Dynamic Color 与品牌主题（已完成）
 
 目标：支持从品牌色生成完整 MD3 ColorScheme。
 
 任务：
 
-- 设计 `ColorSchemeFromSeed(seed color.NRGBA, opts ...ColorOption) ColorScheme`。
-- 评估是否引入 HCT/CAM16 算法实现；如果不引入外部依赖，需要明确近似算法边界。
-- 支持 light/dark 两套 scheme。
-- 支持 error、success、warning 业务色与 MD3 roles 并存。
-- 文档说明品牌主题与默认主题的关系。
+- 已设计 `ColorSchemeFromSeed(seed color.NRGBA, opts ...ColorOption) ColorScheme`，并同步 `LightColorSchemeFromSeed` / `DarkColorSchemeFromSeed`。
+- 已引入 HCT tonal palette 生成路径，使用 seed 驱动 primary、secondary、tertiary、neutral、error、success、warning 角色。
+- 已支持 light/dark 两套 scheme。
+- 已支持 error、success、warning 业务色与 MD3 roles 并存。
+- 已在文档和 showcase 中说明品牌主题与默认主题的关系。
 
 验收：
 
-- 给定 seed 能生成完整非零 ColorScheme。
-- contrast 基本可读。
-- showcase 支持 seed theme preview。
+- 给定 seed 能生成完整非零 ColorScheme。（已完成）
+- contrast 基本可读。（已完成）
+- showcase 支持 seed theme preview。（已完成）
 
-### Phase F: 文档与示例全面迁移
+收尾记录：
+
+- 新增 `theme/colors_dynamic.go`、`theme/colors_dynamic_test.go`、`ui/color_dynamic_test.go`。
+- 同步修改 `ui/ui.go`、`examples/material3_showcase/main.go`、`go.mod`、`go.sum`。
+- 已通过 `go test -count=1 ./theme ./ui ./examples/material3_showcase`、`go vet ./...`、`go test ./...`。
+
+### Phase F: 文档与示例全面迁移（已完成）
 
 目标：文档成为用户学习 MD3 FluxUI 的主要路径。
 
 任务：
 
-- 所有新文档示例优先使用 `RunElement`、`Element`、`ThemeProviderElement`。
-- 更新 `docs/widgets/click_area.md`，标注 `ClickArea` deprecated，推荐 `Pressable`。
-- 新增 `docs/widgets/pressable.md`。
-- 更新 `docs/widgets/button.md`，说明 Button variant、ripple、shape、disabled、state layer。
-- 更新 `docs/widgets/tabs.md`、`bottom_navigation.md`、`checkbox.md`、`switch.md`、`radio_group.md`、`slider.md`，说明 MD3 交互反馈。
-- `examples/material3_showcase` 持续扩展为总览示例。
-- 旧 Widget 示例逐步迁移或标注 legacy。
+- 所有新文档示例已优先使用 `RunElement`、`Element`、`ThemeProviderElement`。
+- 已更新 `docs/widgets/click_area.md`，标注 `ClickArea` 为兼容旧名称，推荐 `Pressable`。
+- 已新增 `docs/widgets/pressable.md`。
+- 已更新 `docs/widgets/button.md`，说明 Button variant、ripple、shape、disabled、state layer。
+- 已更新 `docs/widgets/tabs.md`、`bottom_navigation.md`、`checkbox.md`、`switch.md`、`radio_group.md`、`slider.md`，说明 MD3 交互反馈。
+- `examples/material3_showcase` 已持续作为 MD3 总览示例入口。
+- 旧 Widget 示例已迁移到兼容/Legacy 段，不再作为首个示例优先展示。
 
 验收：
 
-- 文档浏览器能加载所有新增文档。
-- 每篇 MD3 组件文档有 doc meta。
-- 示例无 mojibake，无旧 API 优先展示。
+- 文档浏览器能加载所有新增文档。（已完成）
+- 每篇 MD3 组件文档有 doc meta。（已完成）
+- 示例无 mojibake，无旧 API 优先展示。（已完成）
 
-### Phase G: 视觉回归体系
+收尾记录：
+
+- 新增 `docs/widgets/pressable.md`，并将 `docs/widgets/click_area.md` 调整为兼容说明。
+- `examples/docs_browser` 已接入 `pressable_basic` / `click_area_basic` 示例 ID。
+- 已检查 `docs/widgets/*.md`：所有页面具备 doc meta，未检测到 mojibake。
+- 已将 widget 文档中的首个 Go 示例统一调整为 React-style Element API；旧 Widget 写法保留在 `Legacy Widget` 或兼容用法段。
+
+### Phase G: 视觉回归体系（已完成）
 
 目标：避免默认样式在后续维护中无意退化。
 
 任务：
 
-- 为 `examples/material3_showcase` 增加固定窗口尺寸截图流程。
-- 建立 desktop 和 narrow/mobile-like 两种 viewport。
-- 对关键组件增加 pixel smoke check，至少确保非空、无明显裁剪、无异常重叠。
-- 增加交互状态截图或短帧检查，覆盖 hover、pressed、focus、selected、expanded、toast enter/exit 等动画关键帧。
-- 若 CI 环境支持，加入截图 artifact；不强制在第一版进行像素级 golden 比较。
-- 将人工验收清单写入文档。
+- 已为 `examples/material3_showcase` 增加固定窗口尺寸截图流程。
+- 已建立 desktop 和 narrow/mobile-like 两种 viewport。
+- 已对 showcase、关键组件区域和交互状态截图增加 pixel smoke check，至少确保非空、尺寸正确、非透明、非纯色、亮度范围正常。
+- 已增加组件区域截图，覆盖 Button、TextField、Card、Selection、Navigation、Overlay、Chips、SearchBar、Progress。
+- 已增加交互状态关键帧截图，覆盖 hover、pressed/ripple、focus、selected、expanded、toast enter/exit。
+- 已加入 GitHub Actions `visual-regression` job，并上传 `out/material3-screenshots` artifact。
+- 已将人工验收清单写入 `docs/material3-visual-regression.md`。
 
 验收：
 
 - 每次 MD3 默认样式调整都能产出 showcase 截图。
 - 截图覆盖 Light/Dark、Button、TextField、Card、Selection、Navigation、Overlay、Ripple 状态。
+
+收尾记录：
+
+- 新增 `ui/visual.go`，仅在 `-tags visual` 下提供 visual root renderer。
+- 新增 `examples/material3_showcase/visual_regression_test.go`，通过 Gio headless renderer 生成 30 张 PNG 和 `manifest.json`。
+- 新增 `docs/material3-visual-regression.md`，记录本地命令、截图矩阵、CI artifact 和人工验收清单。
+- `Makefile` 新增 `make visual`。
+- `.github/workflows/ci.yml` 新增 `visual-regression` job，上传 `material3-screenshots` artifact。
+- 已通过 `go test -tags visual ./examples/material3_showcase -run TestMaterial3ShowcaseScreenshots -count=1`、`go test ./...`、`go vet ./...`；`make visual` 为该视觉测试的 Makefile 入口。
 
 ### Phase H: 版本与兼容策略
 
@@ -315,9 +353,10 @@ ListItemElement(...)
 
 | 组件 | MD3 token | Variant API | Ripple | Element API | 文档 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| Button | 已接入 | 已接入 | 已接入 | 已接入 | 已接入 | 稳定化中 |
-| TextField | 已接入 | 已接入 | 不适用 | 已接入 | 已接入 | 稳定化中 |
-| Card | 已接入 | 已接入 | 不适用 | 已接入 | 已接入 | 稳定化中 |
+| Button | 已接入 | 已接入 | 已接入 | 已接入 | 已接入 | 已完成 |
+| Text | 已接入 type/line height | 不适用 | 不适用 | 已接入 | 已接入 | 已完成 |
+| TextField | 已接入 | 已接入 | 不适用 | 已接入 | 已接入 | 已完成 |
+| Card | 已接入 | 已接入 | 不适用 | 已接入 | 已接入 | 已完成 |
 | Checkbox | 已接入 | 不适用 | 已接入 | 已接入 | 已接入 | 已完成 |
 | Radio | 已接入 | 不适用 | 已接入 | 已接入 | 已接入 | 已完成 |
 | Switch | 已接入 | 不适用 | 已接入 | 已接入 | 已接入 | 已完成 |
@@ -325,10 +364,10 @@ ListItemElement(...)
 | Tabs | 已接入 | 不适用 | 已接入 | 已接入 | 已接入 | 已完成 |
 | BottomNavigation | 已接入 | 不适用 | 已接入 | 已接入 | 已接入 | 已完成 |
 | AppBar | 已接入 | 待扩展 | 可选 | 已接入 | 已接入 | 稳定化中 |
-| Dialog | 已接入 | 不适用 | 不适用 | 已接入 | 已接入 | 稳定化中 |
+| Dialog | 已接入 | 不适用 | 不适用 | 已接入 | 已接入 | 已完成 |
 | Popup/Menu | 已接入 | 已接入 | 已接入 | 已接入 | 已接入 | 已完成 |
 | Toast/Snackbar | 已接入 | 已接入 action | action 已接入 | 已接入 | 已接入 | 已完成 |
-| Pressable | 不固定 | 不适用 | 可选待设计 | 已接入 | 待新增 | 新增 |
+| Pressable | 不固定 | 不适用 | 可选待设计 | 已接入 | 已接入 | 已完成 |
 | Select | 已接入 | 已接入 | 已接入 | 已接入 | 已接入 | 已完成 |
 | IconButton | 已接入 | 已接入 | 已接入 | 已接入 | 已接入 | 已完成 |
 | FAB | 已接入 | 已接入 | 已接入 | 已接入 | 已接入 | 已完成 |
@@ -344,12 +383,11 @@ ListItemElement(...)
 
 短期最值得做的任务：
 
-1. 推进 Phase D：补齐 type token 使用方式、line height 支持、桌面 compact density 策略。
-2. 推进 Phase F：新增 `docs/widgets/pressable.md`，并更新 `docs/widgets/click_area.md` 为兼容说明。
-3. 继续检查所有 docs 示例是否仍优先使用 legacy Widget API，逐步迁移到 Element API。
-4. 推进 Phase G：为 `examples/material3_showcase` 制定截图回归脚本或手动检查清单。
-5. 梳理组件动画规范，定义 hover、pressed、focus、selected、menu、toast、loading 的默认时长和缓动曲线。
-6. 继续沉淀 ripple/state layer/focus ring 的可测 helper，扩大内部单元测试覆盖。
+1. 准备 Phase H：整理 release notes、legacy Widget API、`ClickArea` 和旧 Theme 字段的兼容说明。
+2. 梳理组件动画规范，定义 hover、pressed、focus、selected、menu、toast、loading 的默认时长和缓动曲线。
+3. 继续沉淀 ripple/state layer/focus ring 的可测 helper，扩大内部单元测试覆盖。
+4. 评估是否在 Phase H 后引入可维护的 golden image 比较，不作为当前默认要求。
+5. 继续通过 showcase 和 `make visual` 人工检查 Light/Dark、导航、输入、Overlay 和 Ripple 状态。
 
 ## 验收命令
 
@@ -370,6 +408,12 @@ go test -race ./...
 
 ```sh
 go test ./examples/material3_showcase
+```
+
+涉及 MD3 默认视觉、showcase 或交互状态时追加：
+
+```sh
+make visual
 ```
 
 ## 风险与约束

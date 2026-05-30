@@ -27,17 +27,6 @@ Text 是最基础展示组件，支持字号、颜色和对齐控制。所有文
 
 ## 使用示例
 
-### Legacy Widget
-旧 `ui.Text` / `Widget` 写法继续可用：
-
-```go
-ui.Text(
-    "Hello FluxUI",
-    ui.TextSize(18),
-    ui.TextColor(ui.NRGBA(30, 41, 59, 255)),
-)
-```
-
 ### React-style Element
 新代码可在 `RunElement` root 下返回 `TextElement`：
 
@@ -49,4 +38,15 @@ func App(ctx *ui.Context) ui.Element {
         ui.TextColor(ui.NRGBA(30, 41, 59, 255)),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.Text` / `Widget` 写法继续可用：
+
+```go
+ui.Text(
+    "Hello FluxUI",
+    ui.TextSize(18),
+    ui.TextColor(ui.NRGBA(30, 41, 59, 255)),
+)
 ```

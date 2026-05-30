@@ -57,31 +57,8 @@ Button 是最基础交互组件。默认样式已按 Material Design 3 对齐，
 
 ## 使用示例
 
-### Legacy Widget
-旧 `ui.Button` / `Widget` 写法继续可用：
-
-```go
-count := ui.State[int](ctx)
-ui.Button(
-    ui.Text("点击 +1"),
-    ui.OnClick(func(ctx *ui.Context) {
-        count.Set(count.Value() + 1)
-    }),
-)
-```
-
-```go
-ui.Row(
-    ui.FilledButton(ui.Text("Filled")),
-    ui.FilledTonalButton(ui.Text("Tonal")),
-    ui.OutlinedButton(ui.Text("Outlined")),
-    ui.TextButton(ui.Text("Text")),
-    ui.ElevatedButton(ui.Text("Elevated")),
-)
-```
-
 ### React-style Element
-新代码可在 `RunElement` root 下返回 `ButtonElement`：
+新代码可在 `RunElement` root 下返回 `ButtonElement`，变体也优先使用对应的 Element API：
 
 ```go
 func CounterButton(ctx *ui.Context) ui.Element {
@@ -99,4 +76,27 @@ func CounterButton(ctx *ui.Context) ui.Element {
         ),
     )
 }
+```
+
+```go
+ui.RowElement(
+    ui.FilledButtonElement(ui.TextElement("Filled")),
+    ui.FilledTonalButtonElement(ui.TextElement("Tonal")),
+    ui.OutlinedButtonElement(ui.TextElement("Outlined")),
+    ui.TextButtonElement(ui.TextElement("Text")),
+    ui.ElevatedButtonElement(ui.TextElement("Elevated")),
+)
+```
+
+### Legacy Widget
+旧 `ui.Button` / `Widget` 写法继续可用：
+
+```go
+count := ui.State[int](ctx)
+ui.Button(
+    ui.Text("点击 +1"),
+    ui.OnClick(func(ctx *ui.Context) {
+        count.Set(count.Value() + 1)
+    }),
+)
 ```

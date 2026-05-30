@@ -196,6 +196,16 @@ func WithTheme(th *theme.Theme) Option {
 	}
 }
 
+// WithDensity 设置主题密度。默认密度保持 MD3 可触控目标，compact 用于更紧凑的桌面 UI。
+func WithDensity(density theme.DensityScale) Option {
+	return func(app *Application) {
+		if app.Theme == nil {
+			app.Theme = theme.Default()
+		}
+		app.Theme.SetDensity(density)
+	}
+}
+
 // WithFonts 追加全局字体集合。
 func WithFonts(faces ...theme.FontFace) Option {
 	return func(app *Application) {

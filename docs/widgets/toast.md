@@ -45,19 +45,6 @@ Toast 用于完成提示、错误提示、状态提醒等短时反馈，不打�
 - `ToastOnClose` 通常仍需要清理外部消息状态，避免下一帧继续渲染同一 Toast。
 
 ## 使用示例
-```go
-msg := ui.State[string](ctx)
-if msg.Value() != "" {
-    ui.Toast(
-        msg.Value(),
-        ui.ToastTypeOf(ui.ToastSuccess),
-        ui.ToastDuration(1500*time.Millisecond),
-        ui.ToastOnClose(func(ctx *ui.Context) {
-            msg.Set("")
-        }),
-    )
-}
-```
 
 ### React-style Element
 
@@ -72,6 +59,23 @@ func SaveToast(ctx *ui.Context) ui.Element {
         ui.ToastTypeOf(ui.ToastSuccess),
         ui.ToastDuration(1500*time.Millisecond),
         ui.ToastOnClose(func(ctx *ui.Context) { msg.Set("") }),
+    )
+}
+```
+
+### Legacy Widget
+旧 `ui.Toast` / `Widget` 写法继续可用：
+
+```go
+msg := ui.State[string](ctx)
+if msg.Value() != "" {
+    ui.Toast(
+        msg.Value(),
+        ui.ToastTypeOf(ui.ToastSuccess),
+        ui.ToastDuration(1500*time.Millisecond),
+        ui.ToastOnClose(func(ctx *ui.Context) {
+            msg.Set("")
+        }),
     )
 }
 ```

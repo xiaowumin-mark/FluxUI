@@ -46,27 +46,10 @@ Card 适合信息摘要、列表条目、统计块等场景。默认 `Card` 映�
 - 需要业务层外部触发卡片点击时，使用 `CardAttachRef`。
 
 ## 使用示例
-```go
-ui.Card(
-    ui.Column(
-        ui.Text("卡片标题"),
-        ui.Padding(ui.Insets{Top: 6}, ui.Text("卡片内容")),
-    ),
-)
-```
 
-```go
-ui.Row(
-    ui.FilledCard(ui.Text("Filled")),
-    ui.ElevatedCard(ui.Text("Elevated")),
-    ui.OutlinedCard(ui.Text("Outlined")),
-)
-```
+### React-style Element
 
-## React-style Element
-
-- `CardElement` 已可在 `RunElement` root 下直接包裹 Element 子树。
-- `CardOnClick` / `CardAttachRef` 仍走底层 widget 事件与 ref 路径，不归入 component HookSlot。
+`CardElement` 已可在 `RunElement` root 下直接包裹 Element 子树。`CardOnClick` / `CardAttachRef` 仍走底层 widget 事件与 ref 路径，不归入 component HookSlot。
 
 ```go
 func SummaryCard(ctx *ui.Context) ui.Element {
@@ -78,4 +61,24 @@ func SummaryCard(ctx *ui.Context) ui.Element {
         ui.CardRadius(12),
     )
 }
+```
+
+```go
+ui.RowElement(
+    ui.FilledCardElement(ui.TextElement("Filled")),
+    ui.ElevatedCardElement(ui.TextElement("Elevated")),
+    ui.OutlinedCardElement(ui.TextElement("Outlined")),
+)
+```
+
+### Legacy Widget
+旧 `ui.Card` / `Widget` 写法继续可用：
+
+```go
+ui.Card(
+    ui.Column(
+        ui.Text("卡片标题"),
+        ui.Padding(ui.Insets{Top: 6}, ui.Text("卡片内容")),
+    ),
+)
 ```

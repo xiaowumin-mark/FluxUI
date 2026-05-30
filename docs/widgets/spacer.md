@@ -27,17 +27,6 @@ Spacer 是布局阶段的空白组件，用于控制横向和纵向空隙，适�
 
 ## 使用示例
 
-### Legacy Widget
-旧 `ui.Spacer` / `HSpacer` / `VSpacer` 写法继续可用：
-
-```go
-ui.Row(
-    ui.Text("左"),
-    ui.HSpacer(16),
-    ui.Text("右"),
-)
-```
-
 ### React-style Element
 React-style 写法使用 `SpacerElement(width, height)` 显式声明空白区域：
 
@@ -49,4 +38,15 @@ func App(ctx *ui.Context) ui.Element {
         ui.TextElement("右"),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.Spacer` / `HSpacer` / `VSpacer` 写法继续可用：
+
+```go
+ui.Row(
+    ui.Text("左"),
+    ui.HSpacer(16),
+    ui.Text("右"),
+)
 ```

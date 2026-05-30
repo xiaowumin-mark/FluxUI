@@ -39,6 +39,22 @@ func App(ctx *ui.Context) ui.Element {
 				),
 				gap(),
 
+				sectionTitle("Dynamic Color"),
+				ui.RowElement(
+					seedThemePanel("Blue seed", color.NRGBA{R: 0, G: 87, B: 217, A: 255}, false),
+					ui.SpacerElement(14, 0),
+					seedThemePanel("Green seed", color.NRGBA{R: 27, G: 128, B: 77, A: 255}, false),
+					ui.SpacerElement(14, 0),
+					seedThemePanel("Orange dark", color.NRGBA{R: 224, G: 110, B: 0, A: 255}, true),
+					ui.SpacerElement(14, 0),
+					seedThemePanel("Purple dark", color.NRGBA{R: 103, G: 80, B: 164, A: 255}, true),
+				),
+				gap(),
+
+				sectionTitle("Type Scale"),
+				typeScalePanel(),
+				gap(),
+
 				sectionTitle("Buttons"),
 				ui.RowElement(
 					padded(ui.FilledButtonElement(ui.TextElement("Filled"))),
@@ -183,8 +199,8 @@ func App(ctx *ui.Context) ui.Element {
 
 				sectionTitle("Navigation"),
 				ui.AppBarElementWithSlots(
-					ui.TextElement("Top App Bar", ui.TextSize(th.Types.TitleLarge.Size), ui.TextColor(th.Colors.OnSurface)),
-					ui.TextElement("Menu", ui.TextSize(14), ui.TextColor(th.Colors.OnSurface)),
+					ui.TextElement("Top App Bar", ui.TextType(th.Types.TitleLarge), ui.TextColor(th.Colors.OnSurface)),
+					ui.TextElement("Menu", ui.TextType(th.Types.LabelLarge), ui.TextColor(th.Colors.OnSurface)),
 					[]ui.Element{ui.TextButtonElement(ui.TextElement("Action"))},
 				),
 				ui.SpacerElement(0, 8),
@@ -223,7 +239,7 @@ func App(ctx *ui.Context) ui.Element {
 						ui.NavigationDrawerWidth(280),
 						ui.NavigationDrawerOnChange(func(ctx *ui.Context, key string) { drawerValue.Set(key) }),
 					),
-					ui.ExpandedElement(ui.CenterElement(ui.TextElement("Rail: "+railValue.Value()+" / Drawer: "+drawerValue.Value(), ui.TextSize(14)))),
+					ui.ExpandedElement(ui.CenterElement(ui.TextElement("Rail: "+railValue.Value()+" / Drawer: "+drawerValue.Value(), ui.TextType(th.Types.BodyMedium)))),
 				)),
 				gap(),
 
@@ -242,7 +258,7 @@ func App(ctx *ui.Context) ui.Element {
 							)),
 							ui.PaddingElement(
 								ui.Insets{Top: 10},
-								ui.TextElement(fmt.Sprintf("Undo clicks: %d", snackbarActionCount.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
+								ui.TextElement(fmt.Sprintf("Undo clicks: %d", snackbarActionCount.Value()), ui.TextType(th.Types.BodySmall), ui.TextColor(th.Colors.OnSurfaceVariant)),
 							),
 						),
 					),
@@ -286,10 +302,13 @@ func App(ctx *ui.Context) ui.Element {
 }
 
 func sectionTitle(label string) ui.Element {
-	return ui.PaddingElement(
-		ui.Insets{Top: 12, Bottom: 8},
-		ui.TextElement(label, ui.TextSize(18)),
-	)
+	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
+		return ui.PaddingElement(
+			ui.Insets{Top: 12, Bottom: 8},
+			ui.TextElement(label, ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
+		)
+	})
 }
 
 func gap() ui.Element {
@@ -306,35 +325,104 @@ func tokenPanel(name string) ui.Element {
 		return ui.ContainerDecorationElement(
 			ui.Bg(th.Colors.SurfaceContainer).WithPad(ui.All(14)).WithRad(th.Shapes.Medium),
 			ui.ColumnElement(
-				ui.TextElement(name, ui.TextSize(th.Types.TitleMedium.Size), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement(name, ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
 				ui.SpacerElement(0, 8),
 				colorRow("Primary", th.Colors.Primary, th.Colors.OnPrimary),
 				colorRow("SecondaryContainer", th.Colors.SecondaryContainer, th.Colors.OnSecondaryContainer),
 				colorRow("SurfaceContainer", th.Colors.SurfaceContainer, th.Colors.OnSurface),
 				colorRow("ErrorContainer", th.Colors.ErrorContainer, th.Colors.OnErrorContainer),
 				ui.SpacerElement(0, 8),
-				ui.TextElement(fmt.Sprintf("Shape: xs %.0f / md %.0f / xl %.0f", th.Shapes.ExtraSmall, th.Shapes.Medium, th.Shapes.ExtraLarge), ui.TextSize(th.Types.BodySmall.Size), ui.TextColor(th.Colors.OnSurfaceVariant)),
+				ui.TextElement(fmt.Sprintf("Shape: xs %.0f / md %.0f / xl %.0f", th.Shapes.ExtraSmall, th.Shapes.Medium, th.Shapes.ExtraLarge), ui.TextType(th.Types.BodySmall), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			),
+		)
+	})
+}
+
+func seedThemePanel(name string, seed color.NRGBA, dark bool) ui.Element {
+	th := ui.LightThemeFromSeed(seed)
+	if dark {
+		th = ui.DarkThemeFromSeed(seed)
+	}
+	return ui.FixedWidthElement(190, ui.ThemeProviderElement(th, dynamicColorPanel(name)))
+}
+
+func dynamicColorPanel(name string) ui.Element {
+	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
+		return ui.ContainerDecorationElement(
+			ui.Bg(th.Colors.SurfaceContainer).WithPad(ui.All(14)).WithRad(th.Shapes.Medium),
+			ui.ColumnElement(
+				ui.TextElement(name, ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
+				ui.SpacerElement(0, 8),
+				colorRow("Primary", th.Colors.Primary, th.Colors.OnPrimary),
+				colorRow("Secondary", th.Colors.Secondary, th.Colors.OnSecondary),
+				colorRow("TertiaryContainer", th.Colors.TertiaryContainer, th.Colors.OnTertiaryContainer),
+				colorRow("Surface", th.Colors.Surface, th.Colors.OnSurface),
+			),
+		)
+	})
+}
+
+func typeScalePanel() ui.Element {
+	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
+		return ui.ContainerDecorationElement(
+			ui.Bg(th.Colors.SurfaceContainer).WithPad(ui.All(14)).WithRad(th.Shapes.Medium),
+			ui.ColumnElement(
+				typeSample("Display Large", th.Types.DisplayLarge, "Display"),
+				typeSample("Headline Medium", th.Types.HeadlineMedium, "Headline"),
+				typeSample("Title Large", th.Types.TitleLarge, "Title"),
+				typeSample("Body Large", th.Types.BodyLarge, "Body text uses readable line height."),
+				typeSample("Body Medium", th.Types.BodyMedium, "Body medium supports dense product screens."),
+				typeSample("Label Large", th.Types.LabelLarge, "Label"),
+				typeSample("Label Small", th.Types.LabelSmall, "Small label"),
+			),
+		)
+	})
+}
+
+func typeSample(name string, textStyle ui.TextStyle, sample string) ui.Element {
+	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
+		return ui.PaddingElement(
+			ui.Insets{Bottom: 10},
+			ui.RowElement(
+				ui.FixedWidthElement(
+					170,
+					ui.TextElement(
+						fmt.Sprintf("%s  %.0f/%.0f", name, textStyle.Size, textStyle.LineHeight),
+						ui.TextType(th.Types.LabelMedium),
+						ui.TextColor(th.Colors.OnSurfaceVariant),
+					),
+				),
+				ui.ExpandedElement(ui.TextElement(sample, ui.TextType(textStyle), ui.TextColor(th.Colors.OnSurface))),
 			),
 		)
 	})
 }
 
 func colorRow(label string, bg, fg color.NRGBA) ui.Element {
-	return ui.PaddingElement(
-		ui.Insets{Bottom: 6},
-		ui.ContainerDecorationElement(
-			ui.Bg(bg).WithPad(ui.Symmetric(7, 10)).WithRad(6),
-			ui.TextElement(label, ui.TextColor(fg), ui.TextSize(12)),
-		),
-	)
+	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
+		return ui.PaddingElement(
+			ui.Insets{Bottom: 6},
+			ui.ContainerDecorationElement(
+				ui.Bg(bg).WithPad(ui.Symmetric(7, 10)).WithRad(6),
+				ui.TextElement(label, ui.TextColor(fg), ui.TextType(th.Types.LabelMedium)),
+			),
+		)
+	})
 }
 
 func cardSample(title string, factory func(ui.Element, ...ui.CardOption) ui.Element) ui.Element {
-	return ui.FixedWidthElement(210, factory(
-		ui.ColumnElement(
-			ui.TextElement(title, ui.TextSize(16)),
-			ui.SpacerElement(0, 6),
-			ui.TextElement("MD3 card variant", ui.TextSize(13)),
-		),
-	))
+	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
+		return ui.FixedWidthElement(210, factory(
+			ui.ColumnElement(
+				ui.TextElement(title, ui.TextType(th.Types.TitleMedium)),
+				ui.SpacerElement(0, 6),
+				ui.TextElement("MD3 card variant", ui.TextType(th.Types.BodyMedium)),
+			),
+		))
+	})
 }

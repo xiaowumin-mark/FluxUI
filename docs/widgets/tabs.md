@@ -42,6 +42,27 @@ Tabs 用于在同一层级内容中切换不同子页面，适合文档页、设
 - 需要外部命令式切换标签时，使用 `TabsAttachRef` + `SetActive`。
 
 ## 使用示例
+
+### React-style Element
+
+```go
+func SettingsTabs(ctx *ui.Context) ui.Element {
+    active := ui.UseState(ctx, "profile")
+    return ui.TabsElement(
+        active.Value(),
+        []ui.TabItem{{Key: "profile", Label: "Profile"}, {Key: "team", Label: "Team"}},
+        ui.TabsOnChange(func(ctx *ui.Context, key string) {
+            active.Set(key)
+        }),
+    )
+}
+```
+
+`TabsElement` 已可在 `RunElement` root 下直接使用。`active` key、滚动标签栏状态、`TabsOnChange` 和 `TabsAttachRef` 仍由底层 widget host / 调用方状态管理。切换标签页对应的内容子树建议由调用方用 `Key` 或路由参数显式表达 identity。
+
+### Legacy Widget
+旧 `ui.Tabs` / `Widget` 写法继续可用：
+
 ```go
 active := ui.State[string](ctx)
 ui.Tabs(
@@ -55,23 +76,4 @@ ui.Tabs(
         active.Set(key)
     }),
 )
-```
-
-## React-style Element
-
-- `TabsElement` 已可在 `RunElement` root 下直接使用。
-- `active` key、滚动标签栏状态、`TabsOnChange` 和 `TabsAttachRef` 仍由底层 widget host / 调用方状态管理。
-- 切换标签页对应的内容子树建议由调用方用 `Key` 或路由参数显式表达 identity。
-
-```go
-func SettingsTabs(ctx *ui.Context) ui.Element {
-    active := ui.UseState(ctx, "profile")
-    return ui.TabsElement(
-        active.Value(),
-        []ui.TabItem{{Key: "profile", Label: "Profile"}, {Key: "team", Label: "Team"}},
-        ui.TabsOnChange(func(ctx *ui.Context, key string) {
-            active.Set(key)
-        }),
-    )
-}
 ```

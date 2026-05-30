@@ -26,6 +26,7 @@ type inputConfig struct {
 	variant        inputVariant
 	disabled       bool
 	padding        style.Insets
+	hasPadding     bool
 	radius         float32
 	border         color.NRGBA
 	borderFocus    color.NRGBA
@@ -93,7 +94,6 @@ func FilledTextField(value string, opts ...InputOption) Widget {
 func newTextField(variant inputVariant, value string, opts ...InputOption) Widget {
 	cfg := inputConfig{
 		variant:     variant,
-		padding:     style.Symmetric(8, 12),
 		placeholder: "Enter text...",
 		maxLen:      0,
 		password:    false,
@@ -118,6 +118,7 @@ func InputPlaceholder(text string) InputOption {
 func InputPadding(insets style.Insets) InputOption {
 	return func(cfg *inputConfig) {
 		cfg.padding = insets
+		cfg.hasPadding = true
 	}
 }
 
@@ -349,7 +350,11 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		radiusDefault = t.config.radius
 	}
 	radius := activeDecoration.ResolveRad(radiusDefault)
-	padding := activeDecoration.ResolvePad(t.config.padding)
+	paddingDefault := densityInsets(ctx, style.Symmetric(8, 12), style.Symmetric(4, 10))
+	if t.config.hasPadding {
+		paddingDefault = t.config.padding
+	}
+	padding := activeDecoration.ResolvePad(paddingDefault)
 
 	font := ctx.Font()
 	if t.config.hasFamily && strings.TrimSpace(t.config.font.Family) != "" {

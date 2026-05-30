@@ -37,20 +37,10 @@ AppBar 是页面级顶部导航组件，适合放页面标题、返回入口和�
 - 右侧操作组用 `AppBarActions`。
 
 ## 使用示例
-```go
-ui.AppBar(
-    ui.Text("文档中心"),
-    ui.AppBarActions(
-        ui.Button(ui.Text("刷新")),
-    ),
-)
-```
 
-## React-style Element
+### React-style Element
 
-- `AppBarElement` 已可在 `RunElement` root 下直接使用，标题接收 `Element`。
-- 需要 leading/actions 也使用 Element 时，用 `AppBarElementWithSlots`。
-- 布局约束和 action 区横向滚动仍由底层 AppBar widget host 管理。
+`AppBarElement` 已可在 `RunElement` root 下直接使用，标题接收 `Element`。需要 leading/actions 也使用 Element 时，用 `AppBarElementWithSlots`。
 
 ```go
 func Header(ctx *ui.Context) ui.Element {
@@ -61,4 +51,18 @@ func Header(ctx *ui.Context) ui.Element {
         ui.AppBarHeight(56),
     )
 }
+```
+
+布局约束和 action 区横向滚动仍由底层 AppBar widget host 管理。
+
+### Legacy Widget
+旧 `ui.AppBar` / `Widget` 写法继续可用：
+
+```go
+ui.AppBar(
+    ui.Text("文档中心"),
+    ui.AppBarActions(
+        ui.Button(ui.Text("刷新")),
+    ),
+)
 ```

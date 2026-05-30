@@ -166,6 +166,55 @@ func DarkColors() ColorScheme {
 }
 
 func normalizeColorScheme(cs ColorScheme) ColorScheme {
+	defaults := LightColors()
+	if cs.Primary.A == 0 {
+		cs.Primary = defaults.Primary
+	}
+	if cs.OnPrimary.A == 0 {
+		cs.OnPrimary = defaults.OnPrimary
+	}
+	if cs.Secondary.A == 0 {
+		cs.Secondary = defaults.Secondary
+	}
+	if cs.OnSecondary.A == 0 {
+		cs.OnSecondary = defaults.OnSecondary
+	}
+	if cs.Error.A == 0 {
+		cs.Error = defaults.Error
+	}
+	if cs.OnError.A == 0 {
+		cs.OnError = defaults.OnError
+	}
+	if cs.Surface.A == 0 {
+		cs.Surface = firstColor(cs.Background, defaults.Surface)
+	}
+	if cs.Background.A == 0 {
+		cs.Background = cs.Surface
+	}
+	if cs.OnSurface.A == 0 {
+		cs.OnSurface = firstColor(cs.OnBackground, defaults.OnSurface)
+	}
+	if cs.OnBackground.A == 0 {
+		cs.OnBackground = cs.OnSurface
+	}
+	if cs.Outline.A == 0 {
+		cs.Outline = defaults.Outline
+	}
+	if cs.Disabled.A == 0 {
+		cs.Disabled = defaults.Disabled
+	}
+	if cs.Success.A == 0 {
+		cs.Success = defaults.Success
+	}
+	if cs.OnSuccess.A == 0 {
+		cs.OnSuccess = defaults.OnSuccess
+	}
+	if cs.Warning.A == 0 {
+		cs.Warning = defaults.Warning
+	}
+	if cs.OnWarning.A == 0 {
+		cs.OnWarning = defaults.OnWarning
+	}
 	if cs.SurfaceVariant.A == 0 {
 		cs.SurfaceVariant = firstColor(cs.SurfaceMuted, cs.Surface)
 	}

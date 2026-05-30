@@ -32,20 +32,10 @@ Image 用于显示本地图片资源，支持 `Contain/Cover/Fill` 等适配策�
 - 图片作为可点击区域时，可用 `ImageAttachRef` 进行外部触发。
 
 ## 使用示例
-```go
-ui.Image(
-    ui.ImageSource{Path: "examples/assets/sample.png", Label: "示例图"},
-    ui.ImageWidth(160),
-    ui.ImageHeight(96),
-    ui.ImageFitMode(ui.ImageFitContain),
-    ui.ImageRadius(8),
-)
-```
 
-## React-style Element
+### React-style Element
 
-- `ImageElement` 已可在 `RunElement` root 下直接使用。
-- 图片加载缓存、尺寸约束、点击事件和 `ImageAttachRef` 仍由底层 image widget host 管理。
+`ImageElement` 已可在 `RunElement` root 下直接使用。图片加载缓存、尺寸约束、点击事件和 `ImageAttachRef` 仍由底层 image widget host 管理。
 
 ```go
 func Cover(ctx *ui.Context) ui.Element {
@@ -56,4 +46,17 @@ func Cover(ctx *ui.Context) ui.Element {
         ui.ImageFitMode(ui.ImageFitCover),
     )
 }
+```
+
+### Legacy Widget
+旧 `ui.Image` / `Widget` 写法继续可用：
+
+```go
+ui.Image(
+    ui.ImageSource{Path: "examples/assets/sample.png", Label: "示例图"},
+    ui.ImageWidth(160),
+    ui.ImageHeight(96),
+    ui.ImageFitMode(ui.ImageFitContain),
+    ui.ImageRadius(8),
+)
 ```
