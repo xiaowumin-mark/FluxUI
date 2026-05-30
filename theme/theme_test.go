@@ -28,6 +28,30 @@ func TestDefaultThemeProvidesMD3Tokens(t *testing.T) {
 	if th.Types.LabelLarge.Size <= 0 || th.Types.BodyLarge.Size <= 0 {
 		t.Fatalf("expected non-zero type scale, got %#v", th.Types)
 	}
+	if th.Density.Level != DensityDefault {
+		t.Fatalf("expected default density, got %#v", th.Density)
+	}
+}
+
+func TestDensityScaleHelpers(t *testing.T) {
+	defaultDensity := DefaultDensityScale()
+	compactDensity := CompactDensityScale()
+
+	if defaultDensity.IsCompact() {
+		t.Fatalf("default density should not be compact")
+	}
+	if !compactDensity.IsCompact() {
+		t.Fatalf("compact density should be compact")
+	}
+	if got := defaultDensity.ComponentHeight(56, 48); got != 56 {
+		t.Fatalf("default component height = %v, want 56", got)
+	}
+	if got := compactDensity.ComponentHeight(56, 48); got != 48 {
+		t.Fatalf("compact component height = %v, want 48", got)
+	}
+	if got := compactDensity.Metric(16, 12); got != 12 {
+		t.Fatalf("compact metric = %v, want 12", got)
+	}
 }
 
 func TestThemeCompatibilityFieldsSyncFromColorScheme(t *testing.T) {

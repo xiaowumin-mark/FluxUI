@@ -55,6 +55,10 @@ type TypeScale = theme.TypeScale
 // TextStyle 定义 TypeScale 中的单个文字样式。
 type TextStyle = theme.TextStyle
 
+type DensityScale = theme.DensityScale
+
+type DensityLevel = theme.DensityLevel
+
 // FontSpec 是公开字体规格。
 type FontSpec = theme.FontSpec
 
@@ -127,6 +131,11 @@ const (
 	FontWeightBold       = theme.FontWeightBold
 	FontWeightExtraBold  = theme.FontWeightExtraBold
 	FontWeightBlack      = theme.FontWeightBlack
+)
+
+const (
+	DensityDefault = theme.DensityDefault
+	DensityCompact = theme.DensityCompact
 )
 
 // App 创建应用对象。
@@ -510,6 +519,14 @@ func TextSize(size float32) TextOption {
 	return widget.TextSize(size)
 }
 
+func TextLineHeight(lineHeight float32) TextOption {
+	return widget.TextLineHeight(lineHeight)
+}
+
+func TextType(style TextStyle) TextOption {
+	return widget.TextType(style)
+}
+
 // TextColor 设置文本颜色。
 func TextColor(value color.NRGBA) TextOption {
 	return widget.TextColor(value)
@@ -528,6 +545,14 @@ func TextFont(font FontSpec) TextOption {
 // TextFontWeight 设置文本字体字重（局部覆盖）。
 func TextFontWeight(weight FontWeight) TextOption {
 	return widget.TextFontWeight(weight)
+}
+
+func DefaultDensityScale() DensityScale {
+	return theme.DefaultDensityScale()
+}
+
+func CompactDensityScale() DensityScale {
+	return theme.CompactDensityScale()
 }
 
 // OnClick 绑定按钮点击事件。

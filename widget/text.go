@@ -22,14 +22,16 @@ const (
 type TextOption func(*textConfig)
 
 type textConfig struct {
-	size      float32
-	color     color.NRGBA
-	hasColor  bool
-	align     TextAlignment
-	font      theme.FontSpec
-	hasFamily bool
-	hasStyle  bool
-	hasWeight bool
+	size          float32
+	lineHeight    float32
+	hasLineHeight bool
+	color         color.NRGBA
+	hasColor      bool
+	align         TextAlignment
+	font          theme.FontSpec
+	hasFamily     bool
+	hasStyle      bool
+	hasWeight     bool
 }
 
 type textWidget struct {
@@ -53,6 +55,27 @@ func Text(content string, opts ...TextOption) Widget {
 func TextSize(size float32) TextOption {
 	return func(cfg *textConfig) {
 		cfg.size = size
+	}
+}
+
+func TextLineHeight(lineHeight float32) TextOption {
+	return func(cfg *textConfig) {
+		cfg.lineHeight = lineHeight
+		cfg.hasLineHeight = true
+	}
+}
+
+func TextType(style theme.TextStyle) TextOption {
+	return func(cfg *textConfig) {
+		if style.Size > 0 {
+			cfg.size = style.Size
+		}
+		if style.LineHeight > 0 {
+			cfg.lineHeight = style.LineHeight
+			cfg.hasLineHeight = true
+		}
+		cfg.font.Weight = style.Weight
+		cfg.hasWeight = true
 	}
 }
 
@@ -97,11 +120,23 @@ func (t *textWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		color = t.config.color
 	}
 
+	contextStyle, hasContextStyle := ctx.TextStyle()
+
 	size := t.config.size
+	if size <= 0 && hasContextStyle {
+		size = contextStyle.Size
+	}
 	if size <= 0 {
 		size = ctx.Theme().TextSize
 	}
+	lineHeight := t.config.lineHeight
+	if !t.config.hasLineHeight && hasContextStyle {
+		lineHeight = contextStyle.LineHeight
+	}
 	font := ctx.Font()
+	if hasContextStyle {
+		font.Weight = contextStyle.Weight
+	}
 	if t.config.hasFamily && strings.TrimSpace(t.config.font.Family) != "" {
 		font.Family = strings.TrimSpace(t.config.font.Family)
 	}
@@ -115,11 +150,12 @@ func (t *textWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	return layout.Dimensions{
 		Size: ctx.LayoutText(internal.TextSpec{
-			Content:   t.content,
-			Size:      size,
-			Color:     color,
-			Alignment: toInternalAlignment(t.config.align),
-			Font:      font,
+			Content:    t.content,
+			Size:       size,
+			LineHeight: lineHeight,
+			Color:      color,
+			Alignment:  toInternalAlignment(t.config.align),
+			Font:       font,
 		}),
 	}
 }

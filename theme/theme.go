@@ -3,9 +3,10 @@ package theme
 import "image/color"
 
 type Theme struct {
-	Colors ColorScheme
-	Shapes ShapeScale
-	Types  TypeScale
+	Colors  ColorScheme
+	Shapes  ShapeScale
+	Types   TypeScale
+	Density DensityScale
 
 	// Backward-compatible flat fields, synced from Colors by Default() / DarkTheme().
 	Primary        color.NRGBA
@@ -33,6 +34,7 @@ func New(cs ColorScheme) *Theme {
 		Colors:         cs,
 		Shapes:         DefaultShapeScale(),
 		Types:          DefaultTypeScale(),
+		Density:        DefaultDensityScale(),
 		Primary:        cs.Primary,
 		Surface:        cs.Surface,
 		SurfaceMuted:   cs.SurfaceVariant,

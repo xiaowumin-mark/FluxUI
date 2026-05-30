@@ -63,11 +63,12 @@ type StackChild struct {
 
 // TextSpec 描述文本绘制参数。
 type TextSpec struct {
-	Content   string
-	Size      float32
-	Color     color.NRGBA
-	Alignment Alignment
-	Font      theme.FontSpec
+	Content    string
+	Size       float32
+	LineHeight float32
+	Color      color.NRGBA
+	Alignment  Alignment
+	Font       theme.FontSpec
 }
 
 // SurfaceSpec 描述容器样式。
@@ -98,6 +99,7 @@ type SurfaceSpec struct {
 type ButtonSpec struct {
 	Background  color.NRGBA
 	Foreground  color.NRGBA
+	TextStyle   theme.TextStyle
 	Radius      float32
 	Padding     Insets
 	BorderColor color.NRGBA
@@ -192,6 +194,9 @@ func (c *Context) LayoutText(spec TextSpec) image.Point {
 	}
 	label.Color = spec.Color
 	label.Alignment = toTextAlignment(spec.Alignment)
+	if spec.LineHeight > 0 {
+		label.LineHeight = unit.Sp(spec.LineHeight)
+	}
 	dims := label.Layout(c.Gtx)
 	return dims.Size
 }
@@ -497,6 +502,9 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 			},
 			func(gtx gioLayout.Context) gioLayout.Dimensions {
 				next := c.sameScope(gtx).WithForeground(spec.Foreground)
+				if spec.TextStyle.Size > 0 || spec.TextStyle.LineHeight > 0 {
+					next = next.WithTextStyle(spec.TextStyle)
+				}
 				size := next.LayoutInset(spec.Padding, func(content *Context) image.Point {
 					centered := gioLayout.Center.Layout(content.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
 						return gioLayout.Dimensions{Size: child(content.sameScope(gtx))}

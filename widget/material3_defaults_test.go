@@ -23,6 +23,9 @@ func TestButtonMD3VariantDefaults(t *testing.T) {
 	if filled.radius != th.Shapes.Full {
 		t.Fatalf("filled button radius = %v, want %v", filled.radius, th.Shapes.Full)
 	}
+	if filled.text != th.Types.LabelLarge {
+		t.Fatalf("filled button text = %#v, want LabelLarge", filled.text)
+	}
 
 	outlined := resolveButtonDefaults(buttonVariantOutlined, th)
 	if outlined.background != (color.NRGBA{}) {

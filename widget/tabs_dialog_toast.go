@@ -172,7 +172,7 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			tabContent := ContainerDecoration(
 				tabDecoration,
 				Column(
-					Text(item.Label, TextColor(txtColor), TextSize(tabCtx.Theme().Types.LabelLarge.Size)),
+					Text(item.Label, TextColor(txtColor), TextType(tabCtx.Theme().Types.LabelLarge)),
 					Padding(
 						style.Insets{Top: 4},
 						ContainerDecoration(
@@ -388,10 +388,10 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	parts := make([]Widget, 0, 3)
 	if d.config.title != "" {
-		parts = append(parts, Padding(style.Insets{Bottom: 8}, Text(d.config.title, TextSize(ctx.Theme().Types.HeadlineSmall.Size), TextColor(cs.OnSurface))))
+		parts = append(parts, Padding(style.Insets{Bottom: 8}, Text(d.config.title, TextType(ctx.Theme().Types.HeadlineSmall), TextColor(cs.OnSurface))))
 	}
 	if d.child != nil {
-		parts = append(parts, d.child)
+		parts = append(parts, withTextStyle(ctx.Theme().Types.BodyMedium, d.child))
 	}
 
 	actions := make([]Widget, 0, 2)
@@ -600,10 +600,10 @@ func (t *toastWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		fg = t.config.textColor
 	}
 
-	content := Widget(Text(t.message, TextColor(fg), TextSize(ctx.Theme().Types.BodyMedium.Size)))
+	content := Widget(Text(t.message, TextColor(fg), TextType(ctx.Theme().Types.BodyMedium)))
 	if t.config.actionLabel != "" {
 		action := TextButton(
-			Text(t.config.actionLabel, TextColor(cs.InversePrimary), TextSize(ctx.Theme().Types.LabelLarge.Size)),
+			Text(t.config.actionLabel, TextColor(cs.InversePrimary), TextType(ctx.Theme().Types.LabelLarge)),
 			ButtonForeground(cs.InversePrimary),
 			ButtonPadding(style.Symmetric(6, 8)),
 			OnClick(func(actionCtx *internal.Context) {

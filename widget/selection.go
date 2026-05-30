@@ -399,7 +399,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 				gioLayout.Flexed(1, func(gtx gioLayout.Context) gioLayout.Dimensions {
 					next := *contentCtx
 					next.Gtx = gtx
-					dims := Text(label, TextSize(triggerCtx.Theme().Types.BodyLarge.Size), TextColor(textColor)).Layout(next.Child(0))
+					dims := Text(label, TextType(triggerCtx.Theme().Types.BodyLarge), TextColor(textColor)).Layout(next.Child(0))
 					return gioLayout.Dimensions{Size: dims.Size}
 				}),
 				gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
@@ -468,7 +468,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 					gioLayout.Flexed(1, func(gtx gioLayout.Context) gioLayout.Dimensions {
 						next := *contentCtx
 						next.Gtx = gtx
-						dims := Text(itemLabel, TextColor(cs.OnSurface), TextSize(rowCtx.Theme().Types.BodyMedium.Size)).Layout(next.Child(0))
+						dims := Text(itemLabel, TextColor(cs.OnSurface), TextType(rowCtx.Theme().Types.BodyMedium)).Layout(next.Child(0))
 						return gioLayout.Dimensions{Size: dims.Size}
 					}),
 					gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {

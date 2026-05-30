@@ -23,6 +23,8 @@ type Context struct {
 	foreground    color.NRGBA
 	font          theme.FontSpec
 	hasFont       bool
+	textStyle     theme.TextStyle
+	hasTextStyle  bool
 	instance      *ComponentInstance
 	providers     map[reflect.Type]any
 	themeOverride *theme.Theme
@@ -102,6 +104,13 @@ func (c *Context) Font() theme.FontSpec {
 		return theme.DefaultFontSpec()
 	}
 	return th.DefaultFont.Normalize()
+}
+
+func (c *Context) TextStyle() (theme.TextStyle, bool) {
+	if c == nil || !c.hasTextStyle {
+		return theme.TextStyle{}, false
+	}
+	return c.textStyle, true
 }
 
 // Now 返回当前 frame 时间。
@@ -381,6 +390,16 @@ func (c *Context) WithTheme(th *theme.Theme) *Context {
 	}
 	next := c.sameScope(c.Gtx)
 	next.themeOverride = th
+	return next
+}
+
+func (c *Context) WithTextStyle(style theme.TextStyle) *Context {
+	if c == nil {
+		return nil
+	}
+	next := c.sameScope(c.Gtx)
+	next.textStyle = style
+	next.hasTextStyle = style.Size > 0 || style.LineHeight > 0
 	return next
 }
 

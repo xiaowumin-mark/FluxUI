@@ -597,7 +597,7 @@ func (c *cardWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		deco = deco.WithShadow(defaults.shadow)
 	}
 
-	var root Widget = ContainerDecoration(deco, c.child)
+	var root Widget = ContainerDecoration(deco, withTextStyle(ctx.Theme().Types.BodyMedium, c.child))
 
 	if c.config.onClick != nil || c.config.ref != nil {
 		opts := []ButtonOption{

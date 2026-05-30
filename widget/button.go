@@ -215,6 +215,7 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		Foreground:  foreground,
 		Radius:      radius,
 		Padding:     toInternalInsets(padding),
+		TextStyle:   spec.text,
 		BorderColor: spec.border.Color,
 		BorderWidth: spec.border.Width,
 		HasShadow:   !spec.shadow.IsZero(),
@@ -241,6 +242,7 @@ type buttonDefaults struct {
 	radius            float32
 	border            style.Border
 	shadow            style.BoxShadow
+	text              theme.TextStyle
 	disabledContainer bool
 }
 
@@ -253,6 +255,7 @@ func resolveButtonDefaults(variant buttonVariant, th *theme.Theme) buttonDefault
 		background:        cs.Primary,
 		foreground:        cs.OnPrimary,
 		radius:            th.Shapes.Full,
+		text:              th.Types.LabelLarge,
 		disabledContainer: true,
 	}
 	switch variant {

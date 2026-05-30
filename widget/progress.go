@@ -206,7 +206,7 @@ func (p *progressWidget) layoutProgress(ctx *internal.Context, track, fill color
 
 		if p.config.showLabel {
 			percent := fmt.Sprintf("%.0f%%", progress*100)
-			labelWidget := Text(percent, TextSize(12), TextColor(fill))
+			labelWidget := Text(percent, TextType(ctx.Theme().Types.LabelSmall), TextColor(fill))
 			labelCtx := gtx
 			labelCtx.Constraints.Min = image.Point{}
 			labelCtx.Constraints.Max = image.Point{X: sizePx, Y: sizePx}

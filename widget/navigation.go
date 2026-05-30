@@ -294,7 +294,7 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				style.Decoration{}.WithBg(bg).WithPad(style.Symmetric(6, 10)).WithRad(tabCtx.Theme().Shapes.Full),
 				Column(
 					icon,
-					Padding(style.Insets{Top: 4}, Text(item.Label, TextColor(col), TextSize(tabCtx.Theme().Types.LabelMedium.Size))),
+					Padding(style.Insets{Top: 4}, Text(item.Label, TextColor(col), TextType(tabCtx.Theme().Types.LabelMedium))),
 				),
 			)
 			size := tabCtx.LayoutRippleArea(clickable.Handle(), internal.RippleSpec{

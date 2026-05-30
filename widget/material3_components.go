@@ -8,6 +8,7 @@ import (
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
+	"github.com/xiaowumin-mark/FluxUI/theme"
 
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"
@@ -95,6 +96,7 @@ type md3ActionSurfaceSpec struct {
 	FillWidth  bool
 	Disabled   bool
 	FocusColor color.NRGBA
+	TextStyle  theme.TextStyle
 }
 
 func md3ActionSurface(ctx *internal.Context, clickable *event.Clickable, spec md3ActionSurfaceSpec, child Widget) layout.Dimensions {
@@ -168,6 +170,9 @@ func md3ActionSurface(ctx *internal.Context, clickable *event.Clickable, spec md
 
 		next := *surfaceCtx
 		next.Gtx = gtx
+		if spec.TextStyle.Size > 0 || spec.TextStyle.LineHeight > 0 {
+			next = *next.WithTextStyle(spec.TextStyle)
+		}
 		return next.LayoutSurfaceLooseContent(surfaceSpec, func(contentCtx *internal.Context) image.Point {
 			return withForeground(fg, child).Layout(contentCtx.Child(0)).Size
 		})
@@ -367,7 +372,7 @@ func (m *menuWidget) menuRow(item MenuItem, selected bool, showSelection bool) W
 				Padding(style.Insets{Left: 12}, Spacer(0, 0)),
 			)
 		}
-		rowChildren = append(rowChildren, Expanded(Text(item.Label, TextSize(rowCtx.Theme().Types.BodyMedium.Size))))
+		rowChildren = append(rowChildren, Expanded(Text(item.Label, TextType(rowCtx.Theme().Types.BodyMedium))))
 		if trailing != nil {
 			rowChildren = append(rowChildren, Padding(style.Insets{Left: 12}, FixedWidth(24, Center(withForeground(fg, trailing)))))
 		}
@@ -578,10 +583,10 @@ func (l *listItemWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		headline = Text("")
 	}
 	contentChildren := []Widget{
-		withForeground(fg, headline),
+		withTextStyle(ctx.Theme().Types.BodyLarge, withForeground(fg, headline)),
 	}
 	if l.supporting != nil {
-		contentChildren = append(contentChildren, Padding(style.Insets{Top: 2}, withForeground(supportingColor, l.supporting)))
+		contentChildren = append(contentChildren, Padding(style.Insets{Top: 2}, withTextStyle(ctx.Theme().Types.BodyMedium, withForeground(supportingColor, l.supporting))))
 	}
 	content := Widget(Column(contentChildren...))
 
@@ -1058,7 +1063,7 @@ func (n *navigationRailWidget) railItem(item NavItem) Widget {
 		))
 		content := FixedWidth(56, Column(
 			Center(indicator),
-			Padding(style.Insets{Top: 4}, Center(Text(item.Label, TextSize(itemCtx.Theme().Types.LabelMedium.Size)))),
+			Padding(style.Insets{Top: 4}, Center(Text(item.Label, TextType(itemCtx.Theme().Types.LabelMedium)))),
 		))
 		return md3ActionSurface(itemCtx, clickable, md3ActionSurfaceSpec{
 			Background: color.NRGBA{},
@@ -1203,7 +1208,7 @@ func (n *navigationDrawerWidget) drawerItem(item NavItem) Widget {
 		content := middleRow(
 			FixedWidth(32, Center(withForeground(fg, icon))),
 			Padding(style.Insets{Left: 12}, Spacer(0, 0)),
-			Expanded(Text(item.Label, TextSize(itemCtx.Theme().Types.BodyLarge.Size))),
+			Expanded(Text(item.Label, TextType(itemCtx.Theme().Types.BodyLarge))),
 		)
 		return md3ActionSurface(itemCtx, clickable, md3ActionSurfaceSpec{
 			Background: bg,
@@ -1282,7 +1287,7 @@ func (t *tooltipWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			WithBg(t.config.decoration.ResolveBg(cs.InverseSurface)).
 			WithPad(t.config.decoration.ResolvePad(style.Symmetric(6, 8))).
 			WithRad(t.config.decoration.ResolveRad(ctx.Theme().Shapes.ExtraSmall)),
-		Text(t.label, TextColor(fg), TextSize(ctx.Theme().Types.BodySmall.Size)),
+		Text(t.label, TextColor(fg), TextType(ctx.Theme().Types.BodySmall)),
 	)
 
 	macro := op.Record(ctx.Gtx.Ops)
@@ -1401,7 +1406,7 @@ func (b *badgeWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				WithBg(b.config.decoration.ResolveBg(bg)).
 				WithPad(b.config.decoration.ResolvePad(style.Symmetric(1, 5))).
 				WithRad(b.config.decoration.ResolveRad(ctx.Theme().Shapes.Full)),
-			Center(Text(b.label, TextColor(fg), TextSize(ctx.Theme().Types.LabelSmall.Size))),
+			Center(Text(b.label, TextColor(fg), TextType(ctx.Theme().Types.LabelSmall))),
 		))
 	}
 
@@ -1566,7 +1571,7 @@ func (c *chipWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			Padding(style.Insets{Left: 8}, Spacer(0, 0)),
 		)
 	}
-	rowChildren = append(rowChildren, withForeground(fg, label))
+	rowChildren = append(rowChildren, withTextStyle(ctx.Theme().Types.LabelLarge, withForeground(fg, label)))
 	if c.config.trailing != nil {
 		rowChildren = append(rowChildren,
 			Padding(style.Insets{Left: 8}, FixedWidth(18, Center(withForeground(fg, c.config.trailing)))),
