@@ -28,6 +28,7 @@ type progressConfig struct {
 	trackColor    color.NRGBA
 	fillColor     color.NRGBA
 	size          float32
+	showLabel     bool
 	hasTrackColor bool
 	hasFillColor  bool
 	decoration    style.Decoration
@@ -56,6 +57,10 @@ func ProgressBar(value float32, opts ...ProgressOption) Widget {
 	}
 }
 
+func LinearProgressIndicator(value float32, opts ...ProgressOption) Widget {
+	return ProgressBar(value, opts...)
+}
+
 // CircularProgress 创建环形进度（当前实现为文本/颜色简化版）。
 func CircularProgress(value float32, opts ...ProgressOption) Widget {
 	cfg := progressConfig{
@@ -72,6 +77,10 @@ func CircularProgress(value float32, opts ...ProgressOption) Widget {
 		circular: true,
 		config:   cfg,
 	}
+}
+
+func CircularProgressIndicator(value float32, opts ...ProgressOption) Widget {
+	return CircularProgress(value, opts...)
 }
 
 // ProgressMin 设置最小值。
@@ -122,6 +131,12 @@ func ProgressFillColor(col color.NRGBA) ProgressOption {
 func ProgressSize(size float32) ProgressOption {
 	return func(cfg *progressConfig) {
 		cfg.size = size
+	}
+}
+
+func ProgressLabelVisible(visible bool) ProgressOption {
+	return func(cfg *progressConfig) {
+		cfg.showLabel = visible
 	}
 }
 
@@ -189,29 +204,31 @@ func (p *progressWidget) layoutProgress(ctx *internal.Context, track, fill color
 		fillStyle.Color = fill
 		_ = fillStyle.Layout(drawCtx)
 
-		percent := fmt.Sprintf("%.0f%%", progress*100)
-		labelWidget := Text(percent, TextSize(12), TextColor(fill))
-		labelCtx := gtx
-		labelCtx.Constraints.Min = image.Point{}
-		labelCtx.Constraints.Max = image.Point{X: sizePx, Y: sizePx}
+		if p.config.showLabel {
+			percent := fmt.Sprintf("%.0f%%", progress*100)
+			labelWidget := Text(percent, TextSize(12), TextColor(fill))
+			labelCtx := gtx
+			labelCtx.Constraints.Min = image.Point{}
+			labelCtx.Constraints.Max = image.Point{X: sizePx, Y: sizePx}
 
-		labelMacro := op.Record(gtx.Ops)
-		next := *ctx
-		next.Gtx = labelCtx
-		labelSize := labelWidget.Layout(&next).Size
-		labelCall := labelMacro.Stop()
+			labelMacro := op.Record(gtx.Ops)
+			next := *ctx
+			next.Gtx = labelCtx
+			labelSize := labelWidget.Layout(&next).Size
+			labelCall := labelMacro.Stop()
 
-		labelX := (sizePx - labelSize.X) / 2
-		labelY := (sizePx - labelSize.Y) / 2
-		if labelX < 0 {
-			labelX = 0
+			labelX := (sizePx - labelSize.X) / 2
+			labelY := (sizePx - labelSize.Y) / 2
+			if labelX < 0 {
+				labelX = 0
+			}
+			if labelY < 0 {
+				labelY = 0
+			}
+			stack := op.Offset(image.Point{X: labelX, Y: labelY}).Push(gtx.Ops)
+			labelCall.Add(gtx.Ops)
+			stack.Pop()
 		}
-		if labelY < 0 {
-			labelY = 0
-		}
-		stack := op.Offset(image.Point{X: labelX, Y: labelY}).Push(gtx.Ops)
-		labelCall.Add(gtx.Ops)
-		stack.Pop()
 
 		return layout.Dimensions{Size: image.Point{X: sizePx, Y: sizePx}}
 	}

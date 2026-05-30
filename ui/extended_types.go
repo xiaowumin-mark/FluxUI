@@ -54,6 +54,19 @@ type BottomNavOption = widget.BottomNavOption
 type BottomNavAlignment = widget.BottomNavAlignment
 type NavItem = widget.NavItem
 type PopupRef = widget.PopupRef
+type MenuItem = widget.MenuItem
+type MenuOption = widget.MenuOption
+type DropdownMenuOption = widget.DropdownMenuOption
+type ListItemOption = widget.ListItemOption
+type IconButtonOption = widget.IconButtonOption
+type FloatingActionButtonOption = widget.FloatingActionButtonOption
+type NavigationRailOption = widget.NavigationRailOption
+type NavigationDrawerOption = widget.NavigationDrawerOption
+type SnackbarOption = widget.SnackbarOption
+type TooltipOption = widget.TooltipOption
+type BadgeOption = widget.BadgeOption
+type ChipOption = widget.ChipOption
+type SearchBarOption = widget.SearchBarOption
 
 // ElementNavItem 描述 BottomNavigationElement 的单项配置。
 type ElementNavItem struct {
@@ -277,14 +290,110 @@ func SelectElement[T comparable](value T, options []SelectOptionItem[T], opts ..
 	return FromWidget(widget.Select(value, options, opts...))
 }
 
+func MenuElement(items []MenuItem, opts ...MenuOption) Element {
+	return FromWidget(widget.Menu(items, opts...))
+}
+
+func DropdownMenuElement(open bool, trigger Element, items []MenuItem, opts ...DropdownMenuOption) Element {
+	return &singleChildElement{kind: "dropdown-menu", child: trigger, renderFn: func(child Widget) Widget {
+		return widget.DropdownMenu(open, child, items, opts...)
+	}}
+}
+
+func ListItemElement(headline string, opts ...ListItemOption) Element {
+	return FromWidget(widget.ListItem(headline, opts...))
+}
+
+func ListItemElementWithSlots(headline, supporting, leading, trailing Element, opts ...ListItemOption) Element {
+	return &multiChildElement{kind: "list-item", children: []Element{headline, supporting, leading, trailing}, renderFn: func(children []Widget) Widget {
+		var h, s, l, t Widget
+		if len(children) > 0 {
+			h = children[0]
+		}
+		if len(children) > 1 {
+			s = children[1]
+		}
+		if len(children) > 2 {
+			l = children[2]
+		}
+		if len(children) > 3 {
+			t = children[3]
+		}
+		return widget.ListItemWithSlots(h, s, l, t, opts...)
+	}}
+}
+
+func IconButtonElement(child Element, opts ...IconButtonOption) Element {
+	return &singleChildElement{kind: "icon-button", child: child, renderFn: func(child Widget) Widget {
+		return widget.IconButton(child, opts...)
+	}}
+}
+
+func FilledIconButtonElement(child Element, opts ...IconButtonOption) Element {
+	return &singleChildElement{kind: "filled-icon-button", child: child, renderFn: func(child Widget) Widget {
+		return widget.FilledIconButton(child, opts...)
+	}}
+}
+
+func FilledTonalIconButtonElement(child Element, opts ...IconButtonOption) Element {
+	return &singleChildElement{kind: "filled-tonal-icon-button", child: child, renderFn: func(child Widget) Widget {
+		return widget.FilledTonalIconButton(child, opts...)
+	}}
+}
+
+func OutlinedIconButtonElement(child Element, opts ...IconButtonOption) Element {
+	return &singleChildElement{kind: "outlined-icon-button", child: child, renderFn: func(child Widget) Widget {
+		return widget.OutlinedIconButton(child, opts...)
+	}}
+}
+
+func FloatingActionButtonElement(icon Element, opts ...FloatingActionButtonOption) Element {
+	return &singleChildElement{kind: "floating-action-button", child: icon, renderFn: func(child Widget) Widget {
+		return widget.FloatingActionButton(child, opts...)
+	}}
+}
+
+func SmallFloatingActionButtonElement(icon Element, opts ...FloatingActionButtonOption) Element {
+	return &singleChildElement{kind: "small-floating-action-button", child: icon, renderFn: func(child Widget) Widget {
+		return widget.SmallFloatingActionButton(child, opts...)
+	}}
+}
+
+func LargeFloatingActionButtonElement(icon Element, opts ...FloatingActionButtonOption) Element {
+	return &singleChildElement{kind: "large-floating-action-button", child: icon, renderFn: func(child Widget) Widget {
+		return widget.LargeFloatingActionButton(child, opts...)
+	}}
+}
+
+func ExtendedFloatingActionButtonElement(icon, label Element, opts ...FloatingActionButtonOption) Element {
+	return &multiChildElement{kind: "extended-floating-action-button", children: []Element{icon, label}, renderFn: func(children []Widget) Widget {
+		var iconWidget, labelWidget Widget
+		if len(children) > 0 {
+			iconWidget = children[0]
+		}
+		if len(children) > 1 {
+			labelWidget = children[1]
+		}
+		return widget.ExtendedFloatingActionButton(iconWidget, labelWidget, opts...)
+	}}
+}
+
 // ProgressBarElement 创建可参与 reconciler 的线性进度 Element。
 func ProgressBarElement(value float32, opts ...ProgressOption) Element {
 	return FromWidget(widget.ProgressBar(value, opts...))
 }
 
+func LinearProgressIndicatorElement(value float32, opts ...ProgressOption) Element {
+	return FromWidget(widget.LinearProgressIndicator(value, opts...))
+}
+
 // CircularProgressElement 创建可参与 reconciler 的环形进度 Element。
 func CircularProgressElement(value float32, opts ...ProgressOption) Element {
 	return FromWidget(widget.CircularProgress(value, opts...))
+}
+
+func CircularProgressIndicatorElement(value float32, opts ...ProgressOption) Element {
+	return FromWidget(widget.CircularProgressIndicator(value, opts...))
 }
 
 // ImageElement 创建可参与 reconciler 的图片 Element。
@@ -346,6 +455,48 @@ func ToastElement(message string, opts ...ToastOption) Element {
 	return FromWidget(widget.Toast(message, opts...))
 }
 
+func SnackbarElement(message string, opts ...SnackbarOption) Element {
+	return FromWidget(widget.Snackbar(message, opts...))
+}
+
+func TooltipElement(label string, child Element, opts ...TooltipOption) Element {
+	return &singleChildElement{kind: "tooltip", child: child, renderFn: func(child Widget) Widget {
+		return widget.Tooltip(label, child, opts...)
+	}}
+}
+
+func BadgeElement(child Element, label string, opts ...BadgeOption) Element {
+	return &singleChildElement{kind: "badge", child: child, renderFn: func(child Widget) Widget {
+		return widget.Badge(child, label, opts...)
+	}}
+}
+
+func AssistChipElement(label string, opts ...ChipOption) Element {
+	return FromWidget(widget.AssistChip(label, opts...))
+}
+
+func FilterChipElement(label string, opts ...ChipOption) Element {
+	return FromWidget(widget.FilterChip(label, opts...))
+}
+
+func InputChipElement(label string, opts ...ChipOption) Element {
+	return FromWidget(widget.InputChip(label, opts...))
+}
+
+func SuggestionChipElement(label string, opts ...ChipOption) Element {
+	return FromWidget(widget.SuggestionChip(label, opts...))
+}
+
+func ChipElementWithSlots(label Element, opts ...ChipOption) Element {
+	return &singleChildElement{kind: "chip", child: label, renderFn: func(child Widget) Widget {
+		return widget.ChipWithSlots(child, opts...)
+	}}
+}
+
+func SearchBarElement(value string, opts ...SearchBarOption) Element {
+	return FromWidget(widget.SearchBar(value, opts...))
+}
+
 // ScrollViewElement 创建可参与 reconciler 的滚动容器 Element。
 func ScrollViewElement(child Element, opts ...ScrollOption) Element {
 	return &singleChildElement{kind: "scroll-view", child: child, renderFn: func(child Widget) Widget {
@@ -399,6 +550,42 @@ func BottomNavigationElement(active string, items []ElementNavItem, opts ...Bott
 			legacyItems = append(legacyItems, widget.NavItem{Key: item.Key, Label: item.Label, Icon: icon})
 		}
 		return widget.BottomNavigation(active, legacyItems, opts...)
+	}}
+}
+
+func NavigationRailElement(active string, items []ElementNavItem, opts ...NavigationRailOption) Element {
+	children := make([]Element, 0, len(items))
+	for _, item := range items {
+		children = append(children, item.Icon)
+	}
+	return &multiChildElement{kind: "navigation-rail", children: children, renderFn: func(children []Widget) Widget {
+		legacyItems := make([]widget.NavItem, 0, len(items))
+		for idx, item := range items {
+			var icon Widget
+			if idx < len(children) {
+				icon = children[idx]
+			}
+			legacyItems = append(legacyItems, widget.NavItem{Key: item.Key, Label: item.Label, Icon: icon})
+		}
+		return widget.NavigationRail(active, legacyItems, opts...)
+	}}
+}
+
+func NavigationDrawerElement(active string, items []ElementNavItem, opts ...NavigationDrawerOption) Element {
+	children := make([]Element, 0, len(items))
+	for _, item := range items {
+		children = append(children, item.Icon)
+	}
+	return &multiChildElement{kind: "navigation-drawer", children: children, renderFn: func(children []Widget) Widget {
+		legacyItems := make([]widget.NavItem, 0, len(items))
+		for idx, item := range items {
+			var icon Widget
+			if idx < len(children) {
+				icon = children[idx]
+			}
+			legacyItems = append(legacyItems, widget.NavItem{Key: item.Key, Label: item.Label, Icon: icon})
+		}
+		return widget.NavigationDrawer(active, legacyItems, opts...)
 	}}
 }
 
@@ -1173,12 +1360,180 @@ func SelectDecoration[T comparable](d Decoration) SelectOption[T] {
 	return widget.SelectDecoration[T](d)
 }
 
+func Menu(items []MenuItem, opts ...MenuOption) Widget {
+	return widget.Menu(items, opts...)
+}
+
+func MenuSelectedKey(key string) MenuOption {
+	return widget.MenuSelectedKey(key)
+}
+
+func MenuOnSelect(fn func(ctx *Context, key string)) MenuOption {
+	return widget.MenuOnSelect(fn)
+}
+
+func MenuWidth(width float32) MenuOption {
+	return widget.MenuWidth(width)
+}
+
+func MenuMaxHeight(height float32) MenuOption {
+	return widget.MenuMaxHeight(height)
+}
+
+func MenuDecoration(d Decoration) MenuOption {
+	return widget.MenuDecoration(d)
+}
+
+func DropdownMenu(open bool, trigger Widget, items []MenuItem, opts ...DropdownMenuOption) Widget {
+	return widget.DropdownMenu(open, trigger, items, opts...)
+}
+
+func DropdownMenuSelectedKey(key string) DropdownMenuOption {
+	return widget.DropdownMenuSelectedKey(key)
+}
+
+func DropdownMenuOnSelect(fn func(ctx *Context, key string)) DropdownMenuOption {
+	return widget.DropdownMenuOnSelect(fn)
+}
+
+func DropdownMenuOnOpenChange(fn func(ctx *Context, open bool)) DropdownMenuOption {
+	return widget.DropdownMenuOnOpenChange(fn)
+}
+
+func DropdownMenuWidth(width float32) DropdownMenuOption {
+	return widget.DropdownMenuWidth(width)
+}
+
+func DropdownMenuMaxHeight(height float32) DropdownMenuOption {
+	return widget.DropdownMenuMaxHeight(height)
+}
+
+func DropdownMenuDecoration(d Decoration) DropdownMenuOption {
+	return widget.DropdownMenuDecoration(d)
+}
+
+func ListItem(headline string, opts ...ListItemOption) Widget {
+	return widget.ListItem(headline, opts...)
+}
+
+func ListItemWithSlots(headline, supporting, leading, trailing Widget, opts ...ListItemOption) Widget {
+	return widget.ListItemWithSlots(headline, supporting, leading, trailing, opts...)
+}
+
+func ListItemSelected(selected bool) ListItemOption {
+	return widget.ListItemSelected(selected)
+}
+
+func ListItemDisabled(disabled bool) ListItemOption {
+	return widget.ListItemDisabled(disabled)
+}
+
+func ListItemOnClick(fn func(ctx *Context)) ListItemOption {
+	return widget.ListItemOnClick(fn)
+}
+
+func ListItemMinHeight(height float32) ListItemOption {
+	return widget.ListItemMinHeight(height)
+}
+
+func ListItemDecoration(d Decoration) ListItemOption {
+	return widget.ListItemDecoration(d)
+}
+
+func IconButton(child Widget, opts ...IconButtonOption) Widget {
+	return widget.IconButton(child, opts...)
+}
+
+func FilledIconButton(child Widget, opts ...IconButtonOption) Widget {
+	return widget.FilledIconButton(child, opts...)
+}
+
+func FilledTonalIconButton(child Widget, opts ...IconButtonOption) Widget {
+	return widget.FilledTonalIconButton(child, opts...)
+}
+
+func OutlinedIconButton(child Widget, opts ...IconButtonOption) Widget {
+	return widget.OutlinedIconButton(child, opts...)
+}
+
+func IconButtonOnClick(fn func(ctx *Context)) IconButtonOption {
+	return widget.IconButtonOnClick(fn)
+}
+
+func IconButtonDisabled(disabled bool) IconButtonOption {
+	return widget.IconButtonDisabled(disabled)
+}
+
+func IconButtonSelected(selected bool) IconButtonOption {
+	return widget.IconButtonSelected(selected)
+}
+
+func IconButtonSize(size float32) IconButtonOption {
+	return widget.IconButtonSize(size)
+}
+
+func IconButtonBackground(col color.NRGBA) IconButtonOption {
+	return widget.IconButtonBackground(col)
+}
+
+func IconButtonForeground(col color.NRGBA) IconButtonOption {
+	return widget.IconButtonForeground(col)
+}
+
+func IconButtonDecoration(d Decoration) IconButtonOption {
+	return widget.IconButtonDecoration(d)
+}
+
+func FloatingActionButton(icon Widget, opts ...FloatingActionButtonOption) Widget {
+	return widget.FloatingActionButton(icon, opts...)
+}
+
+func SmallFloatingActionButton(icon Widget, opts ...FloatingActionButtonOption) Widget {
+	return widget.SmallFloatingActionButton(icon, opts...)
+}
+
+func LargeFloatingActionButton(icon Widget, opts ...FloatingActionButtonOption) Widget {
+	return widget.LargeFloatingActionButton(icon, opts...)
+}
+
+func ExtendedFloatingActionButton(icon, label Widget, opts ...FloatingActionButtonOption) Widget {
+	return widget.ExtendedFloatingActionButton(icon, label, opts...)
+}
+
+func FloatingActionButtonOnClick(fn func(ctx *Context)) FloatingActionButtonOption {
+	return widget.FloatingActionButtonOnClick(fn)
+}
+
+func FloatingActionButtonDisabled(disabled bool) FloatingActionButtonOption {
+	return widget.FloatingActionButtonDisabled(disabled)
+}
+
+func FloatingActionButtonBackground(col color.NRGBA) FloatingActionButtonOption {
+	return widget.FloatingActionButtonBackground(col)
+}
+
+func FloatingActionButtonForeground(col color.NRGBA) FloatingActionButtonOption {
+	return widget.FloatingActionButtonForeground(col)
+}
+
+func FloatingActionButtonDecoration(d Decoration) FloatingActionButtonOption {
+	return widget.FloatingActionButtonDecoration(d)
+}
+
 func ProgressBar(value float32, opts ...ProgressOption) Widget {
 	return widget.ProgressBar(value, opts...)
 }
 
+func LinearProgressIndicator(value float32, opts ...ProgressOption) Widget {
+	return widget.LinearProgressIndicator(value, opts...)
+}
+
 func CircularProgress(value float32, opts ...ProgressOption) Widget {
 	return widget.CircularProgress(value, opts...)
+}
+
+func CircularProgressIndicator(value float32, opts ...ProgressOption) Widget {
+	return widget.CircularProgressIndicator(value, opts...)
 }
 
 func ProgressMin(min float32) ProgressOption {
@@ -1207,6 +1562,10 @@ func ProgressFillColor(col color.NRGBA) ProgressOption {
 
 func ProgressSize(size float32) ProgressOption {
 	return widget.ProgressSize(size)
+}
+
+func ProgressLabelVisible(visible bool) ProgressOption {
+	return widget.ProgressLabelVisible(visible)
 }
 
 func ProgressDecoration(d Decoration) ProgressOption {
@@ -1389,6 +1748,146 @@ func ToastTextColor(col color.NRGBA) ToastOption {
 	return widget.ToastTextColor(col)
 }
 
+func ToastAction(label string, fn func(ctx *Context)) ToastOption {
+	return widget.ToastAction(label, fn)
+}
+
+func Snackbar(message string, opts ...SnackbarOption) Widget {
+	return widget.Snackbar(message, opts...)
+}
+
+func SnackbarAction(label string, fn func(ctx *Context)) SnackbarOption {
+	return widget.SnackbarAction(label, fn)
+}
+
+func Tooltip(label string, child Widget, opts ...TooltipOption) Widget {
+	return widget.Tooltip(label, child, opts...)
+}
+
+func TooltipDisabled(disabled bool) TooltipOption {
+	return widget.TooltipDisabled(disabled)
+}
+
+func TooltipOffset(offset float32) TooltipOption {
+	return widget.TooltipOffset(offset)
+}
+
+func TooltipDecoration(d Decoration) TooltipOption {
+	return widget.TooltipDecoration(d)
+}
+
+func TooltipTextColor(col color.NRGBA) TooltipOption {
+	return widget.TooltipTextColor(col)
+}
+
+func Badge(child Widget, label string, opts ...BadgeOption) Widget {
+	return widget.Badge(child, label, opts...)
+}
+
+func BadgeVisible(visible bool) BadgeOption {
+	return widget.BadgeVisible(visible)
+}
+
+func BadgeBackground(col color.NRGBA) BadgeOption {
+	return widget.BadgeBackground(col)
+}
+
+func BadgeForeground(col color.NRGBA) BadgeOption {
+	return widget.BadgeForeground(col)
+}
+
+func BadgeDecoration(d Decoration) BadgeOption {
+	return widget.BadgeDecoration(d)
+}
+
+func BadgeOffset(x, y int) BadgeOption {
+	return widget.BadgeOffset(x, y)
+}
+
+func AssistChip(label string, opts ...ChipOption) Widget {
+	return widget.AssistChip(label, opts...)
+}
+
+func FilterChip(label string, opts ...ChipOption) Widget {
+	return widget.FilterChip(label, opts...)
+}
+
+func InputChip(label string, opts ...ChipOption) Widget {
+	return widget.InputChip(label, opts...)
+}
+
+func SuggestionChip(label string, opts ...ChipOption) Widget {
+	return widget.SuggestionChip(label, opts...)
+}
+
+func ChipWithSlots(label Widget, opts ...ChipOption) Widget {
+	return widget.ChipWithSlots(label, opts...)
+}
+
+func ChipSelected(selected bool) ChipOption {
+	return widget.ChipSelected(selected)
+}
+
+func ChipDisabled(disabled bool) ChipOption {
+	return widget.ChipDisabled(disabled)
+}
+
+func ChipOnClick(fn func(ctx *Context)) ChipOption {
+	return widget.ChipOnClick(fn)
+}
+
+func ChipLeading(leading Widget) ChipOption {
+	return widget.ChipLeading(leading)
+}
+
+func ChipTrailing(trailing Widget) ChipOption {
+	return widget.ChipTrailing(trailing)
+}
+
+func ChipBackground(col color.NRGBA) ChipOption {
+	return widget.ChipBackground(col)
+}
+
+func ChipForeground(col color.NRGBA) ChipOption {
+	return widget.ChipForeground(col)
+}
+
+func ChipDecoration(d Decoration) ChipOption {
+	return widget.ChipDecoration(d)
+}
+
+func SearchBar(value string, opts ...SearchBarOption) Widget {
+	return widget.SearchBar(value, opts...)
+}
+
+func SearchBarPlaceholder(text string) SearchBarOption {
+	return widget.SearchBarPlaceholder(text)
+}
+
+func SearchBarDisabled(disabled bool) SearchBarOption {
+	return widget.SearchBarDisabled(disabled)
+}
+
+func SearchBarOnChange(fn func(ctx *Context, value string)) SearchBarOption {
+	return widget.SearchBarOnChange(fn)
+}
+
+func SearchBarLeading(leading Widget) SearchBarOption {
+	return widget.SearchBarLeading(leading)
+}
+
+func SearchBarTrailing(trailing Widget) SearchBarOption {
+	return widget.SearchBarTrailing(trailing)
+}
+
+func SearchBarDecoration(d Decoration) SearchBarOption {
+	return widget.SearchBarDecoration(d)
+}
+
+func SearchBarInputOptions(opts ...InputOption) SearchBarOption {
+	return widget.SearchBarInputOptions(opts...)
+}
+
 func ScrollView(child Widget, opts ...ScrollOption) Widget {
 	return widget.ScrollView(child, opts...)
 }
@@ -1543,4 +2042,68 @@ func NewBottomNavRef() *BottomNavRef {
 
 func BottomNavAttachRef(ref *BottomNavRef) BottomNavOption {
 	return widget.BottomNavAttachRef(ref)
+}
+
+func NavigationRail(active string, items []NavItem, opts ...NavigationRailOption) Widget {
+	return widget.NavigationRail(active, items, opts...)
+}
+
+func NavigationRailOnChange(fn func(ctx *Context, key string)) NavigationRailOption {
+	return widget.NavigationRailOnChange(fn)
+}
+
+func NavigationRailWidth(width float32) NavigationRailOption {
+	return widget.NavigationRailWidth(width)
+}
+
+func NavigationRailHeader(header Widget) NavigationRailOption {
+	return widget.NavigationRailHeader(header)
+}
+
+func NavigationRailFooter(footer Widget) NavigationRailOption {
+	return widget.NavigationRailFooter(footer)
+}
+
+func NavigationRailActiveColor(col color.NRGBA) NavigationRailOption {
+	return widget.NavigationRailActiveColor(col)
+}
+
+func NavigationRailInactiveColor(col color.NRGBA) NavigationRailOption {
+	return widget.NavigationRailInactiveColor(col)
+}
+
+func NavigationRailDecoration(d Decoration) NavigationRailOption {
+	return widget.NavigationRailDecoration(d)
+}
+
+func NavigationDrawer(active string, items []NavItem, opts ...NavigationDrawerOption) Widget {
+	return widget.NavigationDrawer(active, items, opts...)
+}
+
+func NavigationDrawerOnChange(fn func(ctx *Context, key string)) NavigationDrawerOption {
+	return widget.NavigationDrawerOnChange(fn)
+}
+
+func NavigationDrawerWidth(width float32) NavigationDrawerOption {
+	return widget.NavigationDrawerWidth(width)
+}
+
+func NavigationDrawerHeader(header Widget) NavigationDrawerOption {
+	return widget.NavigationDrawerHeader(header)
+}
+
+func NavigationDrawerFooter(footer Widget) NavigationDrawerOption {
+	return widget.NavigationDrawerFooter(footer)
+}
+
+func NavigationDrawerActiveColor(col color.NRGBA) NavigationDrawerOption {
+	return widget.NavigationDrawerActiveColor(col)
+}
+
+func NavigationDrawerInactiveColor(col color.NRGBA) NavigationDrawerOption {
+	return widget.NavigationDrawerInactiveColor(col)
+}
+
+func NavigationDrawerDecoration(d Decoration) NavigationDrawerOption {
+	return widget.NavigationDrawerDecoration(d)
 }

@@ -1,8 +1,10 @@
 package widget
 
 import (
+	"image"
 	"image/color"
 
+	"github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
@@ -274,22 +276,42 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		if icon == nil {
 			icon = Text("•", TextColor(col))
 		}
-		tab := Button(
-			Column(
-				icon,
-				Padding(style.Insets{Top: 4}, Text(item.Label, TextColor(col), TextSize(ctx.Theme().Types.LabelMedium.Size))),
-			),
-			ButtonBackground(tabBg),
-			ButtonForeground(col),
-			ButtonPadding(style.Symmetric(6, 10)),
-			ButtonRadius(ctx.Theme().Shapes.Full),
-			OnClick(func(ctx *internal.Context) {
+		tab := layoutWidgetFunc(func(tabCtx *internal.Context) layout.Dimensions {
+			clickable := event.UseClickable(tabCtx)
+			for clickable.Clicked(tabCtx) {
 				activeKey = item.Key
 				if b.config.onChange != nil {
-					b.config.onChange(ctx, item.Key)
+					b.config.onChange(tabCtx, item.Key)
 				}
-			}),
-		)
+			}
+			bg := tabBg
+			if clickable.Pressed() {
+				bg = style.StateLayer(bg, col, style.StateLayerPressedOpacity)
+			} else if clickable.Hovered() {
+				bg = style.StateLayer(bg, col, style.StateLayerHoverOpacity)
+			}
+			itemContent := ContainerDecoration(
+				style.Decoration{}.WithBg(bg).WithPad(style.Symmetric(6, 10)).WithRad(tabCtx.Theme().Shapes.Full),
+				Column(
+					icon,
+					Padding(style.Insets{Top: 4}, Text(item.Label, TextColor(col), TextSize(tabCtx.Theme().Types.LabelMedium.Size))),
+				),
+			)
+			size := tabCtx.LayoutRippleArea(clickable.Handle(), internal.RippleSpec{
+				Color:   col,
+				Radius:  tabCtx.Theme().Shapes.Full,
+				Opacity: style.StateLayerPressedOpacity,
+			}, func(childCtx *internal.Context) image.Point {
+				return itemContent.Layout(childCtx.Child(0)).Size
+			})
+			if clickable.Focused(tabCtx) {
+				tabCtx.DrawFocusIndicator(size, internal.FocusIndicatorSpec{
+					Color:  cs.Primary,
+					Radius: tabCtx.Theme().Shapes.Full,
+				})
+			}
+			return layout.Dimensions{Size: size}
+		})
 		tabs = append(tabs, tab)
 	}
 

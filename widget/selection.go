@@ -47,7 +47,7 @@ type radioGroupWidget struct {
 func RadioGroup(value string, items []RadioItem, opts ...RadioGroupOption) Widget {
 	cfg := radioGroupConfig{
 		direction: Vertical,
-		size:      18,
+		size:      20,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -139,7 +139,7 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		item := r.items[idx]
 		checked := item.Value == currentValue
 
-		row := layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
+		var row Widget = layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
 			clickable := event.UseClickable(rowCtx)
 			if !r.config.disabled {
 				for clickable.Clicked(rowCtx) {
@@ -163,7 +163,7 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 					gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
 						next := *contentCtx
 						next.Gtx = gtx
-						size := next.LayoutRadio(clickable.Handle(), checked, internal.RadioSpec{
+						size := next.LayoutRadio(nil, checked, internal.RadioSpec{
 							Size:     r.config.size,
 							Color:    mainColor,
 							Disabled: r.config.disabled,
@@ -190,16 +190,29 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				return dims.Size
 			}
 
-			if hasAnyDecoration(r.config.decoration) {
-				deco := withDefaultStates(r.config.decoration,
-					style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, mainColor, style.StateLayerHoverOpacity)).WithRad(8),
-					style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, mainColor, style.StateLayerPressedOpacity)).WithRad(8),
-					style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)).WithRad(8),
-				)
-				return layoutDecoratedClickTarget(rowCtx.Child(0), clickable.Handle(), clickable.Hovered(), clickable.Pressed(), deco, r.config.disabled, content)
+			deco := withDefaultStates(r.config.decoration,
+				style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, mainColor, style.StateLayerHoverOpacity)).WithRad(8),
+				style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, mainColor, style.StateLayerPressedOpacity)).WithRad(8),
+				style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)).WithRad(8),
+			)
+			target := func(targetCtx *internal.Context) image.Point {
+				if hasAnyDecoration(r.config.decoration) {
+					active := resolveDecorationState(deco, clickable.Hovered(), clickable.Pressed(), r.config.disabled)
+					visual := stripStateDecoration(active)
+					return layoutDecorationShell(targetCtx.Child(0), visual, content).Size
+				}
+				return content(targetCtx.Child(0))
 			}
-
-			return layout.Dimensions{Size: content(rowCtx.Child(0))}
+			return layoutStateLayerTouchTarget(rowCtx, clickable.Handle(), r.config.disabled, internal.RippleSpec{
+				Color:   mainColor,
+				Radius:  20,
+				Opacity: style.StateLayerPressedOpacity,
+			}, 48, 40, func(size image.Point) image.Point {
+				controlSize := selectionControlSizePx(rowCtx, r.config.size, 20)
+				return image.Pt(controlSize/2, size.Y/2)
+			}, func() float32 {
+				return materialStateLayerOpacity(clickable.Hovered(), clickable.Pressed())
+			}, target)
 		})
 
 		if r.config.direction == Horizontal {
@@ -354,23 +367,63 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 
 	label, currentIndex := s.resolveCurrentLabel(currentValue)
 
-	toggle := Button(
-		Row(
-			Text(label),
-			Padding(style.Insets{Left: 8}, selectArrow(state.opened, ctx.Theme().SurfaceMuted)),
-		),
-		Disabled(s.config.disabled),
-		OnClick(func(ctx *internal.Context) {
-			if s.config.disabled {
-				return
+	toggle := layoutWidgetFunc(func(triggerCtx *internal.Context) layout.Dimensions {
+		clickable := event.UseClickable(triggerCtx)
+		if !s.config.disabled {
+			for clickable.Clicked(triggerCtx) {
+				state.opened = !state.opened
+				if s.config.onOpen != nil {
+					s.config.onOpen(triggerCtx, state.opened)
+				}
 			}
-			state.opened = !state.opened
-			if s.config.onOpen != nil {
-				s.config.onOpen(ctx, state.opened)
-			}
-		}),
-	)
-	toggle = expandWidth(toggle)
+		}
+
+		cs := triggerCtx.Theme().Colors
+		textColor := cs.OnSurface
+		if currentIndex < 0 {
+			textColor = cs.OnSurfaceVariant
+		}
+		arrowColor := cs.OnSurfaceVariant
+		border := style.Border{Width: 1, Color: cs.Outline}
+		if state.opened || clickable.Focused(triggerCtx) {
+			border = style.Border{Width: 2, Color: cs.Primary}
+		}
+		if s.config.disabled {
+			textColor = style.DisabledContent(cs.OnSurface)
+			arrowColor = style.DisabledContent(cs.OnSurface)
+			border = style.Border{Width: 1, Color: style.DisabledContent(cs.OnSurface)}
+		}
+
+		content := layoutWidgetFunc(func(contentCtx *internal.Context) layout.Dimensions {
+			dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(contentCtx.Gtx,
+				gioLayout.Flexed(1, func(gtx gioLayout.Context) gioLayout.Dimensions {
+					next := *contentCtx
+					next.Gtx = gtx
+					dims := Text(label, TextSize(triggerCtx.Theme().Types.BodyLarge.Size), TextColor(textColor)).Layout(next.Child(0))
+					return gioLayout.Dimensions{Size: dims.Size}
+				}),
+				gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+					next := *contentCtx
+					next.Gtx = gtx
+					next.Gtx.Constraints.Min = image.Point{}
+					dims := Padding(style.Insets{Left: 8}, selectArrow(state.opened, arrowColor)).Layout(next.Child(1))
+					return gioLayout.Dimensions{Size: dims.Size}
+				}),
+			)
+			return layout.Dimensions{Size: dims.Size}
+		})
+		bg := s.config.decoration.ResolveBg(cs.Surface)
+		return md3ActionSurface(triggerCtx, clickable, md3ActionSurfaceSpec{
+			Background: bg,
+			Foreground: textColor,
+			Radius:     s.config.decoration.ResolveRad(triggerCtx.Theme().Shapes.ExtraSmall),
+			Padding:    s.config.decoration.ResolvePad(style.Insets{Top: 8, Right: 12, Bottom: 8, Left: 16}),
+			Border:     border,
+			MinHeight:  56,
+			FillWidth:  true,
+			Disabled:   s.config.disabled,
+		}, content)
+	})
 
 	toggleDims := toggle.Layout(ctx.Child(0))
 	if !state.opened || len(s.options) == 0 {
@@ -385,34 +438,68 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			itemLabel = fmt.Sprintf("%v", item.Value)
 		}
 		isActive := idx == currentIndex
-		bg := color.NRGBA{}
-		if isActive {
-			p := ctx.Theme().Primary
-			bg = color.NRGBA{R: p.R, G: p.G, B: p.B, A: 30}
-		}
-
-		row := Button(
-			Row(
-				Text(itemLabel),
-				Padding(style.Insets{Left: 8}, selectCheckMark(isActive, ctx.Theme().Primary)),
-			),
-			ButtonBackground(bg),
-			ButtonForeground(ctx.Theme().TextColor),
-			ButtonPadding(style.Symmetric(8, 10)),
-			ButtonRadius(6),
-			OnClick(func(ctx *internal.Context) {
+		var row Widget = layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
+			clickable := event.UseClickable(rowCtx)
+			for clickable.Clicked(rowCtx) {
 				currentValue = item.Value
 				if s.config.onChange != nil {
-					s.config.onChange(ctx, item.Value)
+					s.config.onChange(rowCtx, item.Value)
 				}
 				if state.opened {
 					state.opened = false
 					if s.config.onOpen != nil {
-						s.config.onOpen(ctx, false)
+						s.config.onOpen(rowCtx, false)
 					}
 				}
-			}),
-		)
+			}
+
+			cs := rowCtx.Theme().Colors
+			bg := color.NRGBA{}
+			if isActive {
+				bg = style.StateLayer(color.NRGBA{}, cs.Primary, style.StateLayerFocusOpacity)
+			}
+			if clickable.Pressed() {
+				bg = style.StateLayer(bg, cs.Primary, style.StateLayerPressedOpacity)
+			} else if clickable.Hovered() {
+				bg = style.StateLayer(bg, cs.Primary, style.StateLayerHoverOpacity)
+			}
+			itemRow := layoutWidgetFunc(func(contentCtx *internal.Context) layout.Dimensions {
+				dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(contentCtx.Gtx,
+					gioLayout.Flexed(1, func(gtx gioLayout.Context) gioLayout.Dimensions {
+						next := *contentCtx
+						next.Gtx = gtx
+						dims := Text(itemLabel, TextColor(cs.OnSurface), TextSize(rowCtx.Theme().Types.BodyMedium.Size)).Layout(next.Child(0))
+						return gioLayout.Dimensions{Size: dims.Size}
+					}),
+					gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+						next := *contentCtx
+						next.Gtx = gtx
+						next.Gtx.Constraints.Min = image.Point{}
+						dims := Padding(style.Insets{Left: 12}, selectCheckMark(isActive, cs.Primary)).Layout(next.Child(1))
+						return gioLayout.Dimensions{Size: dims.Size}
+					}),
+				)
+				return layout.Dimensions{Size: dims.Size}
+			})
+			itemContent := ContainerDecoration(
+				style.Decoration{}.WithBg(bg).WithPad(style.Symmetric(8, 12)).WithRad(rowCtx.Theme().Shapes.ExtraSmall),
+				itemRow,
+			)
+			size := rowCtx.LayoutRippleArea(clickable.Handle(), internal.RippleSpec{
+				Color:   cs.Primary,
+				Radius:  rowCtx.Theme().Shapes.ExtraSmall,
+				Opacity: style.StateLayerPressedOpacity,
+			}, func(childCtx *internal.Context) image.Point {
+				return itemContent.Layout(childCtx.Child(0)).Size
+			})
+			if clickable.Focused(rowCtx) {
+				rowCtx.DrawFocusIndicator(size, internal.FocusIndicatorSpec{
+					Color:  cs.Primary,
+					Radius: rowCtx.Theme().Shapes.ExtraSmall,
+				})
+			}
+			return layout.Dimensions{Size: size}
+		})
 		row = expandWidth(row)
 		items = append(items, row)
 	}
@@ -427,7 +514,11 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	)
 	panel := expandWidth(
 		ContainerDecoration(
-			style.Decoration{}.WithBg(s.config.decoration.ResolveBg(ctx.Theme().Surface)).WithPad(s.config.decoration.ResolvePad(style.All(6))).WithRad(s.config.decoration.ResolveRad(8)),
+			style.Decoration{}.
+				WithBg(s.config.decoration.ResolveBg(ctx.Theme().Colors.SurfaceContainer)).
+				WithPad(s.config.decoration.ResolvePad(style.All(6))).
+				WithRad(s.config.decoration.ResolveRad(ctx.Theme().Shapes.ExtraSmall)).
+				WithShadow(style.ElevationShadow(ctx.Theme().Colors, 2)),
 			list,
 		),
 	)
@@ -508,10 +599,16 @@ type selectArrowWidget struct {
 }
 
 func (s *selectArrowWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	box := ctx.Gtx.Dp(safeDp(24))
+	if box < 18 {
+		box = 18
+	}
 	size := ctx.Gtx.Dp(safeDp(10))
 	if size < 8 {
 		size = 8
 	}
+	offset := image.Pt((box-size)/2, (box-size)/2)
+	stack := op.Offset(offset).Push(ctx.Gtx.Ops)
 	var path clip.Path
 	path.Begin(ctx.Gtx.Ops)
 	if s.open {
@@ -524,7 +621,8 @@ func (s *selectArrowWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		path.LineTo(f32.Pt(float32(size)-1, float32(size)*0.35))
 	}
 	paint.FillShape(ctx.Gtx.Ops, s.color, clip.Stroke{Path: path.End(), Width: 2}.Op())
-	return layout.Dimensions{Size: image.Point{X: size, Y: size}}
+	stack.Pop()
+	return layout.Dimensions{Size: image.Point{X: box, Y: box}}
 }
 
 func selectCheckMark(active bool, col color.NRGBA) Widget {
@@ -537,12 +635,19 @@ type selectCheckMarkWidget struct {
 }
 
 func (s *selectCheckMarkWidget) Layout(ctx *internal.Context) layout.Dimensions {
-	size := ctx.Gtx.Dp(safeDp(14))
-	if size < 10 {
-		size = 10
+	box := ctx.Gtx.Dp(safeDp(24))
+	if box < 18 {
+		box = 18
+	}
+	mark := ctx.Gtx.Dp(safeDp(14))
+	if mark < 10 {
+		mark = 10
 	}
 	if s.active {
-		internal.DrawCheckMark(ctx.Gtx, size, s.color)
+		offset := image.Pt((box-mark)/2, (box-mark)/2)
+		stack := op.Offset(offset).Push(ctx.Gtx.Ops)
+		internal.DrawCheckMark(ctx.Gtx, mark, s.color)
+		stack.Pop()
 	}
-	return layout.Dimensions{Size: image.Point{X: size, Y: size}}
+	return layout.Dimensions{Size: image.Point{X: box, Y: box}}
 }

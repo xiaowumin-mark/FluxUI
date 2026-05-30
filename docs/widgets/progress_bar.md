@@ -9,6 +9,8 @@
   "apis": [
     "ProgressBar(value float32, opts ...ProgressOption) Widget",
     "ProgressBarElement(value float32, opts ...ProgressOption) Element",
+    "LinearProgressIndicator(value float32, opts ...ProgressOption) Widget",
+    "LinearProgressIndicatorElement(value float32, opts ...ProgressOption) Element",
     "ProgressMin(min float32) ProgressOption",
     "ProgressMax(max float32) ProgressOption",
     "ProgressIndeterminate(indeterminate bool) ProgressOption",

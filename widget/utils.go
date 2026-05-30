@@ -158,6 +158,139 @@ func layoutDecoratedClickTarget(ctx *internal.Context, clickable *internal.Click
 	return dims
 }
 
+func layoutRippleTouchTarget(ctx *internal.Context, clickable *internal.ClickableState, disabled bool, spec internal.RippleSpec, minTargetDp float32, child func(*internal.Context) image.Point) layout.Dimensions {
+	if child == nil {
+		return layout.Dimensions{}
+	}
+
+	macro := op.Record(ctx.Gtx.Ops)
+	childSize := child(ctx.Child(0))
+	childCall := macro.Stop()
+
+	minTarget := ctx.Gtx.Dp(unit.Dp(minTargetDp))
+	targetSize := childSize
+	if targetSize.X < minTarget {
+		targetSize.X = minTarget
+	}
+	if targetSize.Y < minTarget {
+		targetSize.Y = minTarget
+	}
+	if max := ctx.Gtx.Constraints.Max; max.X > 0 || max.Y > 0 {
+		if max.X > 0 && targetSize.X > max.X {
+			targetSize.X = max.X
+		}
+		if max.Y > 0 && targetSize.Y > max.Y {
+			targetSize.Y = max.Y
+		}
+	}
+
+	if disabled || clickable == nil {
+		childCall.Add(ctx.Gtx.Ops)
+		return layout.Dimensions{Size: childSize}
+	}
+
+	offset := image.Point{
+		X: -(targetSize.X - childSize.X) / 2,
+		Y: -(targetSize.Y - childSize.Y) / 2,
+	}
+	rippleMacro := op.Record(ctx.Gtx.Ops)
+	stack := op.Offset(offset).Push(ctx.Gtx.Ops)
+	ctx.LayoutRippleArea(clickable, spec, func(*internal.Context) image.Point {
+		return targetSize
+	})
+	stack.Pop()
+	rippleCall := rippleMacro.Stop()
+
+	rippleCall.Add(ctx.Gtx.Ops)
+	childCall.Add(ctx.Gtx.Ops)
+	return layout.Dimensions{Size: childSize}
+}
+
+func layoutStateLayerTouchTarget(ctx *internal.Context, clickable *internal.ClickableState, disabled bool, spec internal.RippleSpec, minTargetDp, layerDiameterDp float32, layerCenter func(image.Point) image.Point, stateOpacity func() float32, child func(*internal.Context) image.Point) layout.Dimensions {
+	if child == nil {
+		return layout.Dimensions{}
+	}
+
+	macro := op.Record(ctx.Gtx.Ops)
+	childSize := child(ctx.Child(0))
+	childCall := macro.Stop()
+
+	minTarget := ctx.Gtx.Dp(unit.Dp(minTargetDp))
+	targetSize := childSize
+	if targetSize.X < minTarget {
+		targetSize.X = minTarget
+	}
+	if targetSize.Y < minTarget {
+		targetSize.Y = minTarget
+	}
+	if max := ctx.Gtx.Constraints.Max; max.X > 0 || max.Y > 0 {
+		if max.X > 0 && targetSize.X > max.X {
+			targetSize.X = max.X
+		}
+		if max.Y > 0 && targetSize.Y > max.Y {
+			targetSize.Y = max.Y
+		}
+	}
+
+	if disabled || clickable == nil {
+		childCall.Add(ctx.Gtx.Ops)
+		return layout.Dimensions{Size: childSize}
+	}
+
+	targetOffset := image.Point{
+		X: -(targetSize.X - childSize.X) / 2,
+		Y: -(targetSize.Y - childSize.Y) / 2,
+	}
+	targetMacro := op.Record(ctx.Gtx.Ops)
+	stack := op.Offset(targetOffset).Push(ctx.Gtx.Ops)
+	ctx.LayoutClickArea(clickable, func(*internal.Context) image.Point {
+		return targetSize
+	})
+	stack.Pop()
+	targetCall := targetMacro.Stop()
+
+	center := image.Point{}
+	if layerCenter != nil {
+		center = layerCenter(childSize)
+	}
+	opacity := float32(0)
+	if stateOpacity != nil {
+		opacity = stateOpacity()
+	}
+	layerMacro := op.Record(ctx.Gtx.Ops)
+	ctx.DrawStateLayerCircle(clickable, center, layerDiameterDp, spec, opacity)
+	layerCall := layerMacro.Stop()
+
+	targetCall.Add(ctx.Gtx.Ops)
+	layerCall.Add(ctx.Gtx.Ops)
+	childCall.Add(ctx.Gtx.Ops)
+	return layout.Dimensions{Size: childSize}
+}
+
+func materialStateLayerOpacity(hovered, pressed bool) float32 {
+	if pressed {
+		return style.StateLayerPressedOpacity
+	}
+	if hovered {
+		return style.StateLayerHoverOpacity
+	}
+	return 0
+}
+
+func selectionControlSizePx(ctx *internal.Context, sizeDp, fallbackDp float32) int {
+	if fallbackDp <= 0 {
+		fallbackDp = 18
+	}
+	size := ctx.Gtx.Dp(unit.Dp(sizeDp))
+	if size <= 0 {
+		size = ctx.Gtx.Dp(unit.Dp(fallbackDp))
+	}
+	if size < 14 {
+		size = 14
+	}
+	return size
+}
+
 func layoutTransformedClickArea(ctx *internal.Context, clickable *internal.ClickableState, margin style.Insets, transform *style.Transform2D, outerSize image.Point) image.Point {
 	if clickable == nil {
 		return outerSize

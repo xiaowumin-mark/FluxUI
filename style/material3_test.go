@@ -2,6 +2,7 @@ package style
 
 import (
 	"testing"
+	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/theme"
 )
@@ -42,5 +43,23 @@ func TestDisabledHelpersUseMD3Opacity(t *testing.T) {
 	}
 	if got := DisabledContent(onSurface); got.A != 97 {
 		t.Fatalf("expected disabled content alpha 97, got %d", got.A)
+	}
+}
+
+func TestInteractionTokensAreStableAndBounded(t *testing.T) {
+	if InteractionHoverDuration != 120*time.Millisecond {
+		t.Fatalf("hover duration = %v, want 120ms", InteractionHoverDuration)
+	}
+	if InteractionPressedDuration <= 0 || InteractionPressedDuration >= InteractionSelectedDuration {
+		t.Fatalf("pressed duration should be positive and shorter than selected duration")
+	}
+	if InteractionRippleExpand != 450*time.Millisecond || InteractionRippleFade != 550*time.Millisecond {
+		t.Fatalf("unexpected ripple timing: expand=%v fade=%v", InteractionRippleExpand, InteractionRippleFade)
+	}
+	if InteractionEasing(-1) != 0 || InteractionEasing(2) != 1 {
+		t.Fatalf("interaction easing should clamp outside [0,1]")
+	}
+	if got := InteractionEasing(0.5); got <= 0 || got >= 1 {
+		t.Fatalf("interaction easing midpoint = %v, want inside (0,1)", got)
 	}
 }

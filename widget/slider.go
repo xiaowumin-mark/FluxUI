@@ -178,20 +178,41 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			Disabled:      s.config.disabled,
 			Hovered:       clickable != nil && clickable.Hovered(),
 			Pressed:       clickable != nil && clickable.Pressed(),
+			Dragged:       sliderValue.Dragging(),
 		})
 	}
 
-	var dims layout.Dimensions
+	target := content
 	if hasAnyDecoration(s.config.decoration) {
-		deco := withDefaultStates(s.config.decoration,
-			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, progressColor, style.StateLayerHoverOpacity)).WithRad(12),
-			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, progressColor, style.StateLayerPressedOpacity)).WithRad(12),
-			style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)).WithRad(12),
-		)
-		dims = layoutDecoratedClickTarget(ctx.Child(0), clickable, clickable != nil && clickable.Hovered(), clickable != nil && clickable.Pressed(), deco, s.config.disabled, content)
-	} else {
-		dims = layout.Dimensions{Size: content(ctx.Child(0))}
+		target = func(targetCtx *internal.Context) image.Point {
+			pressed := clickable != nil && (clickable.Pressed() || sliderValue.Dragging())
+			active := resolveDecorationState(s.config.decoration, clickable != nil && clickable.Hovered(), pressed, s.config.disabled)
+			visual := stripStateDecoration(active)
+			return layoutDecorationShell(targetCtx.Child(0), visual, content).Size
+		}
 	}
+
+	dims := layoutStateLayerTouchTarget(ctx.Child(0), clickable, s.config.disabled, internal.RippleSpec{
+		Color:   thumbColor,
+		Radius:  20,
+		Opacity: style.StateLayerPressedOpacity,
+	}, 48, 40, func(size image.Point) image.Point {
+		thumbSize := size.Y
+		if thumbSize <= 0 {
+			thumbSize = ctx.Gtx.Dp(safeDp(20))
+		}
+		travel := size.X - thumbSize
+		if travel < 0 {
+			travel = 0
+		}
+		x := thumbSize/2 + int(float32(travel)*sliderValue.Value+0.5)
+		return image.Pt(x, size.Y/2)
+	}, func() float32 {
+		if sliderValue.Dragging() {
+			return style.StateLayerDraggedOpacity
+		}
+		return materialStateLayerOpacity(clickable != nil && clickable.Hovered(), clickable != nil && clickable.Pressed())
+	}, target)
 
 	if !s.config.disabled && math.Abs(float64(sliderValue.Value-before)) > 0.0001 {
 		next := s.config.min + sliderValue.Value*(s.config.max-s.config.min)

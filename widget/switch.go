@@ -159,7 +159,7 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		thumbColor = style.DisabledContent(cs.OnSurface)
 	}
 	content := func(contentCtx *internal.Context) image.Point {
-		return contentCtx.LayoutSwitch(clickable.Handle(), s.value, internal.SwitchSpec{
+		return contentCtx.LayoutSwitch(nil, s.value, internal.SwitchSpec{
 			Width:      s.config.width,
 			Height:     s.config.height,
 			TrackColor: trackColor,
@@ -170,14 +170,39 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		})
 	}
 
-	if hasAnyDecoration(s.config.decoration) {
-		deco := withDefaultStates(s.config.decoration,
-			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, trackColor, style.StateLayerHoverOpacity)).WithRad(s.config.height/2),
-			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, trackColor, style.StateLayerPressedOpacity)).WithRad(s.config.height/2),
-			style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)).WithRad(s.config.height/2),
-		)
-		return layoutDecoratedClickTarget(ctx.Child(0), clickable.Handle(), clickable.Hovered(), clickable.Pressed(), deco, s.config.disabled, content)
+	deco := withDefaultStates(s.config.decoration,
+		style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, trackColor, style.StateLayerHoverOpacity)).WithRad(s.config.height/2),
+		style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, trackColor, style.StateLayerPressedOpacity)).WithRad(s.config.height/2),
+		style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)).WithRad(s.config.height/2),
+	)
+	target := func(targetCtx *internal.Context) image.Point {
+		if hasAnyDecoration(s.config.decoration) {
+			active := resolveDecorationState(deco, clickable.Hovered(), clickable.Pressed(), s.config.disabled)
+			visual := stripStateDecoration(active)
+			return layoutDecorationShell(targetCtx.Child(0), visual, content).Size
+		}
+		return content(targetCtx.Child(0))
 	}
-
-	return layout.Dimensions{Size: content(ctx.Child(0))}
+	stateLayerColor := trackColor
+	if !s.value {
+		stateLayerColor = thumbColor
+	}
+	return layoutStateLayerTouchTarget(ctx, clickable.Handle(), s.config.disabled, internal.RippleSpec{
+		Color:   stateLayerColor,
+		Radius:  s.config.height / 2,
+		Opacity: style.StateLayerPressedOpacity,
+	}, 48, 40, func(size image.Point) image.Point {
+		thumbPadding := 2
+		thumbSize := size.Y - thumbPadding*2
+		if thumbSize < 2 {
+			thumbSize = 2
+		}
+		x := thumbPadding + thumbSize/2
+		if s.value {
+			x = size.X - thumbPadding - thumbSize/2
+		}
+		return image.Pt(x, size.Y/2)
+	}, func() float32 {
+		return materialStateLayerOpacity(clickable.Hovered(), clickable.Pressed())
+	}, target)
 }

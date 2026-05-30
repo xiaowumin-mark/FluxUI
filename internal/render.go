@@ -170,6 +170,7 @@ type SliderSpec struct {
 	Disabled      bool
 	Hovered       bool
 	Pressed       bool
+	Dragged       bool
 }
 
 // LayoutText 渲染文本。
@@ -242,9 +243,53 @@ func (c *Context) LayoutSurface(spec SurfaceSpec, child func(*Context) image.Poi
 	return dims.Size
 }
 
+func (c *Context) LayoutSurfaceLooseContent(spec SurfaceSpec, child func(*Context) image.Point) image.Point {
+	gtx := c.Gtx
+	if spec.Opacity > 0 && spec.Opacity < 1 {
+		defer paint.PushOpacity(gtx.Ops, spec.Opacity).Pop()
+	}
+
+	contentGtx := gtx
+	contentGtx.Constraints.Min = image.Point{}
+	contentMacro := op.Record(gtx.Ops)
+	contentSize := c.sameScope(contentGtx).LayoutInset(spec.Padding, child)
+	contentCall := contentMacro.Stop()
+
+	size := gtx.Constraints.Constrain(contentSize)
+	if spec.HasShadow {
+		c.drawShadowLayers(gtx, size, spec)
+	}
+	if spec.CircleClip {
+		c.layoutCircleSurface(gtx, size, spec)
+	} else {
+		c.layoutRoundedSurface(gtx, size, spec)
+	}
+
+	if size != contentSize {
+		offset := image.Point{
+			X: (size.X - contentSize.X) / 2,
+			Y: (size.Y - contentSize.Y) / 2,
+		}
+		stack := op.Offset(offset).Push(gtx.Ops)
+		contentCall.Add(gtx.Ops)
+		stack.Pop()
+	} else {
+		contentCall.Add(gtx.Ops)
+	}
+
+	return size
+}
+
+func (c *Context) DrawSurfaceShadow(size image.Point, spec SurfaceSpec) {
+	if size.X <= 0 || size.Y <= 0 || !spec.HasShadow || spec.ShadowColor.A == 0 || spec.ShadowBlur <= 0 {
+		return
+	}
+	c.drawShadowLayers(c.Gtx, size, spec)
+}
+
 func (c *Context) drawShadowLayers(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
 	n := shadowLayerCount(spec.ShadowBlur)
-	if n <= 0 {
+	if n <= 0 || size.X <= 0 || size.Y <= 0 {
 		return
 	}
 	baseAlpha := float32(spec.ShadowColor.A) / 255.0
@@ -272,9 +317,10 @@ func (c *Context) drawShadowLayers(gtx gioLayout.Context, size image.Point, spec
 			paint.Fill(gtx.Ops, sc)
 			clipStack.Pop()
 		} else {
+			rect := image.Rect(-spread, -spread, size.X+spread, size.Y+spread)
 			rad := gtx.Dp(unit.Dp(spec.Radius)) + spread
-			rr := clampRoundedRadiusPx(size, rad)
-			clipStack := clip.UniformRRect(image.Rectangle{Max: size}, rr).Push(gtx.Ops)
+			rr := clampRoundedRadiusPx(rect.Size(), rad)
+			clipStack := clip.UniformRRect(rect, rr).Push(gtx.Ops)
 			paint.Fill(gtx.Ops, sc)
 			clipStack.Pop()
 		}
@@ -440,11 +486,13 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 		dims := gioLayout.Background{}.Layout(gtx,
 			func(gtx gioLayout.Context) gioLayout.Dimensions {
 				fillRoundedRect(gtx, gtx.Constraints.Min, spec.Background, spec.Radius)
-				c.sameScope(gtx).DrawRipple(clickable, gtx.Constraints.Min, RippleSpec{
-					Color:   spec.Foreground,
-					Radius:  spec.Radius,
-					Opacity: 0.12,
-				})
+				if !spec.Disabled {
+					c.sameScope(gtx).DrawRipple(clickable, gtx.Constraints.Min, RippleSpec{
+						Color:   spec.Foreground,
+						Radius:  spec.Radius,
+						Opacity: 0.12,
+					})
+				}
 				return gioLayout.Dimensions{Size: gtx.Constraints.Min}
 			},
 			func(gtx gioLayout.Context) gioLayout.Dimensions {
@@ -476,8 +524,47 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 	if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
 		drawBorderWidth(gtx, dims.Size, spec.BorderColor, spec.Radius, spec.BorderWidth)
 	}
+	if !spec.Disabled && clickable.Focused(c) {
+		c.DrawFocusIndicator(dims.Size, FocusIndicatorSpec{
+			Color:  c.Theme().Colors.Primary,
+			Radius: spec.Radius,
+		})
+	}
 
 	return dims.Size
+}
+
+type FocusIndicatorSpec struct {
+	Color  color.NRGBA
+	Radius float32
+	Width  float32
+	Inset  float32
+}
+
+func (c *Context) DrawFocusIndicator(size image.Point, spec FocusIndicatorSpec) {
+	if size.X <= 0 || size.Y <= 0 || spec.Color.A == 0 {
+		return
+	}
+	width := c.Gtx.Dp(unit.Dp(spec.Width))
+	if width <= 0 {
+		width = c.Gtx.Dp(unit.Dp(2))
+	}
+	if width <= 0 {
+		width = 1
+	}
+	inset := c.Gtx.Dp(unit.Dp(spec.Inset))
+	if inset < 0 {
+		inset = 0
+	}
+	rect := image.Rectangle{Max: size}.Inset(inset + width/2)
+	if rect.Dx() <= 0 || rect.Dy() <= 0 {
+		rect = image.Rectangle{Max: size}
+	}
+	radius := clampRoundedRadiusPx(rect.Size(), c.Gtx.Dp(unit.Dp(spec.Radius)))
+	paint.FillShape(c.Gtx.Ops, spec.Color, clip.Stroke{
+		Path:  clip.UniformRRect(rect, radius).Path(c.Gtx.Ops),
+		Width: float32(width),
+	}.Op())
 }
 
 // LayoutClickArea 注册无样式点击区域，不附带任何视觉反馈。
@@ -545,12 +632,48 @@ func (c *Context) LayoutInput(editor *widget.Editor, spec InputSpec) image.Point
 				if spec.LineHeight > 0 {
 					ed.LineHeight = unit.Sp(spec.LineHeight)
 				}
-				return ed.Layout(gtx)
+				return layoutInputEditor(gtx, ed, spec.SingleLine)
 			})
 		},
 	)
 
 	return dims.Size
+}
+
+func layoutInputEditor(gtx gioLayout.Context, ed material.EditorStyle, singleLine bool) gioLayout.Dimensions {
+	if !singleLine {
+		return ed.Layout(gtx)
+	}
+
+	minY := gtx.Constraints.Min.Y
+	editCtx := gtx
+	editCtx.Constraints.Min.Y = 0
+
+	macro := op.Record(gtx.Ops)
+	dims := ed.Layout(editCtx)
+	call := macro.Stop()
+
+	size := dims.Size
+	if size.X < gtx.Constraints.Min.X {
+		size.X = gtx.Constraints.Min.X
+	}
+	if size.Y < minY {
+		size.Y = minY
+	}
+	size = gtx.Constraints.Constrain(size)
+
+	offsetY := (size.Y - dims.Size.Y) / 2
+	if offsetY < 0 {
+		offsetY = 0
+	}
+	offset := op.Offset(image.Pt(0, offsetY)).Push(gtx.Ops)
+	call.Add(gtx.Ops)
+	offset.Pop()
+
+	return gioLayout.Dimensions{
+		Size:     size,
+		Baseline: dims.Baseline + offsetY,
+	}
 }
 
 // LayoutCheckbox 绘制复选框。
@@ -586,14 +709,6 @@ func (c *Context) LayoutCheckbox(clickable *ClickableState, checked bool, spec C
 		if checked {
 			fillColor = onColor
 			borderColor = onColor
-		}
-		if !spec.Disabled && !checked && spec.Hovered {
-			fillColor = fluxstyle.StateLayer(fillColor, onColor, fluxstyle.StateLayerHoverOpacity)
-			borderColor = MixNRGBA(onColor, borderColor, 0.45)
-		}
-		if !spec.Disabled && spec.Pressed {
-			fillColor = fluxstyle.StateLayer(fillColor, onColor, fluxstyle.StateLayerPressedOpacity)
-			borderColor = MixNRGBA(onColor, borderColor, 0.55)
 		}
 
 		radius := size / 5
@@ -650,7 +765,6 @@ func (c *Context) LayoutRadio(clickable *ClickableState, checked bool, spec Radi
 		}
 
 		rect := image.Rectangle{Max: image.Point{X: size, Y: size}}
-		radius := size / 2
 		onColor := spec.Color
 		if onColor.A == 0 {
 			onColor = c.Theme().Colors.Primary
@@ -666,16 +780,8 @@ func (c *Context) LayoutRadio(clickable *ClickableState, checked bool, spec Radi
 		if checked {
 			borderColor = onColor
 		}
-		if !spec.Disabled && !checked && spec.Hovered {
-			bg = fluxstyle.StateLayer(bg, onColor, fluxstyle.StateLayerHoverOpacity)
-			borderColor = MixNRGBA(onColor, borderColor, 0.45)
-		}
-		if !spec.Disabled && spec.Pressed {
-			bg = fluxstyle.StateLayer(bg, onColor, fluxstyle.StateLayerPressedOpacity)
-			borderColor = MixNRGBA(onColor, borderColor, 0.55)
-		}
-		paint.FillShape(gtx.Ops, bg, clip.UniformRRect(rect, radius).Op(gtx.Ops))
-		strokeWidth := gtx.Dp(unit.Dp(1))
+		paint.FillShape(gtx.Ops, bg, clip.Ellipse(rect).Op(gtx.Ops))
+		strokeWidth := gtx.Dp(unit.Dp(2))
 		if strokeWidth < 1 {
 			strokeWidth = 1
 		}
@@ -687,25 +793,28 @@ func (c *Context) LayoutRadio(clickable *ClickableState, checked bool, spec Radi
 			strokeRect = rect
 		}
 		paint.FillShape(gtx.Ops, borderColor, clip.Stroke{
-			Path:  clip.UniformRRect(strokeRect, radius).Path(gtx.Ops),
+			Path:  clip.Ellipse(strokeRect).Path(gtx.Ops),
 			Width: float32(strokeWidth),
 		}.Op())
 
 		if checked {
-			dotSize := int(float32(size) * 0.42)
+			dotSize := int(float32(size)*0.5 + 0.5)
 			if dotSize < 4 {
 				dotSize = 4
 			}
 			if dotSize > size-6 {
 				dotSize = size - 6
 			}
+			if dotSize > 4 && (size-dotSize)%2 != 0 {
+				dotSize--
+			}
 			if dotSize > 0 {
-				inset := (size - dotSize + 1) / 2
+				inset := (size - dotSize) / 2
 				dotRect := image.Rectangle{
 					Min: image.Point{X: inset, Y: inset},
 					Max: image.Point{X: inset + dotSize, Y: inset + dotSize},
 				}
-				paint.FillShape(gtx.Ops, onColor, clip.UniformRRect(dotRect, dotSize/2).Op(gtx.Ops))
+				paint.FillShape(gtx.Ops, onColor, clip.Ellipse(dotRect).Op(gtx.Ops))
 			}
 		}
 
@@ -744,10 +853,6 @@ func (c *Context) LayoutSwitch(clickable *ClickableState, checked bool, spec Swi
 		if spec.Disabled {
 			trackColor = fluxstyle.DisabledContainer(cs.OnSurface)
 			thumbColor = fluxstyle.DisabledContent(cs.OnSurface)
-		} else if spec.Pressed {
-			trackColor = fluxstyle.StateLayer(trackColor, thumbColor, fluxstyle.StateLayerPressedOpacity)
-		} else if spec.Hovered {
-			trackColor = fluxstyle.StateLayer(trackColor, thumbColor, fluxstyle.StateLayerHoverOpacity)
 		}
 
 		rr := height / 2
@@ -812,6 +917,7 @@ func (c *Context) LayoutSlider(slider *widget.Float, spec SliderSpec) image.Poin
 	}
 	interactiveCtx.Constraints = gioLayout.Exact(image.Point{X: width, Y: interactiveHeight})
 	_ = slider.Layout(interactiveCtx, gioLayout.Horizontal, unit.Dp(10))
+	spec.Dragged = spec.Dragged || slider.Dragging()
 
 	progress := slider.Value
 	if progress < 0 {
@@ -838,21 +944,8 @@ func (c *Context) LayoutSlider(slider *widget.Float, spec SliderSpec) image.Poin
 	centerY := thumbSize / 2
 	rr := trackHeight / 2
 
-	progressColor := spec.ProgressColor
-	thumbColor := spec.ThumbColor
-	trackColor := spec.TrackColor
 	cs := c.Theme().Colors
-	if spec.Disabled {
-		trackColor = fluxstyle.DisabledContainer(cs.OnSurface)
-		progressColor = fluxstyle.DisabledContent(cs.OnSurface)
-		thumbColor = fluxstyle.DisabledContent(cs.OnSurface)
-	} else if spec.Pressed {
-		thumbColor = fluxstyle.StateLayer(thumbColor, cs.OnPrimary, fluxstyle.StateLayerPressedOpacity)
-		trackColor = fluxstyle.StateLayer(trackColor, progressColor, fluxstyle.StateLayerPressedOpacity)
-	} else if spec.Hovered {
-		thumbColor = fluxstyle.StateLayer(thumbColor, cs.OnPrimary, fluxstyle.StateLayerHoverOpacity)
-		trackColor = fluxstyle.StateLayer(trackColor, progressColor, fluxstyle.StateLayerHoverOpacity)
-	}
+	trackColor, progressColor, thumbColor := resolveSliderVisualColors(spec, cs)
 
 	if trackWidth > 0 {
 		trackRect := image.Rectangle{
@@ -878,6 +971,16 @@ func (c *Context) LayoutSlider(slider *widget.Float, spec SliderSpec) image.Poin
 	paint.FillShape(gtx.Ops, thumbColor, clip.UniformRRect(thumbRect, thumbRR).Op(gtx.Ops))
 
 	return image.Point{X: width, Y: thumbSize}
+}
+
+func resolveSliderVisualColors(spec SliderSpec, cs theme.ColorScheme) (track, progress, thumb color.NRGBA) {
+	track = spec.TrackColor
+	progress = spec.ProgressColor
+	thumb = spec.ThumbColor
+	if spec.Disabled {
+		return fluxstyle.DisabledContainer(cs.OnSurface), fluxstyle.DisabledContent(cs.OnSurface), fluxstyle.DisabledContent(cs.OnSurface)
+	}
+	return track, progress, thumb
 }
 
 func drawCheckMark(gtx gioLayout.Context, size int, col color.NRGBA) {

@@ -14,6 +14,18 @@ func main() {
 func App(ctx *ui.Context) ui.Element {
 	th := ui.UseTheme(ctx)
 	dark := ui.NewTheme(ui.DarkColors())
+	selectValue := ui.UseState(ctx, "medium")
+	menuOpen := ui.UseState(ctx, false)
+	menuValue := ui.UseState(ctx, "copy")
+	fabCount := ui.UseState(ctx, 0)
+	railValue := ui.UseState(ctx, "home")
+	drawerValue := ui.UseState(ctx, "inbox")
+	chipSelected := ui.UseState(ctx, true)
+	searchValue := ui.UseState(ctx, "")
+	progressValue := ui.UseState(ctx, float32(56))
+	snackbarMessage := ui.UseState(ctx, "")
+	snackbarSerial := ui.UseState(ctx, 0)
+	snackbarActionCount := ui.UseState(ctx, 0)
 
 	return ui.ContainerDecorationElement(
 		ui.Bg(th.Colors.Surface).WithPad(ui.All(18)),
@@ -73,6 +85,102 @@ func App(ctx *ui.Context) ui.Element {
 				),
 				gap(),
 
+				sectionTitle("Menus and List Items"),
+				ui.RowElement(
+					ui.FixedWidthElement(230, ui.SelectElement(
+						selectValue.Value(),
+						[]ui.SelectOptionItem[string]{
+							{Label: "Low priority", Value: "low"},
+							{Label: "Medium priority", Value: "medium"},
+							{Label: "High priority", Value: "high"},
+						},
+						ui.SelectOnChange[string](func(ctx *ui.Context, value string) { selectValue.Set(value) }),
+					)),
+					ui.SpacerElement(14, 0),
+					ui.FixedWidthElement(230, ui.DropdownMenuElement(
+						menuOpen.Value(),
+						ui.ContainerDecorationElement(
+							ui.Bg(th.Colors.Surface).WithPad(ui.Symmetric(10, 16)).WithRad(th.Shapes.ExtraSmall).WithBorder(ui.Border{Width: 1, Color: th.Colors.Outline}),
+							ui.TextElement("Menu", ui.TextColor(th.Colors.OnSurface)),
+						),
+						[]ui.MenuItem{
+							{Key: "copy", Label: "Copy"},
+							{Key: "share", Label: "Share"},
+							{Key: "archive", Label: "Archive"},
+						},
+						ui.DropdownMenuSelectedKey(menuValue.Value()),
+						ui.DropdownMenuOnOpenChange(func(ctx *ui.Context, open bool) { menuOpen.Set(open) }),
+						ui.DropdownMenuOnSelect(func(ctx *ui.Context, key string) {
+							menuValue.Set(key)
+							menuOpen.Set(false)
+						}),
+					)),
+					ui.SpacerElement(14, 0),
+					ui.FixedWidthElement(260, ui.ColumnElement(
+						ui.ListItemElementWithSlots(ui.TextElement("Inbox"), ui.TextElement("12 unread messages"), ui.IconElement("I"), ui.TextElement("12"), ui.ListItemSelected(true)),
+						ui.ListItemElementWithSlots(ui.TextElement("Archive"), ui.TextElement("Older conversations"), ui.IconElement("A"), nil),
+					)),
+				),
+				gap(),
+
+				sectionTitle("Icon Buttons and FABs"),
+				ui.RowElement(
+					padded(ui.IconButtonElement(ui.IconElement("S"), ui.IconButtonSelected(true))),
+					padded(ui.FilledIconButtonElement(ui.IconElement("F"), ui.IconButtonSelected(true))),
+					padded(ui.FilledTonalIconButtonElement(ui.IconElement("T"))),
+					padded(ui.OutlinedIconButtonElement(ui.IconElement("O"))),
+					ui.SpacerElement(16, 0),
+					padded(ui.SmallFloatingActionButtonElement(ui.IconElement("+"), ui.FloatingActionButtonOnClick(func(ctx *ui.Context) { fabCount.Set(fabCount.Value() + 1) }))),
+					padded(ui.FloatingActionButtonElement(ui.IconElement("+"), ui.FloatingActionButtonOnClick(func(ctx *ui.Context) { fabCount.Set(fabCount.Value() + 1) }))),
+					padded(ui.ExtendedFloatingActionButtonElement(ui.IconElement("+"), ui.TextElement(fmt.Sprintf("Create %d", fabCount.Value())), ui.FloatingActionButtonOnClick(func(ctx *ui.Context) { fabCount.Set(fabCount.Value() + 1) }))),
+				),
+				gap(),
+
+				sectionTitle("Chips and Badges"),
+				ui.RowElement(
+					padded(ui.AssistChipElement("Assist", ui.ChipLeading(ui.Icon("i", ui.IconSize(16))))),
+					padded(ui.FilterChipElement(
+						"Filter",
+						ui.ChipSelected(chipSelected.Value()),
+						ui.ChipOnClick(func(ctx *ui.Context) { chipSelected.Set(!chipSelected.Value()) }),
+					)),
+					padded(ui.InputChipElement("Input", ui.ChipTrailing(ui.Icon("x", ui.IconSize(14))))),
+					padded(ui.SuggestionChipElement("Suggestion")),
+					ui.SpacerElement(18, 0),
+					padded(ui.BadgeElement(ui.IconButtonElement(ui.IconElement("M")), "3")),
+					padded(ui.BadgeElement(ui.IconButtonElement(ui.IconElement("N")), "", ui.BadgeVisible(true))),
+				),
+				gap(),
+
+				sectionTitle("Search and Progress"),
+				ui.RowElement(
+					ui.FixedWidthElement(
+						340,
+						ui.SearchBarElement(
+							searchValue.Value(),
+							ui.SearchBarPlaceholder("Search components"),
+							ui.SearchBarLeading(ui.Icon("S", ui.IconSize(18))),
+							ui.SearchBarOnChange(func(ctx *ui.Context, value string) { searchValue.Set(value) }),
+						),
+					),
+					ui.SpacerElement(18, 0),
+					ui.FixedWidthElement(
+						260,
+						ui.ColumnElement(
+							ui.SliderElement(
+								progressValue.Value(),
+								ui.SliderMin(0),
+								ui.SliderMax(100),
+								ui.SliderOnChange(func(ctx *ui.Context, value float32) { progressValue.Set(value) }),
+							),
+							ui.PaddingElement(ui.Insets{Top: 10}, ui.LinearProgressIndicatorElement(progressValue.Value())),
+						),
+					),
+					ui.SpacerElement(18, 0),
+					ui.CircularProgressIndicatorElement(progressValue.Value(), ui.ProgressSize(72), ui.ProgressLabelVisible(true)),
+				),
+				gap(),
+
 				sectionTitle("Navigation"),
 				ui.AppBarElementWithSlots(
 					ui.TextElement("Top App Bar", ui.TextSize(th.Types.TitleLarge.Size), ui.TextColor(th.Colors.OnSurface)),
@@ -91,6 +199,70 @@ func App(ctx *ui.Context) ui.Element {
 					{Key: "search", Label: "Search", Icon: ui.TextElement("Search")},
 					{Key: "settings", Label: "Settings", Icon: ui.TextElement("Settings")},
 				}),
+				gap(),
+
+				sectionTitle("Navigation Rail and Drawer"),
+				ui.FixedHeightElement(260, ui.RowElement(
+					ui.NavigationRailElement(
+						railValue.Value(),
+						[]ui.ElementNavItem{
+							{Key: "home", Label: "Home", Icon: ui.IconElement("H")},
+							{Key: "search", Label: "Search", Icon: ui.IconElement("S")},
+							{Key: "settings", Label: "Settings", Icon: ui.IconElement("G")},
+						},
+						ui.NavigationRailOnChange(func(ctx *ui.Context, key string) { railValue.Set(key) }),
+					),
+					ui.SpacerElement(14, 0),
+					ui.NavigationDrawerElement(
+						drawerValue.Value(),
+						[]ui.ElementNavItem{
+							{Key: "inbox", Label: "Inbox", Icon: ui.IconElement("I")},
+							{Key: "sent", Label: "Sent", Icon: ui.IconElement("S")},
+							{Key: "drafts", Label: "Drafts", Icon: ui.IconElement("D")},
+						},
+						ui.NavigationDrawerWidth(280),
+						ui.NavigationDrawerOnChange(func(ctx *ui.Context, key string) { drawerValue.Set(key) }),
+					),
+					ui.ExpandedElement(ui.CenterElement(ui.TextElement("Rail: "+railValue.Value()+" / Drawer: "+drawerValue.Value(), ui.TextSize(14)))),
+				)),
+				gap(),
+
+				sectionTitle("Snackbar and Tooltip"),
+				ui.FixedHeightElement(180, ui.StackElement(
+					ui.ContainerDecorationElement(
+						ui.Bg(th.Colors.SurfaceContainerLow).WithRad(th.Shapes.Medium).WithPad(ui.All(16)),
+						ui.RowElement(
+							padded(ui.TooltipElement("Tooltip text", ui.FilledTonalButtonElement(ui.TextElement("Hover me")))),
+							padded(ui.FilledButtonElement(
+								ui.TextElement("Show snackbar"),
+								ui.OnClick(func(ctx *ui.Context) {
+									snackbarSerial.Set(snackbarSerial.Value() + 1)
+									snackbarMessage.Set("Draft archived")
+								}),
+							)),
+							ui.PaddingElement(
+								ui.Insets{Top: 10},
+								ui.TextElement(fmt.Sprintf("Undo clicks: %d", snackbarActionCount.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
+							),
+						),
+					),
+					func() ui.Element {
+						if snackbarMessage.Value() == "" {
+							return nil
+						}
+						return ui.Key(
+							fmt.Sprintf("showcase-snackbar-%d", snackbarSerial.Value()),
+							ui.SnackbarElement(
+								snackbarMessage.Value(),
+								ui.SnackbarAction("Undo", func(ctx *ui.Context) {
+									snackbarActionCount.Set(snackbarActionCount.Value() + 1)
+									snackbarMessage.Set("")
+								}),
+								ui.ToastDuration(0),
+							),
+						)
+					}(),
+				)),
 				gap(),
 
 				sectionTitle("Overlays"),

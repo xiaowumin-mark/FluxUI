@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"time"
 
+	"github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
@@ -153,41 +154,53 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			tabBg = withAlpha(indicator, 20)
 		}
 
-		tabDecoration := componentDecoration(
-			withDefaultStates(t.config.tabDecoration,
-				style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, indicator, style.StateLayerHoverOpacity)),
-				style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, indicator, style.StateLayerPressedOpacity)),
-				style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)),
-			),
-			tabBg,
-			style.Symmetric(8, 10),
-			8,
+		tabStates := withDefaultStates(t.config.tabDecoration,
+			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, indicator, style.StateLayerHoverOpacity)),
+			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, indicator, style.StateLayerPressedOpacity)),
+			style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)),
 		)
-
-		tab := Button(
-			Column(
-				Text(item.Label, TextColor(txtColor), TextSize(ctx.Theme().Types.LabelLarge.Size)),
-				Padding(
-					style.Insets{Top: 4},
-					ContainerDecoration(
-						style.Decoration{}.WithBg(indicatorBar).WithRad(2),
-						(&fixedSizeWidget{
-							width:  22,
-							height: 3,
-							child:  Spacer(0, 0),
-						}),
-					),
-				),
-			),
-			ButtonForeground(txtColor),
-			ButtonDecoration(tabDecoration),
-			OnClick(func(ctx *internal.Context) {
+		tab := layoutWidgetFunc(func(tabCtx *internal.Context) layout.Dimensions {
+			clickable := event.UseClickable(tabCtx)
+			for clickable.Clicked(tabCtx) {
 				activeKey = item.Key
 				if t.config.onChange != nil {
-					t.config.onChange(ctx, item.Key)
+					t.config.onChange(tabCtx, item.Key)
 				}
-			}),
-		)
+			}
+			activeDecoration := resolveDecorationState(tabStates, clickable.Hovered(), clickable.Pressed(), false)
+			tabDecoration := componentDecoration(activeDecoration, tabBg, style.Symmetric(8, 10), 8)
+			tabContent := ContainerDecoration(
+				tabDecoration,
+				Column(
+					Text(item.Label, TextColor(txtColor), TextSize(tabCtx.Theme().Types.LabelLarge.Size)),
+					Padding(
+						style.Insets{Top: 4},
+						ContainerDecoration(
+							style.Decoration{}.WithBg(indicatorBar).WithRad(2),
+							(&fixedSizeWidget{
+								width:  22,
+								height: 3,
+								child:  Spacer(0, 0),
+							}),
+						),
+					),
+				),
+			)
+			size := tabCtx.LayoutRippleArea(clickable.Handle(), internal.RippleSpec{
+				Color:   txtColor,
+				Radius:  8,
+				Opacity: style.StateLayerPressedOpacity,
+			}, func(childCtx *internal.Context) image.Point {
+				return tabContent.Layout(childCtx.Child(0)).Size
+			})
+			if clickable.Focused(tabCtx) {
+				tabCtx.DrawFocusIndicator(size, internal.FocusIndicatorSpec{
+					Color:  indicator,
+					Radius: 8,
+				})
+			}
+			return layout.Dimensions{Size: size}
+		})
 		children = append(children, Padding(style.Insets{Right: 6}, tab))
 	}
 
@@ -462,6 +475,8 @@ type toastConfig struct {
 	duration     time.Duration
 	position     ToastPosition
 	onClose      func(ctx *internal.Context)
+	actionLabel  string
+	onAction     func(ctx *internal.Context)
 	decoration   style.Decoration
 	textColor    color.NRGBA
 	hasTextColor bool
@@ -514,6 +529,13 @@ func ToastPositionOf(p ToastPosition) ToastOption {
 
 func ToastOnClose(fn func(ctx *internal.Context)) ToastOption {
 	return func(cfg *toastConfig) { cfg.onClose = fn }
+}
+
+func ToastAction(label string, fn func(ctx *internal.Context)) ToastOption {
+	return func(cfg *toastConfig) {
+		cfg.actionLabel = label
+		cfg.onAction = fn
+	}
 }
 
 // ToastDecoration 通过 Decoration 统一设置背景、内边距和圆角。
@@ -578,9 +600,31 @@ func (t *toastWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		fg = t.config.textColor
 	}
 
+	content := Widget(Text(t.message, TextColor(fg), TextSize(ctx.Theme().Types.BodyMedium.Size)))
+	if t.config.actionLabel != "" {
+		action := TextButton(
+			Text(t.config.actionLabel, TextColor(cs.InversePrimary), TextSize(ctx.Theme().Types.LabelLarge.Size)),
+			ButtonForeground(cs.InversePrimary),
+			ButtonPadding(style.Symmetric(6, 8)),
+			OnClick(func(actionCtx *internal.Context) {
+				if t.config.onAction != nil {
+					t.config.onAction(actionCtx)
+				}
+				state.closed = true
+				if t.config.onClose != nil {
+					t.config.onClose(actionCtx)
+				}
+			}),
+		)
+		content = middleRow(
+			Expanded(content),
+			Padding(style.Insets{Left: 12}, action),
+		)
+	}
+
 	body := ContainerDecoration(
 		style.Decoration{}.WithBg(bg).WithPad(t.config.decoration.ResolvePad(style.Symmetric(8, 16))).WithRad(t.config.decoration.ResolveRad(ctx.Theme().Shapes.ExtraSmall)),
-		Text(t.message, TextColor(fg), TextSize(ctx.Theme().Types.BodyMedium.Size)),
+		content,
 	)
 
 	anchor := gioLayout.S
@@ -606,6 +650,16 @@ func toastStateFor(ctx *internal.Context) *toastState {
 		panic("github.com/xiaowumin-mark/FluxUIwidget: toast state type mismatch")
 	}
 	return state
+}
+
+type SnackbarOption = ToastOption
+
+func Snackbar(message string, opts ...SnackbarOption) Widget {
+	return Toast(message, opts...)
+}
+
+func SnackbarAction(label string, fn func(ctx *internal.Context)) SnackbarOption {
+	return ToastAction(label, fn)
 }
 
 type overlayAnchorWidget struct {
@@ -677,7 +731,7 @@ func (f *fillWidgetDef) Layout(ctx *internal.Context) layout.Dimensions {
 		return layoutFill(ctx.Child(0))
 	}
 
-	return ClickArea(
+	return Pressable(
 		layoutWidgetFunc(func(btnCtx *internal.Context) layout.Dimensions {
 			return layoutFill(btnCtx.Child(0))
 		}),

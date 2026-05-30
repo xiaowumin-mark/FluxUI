@@ -1,11 +1,16 @@
 package widget
 
 import (
+	"image"
 	"image/color"
 	"testing"
 
+	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/style"
 	"github.com/xiaowumin-mark/FluxUI/theme"
+
+	gioLayout "gioui.org/layout"
+	"gioui.org/op"
 )
 
 func TestButtonMD3VariantDefaults(t *testing.T) {
@@ -73,6 +78,30 @@ func TestInputMD3VariantDefaults(t *testing.T) {
 	}
 	if filled.border.A != 0 || filled.borderWidth != 0 {
 		t.Fatalf("filled input border = %#v width %v, want none", filled.border, filled.borderWidth)
+	}
+}
+
+func TestSelectTriggerKeepsMD3Height(t *testing.T) {
+	rt := internal.NewRuntime(theme.New(theme.LightColors()))
+	var ops op.Ops
+	gtx := gioLayout.Context{
+		Ops: &ops,
+		Constraints: gioLayout.Constraints{
+			Max: image.Pt(230, 600),
+		},
+	}
+	rt.BeginFrame()
+	ctx := internal.NewContext(gtx, rt)
+
+	dims := Select("medium", []SelectOptionItem[string]{
+		{Label: "Low priority", Value: "low"},
+		{Label: "Medium priority", Value: "medium"},
+		{Label: "High priority", Value: "high"},
+	}).Layout(ctx)
+
+	wantHeight := gtx.Dp(safeDp(56))
+	if dims.Size.Y != wantHeight {
+		t.Fatalf("select trigger height = %d, want %d", dims.Size.Y, wantHeight)
 	}
 }
 

@@ -416,7 +416,7 @@ func IconAttachRef(ref *ButtonRef) IconOption {
 }
 
 func (i *iconWidget) Layout(ctx *internal.Context) layout.Dimensions {
-	col := ctx.Theme().TextColor
+	col := ctx.Foreground()
 	if i.config.hasColor {
 		col = i.config.color
 	}

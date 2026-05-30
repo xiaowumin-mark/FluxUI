@@ -32,7 +32,7 @@ type checkboxWidget struct {
 
 func Checkbox(label string, checked bool, opts ...CheckboxOption) Widget {
 	cfg := checkboxConfig{
-		size: 24,
+		size: 18,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -122,7 +122,7 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	boxWidget := layoutWidgetFunc(func(childCtx *internal.Context) layout.Dimensions {
-		size := childCtx.LayoutCheckbox(clickable.Handle(), c.value, internal.CheckboxSpec{
+		size := childCtx.LayoutCheckbox(nil, c.value, internal.CheckboxSpec{
 			Size:     c.config.size,
 			Color:    checkColor,
 			Disabled: c.config.disabled,
@@ -167,14 +167,27 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return dims.Size
 	}
 
-	if hasAnyDecoration(c.config.decoration) {
-		baseDeco := withDefaultStates(c.config.decoration,
-			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, checkColor, style.StateLayerHoverOpacity)),
-			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, checkColor, style.StateLayerPressedOpacity)),
-			style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)),
-		)
-		return layoutDecoratedClickTarget(ctx.Child(0), clickable.Handle(), clickable.Hovered(), clickable.Pressed(), baseDeco, c.config.disabled, content)
+	baseDeco := withDefaultStates(c.config.decoration,
+		style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, checkColor, style.StateLayerHoverOpacity)),
+		style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, checkColor, style.StateLayerPressedOpacity)),
+		style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)),
+	)
+	target := func(targetCtx *internal.Context) image.Point {
+		if hasAnyDecoration(c.config.decoration) {
+			active := resolveDecorationState(baseDeco, clickable.Hovered(), clickable.Pressed(), c.config.disabled)
+			visual := stripStateDecoration(active)
+			return layoutDecorationShell(targetCtx.Child(0), visual, content).Size
+		}
+		return content(targetCtx.Child(0))
 	}
-
-	return layout.Dimensions{Size: content(ctx.Child(0))}
+	return layoutStateLayerTouchTarget(ctx, clickable.Handle(), c.config.disabled, internal.RippleSpec{
+		Color:   checkColor,
+		Radius:  20,
+		Opacity: style.StateLayerPressedOpacity,
+	}, 48, 40, func(size image.Point) image.Point {
+		controlSize := selectionControlSizePx(ctx, c.config.size, 18)
+		return image.Pt(controlSize/2, size.Y/2)
+	}, func() float32 {
+		return materialStateLayerOpacity(clickable.Hovered(), clickable.Pressed())
+	}, target)
 }

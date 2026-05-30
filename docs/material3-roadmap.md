@@ -23,7 +23,7 @@
 
 ## 当前进展
 
-截至 2026-05-29，FluxUI 已经完成 MD3 融合的基础阶段。
+截至 2026-05-30，FluxUI 已完成 MD3 融合的基础阶段、交互反馈统一的主要修复，以及 Phase C 常用组件扩展。
 
 ### 已完成的基础设施
 
@@ -42,6 +42,8 @@
 - TextField 已提供 `OutlinedTextField` 和 `FilledTextField`。
 - Card 已提供 `FilledCard`、`ElevatedCard`、`OutlinedCard`。
 - Checkbox、Radio、Switch、Slider、AppBar、BottomNavigation、Tabs、Dialog、Popup、Toast 已开始使用 MD3 color/type/shape/elevation token。
+- Select、DropdownMenu、Menu、ListItem、IconButton、FloatingActionButton、NavigationRail、NavigationDrawer 已完成 MD3 默认样式、Element wrapper、docs 示例和 showcase 覆盖。
+- Snackbar、Tooltip、Badge、Chip、SearchBar、ProgressIndicators 已完成 Phase C 接入；ProgressIndicators 统一承载线性和环形进度文档入口。
 - `ClickArea` 已保留为兼容别名，新增更符合 GUI 语义的 `Pressable` / `PressableElement` 作为推荐无固定视觉点击区域。
 
 ### 已完成的 React-style API 对齐
@@ -55,6 +57,7 @@
 - `docs/material3-design-plan.md` 已记录首轮 MD3 默认样式计划。
 - `docs/guides/material3.md` 已作为文档浏览器内的 MD3 使用指南入口。
 - `examples/material3_showcase` 已作为人工视觉回归基准。
+- Phase C 新增组件均已提供中文 docs 页面、docs browser 示例 ID 和 showcase 分区；文档列表标题统一为“英文 中文”格式。
 - 当前验证命令已通过：
 
 ```sh
@@ -170,24 +173,24 @@ go vet ./...
 - hover、focus、pressed、selected 等状态变化有稳定过渡，不出现闪烁、重叠或 layout shift。
 - 使用 showcase 人工检查 Button、Tabs、BottomNavigation、Selection controls。
 
-### Phase C: 组件 MD3 覆盖扩展
+### Phase C: 组件 MD3 覆盖扩展（已完成）
 
 目标：从基础组件扩展到完整常用组件集。
 
 优先组件：
 
-- Select / Dropdown / Menu
-- List item
-- IconButton
-- FloatingActionButton
-- NavigationRail
-- NavigationDrawer
-- Snackbar action
-- Tooltip
-- Badge
-- Chip
-- SearchBar
-- Progress indicators
+- Select / Dropdown / Menu：已完成默认尺寸、菜单项高度、选中对勾对齐、docs 示例和 showcase。
+- List item：已完成自适应高度、插槽对齐、docs 示例和 showcase。
+- IconButton：已完成标准、filled、filled tonal、outlined 变体和 Element API。
+- FloatingActionButton：已完成 small、regular、large、extended 变体，并修复阴影裁切问题。
+- NavigationRail：已完成 MD3 indicator、布局和 docs/showcase 覆盖。
+- NavigationDrawer：已完成 item 高度、文字层级、垂直居中和 docs/showcase 覆盖。
+- Snackbar action：已完成 `Snackbar` / `SnackbarAction` API，支持 action 按钮示例。
+- Tooltip：已完成基础 hover/focus tooltip。
+- Badge：已完成数字徽标和点状徽标。
+- Chip：已完成 Assist、Filter、Input、Suggestion 变体。
+- SearchBar：已完成受控输入、leading/trailing slot 和 MD3 容器样式。
+- Progress indicators：已完成 `LinearProgressIndicator`、`CircularProgressIndicator` 及统一文档入口。
 
 组件策略：
 
@@ -208,8 +211,14 @@ ListItemElement(...)
 
 验收：
 
-- 每个新增 MD3 组件至少有一个 docs 页面、一个 docs browser 示例 ID、一个 showcase 分区。
-- 默认样式覆盖 enabled、disabled、hover、pressed、selected/focused 等关键状态。
+- 每个新增 MD3 组件至少有一个 docs 页面、一个 docs browser 示例 ID、一个 showcase 分区。（已完成）
+- 默认样式覆盖 enabled、disabled、hover、pressed、selected/focused 等关键状态。（已完成主要路径，后续进入视觉回归和细节打磨）
+
+收尾记录：
+
+- 已删除重复的 `docs/widgets/circular_progress.md`，由 `docs/widgets/progress_indicators.md` 统一承载线性和环形进度指示器。
+- 新增文档均使用中文正文，列表标题采用“英文 中文”格式。
+- 已通过 `go test ./...` 和 `go vet ./...`。
 
 ### Phase D: Typography 与 Density 完善
 
@@ -309,35 +318,38 @@ ListItemElement(...)
 | Button | 已接入 | 已接入 | 已接入 | 已接入 | 已接入 | 稳定化中 |
 | TextField | 已接入 | 已接入 | 不适用 | 已接入 | 已接入 | 稳定化中 |
 | Card | 已接入 | 已接入 | 不适用 | 已接入 | 已接入 | 稳定化中 |
-| Checkbox | 部分接入 | 不适用 | 待接入 | 已接入 | 已接入 | 下一阶段 |
-| Radio | 部分接入 | 不适用 | 待接入 | 已接入 | 已接入 | 下一阶段 |
-| Switch | 部分接入 | 不适用 | 待接入 | 已接入 | 已接入 | 下一阶段 |
-| Slider | 部分接入 | 不适用 | dragged 待完善 | 已接入 | 已接入 | 下一阶段 |
-| Tabs | 部分接入 | 不适用 | 待接入 | 已接入 | 已接入 | 下一阶段 |
-| BottomNavigation | 部分接入 | 不适用 | 待接入 | 已接入 | 已接入 | 下一阶段 |
+| Checkbox | 已接入 | 不适用 | 已接入 | 已接入 | 已接入 | 已完成 |
+| Radio | 已接入 | 不适用 | 已接入 | 已接入 | 已接入 | 已完成 |
+| Switch | 已接入 | 不适用 | 已接入 | 已接入 | 已接入 | 已完成 |
+| Slider | 已接入 | 不适用 | dragged 已接入 | 已接入 | 已接入 | 已完成 |
+| Tabs | 已接入 | 不适用 | 已接入 | 已接入 | 已接入 | 已完成 |
+| BottomNavigation | 已接入 | 不适用 | 已接入 | 已接入 | 已接入 | 已完成 |
 | AppBar | 已接入 | 待扩展 | 可选 | 已接入 | 已接入 | 稳定化中 |
 | Dialog | 已接入 | 不适用 | 不适用 | 已接入 | 已接入 | 稳定化中 |
-| Popup/Menu | 部分接入 | 待扩展 | 菜单项待接入 | 已接入 | 已接入 | 下一阶段 |
-| Toast/Snackbar | 已接入 | 待扩展 action | action 待接入 | 已接入 | 已接入 | 下一阶段 |
+| Popup/Menu | 已接入 | 已接入 | 已接入 | 已接入 | 已接入 | 已完成 |
+| Toast/Snackbar | 已接入 | 已接入 action | action 已接入 | 已接入 | 已接入 | 已完成 |
 | Pressable | 不固定 | 不适用 | 可选待设计 | 已接入 | 待新增 | 新增 |
-| Select | 部分接入 | 待设计 | 待接入 | 已接入 | 已有 | 后续扩展 |
-| IconButton | 待接入 | 待新增 | 待接入 | 待新增 | 待新增 | 后续扩展 |
-| FAB | 待新增 | 待新增 | 待接入 | 待新增 | 待新增 | 后续扩展 |
-| Chip | 待新增 | 待新增 | 待接入 | 待新增 | 待新增 | 后续扩展 |
-| ListItem | 待新增 | 待设计 | 待接入 | 待新增 | 待新增 | 后续扩展 |
+| Select | 已接入 | 已接入 | 已接入 | 已接入 | 已接入 | 已完成 |
+| IconButton | 已接入 | 已接入 | 已接入 | 已接入 | 已接入 | 已完成 |
+| FAB | 已接入 | 已接入 | 已接入 | 已接入 | 已接入 | 已完成 |
+| NavigationRail | 已接入 | 不适用 | 已接入 | 已接入 | 已接入 | 已完成 |
+| NavigationDrawer | 已接入 | 不适用 | 已接入 | 已接入 | 已接入 | 已完成 |
+| Tooltip | 已接入 | 不适用 | 不适用 | 已接入 | 已接入 | 已完成 |
+| Badge | 已接入 | 不适用 | 不适用 | 已接入 | 已接入 | 已完成 |
+| Chip | 已接入 | 已接入 | 已接入 | 已接入 | 已接入 | 已完成 |
+| SearchBar | 已接入 | 不适用 | 不适用 | 已接入 | 已接入 | 已完成 |
+| ProgressIndicators | 已接入 | 线性/环形 | 不适用 | 已接入 | 已接入 | 已完成 |
 
 ## 下一批推荐任务
 
 短期最值得做的任务：
 
-1. 把 ripple primitive 接入 Tabs 和 BottomNavigation。
-2. 把 selection controls 的 touch target ripple 统一起来。
-3. 新增 `docs/widgets/pressable.md`，并更新 `docs/widgets/click_area.md` 为兼容说明。
-4. 扩展 `examples/material3_showcase`，加入 ripple/pressed 状态说明区域和 Pressable 示例。
-5. 梳理组件动画规范，先定义 hover、pressed、focus、selected、menu、toast、loading 的默认时长和缓动曲线，并参考 GitHub/Primer 的产品级交互质感。
-6. 给 `internal/ripple.go` 拆出可测计算函数，补单元测试。
-7. 检查所有 docs 示例是否仍优先使用 legacy Widget API，逐步迁移到 Element API。
-8. 制定截图回归脚本或手动检查清单。
+1. 推进 Phase D：补齐 type token 使用方式、line height 支持、桌面 compact density 策略。
+2. 推进 Phase F：新增 `docs/widgets/pressable.md`，并更新 `docs/widgets/click_area.md` 为兼容说明。
+3. 继续检查所有 docs 示例是否仍优先使用 legacy Widget API，逐步迁移到 Element API。
+4. 推进 Phase G：为 `examples/material3_showcase` 制定截图回归脚本或手动检查清单。
+5. 梳理组件动画规范，定义 hover、pressed、focus、selected、menu、toast、loading 的默认时长和缓动曲线。
+6. 继续沉淀 ripple/state layer/focus ring 的可测 helper，扩大内部单元测试覆盖。
 
 ## 验收命令
 
