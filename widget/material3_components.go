@@ -110,23 +110,34 @@ func md3ActionSurface(ctx *internal.Context, clickable *event.Clickable, spec md
 	if fg.A == 0 {
 		fg = cs.OnSurface
 	}
+	hovered := clickable != nil && clickable.Hovered()
+	pressed := clickable != nil && clickable.Pressed()
+	focused := clickable != nil && clickable.Focused(ctx)
+	duration, easing := md3InteractionTiming(hovered, pressed, focused, spec.Disabled)
+
 	if spec.Disabled {
 		fg = style.DisabledContent(cs.OnSurface)
 		if bg.A != 0 {
 			bg = style.DisabledContainer(cs.OnSurface)
 		}
 	} else if clickable != nil {
-		if opacity := materialStateLayerOpacity(clickable.Hovered(), clickable.Pressed()); opacity > 0 {
+		if opacity := materialAnimatedStateLayerOpacity(ctx, hovered, pressed, false); opacity > 0 {
 			bg = style.StateLayer(bg, fg, opacity)
 		}
+	}
+	bg = md3AnimateColor(ctx, "md3-action-bg", bg, duration, easing)
+	fg = md3AnimateColor(ctx, "md3-action-fg", fg, duration, easing)
+	border := style.Border{
+		Width: md3AnimateFloat(ctx, "md3-action-border-width", spec.Border.Width, duration, easing),
+		Color: md3AnimateColor(ctx, "md3-action-border-color", spec.Border.Color, duration, easing),
 	}
 
 	surfaceSpec := internal.SurfaceSpec{
 		Background:  bg,
 		Radius:      spec.Radius,
 		Padding:     toInternalInsets(spec.Padding),
-		BorderColor: spec.Border.Color,
-		BorderWidth: spec.Border.Width,
+		BorderColor: border.Color,
+		BorderWidth: border.Width,
 	}
 	shadowSpec := surfaceSpec
 	if !spec.Shadow.IsZero() {
@@ -195,16 +206,14 @@ func md3ActionSurface(ctx *internal.Context, clickable *event.Clickable, spec md
 	ctx.DrawSurfaceShadow(size, shadowSpec)
 	surfaceCall.Add(ctx.Gtx.Ops)
 
-	if clickable.Focused(ctx) {
-		focus := spec.FocusColor
-		if focus.A == 0 {
-			focus = cs.Primary
-		}
-		ctx.DrawFocusIndicator(size, internal.FocusIndicatorSpec{
-			Color:  focus,
-			Radius: spec.Radius,
-		})
+	focus := spec.FocusColor
+	if focus.A == 0 {
+		focus = cs.Primary
 	}
+	md3DrawFocusIndicator(ctx, size, internal.FocusIndicatorSpec{
+		Color:  focus,
+		Radius: spec.Radius,
+	}, focused, spec.Disabled)
 
 	return layout.Dimensions{Size: size}
 }
@@ -359,10 +368,12 @@ func (m *menuWidget) menuRow(item MenuItem, selected bool, showSelection bool) W
 			bg = cs.SecondaryContainer
 			fg = cs.OnSecondaryContainer
 		}
+		fg = md3AnimateColor(rowCtx, "menu-row-fg", fg, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 
+		selectionProgress := md3SelectionProgress(rowCtx, selected)
 		trailing := item.Trailing
 		if trailing == nil && showSelection {
-			trailing = selectCheckMark(selected, cs.Primary)
+			trailing = selectCheckMarkProgress(selectionProgress, cs.Primary)
 		}
 
 		rowChildren := make([]Widget, 0, 4)
@@ -460,14 +471,21 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}, func(childCtx *internal.Context) image.Point {
 		return trigger.Layout(childCtx.Child(0)).Size
 	})
-	if clickable.Focused(ctx) {
-		ctx.DrawFocusIndicator(triggerDims, internal.FocusIndicatorSpec{
-			Color:  ctx.Theme().Colors.Primary,
-			Radius: ctx.Theme().Shapes.ExtraSmall,
-		})
-	}
+	md3DrawFocusIndicator(ctx, triggerDims, internal.FocusIndicatorSpec{
+		Color:  ctx.Theme().Colors.Primary,
+		Radius: ctx.Theme().Shapes.ExtraSmall,
+	}, clickable.Focused(ctx), false)
 
-	if !open || len(d.items) == 0 {
+	popupProgress, popupVisible := md3OverlayProgress(
+		ctx,
+		"dropdown-menu-popup",
+		open && len(d.items) > 0,
+		style.InteractionMenuEnterDuration,
+		style.InteractionMenuExitDuration,
+		style.InteractionEmphasizedDecelerateEasing,
+		style.InteractionEmphasizedAccelerateEasing,
+	)
+	if !popupVisible {
 		return layout.Dimensions{Size: triggerDims}
 	}
 
@@ -495,7 +513,9 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	popupCtx := *ctx
 	popupCtx.Gtx = ctx.Gtx
 	popupCtx.Gtx.Constraints.Min = image.Point{}
-	_ = menu.Layout(popupCtx.Child(1))
+	_ = layoutMD3OverlayTransition(popupCtx.Child(1), popupProgress, 4, func(transitionCtx *internal.Context) image.Point {
+		return menu.Layout(transitionCtx.Child(0)).Size
+	})
 	offset.Pop()
 	popupCall := popupMacro.Stop()
 	op.Defer(ctx.Gtx.Ops, popupCall)
@@ -577,6 +597,8 @@ func (l *listItemWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		fg = cs.OnSecondaryContainer
 		supportingColor = cs.OnSecondaryContainer
 	}
+	fg = md3AnimateColor(ctx, "list-item-fg", fg, style.InteractionSelectedDuration, style.InteractionStandardEasing)
+	supportingColor = md3AnimateColor(ctx, "list-item-supporting", supportingColor, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 
 	headline := l.headline
 	if headline == nil {
@@ -1053,6 +1075,8 @@ func (n *navigationRailWidget) railItem(item NavItem) Widget {
 				fg = n.config.activeColor
 			}
 		}
+		fg = md3AnimateColor(itemCtx, "rail-fg", fg, style.InteractionSelectedDuration, style.InteractionStandardEasing)
+		indicatorBg = md3AnimateColor(itemCtx, "rail-indicator", indicatorBg, style.InteractionSelectedIndicatorDuration, style.InteractionStandardEasing)
 		icon := item.Icon
 		if icon == nil {
 			icon = Text(firstLabelRune(item.Label))
@@ -1201,6 +1225,8 @@ func (n *navigationDrawerWidget) drawerItem(item NavItem) Widget {
 				fg = n.config.activeColor
 			}
 		}
+		bg = md3AnimateColor(itemCtx, "drawer-bg", bg, style.InteractionSelectedDuration, style.InteractionStandardEasing)
+		fg = md3AnimateColor(itemCtx, "drawer-fg", fg, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 		icon := item.Icon
 		if icon == nil {
 			icon = Text("")
@@ -1273,7 +1299,16 @@ func (t *tooltipWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	size := ctx.LayoutClickArea(clickable.Handle(), func(childCtx *internal.Context) image.Point {
 		return t.child.Layout(childCtx.Child(0)).Size
 	})
-	if t.config.disabled || t.label == "" || (!clickable.Hovered() && !clickable.Focused(ctx)) {
+	tooltipProgress, tooltipVisible := md3OverlayProgress(
+		ctx,
+		"tooltip-popup",
+		!t.config.disabled && t.label != "" && (clickable.Hovered() || clickable.Focused(ctx)),
+		style.InteractionHoverEnterDuration,
+		style.InteractionHoverExitDuration,
+		style.InteractionStandardDecelerateEasing,
+		style.InteractionStandardAccelerateEasing,
+	)
+	if !tooltipVisible {
 		return layout.Dimensions{Size: size}
 	}
 
@@ -1302,7 +1337,10 @@ func (t *tooltipWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 	deferMacro := op.Record(ctx.Gtx.Ops)
 	stack := op.Offset(offset).Push(ctx.Gtx.Ops)
-	call.Add(ctx.Gtx.Ops)
+	_ = layoutMD3OverlayTransition(ctx.Child(2), tooltipProgress, 4, func(*internal.Context) image.Point {
+		call.Add(ctx.Gtx.Ops)
+		return tooltipSize
+	})
 	stack.Pop()
 	deferCall := deferMacro.Stop()
 	op.Defer(ctx.Gtx.Ops, deferCall)
@@ -1554,14 +1592,16 @@ func (c *chipWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if c.config.decoration.Border != nil {
 		border = *c.config.decoration.Border
 	}
+	fg = md3AnimateColor(ctx, "chip-fg", fg, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 
 	label := c.label
 	if label == nil {
 		label = Text("")
 	}
+	selectionProgress := md3SelectionProgress(ctx, c.config.selected)
 	leading := c.config.leading
-	if leading == nil && c.config.variant == chipVariantFilter && c.config.selected {
-		leading = selectCheckMark(true, fg)
+	if leading == nil && c.config.variant == chipVariantFilter && (c.config.selected || selectionProgress > 0.001) {
+		leading = selectCheckMarkProgress(selectionProgress, fg)
 	}
 
 	rowChildren := make([]Widget, 0, 5)

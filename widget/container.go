@@ -199,9 +199,12 @@ func (c *decorationContainerWidget) layoutInteractive(ctx *internal.Context) lay
 		}
 	}
 
-	spec := decorationSurfaceSpec(activeDeco, ctx, ctx.Theme().Surface)
+	visualDeco := stripStateDecoration(activeDeco)
+	duration, easing := md3InteractionTiming(clickable.Hovered(), pressed, false, c.config.disabled)
+	visualDeco = md3AnimateDecoration(ctx, "container-decoration", visualDeco, duration, easing)
+	spec := decorationSurfaceSpec(visualDeco, ctx, ctx.Theme().Surface)
 	baseMargin := c.decoration.ResolveMargin(style.Insets{})
-	transform := activeDeco.ResolveTransform()
+	transform := visualDeco.ResolveTransform()
 
 	visualMacro := op.Record(ctx.Gtx.Ops)
 	dims := ctx.LayoutInset(toInternalInsets(baseMargin), func(marginCtx *internal.Context) image.Point {

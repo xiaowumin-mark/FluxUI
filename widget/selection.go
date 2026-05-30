@@ -132,6 +132,7 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if r.config.hasColor {
 		mainColor = r.config.color
 	}
+	mainColor = md3AnimateColor(ctx, "radio-main-color", mainColor, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 	labelColor := cs.OnSurface
 	if r.config.disabled {
 		labelColor = style.DisabledContent(cs.OnSurface)
@@ -160,18 +161,22 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			if !r.config.disabled && clickable.Hovered() {
 				itemLabelColor = style.StateLayer(itemLabelColor, mainColor, style.StateLayerHoverOpacity)
 			}
+			duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), false, r.config.disabled)
+			itemLabelColor = md3AnimateColor(rowCtx, "radio-label", itemLabelColor, duration, easing)
 
 			content := func(contentCtx *internal.Context) image.Point {
 				dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(contentCtx.Gtx,
 					gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
 						next := *contentCtx
 						next.Gtx = gtx
+						checkedProgress := md3SelectionProgress(&next, checked)
 						size := next.LayoutRadio(nil, checked, internal.RadioSpec{
-							Size:     r.config.size,
-							Color:    mainColor,
-							Disabled: r.config.disabled,
-							Hovered:  clickable.Hovered(),
-							Pressed:  clickable.Pressed(),
+							Size:            r.config.size,
+							Color:           mainColor,
+							CheckedProgress: checkedProgress,
+							Disabled:        r.config.disabled,
+							Hovered:         clickable.Hovered(),
+							Pressed:         clickable.Pressed(),
 						})
 						return gioLayout.Dimensions{Size: size}
 					}),
@@ -196,7 +201,7 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			target := func(targetCtx *internal.Context) image.Point {
 				if hasAnyDecoration(r.config.decoration) {
 					active := resolveDecorationState(deco, clickable.Hovered(), clickable.Pressed(), r.config.disabled)
-					visual := stripStateDecoration(active)
+					visual := md3AnimateDecoration(targetCtx, "radio-decoration", stripStateDecoration(active), duration, easing)
 					return layoutDecorationShell(targetCtx.Child(0), visual, content).Size
 				}
 				return content(targetCtx.Child(0))
@@ -397,6 +402,18 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			arrowColor = style.DisabledContent(cs.OnSurface)
 			border = style.Border{Width: 1, Color: style.DisabledContent(cs.OnSurface)}
 		}
+		duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), state.opened || clickable.Focused(triggerCtx), s.config.disabled)
+		textColor = md3AnimateColor(triggerCtx, "select-text", textColor, duration, easing)
+		arrowColor = md3AnimateColor(triggerCtx, "select-arrow-color", arrowColor, duration, easing)
+		arrowProgress := md3AnimateFloatDirectional(
+			triggerCtx,
+			"select-arrow-progress",
+			boolProgress(state.opened),
+			style.InteractionMenuEnterDuration,
+			style.InteractionMenuExitDuration,
+			style.InteractionEmphasizedDecelerateEasing,
+			style.InteractionEmphasizedAccelerateEasing,
+		)
 
 		content := layoutWidgetFunc(func(contentCtx *internal.Context) layout.Dimensions {
 			dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(contentCtx.Gtx,
@@ -410,7 +427,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 					next := *contentCtx
 					next.Gtx = gtx
 					next.Gtx.Constraints.Min = image.Point{}
-					dims := Padding(style.Insets{Left: 8}, selectArrow(state.opened, arrowColor)).Layout(next.Child(1))
+					dims := Padding(style.Insets{Left: 8}, selectArrowProgress(arrowProgress, arrowColor)).Layout(next.Child(1))
 					return gioLayout.Dimensions{Size: dims.Size}
 				}),
 			)
@@ -430,7 +447,16 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	})
 
 	toggleDims := toggle.Layout(ctx.Child(0))
-	if !state.opened || len(s.options) == 0 {
+	popupProgress, popupVisible := md3OverlayProgress(
+		ctx,
+		"select-popup",
+		state.opened && len(s.options) > 0,
+		style.InteractionMenuEnterDuration,
+		style.InteractionMenuExitDuration,
+		style.InteractionEmphasizedDecelerateEasing,
+		style.InteractionEmphasizedAccelerateEasing,
+	)
+	if !popupVisible {
 		return toggleDims
 	}
 
@@ -464,11 +490,11 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			if isActive {
 				bg = style.StateLayer(color.NRGBA{}, cs.Primary, style.StateLayerFocusOpacity)
 			}
-			if clickable.Pressed() {
-				bg = style.StateLayer(bg, cs.Primary, style.StateLayerPressedOpacity)
-			} else if clickable.Hovered() {
-				bg = style.StateLayer(bg, cs.Primary, style.StateLayerHoverOpacity)
+			if opacity := materialAnimatedStateLayerOpacity(rowCtx, clickable.Hovered(), clickable.Pressed(), s.config.disabled); opacity > 0 {
+				bg = style.StateLayer(bg, cs.Primary, opacity)
 			}
+			duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), clickable.Focused(rowCtx), s.config.disabled)
+			bg = md3AnimateColor(rowCtx, "select-row-bg", bg, duration, easing)
 			itemRow := layoutWidgetFunc(func(contentCtx *internal.Context) layout.Dimensions {
 				dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(contentCtx.Gtx,
 					gioLayout.Flexed(1, func(gtx gioLayout.Context) gioLayout.Dimensions {
@@ -481,7 +507,8 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 						next := *contentCtx
 						next.Gtx = gtx
 						next.Gtx.Constraints.Min = image.Point{}
-						dims := Padding(style.Insets{Left: 12}, selectCheckMark(isActive, cs.Primary)).Layout(next.Child(1))
+						progress := md3SelectionProgress(rowCtx, isActive)
+						dims := Padding(style.Insets{Left: 12}, selectCheckMarkProgress(progress, cs.Primary)).Layout(next.Child(1))
 						return gioLayout.Dimensions{Size: dims.Size}
 					}),
 				)
@@ -498,12 +525,10 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			}, func(childCtx *internal.Context) image.Point {
 				return itemContent.Layout(childCtx.Child(0)).Size
 			})
-			if clickable.Focused(rowCtx) {
-				rowCtx.DrawFocusIndicator(size, internal.FocusIndicatorSpec{
-					Color:  cs.Primary,
-					Radius: rowCtx.Theme().Shapes.ExtraSmall,
-				})
-			}
+			md3DrawFocusIndicator(rowCtx, size, internal.FocusIndicatorSpec{
+				Color:  cs.Primary,
+				Radius: rowCtx.Theme().Shapes.ExtraSmall,
+			}, clickable.Focused(rowCtx), s.config.disabled)
 			return layout.Dimensions{Size: size}
 		})
 		row = expandWidth(row)
@@ -560,7 +585,9 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	popupCtx.Gtx = ctx.Gtx
 	popupCtx.Gtx.Constraints.Min = image.Point{}
 	popupCtx.Gtx.Constraints.Max = image.Point{X: popupW, Y: availableY}
-	_ = panel.Layout(popupCtx.Child(1))
+	_ = layoutMD3OverlayTransition(popupCtx.Child(1), popupProgress, 4, func(transitionCtx *internal.Context) image.Point {
+		return panel.Layout(transitionCtx.Child(0)).Size
+	})
 	offset.Pop()
 	popupCall := popupMacro.Stop()
 	op.Defer(ctx.Gtx.Ops, popupCall)
@@ -596,12 +623,16 @@ func selectStateFor(ctx *internal.Context) *selectState {
 }
 
 func selectArrow(open bool, col color.NRGBA) Widget {
-	return &selectArrowWidget{open: open, color: col}
+	return selectArrowProgress(boolProgress(open), col)
+}
+
+func selectArrowProgress(progress float32, col color.NRGBA) Widget {
+	return &selectArrowWidget{progress: clampFloat32(progress, 0, 1), color: col}
 }
 
 type selectArrowWidget struct {
-	open  bool
-	color color.NRGBA
+	progress float32
+	color    color.NRGBA
 }
 
 func (s *selectArrowWidget) Layout(ctx *internal.Context) layout.Dimensions {
@@ -617,27 +648,28 @@ func (s *selectArrowWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	stack := op.Offset(offset).Push(ctx.Gtx.Ops)
 	var path clip.Path
 	path.Begin(ctx.Gtx.Ops)
-	if s.open {
-		path.MoveTo(f32.Pt(1, float32(size)*0.65))
-		path.LineTo(f32.Pt(float32(size)*0.5, float32(size)*0.25))
-		path.LineTo(f32.Pt(float32(size)-1, float32(size)*0.65))
-	} else {
-		path.MoveTo(f32.Pt(1, float32(size)*0.35))
-		path.LineTo(f32.Pt(float32(size)*0.5, float32(size)*0.75))
-		path.LineTo(f32.Pt(float32(size)-1, float32(size)*0.35))
-	}
+	leftY := float32(size) * (0.35 + 0.30*s.progress)
+	midY := float32(size) * (0.75 - 0.50*s.progress)
+	rightY := leftY
+	path.MoveTo(f32.Pt(1, leftY))
+	path.LineTo(f32.Pt(float32(size)*0.5, midY))
+	path.LineTo(f32.Pt(float32(size)-1, rightY))
 	paint.FillShape(ctx.Gtx.Ops, s.color, clip.Stroke{Path: path.End(), Width: 2}.Op())
 	stack.Pop()
 	return layout.Dimensions{Size: image.Point{X: box, Y: box}}
 }
 
 func selectCheckMark(active bool, col color.NRGBA) Widget {
-	return &selectCheckMarkWidget{active: active, color: col}
+	return selectCheckMarkProgress(boolProgress(active), col)
+}
+
+func selectCheckMarkProgress(progress float32, col color.NRGBA) Widget {
+	return &selectCheckMarkWidget{progress: clampFloat32(progress, 0, 1), color: col}
 }
 
 type selectCheckMarkWidget struct {
-	active bool
-	color  color.NRGBA
+	progress float32
+	color    color.NRGBA
 }
 
 func (s *selectCheckMarkWidget) Layout(ctx *internal.Context) layout.Dimensions {
@@ -649,10 +681,12 @@ func (s *selectCheckMarkWidget) Layout(ctx *internal.Context) layout.Dimensions 
 	if mark < 10 {
 		mark = 10
 	}
-	if s.active {
+	if s.progress > 0 {
 		offset := image.Pt((box-mark)/2, (box-mark)/2)
 		stack := op.Offset(offset).Push(ctx.Gtx.Ops)
-		internal.DrawCheckMark(ctx.Gtx, mark, s.color)
+		col := s.color
+		col.A = uint8(float32(col.A)*s.progress + 0.5)
+		internal.DrawCheckMark(ctx.Gtx, mark, col)
 		stack.Pop()
 	}
 	return layout.Dimensions{Size: image.Point{X: box, Y: box}}

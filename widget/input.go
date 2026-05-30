@@ -312,6 +312,8 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	} else if focused && activeDecoration.Focused != nil {
 		activeDecoration = activeDecoration.Merge(*activeDecoration.Focused)
 	}
+	duration, easing := md3InteractionTiming(false, false, focused, t.config.disabled)
+	activeDecoration = md3AnimateDecoration(ctx, "input-decoration", stripStateDecoration(activeDecoration), duration, easing)
 
 	th := ctx.Theme()
 	cs := th.Colors
@@ -344,6 +346,9 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			border = style.DisabledContent(cs.OnSurface)
 		}
 	}
+	bg = md3AnimateColor(ctx, "input-bg", bg, duration, easing)
+	fg = md3AnimateColor(ctx, "input-fg", fg, duration, easing)
+	border = md3AnimateColor(ctx, "input-border", border, duration, easing)
 
 	radiusDefault := defaults.radius
 	if t.config.radius > 0 {

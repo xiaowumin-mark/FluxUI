@@ -23,7 +23,7 @@
 
 ## 当前进展
 
-截至 2026-05-31，FluxUI 已完成 MD3 融合的基础阶段、交互反馈统一的主要修复、Phase C 常用组件扩展、Phase D Typography 与 Density 完善、Phase E Dynamic Color 与品牌主题落地、Phase F 文档与示例全面迁移收尾，以及 Phase G 视觉回归体系第一版落地。
+截至 2026-05-31，FluxUI 已完成 MD3 融合的基础阶段、交互反馈统一的主要修复、Phase C 常用组件扩展、Phase D Typography 与 Density 完善、Phase E Dynamic Color 与品牌主题落地、Phase F 文档与示例全面迁移收尾、Phase G 视觉回归体系第一版落地、Phase H 版本与兼容策略收尾、短期任务 S1 组件动画规范定义，以及短期任务 S2 默认组件动画接入第一版。
 
 ### 已完成的基础设施
 
@@ -65,6 +65,9 @@
 - Phase C 新增组件均已提供中文 docs 页面、docs browser 示例 ID 和 showcase 分区；文档列表标题统一为“英文 中文”格式。
 - Phase F 已完成 `Pressable` 文档、`ClickArea` 兼容说明和 widget 文档示例迁移；所有 widget 文档首个 Go 示例已优先展示 React-style Element API，legacy Widget 写法保留为兼容说明。
 - Phase G 已新增 `docs/material3-visual-regression.md`，提供 `make visual` 截图入口、30 张 Light/Dark 视觉回归截图、pixel smoke check、交互状态关键帧和 CI artifact。
+- Phase H 已新增 `docs/guides/material3-compatibility.md`，集中说明 MD3 默认视觉 release notes、legacy Widget API、`ClickArea`、旧 Theme 扁平字段、breaking change 窗口和恢复旧样式的最小方案。
+- 短期任务 S1 已新增 `docs/guides/material3-motion.md`，定义 hover、pressed、focus、selected、menu、toast、loading 的默认时长、缓动曲线和组件接入规则。
+- 短期任务 S2 已在 widget 层接入默认 MD3 动画，覆盖 Button、TextField、Selection controls、Switch、Slider、Tabs、BottomNavigation、Menu、Select、DropdownMenu、ListItem、IconButton、FAB、NavigationRail、NavigationDrawer、Chip、Tooltip、Dialog、Popup、Toast/Snackbar、ProgressIndicators 和交互 Decoration。
 - 当前验证命令已通过：
 
 ```sh
@@ -332,22 +335,80 @@ ListItemElement(...)
 - `.github/workflows/ci.yml` 新增 `visual-regression` job，上传 `material3-screenshots` artifact。
 - 已通过 `go test -tags visual ./examples/material3_showcase -run TestMaterial3ShowcaseScreenshots -count=1`、`go test ./...`、`go vet ./...`；`make visual` 为该视觉测试的 Makefile 入口。
 
-### Phase H: 版本与兼容策略
+### Phase H: 版本与兼容策略（已完成）
 
 目标：明确 MD3 默认化对现有用户的影响。
 
 任务：
 
-- 在 release notes 中标记默认视觉变化。
-- 旧 API 不删除，但文档降级为兼容说明。
-- 若引入 breaking change，必须配合迁移指南。
-- 提供“恢复旧样式”的最小方案，至少能通过自定义 Theme/Decoration 复原主要颜色与圆角。
-- 对 deprecated API 设置长期窗口，不做短期删除。
+- 已在 `docs/guides/material3-compatibility.md` 提供可放入 release notes 的 MD3 默认视觉变化摘要。
+- 旧 API 不删除，文档中定位为稳定兼容入口或 legacy compatibility API。
+- 已明确若未来引入 breaking change，必须配合 release notes、迁移指南、替代 API 和足够长的版本窗口。
+- 已提供“恢复旧样式”的最小方案，通过自定义 Theme 复原主要颜色、surface、文字色、圆角，并说明可用 Decoration 做局部覆盖。
+- 已明确当前阶段不添加代码级 `Deprecated:` 注释；deprecated API 只做文档级推荐迁移，不做短期删除。
 
 验收：
 
-- `ClickArea`、legacy Widget API、旧 Theme 字段都有清晰说明。
-- 用户能从文档判断应该用新 API 还是兼容 API。
+- `ClickArea`、legacy Widget API、旧 Theme 字段都有清晰说明。（已完成）
+- 用户能从文档判断应该用新 API 还是兼容 API。（已完成）
+
+收尾记录：
+
+- 新增 `docs/guides/material3-compatibility.md`，作为 docs browser 可读取的正式兼容指南。
+- 更新 `docs/guides/material3.md`，从 Material 3 指南链接到兼容策略和视觉回归流程。
+- 已明确 `RunElement` / `Element` / `Component` 为新项目推荐入口，`Run` / `Widget` / `FromWidget` / 旧 Router API 为稳定兼容入口。
+- 已明确 `ClickArea` 继续兼容，新代码推荐 `Pressable` / `PressableElement`。
+- 已明确 `Theme.Primary`、`Theme.Surface`、`Theme.SurfaceMuted`、`Theme.TextColor`、`Theme.TextOnPrimary`、`Theme.Disabled` 为兼容字段，新代码优先使用 `Theme.Colors` / `Shapes` / `Types`。
+
+### 短期任务 S1: 组件动画规范（已完成）
+
+目标：为后续默认 MD3 组件接入动画定义统一 motion token，避免每个组件单独决定时长和曲线。
+
+任务：
+
+- 已新增 `docs/guides/material3-motion.md`，定义 hover、pressed、focus、selected、menu、toast、loading 的默认时长和缓动曲线。
+- 已在 `style/interaction.go` 补充 focus、menu/toast 出入场、loading value/cycle 等默认 token。
+- 已明确 Standard、Standard decelerate、Standard accelerate、Emphasized decelerate、Emphasized accelerate 和 Linear 的默认用途。
+- 已明确 selected indicator、menu popup、toast/snackbar、determinate/indeterminate loading 的接入规则。
+- 已更新 `docs/guides/material3.md` 和 `docs/guides/animation.md`，从 MD3 总入口和通用动画指南链接到组件动画规范。
+
+验收：
+
+- 后续组件动画实现有统一默认时长和曲线。（已完成）
+- 文档能说明哪些状态应动画、哪些属性不能造成 layout shift。（已完成）
+- loading 循环和 overlay 出入场有独立节奏，不和普通 hover/pressed token 混用。（已完成）
+
+收尾记录：
+
+- 默认状态 token：hover 100ms、pressed 50/100ms、focus 100ms、selected 150ms、selected indicator 200ms。
+- 默认 overlay token：menu 150/100ms、toast 200/150ms。
+- 默认 loading token：determinate value 250ms、linear cycle 1200ms、circular cycle 1400ms、shimmer cycle 1200ms。
+- Ripple 保持独立节奏：expand 450ms、fade 550ms。
+
+### 短期任务 S2: 默认组件动画接入（已完成）
+
+目标：按 `docs/guides/material3-motion.md` 为默认 MD3 组件接入轻量动画，避免 hover、pressed、focus、selected、overlay、loading 状态瞬间跳变。
+
+任务：
+
+- 已新增 widget 层共享动画 helper，使用树路径持久化动画状态，不占用 React-style Hook 计数。
+- 已为 Button、TextField、ContainerDecoration 交互态、ListItem、IconButton、FAB、Chip、Menu item 等 MD3 action surface 接入背景、前景、边框、state layer 和 focus ring 过渡。
+- 已为 Checkbox、Radio、Switch、Slider 接入选中进度、label/state layer、thumb/track 或拖拽反馈动画。
+- 已为 Tabs、BottomNavigation、NavigationRail、NavigationDrawer 接入 selected color、indicator、hover/pressed 和 focus 动画。
+- 已为 Select、DropdownMenu、Tooltip、Dialog、Popup、Toast/Snackbar 接入 menu/toast 风格出入场 opacity + 轻微 y offset 动画。
+- 已为 ProgressIndicators 接入 determinate value 过渡，并将 indeterminate linear/circular cycle 对齐到 motion token。
+
+验收：
+
+- 默认交互状态不再直接瞬切为最终视觉。（已完成主要组件路径）
+- 动画不改变组件 layout 尺寸。（已通过现有布局测试）
+- overlay 关闭时保留退出动画，结束后不再渲染。（已完成）
+- widget 内部动画状态不触发 Hook 数量不一致 panic。（已完成）
+
+收尾记录：
+
+- 重点修改：`widget/utils.go`、`widget/button.go`、`widget/input.go`、`widget/checkbox.go`、`widget/selection.go`、`widget/switch.go`、`widget/slider.go`、`widget/navigation.go`、`widget/material3_components.go`、`widget/tabs_dialog_toast.go`、`widget/progress.go`、`internal/render.go`。
+- 已通过 `go test ./widget ./internal ./style`、`go test ./examples/material3_showcase`、`go test ./...`、`go vet ./...`、`go test -tags visual ./examples/material3_showcase -run TestMaterial3ShowcaseScreenshots -count=1`。
 
 ## 组件覆盖矩阵
 
@@ -383,11 +444,11 @@ ListItemElement(...)
 
 短期最值得做的任务：
 
-1. 准备 Phase H：整理 release notes、legacy Widget API、`ClickArea` 和旧 Theme 字段的兼容说明。
-2. 梳理组件动画规范，定义 hover、pressed、focus、selected、menu、toast、loading 的默认时长和缓动曲线。
-3. 继续沉淀 ripple/state layer/focus ring 的可测 helper，扩大内部单元测试覆盖。
-4. 评估是否在 Phase H 后引入可维护的 golden image 比较，不作为当前默认要求。
-5. 继续通过 showcase 和 `make visual` 人工检查 Light/Dark、导航、输入、Overlay 和 Ripple 状态。
+1. 继续沉淀 ripple/state layer/focus ring 的可测 helper，扩大内部单元测试覆盖。
+2. 扩大动画单元测试覆盖，重点验证 overlay exit、selection progress、progress value 和 Hook 计数稳定性。
+3. 评估是否引入可维护的 golden image 比较，不作为当前默认要求。
+4. 继续通过 showcase 和 `make visual` 人工检查 Light/Dark、导航、输入、Overlay、Ripple 和动画状态。
+5. 发布前整理正式 changelog，将 `docs/guides/material3-compatibility.md` 的 release notes 摘要同步到版本说明。
 
 ## 验收命令
 

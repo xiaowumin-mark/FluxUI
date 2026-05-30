@@ -97,16 +97,17 @@ type SurfaceSpec struct {
 
 // ButtonSpec 描述按钮样式。
 type ButtonSpec struct {
-	Background  color.NRGBA
-	Foreground  color.NRGBA
-	TextStyle   theme.TextStyle
-	Radius      float32
-	Padding     Insets
-	BorderColor color.NRGBA
-	BorderWidth float32
-	HasShadow   bool
-	Shadow      ShadowSpec
-	Disabled    bool
+	Background   color.NRGBA
+	Foreground   color.NRGBA
+	TextStyle    theme.TextStyle
+	Radius       float32
+	Padding      Insets
+	BorderColor  color.NRGBA
+	BorderWidth  float32
+	HasShadow    bool
+	Shadow       ShadowSpec
+	FocusOpacity float32
+	Disabled     bool
 }
 
 // InputSpec 描述输入框样式。
@@ -136,31 +137,34 @@ type ShadowSpec struct {
 
 // CheckboxSpec 描述复选框样式。
 type CheckboxSpec struct {
-	Size     float32
-	Color    color.NRGBA
-	Disabled bool
-	Hovered  bool
-	Pressed  bool
+	Size            float32
+	Color           color.NRGBA
+	CheckedProgress float32
+	Disabled        bool
+	Hovered         bool
+	Pressed         bool
 }
 
 // RadioSpec 描述单选框样式。
 type RadioSpec struct {
-	Size     float32
-	Color    color.NRGBA
-	Disabled bool
-	Hovered  bool
-	Pressed  bool
+	Size            float32
+	Color           color.NRGBA
+	CheckedProgress float32
+	Disabled        bool
+	Hovered         bool
+	Pressed         bool
 }
 
 // SwitchSpec 描述开关样式。
 type SwitchSpec struct {
-	Width      float32
-	Height     float32
-	TrackColor color.NRGBA
-	ThumbColor color.NRGBA
-	Disabled   bool
-	Hovered    bool
-	Pressed    bool
+	Width           float32
+	Height          float32
+	TrackColor      color.NRGBA
+	ThumbColor      color.NRGBA
+	CheckedProgress float32
+	Disabled        bool
+	Hovered         bool
+	Pressed         bool
 }
 
 // SliderSpec 描述滑块样式。
@@ -532,9 +536,11 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 	if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
 		drawBorderWidth(gtx, dims.Size, spec.BorderColor, spec.Radius, spec.BorderWidth)
 	}
-	if !spec.Disabled && clickable.Focused(c) {
+	if !spec.Disabled && spec.FocusOpacity > 0 {
+		focus := c.Theme().Colors.Primary
+		focus.A = uint8(float32(focus.A)*spec.FocusOpacity + 0.5)
 		c.DrawFocusIndicator(dims.Size, FocusIndicatorSpec{
-			Color:  c.Theme().Colors.Primary,
+			Color:  focus,
 			Radius: spec.Radius,
 		})
 	}
@@ -714,10 +720,12 @@ func (c *Context) LayoutCheckbox(clickable *ClickableState, checked bool, spec C
 			borderColor = fluxstyle.DisabledContent(cs.OnSurface)
 			fillColor = fluxstyle.DisabledContainer(cs.OnSurface)
 		}
-		if checked {
-			fillColor = onColor
-			borderColor = onColor
+		progress := spec.CheckedProgress
+		if checked && progress <= 0 {
+			progress = 1
 		}
+		fillColor = MixNRGBA(onColor, fillColor, progress)
+		borderColor = MixNRGBA(onColor, borderColor, progress)
 
 		radius := size / 5
 		if radius < 3 {
@@ -739,11 +747,12 @@ func (c *Context) LayoutCheckbox(clickable *ClickableState, checked bool, spec C
 			Path:  clip.UniformRRect(strokeRect, radius).Path(gtx.Ops),
 			Width: float32(strokeWidth),
 		}.Op())
-		if checked {
+		if progress > 0 {
 			mark := cs.OnPrimary
 			if spec.Disabled {
 				mark = cs.Surface
 			}
+			mark.A = uint8(float32(mark.A)*progress + 0.5)
 			drawCheckMark(gtx, size, mark)
 		}
 		return gioLayout.Dimensions{Size: rect.Max}
@@ -785,9 +794,11 @@ func (c *Context) LayoutRadio(clickable *ClickableState, checked bool, spec Radi
 			borderColor = fluxstyle.DisabledContent(cs.OnSurface)
 			bg = fluxstyle.DisabledContainer(cs.OnSurface)
 		}
-		if checked {
-			borderColor = onColor
+		progress := spec.CheckedProgress
+		if checked && progress <= 0 {
+			progress = 1
 		}
+		borderColor = MixNRGBA(onColor, borderColor, progress)
 		paint.FillShape(gtx.Ops, bg, clip.Ellipse(rect).Op(gtx.Ops))
 		strokeWidth := gtx.Dp(unit.Dp(2))
 		if strokeWidth < 1 {
@@ -805,8 +816,8 @@ func (c *Context) LayoutRadio(clickable *ClickableState, checked bool, spec Radi
 			Width: float32(strokeWidth),
 		}.Op())
 
-		if checked {
-			dotSize := int(float32(size)*0.5 + 0.5)
+		if progress > 0 {
+			dotSize := int(float32(size)*0.5*progress + 0.5)
 			if dotSize < 4 {
 				dotSize = 4
 			}
@@ -822,7 +833,9 @@ func (c *Context) LayoutRadio(clickable *ClickableState, checked bool, spec Radi
 					Min: image.Point{X: inset, Y: inset},
 					Max: image.Point{X: inset + dotSize, Y: inset + dotSize},
 				}
-				paint.FillShape(gtx.Ops, onColor, clip.Ellipse(dotRect).Op(gtx.Ops))
+				dotColor := onColor
+				dotColor.A = uint8(float32(dotColor.A)*progress + 0.5)
+				paint.FillShape(gtx.Ops, dotColor, clip.Ellipse(dotRect).Op(gtx.Ops))
 			}
 		}
 
@@ -873,7 +886,13 @@ func (c *Context) LayoutSwitch(clickable *ClickableState, checked bool, spec Swi
 			thumbSize = 2
 		}
 		thumbOffset := thumbPadding
-		if checked {
+		progress := spec.CheckedProgress
+		if checked && progress <= 0 {
+			progress = 1
+		}
+		if progress > 0 && progress < 1 {
+			thumbOffset = thumbPadding + int(float32(width-thumbSize-2*thumbPadding)*progress+0.5)
+		} else if progress >= 1 {
 			thumbOffset = width - thumbSize - thumbPadding
 		}
 		thumbRect := image.Rectangle{

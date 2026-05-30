@@ -145,15 +145,6 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		item := t.items[idx]
 		active := item.Key == activeKey
 
-		txtColor := normalText
-		indicatorBar := color.NRGBA{A: 0}
-		tabBg := color.NRGBA{}
-		if active {
-			txtColor = activeText
-			indicatorBar = indicator
-			tabBg = withAlpha(indicator, 20)
-		}
-
 		tabStates := withDefaultStates(t.config.tabDecoration,
 			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, indicator, style.StateLayerHoverOpacity)),
 			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, indicator, style.StateLayerPressedOpacity)),
@@ -167,8 +158,21 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 					t.config.onChange(tabCtx, item.Key)
 				}
 			}
+			txtColor := normalText
+			indicatorBar := color.NRGBA{A: 0}
+			tabBg := color.NRGBA{}
+			if active {
+				txtColor = activeText
+				indicatorBar = indicator
+				tabBg = withAlpha(indicator, 20)
+			}
+			duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), clickable.Focused(tabCtx), false)
+			txtColor = md3AnimateColor(tabCtx, "tab-text", txtColor, style.InteractionSelectedDuration, style.InteractionStandardEasing)
+			indicatorBar = md3AnimateColor(tabCtx, "tab-indicator", indicatorBar, style.InteractionSelectedIndicatorDuration, style.InteractionStandardEasing)
+			tabBg = md3AnimateColor(tabCtx, "tab-bg", tabBg, duration, easing)
 			activeDecoration := resolveDecorationState(tabStates, clickable.Hovered(), clickable.Pressed(), false)
 			tabDecoration := componentDecoration(activeDecoration, tabBg, style.Symmetric(8, 10), 8)
+			tabDecoration = md3AnimateDecoration(tabCtx, "tab-decoration", tabDecoration, duration, easing)
 			tabContent := ContainerDecoration(
 				tabDecoration,
 				Column(
@@ -193,12 +197,10 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			}, func(childCtx *internal.Context) image.Point {
 				return tabContent.Layout(childCtx.Child(0)).Size
 			})
-			if clickable.Focused(tabCtx) {
-				tabCtx.DrawFocusIndicator(size, internal.FocusIndicatorSpec{
-					Color:  indicator,
-					Radius: 8,
-				})
-			}
+			md3DrawFocusIndicator(tabCtx, size, internal.FocusIndicatorSpec{
+				Color:  indicator,
+				Radius: 8,
+			}, clickable.Focused(tabCtx), false)
 			return layout.Dimensions{Size: size}
 		})
 		children = append(children, Padding(style.Insets{Right: 6}, tab))
@@ -368,7 +370,16 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		state.wasOpen = open
 		d.config.onOpenChange(ctx, open)
 	}
-	if !open {
+	overlayProgress, overlayVisible := md3OverlayProgress(
+		ctx,
+		"dialog-overlay",
+		open,
+		style.InteractionMenuEnterDuration,
+		style.InteractionMenuExitDuration,
+		style.InteractionEmphasizedDecelerateEasing,
+		style.InteractionEmphasizedAccelerateEasing,
+	)
+	if !overlayVisible {
 		return layout.Dimensions{}
 	}
 
@@ -377,12 +388,13 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if d.config.hasMaskColor {
 		maskColor = d.config.maskColor
 	}
+	maskColor = withAlphaFactor(maskColor, overlayProgress)
 	mask := fillWidget(func(maskCtx *internal.Context, size image.Point) {
 		if size.X <= 0 || size.Y <= 0 {
 			return
 		}
 		paint.FillShape(maskCtx.Gtx.Ops, maskColor, clip.Rect(image.Rectangle{Max: size}).Op())
-	}, d.config.maskClosable && d.config.onOpenChange != nil, func(maskCtx *internal.Context) {
+	}, open && d.config.maskClosable && d.config.onOpenChange != nil, func(maskCtx *internal.Context) {
 		d.config.onOpenChange(maskCtx, false)
 	})
 
@@ -429,7 +441,12 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	content := anchoredOverlayWidget(panel, gioLayout.Center)
+	content := anchoredOverlayWidget(layoutWidgetFunc(func(overlayCtx *internal.Context) layout.Dimensions {
+		size := layoutMD3OverlayTransition(overlayCtx, overlayProgress, 8, func(transitionCtx *internal.Context) image.Point {
+			return panel.Layout(transitionCtx.Child(0)).Size
+		})
+		return layout.Dimensions{Size: size}
+	}), gioLayout.Center)
 
 	return Stack(
 		mask,
@@ -576,7 +593,16 @@ func (t *toastWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	if state.closed {
+	toastProgress, toastVisible := md3OverlayProgress(
+		ctx,
+		"toast-overlay",
+		!state.closed,
+		style.InteractionToastEnterDuration,
+		style.InteractionToastExitDuration,
+		style.InteractionEmphasizedDecelerateEasing,
+		style.InteractionEmphasizedAccelerateEasing,
+	)
+	if !toastVisible {
 		return layout.Dimensions{}
 	}
 
@@ -628,15 +654,23 @@ func (t *toastWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	)
 
 	anchor := gioLayout.S
+	offset := float32(8)
 	switch t.config.position {
 	case ToastTop:
 		anchor = gioLayout.N
+		offset = -8
 	case ToastCenter:
 		anchor = gioLayout.Center
+		offset = 0
 	}
 
 	return anchoredOverlayWidget(
-		Padding(style.Insets{Top: 8, Bottom: 8, Left: 8, Right: 8}, body),
+		layoutWidgetFunc(func(overlayCtx *internal.Context) layout.Dimensions {
+			size := layoutMD3OverlayTransition(overlayCtx, toastProgress, offset, func(transitionCtx *internal.Context) image.Point {
+				return Padding(style.Insets{Top: 8, Bottom: 8, Left: 8, Right: 8}, body).Layout(transitionCtx.Child(0)).Size
+			})
+			return layout.Dimensions{Size: size}
+		}),
 		anchor,
 	).Layout(ctx.Child(0))
 }
@@ -870,7 +904,16 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		state.wasOpen = open
 		p.config.onOpenChange(ctx, open)
 	}
-	if !open {
+	overlayProgress, overlayVisible := md3OverlayProgress(
+		ctx,
+		"popup-overlay",
+		open,
+		style.InteractionMenuEnterDuration,
+		style.InteractionMenuExitDuration,
+		style.InteractionEmphasizedDecelerateEasing,
+		style.InteractionEmphasizedAccelerateEasing,
+	)
+	if !overlayVisible {
 		return layout.Dimensions{}
 	}
 
@@ -879,12 +922,13 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if p.config.hasMaskColor {
 		maskColor = p.config.maskColor
 	}
+	maskColor = withAlphaFactor(maskColor, overlayProgress)
 	mask := fillWidget(func(maskCtx *internal.Context, size image.Point) {
 		if size.X <= 0 || size.Y <= 0 {
 			return
 		}
 		paint.FillShape(maskCtx.Gtx.Ops, maskColor, clip.Rect(image.Rectangle{Max: size}).Op())
-	}, p.config.maskClosable && p.config.onOpenChange != nil, func(maskCtx *internal.Context) {
+	}, open && p.config.maskClosable && p.config.onOpenChange != nil, func(maskCtx *internal.Context) {
 		p.config.onOpenChange(maskCtx, false)
 	})
 
@@ -920,7 +964,12 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 
-	content := anchoredOverlayWidget(panel, gioLayout.Center)
+	content := anchoredOverlayWidget(layoutWidgetFunc(func(overlayCtx *internal.Context) layout.Dimensions {
+		size := layoutMD3OverlayTransition(overlayCtx, overlayProgress, 8, func(transitionCtx *internal.Context) image.Point {
+			return panel.Layout(transitionCtx.Child(0)).Size
+		})
+		return layout.Dimensions{Size: size}
+	}), gioLayout.Center)
 
 	return Stack(
 		mask,

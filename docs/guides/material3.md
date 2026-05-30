@@ -24,7 +24,10 @@ FluxUI 默认主题现在以 Material Design 3 为目标：颜色、圆角、字
 
 - 完整实施计划：`docs/material3-design-plan.md`
 - 长期推进路线：`docs/material3-roadmap.md`
+- 组件动画规范：`docs/guides/material3-motion.md`
+- 版本与兼容策略：`docs/guides/material3-compatibility.md`
 - 人工视觉回归：`examples/material3_showcase/main.go`
+- 视觉回归流程：`docs/material3-visual-regression.md`
 - 主题 token：`docs/theme/color_scheme.md` 和 `docs/theme/theme.md`
 
 ## 组件变体
@@ -44,3 +47,11 @@ go test ./...
 go vet ./...
 go test ./examples/material3_showcase
 ```
+
+涉及默认视觉、showcase 或交互状态时追加：
+
+```sh
+make visual
+```
+
+涉及组件动画、交互状态或 loading 循环时，应同时对照 `docs/guides/material3-motion.md` 检查默认时长、缓动曲线和持续重绘行为。

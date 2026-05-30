@@ -187,7 +187,8 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		target = func(targetCtx *internal.Context) image.Point {
 			pressed := clickable != nil && (clickable.Pressed() || sliderValue.Dragging())
 			active := resolveDecorationState(s.config.decoration, clickable != nil && clickable.Hovered(), pressed, s.config.disabled)
-			visual := stripStateDecoration(active)
+			duration, easing := md3InteractionTiming(clickable != nil && clickable.Hovered(), pressed, false, s.config.disabled)
+			visual := md3AnimateDecoration(targetCtx, "slider-decoration", stripStateDecoration(active), duration, easing)
 			return layoutDecorationShell(targetCtx.Child(0), visual, content).Size
 		}
 	}

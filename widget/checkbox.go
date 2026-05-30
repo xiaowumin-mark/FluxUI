@@ -120,14 +120,18 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if c.config.disabled {
 		checkColor = style.DisabledContent(cs.OnSurface)
 	}
+	duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), false, c.config.disabled)
+	checkColor = md3AnimateColor(ctx, "checkbox-color", checkColor, duration, easing)
 
 	boxWidget := layoutWidgetFunc(func(childCtx *internal.Context) layout.Dimensions {
+		checkedProgress := md3SelectionProgress(childCtx, c.value)
 		size := childCtx.LayoutCheckbox(nil, c.value, internal.CheckboxSpec{
-			Size:     c.config.size,
-			Color:    checkColor,
-			Disabled: c.config.disabled,
-			Hovered:  clickable.Hovered(),
-			Pressed:  clickable.Pressed(),
+			Size:            c.config.size,
+			Color:           checkColor,
+			CheckedProgress: checkedProgress,
+			Disabled:        c.config.disabled,
+			Hovered:         clickable.Hovered(),
+			Pressed:         clickable.Pressed(),
 		})
 		return layout.Dimensions{Size: size}
 	})
@@ -138,6 +142,7 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	} else if clickable.Hovered() {
 		labelColor = style.StateLayer(labelColor, checkColor, style.StateLayerHoverOpacity)
 	}
+	labelColor = md3AnimateColor(ctx, "checkbox-label", labelColor, duration, easing)
 
 	content := func(contentCtx *internal.Context) image.Point {
 		if c.label == "" {
@@ -170,7 +175,7 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	target := func(targetCtx *internal.Context) image.Point {
 		if hasAnyDecoration(c.config.decoration) {
 			active := resolveDecorationState(baseDeco, clickable.Hovered(), clickable.Pressed(), c.config.disabled)
-			visual := stripStateDecoration(active)
+			visual := md3AnimateDecoration(targetCtx, "checkbox-decoration", stripStateDecoration(active), duration, easing)
 			return layoutDecorationShell(targetCtx.Child(0), visual, content).Size
 		}
 		return content(targetCtx.Child(0))

@@ -92,6 +92,10 @@ curve := ui.CubicBezier(0.2, 0.8, 0.2, 1)
 v := ui.UseAnimatedValue(ctx, target, 300*time.Millisecond, curve)
 ```
 
+## MD3 组件动画
+
+如果是在为默认 MD3 组件实现 hover、pressed、focus、selected、menu、toast 或 loading 状态动画，应优先遵循 `docs/guides/material3-motion.md`。该规范定义了组件默认时长、Material 3 缓动曲线和 loading 循环节奏，避免每个组件单独发明动画参数。
+
 ## 使用建议
 - 交互反馈通常 120~250ms 即可。
 - 页面级过渡可使用 250~450ms。

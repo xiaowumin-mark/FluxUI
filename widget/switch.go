@@ -158,15 +158,19 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		trackColor = style.DisabledContainer(cs.OnSurface)
 		thumbColor = style.DisabledContent(cs.OnSurface)
 	}
+	checkedProgress := md3SelectionProgress(ctx, s.value)
+	trackColor = md3AnimateColor(ctx, "switch-track", trackColor, style.InteractionSelectedDuration, style.InteractionStandardEasing)
+	thumbColor = md3AnimateColor(ctx, "switch-thumb", thumbColor, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 	content := func(contentCtx *internal.Context) image.Point {
 		return contentCtx.LayoutSwitch(nil, s.value, internal.SwitchSpec{
-			Width:      s.config.width,
-			Height:     s.config.height,
-			TrackColor: trackColor,
-			ThumbColor: thumbColor,
-			Disabled:   s.config.disabled,
-			Hovered:    clickable.Hovered(),
-			Pressed:    clickable.Pressed(),
+			Width:           s.config.width,
+			Height:          s.config.height,
+			TrackColor:      trackColor,
+			ThumbColor:      thumbColor,
+			CheckedProgress: checkedProgress,
+			Disabled:        s.config.disabled,
+			Hovered:         clickable.Hovered(),
+			Pressed:         clickable.Pressed(),
 		})
 	}
 
@@ -178,7 +182,8 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	target := func(targetCtx *internal.Context) image.Point {
 		if hasAnyDecoration(s.config.decoration) {
 			active := resolveDecorationState(deco, clickable.Hovered(), clickable.Pressed(), s.config.disabled)
-			visual := stripStateDecoration(active)
+			duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), false, s.config.disabled)
+			visual := md3AnimateDecoration(targetCtx, "switch-decoration", stripStateDecoration(active), duration, easing)
 			return layoutDecorationShell(targetCtx.Child(0), visual, content).Size
 		}
 		return content(targetCtx.Child(0))

@@ -3,12 +3,15 @@ package widget
 import (
 	"image"
 	"image/color"
+	"time"
 
+	"github.com/xiaowumin-mark/FluxUI/anim"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
 
 	"gioui.org/op"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 )
 
@@ -166,6 +169,8 @@ func hasAnyDecoration(d style.Decoration) bool {
 func layoutDecoratedClickTarget(ctx *internal.Context, clickable *internal.ClickableState, hovered, pressed bool, d style.Decoration, disabled bool, child func(*internal.Context) image.Point) layout.Dimensions {
 	active := resolveDecorationState(d, hovered, pressed, disabled)
 	visualDecoration := stripStateDecoration(active)
+	duration, easing := md3InteractionTiming(hovered, pressed, false, disabled)
+	visualDecoration = md3AnimateDecoration(ctx, "decorated-click-target-decoration", visualDecoration, duration, easing)
 
 	macro := op.Record(ctx.Gtx.Ops)
 	dims := layoutDecorationShell(ctx.Child(0), visualDecoration, child)
@@ -206,6 +211,7 @@ func layoutRippleTouchTarget(ctx *internal.Context, clickable *internal.Clickabl
 	}
 
 	if disabled || clickable == nil {
+		_ = md3AnimateStateLayerOpacity(ctx, "touch-state-layer", 0)
 		childCall.Add(ctx.Gtx.Ops)
 		return layout.Dimensions{Size: childSize}
 	}
@@ -278,6 +284,7 @@ func layoutStateLayerTouchTarget(ctx *internal.Context, clickable *internal.Clic
 	if stateOpacity != nil {
 		opacity = stateOpacity()
 	}
+	opacity = md3AnimateStateLayerOpacity(ctx, "touch-state-layer", opacity)
 	layerMacro := op.Record(ctx.Gtx.Ops)
 	ctx.DrawStateLayerCircle(clickable, center, layerDiameterDp, spec, opacity)
 	layerCall := layerMacro.Stop()
@@ -294,6 +301,433 @@ func materialStateLayerOpacity(hovered, pressed bool) float32 {
 	}
 	if hovered {
 		return style.StateLayerHoverOpacity
+	}
+	return 0
+}
+
+func materialAnimatedStateLayerOpacity(ctx *internal.Context, hovered, pressed, disabled bool) float32 {
+	if disabled {
+		return md3AnimateStateLayerOpacity(ctx, "md3-state-layer", 0)
+	}
+	return md3AnimateStateLayerOpacity(ctx, "md3-state-layer", materialStateLayerOpacity(hovered, pressed))
+}
+
+func md3AnimateStateLayerOpacity(ctx *internal.Context, namespace string, target float32) float32 {
+	enterDuration := style.InteractionHoverEnterDuration
+	if target >= style.StateLayerPressedOpacity {
+		enterDuration = style.InteractionPressedEnterDuration
+	}
+	return md3AnimateFloatDirectional(
+		ctx,
+		namespace,
+		target,
+		enterDuration,
+		style.InteractionPressedExitDuration,
+		style.InteractionStandardDecelerateEasing,
+		style.InteractionStandardAccelerateEasing,
+	)
+}
+
+func md3SelectionProgress(ctx *internal.Context, active bool) float32 {
+	target := float32(0)
+	if active {
+		target = 1
+	}
+	return md3AnimateFloat(ctx, "md3-selection-progress", target, style.InteractionSelectedDuration, style.InteractionStandardEasing)
+}
+
+func md3FocusProgress(ctx *internal.Context, focused, disabled bool) float32 {
+	target := float32(0)
+	if focused && !disabled {
+		target = 1
+	}
+	return md3AnimateFloatDirectional(
+		ctx,
+		"md3-focus-progress",
+		target,
+		style.InteractionFocusEnterDuration,
+		style.InteractionFocusExitDuration,
+		style.InteractionStandardDecelerateEasing,
+		style.InteractionStandardAccelerateEasing,
+	)
+}
+
+func md3DrawFocusIndicator(ctx *internal.Context, size image.Point, spec internal.FocusIndicatorSpec, focused, disabled bool) {
+	opacity := md3FocusProgress(ctx, focused, disabled)
+	if opacity <= 0 {
+		return
+	}
+	spec.Color = withAlphaFactor(spec.Color, opacity)
+	ctx.DrawFocusIndicator(size, spec)
+}
+
+func md3InteractionTiming(hovered, pressed, focused, disabled bool) (time.Duration, func(float32) float32) {
+	switch {
+	case disabled:
+		return style.InteractionSelectedDuration, style.InteractionStandardEasing
+	case pressed:
+		return style.InteractionPressedEnterDuration, style.InteractionStandardDecelerateEasing
+	case hovered:
+		return style.InteractionHoverEnterDuration, style.InteractionStandardDecelerateEasing
+	case focused:
+		return style.InteractionFocusEnterDuration, style.InteractionStandardDecelerateEasing
+	default:
+		return style.InteractionHoverExitDuration, style.InteractionStandardAccelerateEasing
+	}
+}
+
+type md3AnimatedFloatState struct {
+	startedAt time.Time
+	from      float32
+	current   float32
+	to        float32
+	duration  time.Duration
+	easing    func(float32) float32
+}
+
+func md3AnimateFloat(ctx *internal.Context, namespace string, target float32, duration time.Duration, easing func(float32) float32) float32 {
+	if ctx == nil {
+		return target
+	}
+	state := md3FloatStateFor(ctx, namespace, target)
+	return state.advance(ctx, target, duration, easing)
+}
+
+func md3AnimateFloatDirectional(ctx *internal.Context, namespace string, target float32, enterDuration, exitDuration time.Duration, enterEasing, exitEasing func(float32) float32) float32 {
+	if ctx == nil {
+		return target
+	}
+	state := md3FloatStateFor(ctx, namespace, target)
+	current := state.valueAt(ctx.Now())
+	duration := exitDuration
+	easing := exitEasing
+	if target > current {
+		duration = enterDuration
+		easing = enterEasing
+	}
+	return state.advance(ctx, target, duration, easing)
+}
+
+func md3FloatStateFor(ctx *internal.Context, namespace string, initial float32) *md3AnimatedFloatState {
+	value := ctx.Persistent(md3MotionKey(ctx, namespace), func() any {
+		return &md3AnimatedFloatState{
+			startedAt: ctx.Now(),
+			from:      initial,
+			current:   initial,
+			to:        initial,
+			easing:    style.InteractionLinearEasing,
+		}
+	})
+	state, ok := value.(*md3AnimatedFloatState)
+	if !ok {
+		panic("github.com/xiaowumin-mark/FluxUI/widget: md3 animated float state type mismatch")
+	}
+	if state.easing == nil {
+		state.easing = style.InteractionLinearEasing
+	}
+	return state
+}
+
+func (s *md3AnimatedFloatState) advance(ctx *internal.Context, target float32, duration time.Duration, easing func(float32) float32) float32 {
+	if ctx == nil {
+		return target
+	}
+	if easing == nil {
+		easing = style.InteractionLinearEasing
+	}
+	if duration <= 0 {
+		s.snap(ctx.Now(), target, duration, easing)
+		return target
+	}
+	if s.to == target && s.duration == duration {
+		current, running := s.currentAndRunning(ctx.Now())
+		s.current = current
+		s.easing = easing
+		if running {
+			ctx.RequestFrameRedraw()
+			return current
+		}
+		s.snap(ctx.Now(), target, duration, easing)
+		return target
+	}
+
+	now := ctx.Now()
+	current := s.valueAt(now)
+	s.startedAt = now
+	s.from = current
+	s.current = current
+	s.to = target
+	s.duration = duration
+	s.easing = easing
+	ctx.RequestFrameRedraw()
+	return current
+}
+
+func (s *md3AnimatedFloatState) snap(now time.Time, target float32, duration time.Duration, easing func(float32) float32) {
+	s.startedAt = now
+	s.from = target
+	s.current = target
+	s.to = target
+	s.duration = duration
+	s.easing = easing
+}
+
+func (s *md3AnimatedFloatState) valueAt(now time.Time) float32 {
+	current, _ := s.currentAndRunning(now)
+	return current
+}
+
+func (s *md3AnimatedFloatState) currentAndRunning(now time.Time) (float32, bool) {
+	if s.duration <= 0 {
+		return s.to, false
+	}
+	elapsed := now.Sub(s.startedAt)
+	if elapsed <= 0 {
+		return s.from, true
+	}
+	if elapsed >= s.duration {
+		return s.to, false
+	}
+	p := float32(elapsed) / float32(s.duration)
+	if s.easing != nil {
+		p = s.easing(p)
+	}
+	return s.from + (s.to-s.from)*p, true
+}
+
+type md3AnimatedColorState struct {
+	startedAt time.Time
+	from      color.NRGBA
+	current   color.NRGBA
+	to        color.NRGBA
+	duration  time.Duration
+	easing    func(float32) float32
+}
+
+func md3AnimateColor(ctx *internal.Context, namespace string, target color.NRGBA, duration time.Duration, easing func(float32) float32) color.NRGBA {
+	if ctx == nil || duration <= 0 {
+		return target
+	}
+	if easing == nil {
+		easing = style.InteractionLinearEasing
+	}
+	value := ctx.Persistent(md3MotionKey(ctx, namespace), func() any {
+		return &md3AnimatedColorState{
+			startedAt: ctx.Now(),
+			from:      target,
+			current:   target,
+			to:        target,
+			duration:  duration,
+			easing:    easing,
+		}
+	})
+	state, ok := value.(*md3AnimatedColorState)
+	if !ok {
+		panic("github.com/xiaowumin-mark/FluxUI/widget: md3 animated color state type mismatch")
+	}
+	if state.to == target && state.duration == duration {
+		current, running := state.currentAndRunning(ctx.Now())
+		state.current = current
+		state.easing = easing
+		if running {
+			ctx.RequestFrameRedraw()
+			return current
+		}
+		state.snap(ctx.Now(), target, duration, easing)
+		return target
+	}
+
+	now := ctx.Now()
+	current := state.valueAt(now)
+	state.startedAt = now
+	state.from = current
+	state.current = current
+	state.to = target
+	state.duration = duration
+	state.easing = easing
+	ctx.RequestFrameRedraw()
+	return current
+}
+
+func (s *md3AnimatedColorState) snap(now time.Time, target color.NRGBA, duration time.Duration, easing func(float32) float32) {
+	s.startedAt = now
+	s.from = target
+	s.current = target
+	s.to = target
+	s.duration = duration
+	s.easing = easing
+}
+
+func (s *md3AnimatedColorState) valueAt(now time.Time) color.NRGBA {
+	current, _ := s.currentAndRunning(now)
+	return current
+}
+
+func (s *md3AnimatedColorState) currentAndRunning(now time.Time) (color.NRGBA, bool) {
+	if s.duration <= 0 {
+		return s.to, false
+	}
+	elapsed := now.Sub(s.startedAt)
+	if elapsed <= 0 {
+		return s.from, true
+	}
+	if elapsed >= s.duration {
+		return s.to, false
+	}
+	p := float32(elapsed) / float32(s.duration)
+	if s.easing != nil {
+		p = s.easing(p)
+	}
+	return lerpNRGBA(s.from, s.to, p), true
+}
+
+type md3AnimatedDecorationState struct {
+	startedAt time.Time
+	from      style.Decoration
+	current   style.Decoration
+	to        style.Decoration
+	duration  time.Duration
+	easing    func(float32) float32
+}
+
+func md3AnimateDecoration(ctx *internal.Context, namespace string, target style.Decoration, duration time.Duration, easing func(float32) float32) style.Decoration {
+	if ctx == nil || duration <= 0 {
+		return target
+	}
+	if easing == nil {
+		easing = style.InteractionLinearEasing
+	}
+	value := ctx.Persistent(md3MotionKey(ctx, namespace), func() any {
+		return &md3AnimatedDecorationState{
+			startedAt: ctx.Now(),
+			from:      target,
+			current:   target,
+			to:        target,
+			duration:  duration,
+			easing:    easing,
+		}
+	})
+	state, ok := value.(*md3AnimatedDecorationState)
+	if !ok {
+		panic("github.com/xiaowumin-mark/FluxUI/widget: md3 animated decoration state type mismatch")
+	}
+	if anim.DecorationEqual(state.to, target) && state.duration == duration {
+		current, running := state.currentAndRunning(ctx.Now())
+		state.current = current
+		state.easing = easing
+		if running {
+			ctx.RequestFrameRedraw()
+			return current
+		}
+		state.snap(ctx.Now(), target, duration, easing)
+		return target
+	}
+
+	now := ctx.Now()
+	current := state.valueAt(now)
+	state.startedAt = now
+	state.from = current
+	state.current = current
+	state.to = target
+	state.duration = duration
+	state.easing = easing
+	ctx.RequestFrameRedraw()
+	return current
+}
+
+func (s *md3AnimatedDecorationState) snap(now time.Time, target style.Decoration, duration time.Duration, easing func(float32) float32) {
+	s.startedAt = now
+	s.from = target
+	s.current = target
+	s.to = target
+	s.duration = duration
+	s.easing = easing
+}
+
+func (s *md3AnimatedDecorationState) valueAt(now time.Time) style.Decoration {
+	current, _ := s.currentAndRunning(now)
+	return current
+}
+
+func (s *md3AnimatedDecorationState) currentAndRunning(now time.Time) (style.Decoration, bool) {
+	if s.duration <= 0 {
+		return s.to, false
+	}
+	elapsed := now.Sub(s.startedAt)
+	if elapsed <= 0 {
+		return s.from, true
+	}
+	if elapsed >= s.duration {
+		return s.to, false
+	}
+	p := float32(elapsed) / float32(s.duration)
+	if s.easing != nil {
+		p = s.easing(p)
+	}
+	return anim.LerpDecoration(s.from, s.to, p), true
+}
+
+func md3OverlayProgress(ctx *internal.Context, namespace string, visible bool, enterDuration, exitDuration time.Duration, enterEasing, exitEasing func(float32) float32) (progress float32, shouldRender bool) {
+	if ctx == nil {
+		return boolProgress(visible), visible
+	}
+	target := float32(0)
+	if visible {
+		target = 1
+	}
+	state := md3FloatStateFor(ctx, namespace, 0)
+	current := state.valueAt(ctx.Now())
+	duration := exitDuration
+	easing := exitEasing
+	if target > current {
+		duration = enterDuration
+		easing = enterEasing
+	}
+	progress = state.advance(ctx, target, duration, easing)
+	return progress, visible || progress > 0.001
+}
+
+func layoutMD3OverlayTransition(ctx *internal.Context, progress float32, offsetDp float32, child func(*internal.Context) image.Point) image.Point {
+	if child == nil || progress <= 0 {
+		return image.Point{}
+	}
+	progress = clampFloat32(progress, 0, 1)
+	if progress < 1 {
+		defer paint.PushOpacity(ctx.Gtx.Ops, progress).Pop()
+	}
+	offset := int(float32(ctx.Gtx.Dp(unit.Dp(offsetDp))) * (1 - progress))
+	stack := op.Offset(image.Point{Y: offset}).Push(ctx.Gtx.Ops)
+	size := child(ctx.Child(0))
+	stack.Pop()
+	return size
+}
+
+func lerpNRGBA(from, to color.NRGBA, t float32) color.NRGBA {
+	t = clampFloat32(t, 0, 1)
+	return color.NRGBA{
+		R: uint8(float32(from.R) + (float32(to.R)-float32(from.R))*t + 0.5),
+		G: uint8(float32(from.G) + (float32(to.G)-float32(from.G))*t + 0.5),
+		B: uint8(float32(from.B) + (float32(to.B)-float32(from.B))*t + 0.5),
+		A: uint8(float32(from.A) + (float32(to.A)-float32(from.A))*t + 0.5),
+	}
+}
+
+func withAlphaFactor(col color.NRGBA, opacity float32) color.NRGBA {
+	opacity = clampFloat32(opacity, 0, 1)
+	col.A = uint8(float32(col.A)*opacity + 0.5)
+	return col
+}
+
+func md3MotionKey(ctx *internal.Context, namespace string) string {
+	if ctx == nil {
+		return "md3-motion:" + namespace
+	}
+	return ctx.TreePath() + "/md3-motion:" + namespace
+}
+
+func boolProgress(active bool) float32 {
+	if active {
+		return 1
 	}
 	return 0
 }

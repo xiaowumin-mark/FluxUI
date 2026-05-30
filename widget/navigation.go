@@ -273,9 +273,6 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 
 		icon := item.Icon
-		if icon == nil {
-			icon = Text("•", TextColor(col))
-		}
 		tab := layoutWidgetFunc(func(tabCtx *internal.Context) layout.Dimensions {
 			clickable := event.UseClickable(tabCtx)
 			for clickable.Clicked(tabCtx) {
@@ -285,31 +282,34 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				}
 			}
 			bg := tabBg
-			if clickable.Pressed() {
-				bg = style.StateLayer(bg, col, style.StateLayerPressedOpacity)
-			} else if clickable.Hovered() {
-				bg = style.StateLayer(bg, col, style.StateLayerHoverOpacity)
+			duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), clickable.Focused(tabCtx), false)
+			if opacity := materialAnimatedStateLayerOpacity(tabCtx, clickable.Hovered(), clickable.Pressed(), false); opacity > 0 {
+				bg = style.StateLayer(bg, col, opacity)
+			}
+			bg = md3AnimateColor(tabCtx, "bottom-nav-bg", bg, duration, easing)
+			itemColor := md3AnimateColor(tabCtx, "bottom-nav-color", col, style.InteractionSelectedDuration, style.InteractionStandardEasing)
+			displayIcon := withForeground(itemColor, icon)
+			if displayIcon == nil {
+				displayIcon = Text("•", TextColor(itemColor))
 			}
 			itemContent := ContainerDecoration(
 				style.Decoration{}.WithBg(bg).WithPad(style.Symmetric(6, 10)).WithRad(tabCtx.Theme().Shapes.Full),
 				Column(
-					icon,
-					Padding(style.Insets{Top: 4}, Text(item.Label, TextColor(col), TextType(tabCtx.Theme().Types.LabelMedium))),
+					displayIcon,
+					Padding(style.Insets{Top: 4}, Text(item.Label, TextColor(itemColor), TextType(tabCtx.Theme().Types.LabelMedium))),
 				),
 			)
 			size := tabCtx.LayoutRippleArea(clickable.Handle(), internal.RippleSpec{
-				Color:   col,
+				Color:   itemColor,
 				Radius:  tabCtx.Theme().Shapes.Full,
 				Opacity: style.StateLayerPressedOpacity,
 			}, func(childCtx *internal.Context) image.Point {
 				return itemContent.Layout(childCtx.Child(0)).Size
 			})
-			if clickable.Focused(tabCtx) {
-				tabCtx.DrawFocusIndicator(size, internal.FocusIndicatorSpec{
-					Color:  cs.Primary,
-					Radius: tabCtx.Theme().Shapes.Full,
-				})
-			}
+			md3DrawFocusIndicator(tabCtx, size, internal.FocusIndicatorSpec{
+				Color:  cs.Primary,
+				Radius: tabCtx.Theme().Shapes.Full,
+			}, clickable.Focused(tabCtx), false)
 			return layout.Dimensions{Size: size}
 		})
 		tabs = append(tabs, tab)

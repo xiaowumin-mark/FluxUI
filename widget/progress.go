@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
@@ -170,9 +171,16 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	progress := progressRatio(p.value, p.config.min, p.config.max)
+	animatedProgress := md3AnimateFloat(ctx, "progress-value", progress, style.InteractionLoadingValueDuration, style.InteractionStandardEasing)
 	if p.config.indeterminate {
-		progress = animProgress(ctx)
+		cycle := style.InteractionLoadingLinearCycle
+		if p.circular {
+			cycle = style.InteractionLoadingCircularCycle
+		}
+		progress = animProgress(ctx, cycle)
 		ctx.RequestFrameRedraw()
+	} else {
+		progress = animatedProgress
 	}
 
 	layoutProgress := func(progressCtx *internal.Context) layout.Dimensions {
@@ -293,8 +301,10 @@ func progressRatio(value, min, max float32) float32 {
 	return clampFloat32((value-min)/(max-min), 0, 1)
 }
 
-func animProgress(ctx *internal.Context) float32 {
-	// 循环 1s 的简单不定进度动画。
-	ms := float32(ctx.Now().UnixNano()%1_000_000_000) / 1_000_000_000
+func animProgress(ctx *internal.Context, cycle time.Duration) float32 {
+	if cycle <= 0 {
+		cycle = time.Second
+	}
+	ms := float32(ctx.Now().UnixNano()%int64(cycle)) / float32(cycle)
 	return ms
 }

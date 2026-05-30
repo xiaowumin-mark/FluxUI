@@ -185,11 +185,16 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		foreground = b.config.foreground
 	}
 
-	if !b.config.disabled && (clickable.Hovered() || clickable.Pressed()) {
+	hovered := clickable.Hovered()
+	pressed := clickable.Pressed()
+	focused := clickable.Focused(ctx)
+	duration, easing := md3InteractionTiming(hovered, pressed, focused, b.config.disabled)
+	if !b.config.disabled && (hovered || pressed) {
 		opacity := style.StateLayerHoverOpacity
-		if clickable.Pressed() {
+		if pressed {
 			opacity = style.StateLayerPressedOpacity
 		}
+		opacity = md3AnimateStateLayerOpacity(ctx, "button-state-layer", opacity)
 		background = style.StateLayer(background, foreground, opacity)
 	}
 	if b.config.disabled {
@@ -204,6 +209,8 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			foreground = style.DisabledContent(cs.OnSurface)
 		}
 	}
+	background = md3AnimateColor(ctx, "button-background", background, duration, easing)
+	foreground = md3AnimateColor(ctx, "button-foreground", foreground, duration, easing)
 	radiusDefault := spec.radius
 	if b.config.hasRadius {
 		radiusDefault = b.config.radius
@@ -214,6 +221,8 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		paddingDefault = b.config.padding
 	}
 	padding := activeDecoration.ResolvePad(paddingDefault)
+	borderColor := md3AnimateColor(ctx, "button-border-color", spec.border.Color, duration, easing)
+	borderWidth := md3AnimateFloat(ctx, "button-border-width", spec.border.Width, duration, easing)
 
 	size := ctx.LayoutButton(clickable.Handle(), internal.ButtonSpec{
 		Background:  background,
@@ -221,8 +230,8 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		Radius:      radius,
 		Padding:     toInternalInsets(padding),
 		TextStyle:   spec.text,
-		BorderColor: spec.border.Color,
-		BorderWidth: spec.border.Width,
+		BorderColor: borderColor,
+		BorderWidth: borderWidth,
 		HasShadow:   !spec.shadow.IsZero(),
 		Shadow: internal.ShadowSpec{
 			OffsetX: spec.shadow.OffsetX,
@@ -230,7 +239,8 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			Blur:    spec.shadow.Blur,
 			Color:   spec.shadow.Color,
 		},
-		Disabled: b.config.disabled,
+		FocusOpacity: md3FocusProgress(ctx, focused, b.config.disabled),
+		Disabled:     b.config.disabled,
 	}, func(childCtx *internal.Context) image.Point {
 		if b.child == nil {
 			return image.Point{}
