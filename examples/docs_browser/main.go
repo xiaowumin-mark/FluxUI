@@ -194,8 +194,11 @@ func main() {
 							28,
 							ui.CenterElement(ui.TextElement(curve.short, ui.TextSize(10), ui.TextColor(ui.NRGBA(255, 255, 255, 255)))),
 						),
-						ui.OnDecoHover(func(ctx *ui.Context, hovering bool) {
-							hovered.Set(hovering)
+						ui.OnDecoHoverEnter(func(ctx *ui.Context) {
+							hovered.Set(true)
+						}),
+						ui.OnDecoHoverLeave(func(ctx *ui.Context) {
+							hovered.Set(false)
 						}),
 					)
 

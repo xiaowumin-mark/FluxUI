@@ -282,9 +282,14 @@ func advanceAnimValueState[T animNum](ctx *Context, state *animValueState[T], ta
 	}
 
 	if state.to == target && state.duration == duration {
+		if state.from == state.to {
+			state.easing = easing
+			return target
+		}
 		p, running := animProgress(ctx.Now(), state.startedAt, duration)
 		state.easing = easing
 		if !running {
+			state.snap(ctx.Now(), target, duration, easing)
 			return target
 		}
 		ctx.RequestFrameRedraw()
@@ -297,6 +302,10 @@ func advanceAnimValueState[T animNum](ctx *Context, state *animValueState[T], ta
 		state.from = state.to
 	} else {
 		state.from = animNumLerp(state.from, state.to, animEasedProgress(state.easing, oldP))
+	}
+	if state.from == target {
+		state.snap(now, target, duration, easing)
+		return target
 	}
 	state.startedAt = now
 	state.to = target
@@ -391,9 +400,15 @@ func advanceAnimDecoState(ctx *Context, state *animDecoState, target Decoration,
 	}
 
 	if anim.DecorationEqual(state.to, target) && state.duration == duration {
+		if anim.DecorationEqual(state.from, state.to) {
+			state.current = target
+			state.easing = easing
+			return target
+		}
 		p, running := animProgress(ctx.Now(), state.startedAt, duration)
 		state.easing = easing
 		if !running {
+			state.snap(ctx.Now(), target, duration, easing)
 			return target
 		}
 		ctx.RequestFrameRedraw()
@@ -408,6 +423,10 @@ func advanceAnimDecoState(ctx *Context, state *animDecoState, target Decoration,
 		state.current = anim.LerpDecoration(state.from, state.to, animEasedProgress(state.easing, p))
 	}
 
+	if anim.DecorationEqual(state.current, target) {
+		state.snap(now, target, duration, easing)
+		return target
+	}
 	state.startedAt = now
 	state.from = state.current
 	state.to = target

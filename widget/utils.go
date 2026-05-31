@@ -453,6 +453,10 @@ func (s *md3AnimatedFloatState) advance(ctx *internal.Context, target float32, d
 
 	now := ctx.Now()
 	current := s.valueAt(now)
+	if current == target {
+		s.snap(now, target, duration, easing)
+		return target
+	}
 	s.startedAt = now
 	s.from = current
 	s.current = current
@@ -479,6 +483,9 @@ func (s *md3AnimatedFloatState) valueAt(now time.Time) float32 {
 
 func (s *md3AnimatedFloatState) currentAndRunning(now time.Time) (float32, bool) {
 	if s.duration <= 0 {
+		return s.to, false
+	}
+	if s.from == s.to {
 		return s.to, false
 	}
 	elapsed := now.Sub(s.startedAt)
@@ -539,6 +546,10 @@ func md3AnimateColor(ctx *internal.Context, namespace string, target color.NRGBA
 
 	now := ctx.Now()
 	current := state.valueAt(now)
+	if current == target {
+		state.snap(now, target, duration, easing)
+		return target
+	}
 	state.startedAt = now
 	state.from = current
 	state.current = current
@@ -565,6 +576,9 @@ func (s *md3AnimatedColorState) valueAt(now time.Time) color.NRGBA {
 
 func (s *md3AnimatedColorState) currentAndRunning(now time.Time) (color.NRGBA, bool) {
 	if s.duration <= 0 {
+		return s.to, false
+	}
+	if s.from == s.to {
 		return s.to, false
 	}
 	elapsed := now.Sub(s.startedAt)
@@ -625,6 +639,10 @@ func md3AnimateDecoration(ctx *internal.Context, namespace string, target style.
 
 	now := ctx.Now()
 	current := state.valueAt(now)
+	if anim.DecorationEqual(current, target) {
+		state.snap(now, target, duration, easing)
+		return target
+	}
 	state.startedAt = now
 	state.from = current
 	state.current = current
@@ -651,6 +669,9 @@ func (s *md3AnimatedDecorationState) valueAt(now time.Time) style.Decoration {
 
 func (s *md3AnimatedDecorationState) currentAndRunning(now time.Time) (style.Decoration, bool) {
 	if s.duration <= 0 {
+		return s.to, false
+	}
+	if anim.DecorationEqual(s.from, s.to) {
 		return s.to, false
 	}
 	elapsed := now.Sub(s.startedAt)

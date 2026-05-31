@@ -1080,6 +1080,37 @@ func TestUseAnimatedDecorationZeroDurationResetsHookState(t *testing.T) {
 	rt.EndFrame()
 }
 
+func TestAnimatedHooksDoNotRedrawWhenAlreadyAtTarget(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	defer rt.Dispose()
+
+	var ops op.Ops
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	gtx := gioLayout.Context{Ops: &ops, Now: now}
+	r := newReconciler()
+	redraws := 0
+	rt.SetInvalidator(func() {
+		redraws++
+	})
+
+	root := func(ctx *Context) Element {
+		v := UseAnimatedValue(ctx, float32(0), 100*time.Millisecond, EaseOut)
+		deco := UseAnimatedDecoration(ctx, Bg(color.NRGBA{R: 59, G: 130, B: 246, A: 255}).WithRad(8), 100*time.Millisecond, EaseOut)
+		return ContainerDecorationElement(deco, TextElement(fmt.Sprintf("%.0f", v)))
+	}
+
+	for frame := 0; frame < 6; frame++ {
+		redraws = 0
+		gtx.Now = now.Add(time.Duration(frame) * 16 * time.Millisecond)
+		rt.BeginFrame()
+		r.Render(internal.NewContext(gtx, rt), root)
+		rt.EndFrame()
+		if frame > 0 && redraws != 0 {
+			t.Fatalf("stable animation frame %d requested %d redraw(s)", frame, redraws)
+		}
+	}
+}
+
 func TestUseAnimatedValueTargetChangeMidAnimation(t *testing.T) {
 	rt := internal.NewRuntime(nil)
 	var ops op.Ops
