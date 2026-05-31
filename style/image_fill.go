@@ -1,11 +1,13 @@
 package style
 
 import (
+	"fmt"
 	"image"
 	"io"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 // ImageFillFit 定义图片背景的缩放模式。
@@ -27,11 +29,15 @@ type ImageFill struct {
 
 // DecodeImageURL 从 HTTP(S) URL 下载并解码图片。
 func DecodeImageURL(url string) (image.Image, error) {
-	resp, err := http.Get(url)
+	client := http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(url)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("style: image request failed: HTTP %d", resp.StatusCode)
+	}
 
 	return decodeImageFromReader(resp.Body)
 }

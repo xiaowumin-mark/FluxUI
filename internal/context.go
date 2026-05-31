@@ -26,7 +26,7 @@ type Context struct {
 	textStyle     theme.TextStyle
 	hasTextStyle  bool
 	instance      *ComponentInstance
-	providers     map[reflect.Type]any
+	providers     map[ProviderKey]any
 	themeOverride *theme.Theme
 }
 
@@ -323,23 +323,50 @@ func (c *Context) NextHookSlot(kind HookKind) *HookSlot {
 	return c.instance.NextHook(kind)
 }
 
-// WithProviderValue returns a context with one provider value overridden.
+// ProviderKey identifies a typed context provider slot.
+type ProviderKey struct {
+	typ  reflect.Type
+	id   uint64
+	name string
+}
+
+// ProviderKeyFor returns a provider key for T. id 0 keeps the legacy type-wide
+// provider behavior.
+func ProviderKeyFor[T any](id uint64, name string) ProviderKey {
+	return ProviderKey{typ: contextKeyType[T](), id: id, name: name}
+}
+
+// WithProviderValue returns a context with one type-wide provider value
+// overridden. Prefer WithProviderKeyValue when a public ContextKey is
+// available.
 func WithProviderValue[T any](c *Context, value T) *Context {
+	return WithProviderKeyValue(c, ProviderKeyFor[T](0, ""), value)
+}
+
+// WithProviderKeyValue returns a context with one provider key overridden.
+func WithProviderKeyValue[T any](c *Context, key ProviderKey, value T) *Context {
 	if c == nil {
 		return nil
 	}
 	next := c.sameScope(c.Gtx)
 	next.providers = cloneProviders(c.providers)
-	next.providers[contextKeyType[T]()] = value
+	next.providers[key] = value
 	return next
 }
 
-// ProviderValue reads a provider value from context, or fallback when absent.
+// ProviderValue reads a type-wide provider value from context, or fallback
+// when absent.
 func ProviderValue[T any](c *Context, fallback T) T {
+	return ProviderKeyValue(c, ProviderKeyFor[T](0, ""), fallback)
+}
+
+// ProviderKeyValue reads a provider key value from context, or fallback when
+// absent.
+func ProviderKeyValue[T any](c *Context, key ProviderKey, fallback T) T {
 	if c == nil || c.providers == nil {
 		return fallback
 	}
-	value, ok := c.providers[contextKeyType[T]()].(T)
+	value, ok := c.providers[key].(T)
 	if !ok {
 		return fallback
 	}
@@ -412,8 +439,8 @@ func (c *Context) sameScope(gtx gioLayout.Context) *Context {
 	return &next
 }
 
-func cloneProviders(providers map[reflect.Type]any) map[reflect.Type]any {
-	next := make(map[reflect.Type]any, len(providers)+1)
+func cloneProviders(providers map[ProviderKey]any) map[ProviderKey]any {
+	next := make(map[ProviderKey]any, len(providers)+1)
 	for key, value := range providers {
 		next[key] = value
 	}

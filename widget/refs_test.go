@@ -1,6 +1,14 @@
 package widget
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/style"
+
+	gioLayout "gioui.org/layout"
+	"gioui.org/op"
+)
 
 func TestButtonRefQueuesCommands(t *testing.T) {
 	ref := NewButtonRef()
@@ -97,5 +105,51 @@ func TestDialogTabsAndNavigationRefsQueueCommands(t *testing.T) {
 	bottomNav.SetActive("home")
 	if cmds := bottomNav.drainCommands(); len(cmds) != 1 || cmds[0] != "home" {
 		t.Fatalf("unexpected bottom nav commands: %#v", cmds)
+	}
+}
+
+func TestRefsCanBindWithoutRuntime(t *testing.T) {
+	var ops op.Ops
+	ctx := internal.NewContext(gioLayout.Context{Ops: &ops}, nil)
+
+	cases := []struct {
+		name string
+		run  func()
+	}{
+		{"button", func() { Button(Text("go"), ButtonAttachRef(NewButtonRef())).Layout(ctx) }},
+		{"checkbox", func() { Checkbox("ok", false, CheckboxAttachRef(NewCheckboxRef())).Layout(ctx) }},
+		{"pressable", func() { Pressable(Text("go"), nil, PressableAttachRef(NewPressableRef())).Layout(ctx) }},
+		{"input", func() { TextField("", InputAttachRef(NewInputRef())).Layout(ctx) }},
+		{"scroll", func() { ScrollView(Text("body"), ScrollAttachRef(NewScrollRef())).Layout(ctx) }},
+		{"bottom-nav", func() {
+			BottomNavigation("home", []NavItem{{Key: "home", Label: "Home"}}, BottomNavAttachRef(NewBottomNavRef())).Layout(ctx)
+		}},
+		{"radio", func() {
+			RadioGroup("a", []RadioItem{{Label: "A", Value: "a"}}, RadioGroupAttachRef(NewRadioGroupRef())).Layout(ctx)
+		}},
+		{"select", func() {
+			Select("a", []SelectOptionItem[string]{{Label: "A", Value: "a"}}, SelectAttachRef(NewSelectRef[string]())).Layout(ctx)
+		}},
+		{"slider", func() { Slider(0.5, SliderAttachRef(NewSliderRef())).Layout(ctx) }},
+		{"switch", func() { Switch(false, SwitchAttachRef(NewSwitchRef())).Layout(ctx) }},
+		{"tabs", func() { Tabs("a", []TabItem{{Key: "a", Label: "A"}}, TabsAttachRef(NewTabsRef())).Layout(ctx) }},
+		{"dialog", func() { Dialog(false, Text("body"), DialogAttachRef(NewDialogRef())).Layout(ctx) }},
+		{"popup", func() { Popup(false, Text("body"), PopupAttachRef(NewPopupRef())).Layout(ctx) }},
+		{"image", func() { Image(ImageSource{}, ImageAttachRef(NewButtonRef())).Layout(ctx) }},
+		{"icon", func() { Icon("i", IconAttachRef(NewButtonRef())).Layout(ctx) }},
+		{"card", func() {
+			Card(Text("body"), CardAttachRef(NewButtonRef()), CardDecoration(style.Decoration{})).Layout(ctx)
+		}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("expected ref binding without runtime not to panic, got %v", r)
+				}
+			}()
+			tc.run()
+		})
 	}
 }

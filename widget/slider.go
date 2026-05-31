@@ -134,7 +134,7 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := state.hover
 	currentValue := applySliderStep(s.config.value, s.config.min, s.config.max, s.config.step)
 	if s.config.ref != nil {
-		s.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		s.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for _, cmd := range s.config.ref.drainCommands() {
 			switch cmd.kind {
 			case sliderCmdSet:

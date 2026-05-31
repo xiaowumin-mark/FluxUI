@@ -60,7 +60,7 @@ func (c *clickAreaWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	clickable := event.UseClickable(ctx)
 	if c.config.ref != nil {
-		c.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		c.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for range c.config.ref.drainCommands() {
 			if c.onClick != nil {
 				c.onClick(ctx)

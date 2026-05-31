@@ -22,6 +22,13 @@ func safeDp(v float32) unit.Dp {
 	return unit.Dp(v)
 }
 
+func redrawInvalidator(ctx *internal.Context) func() {
+	if ctx == nil || ctx.Runtime() == nil {
+		return nil
+	}
+	return ctx.Runtime().RequestRedraw
+}
+
 func clampFloat32(v, min, max float32) float32 {
 	if v < min {
 		return min

@@ -235,7 +235,7 @@ func BottomNavDecoration(d style.Decoration) BottomNavOption {
 func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	activeKey := b.active
 	if b.config.ref != nil {
-		b.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		b.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for _, key := range b.config.ref.drainCommands() {
 			if key == activeKey {
 				continue

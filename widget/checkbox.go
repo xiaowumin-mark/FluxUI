@@ -86,7 +86,7 @@ func CheckboxDecoration(d style.Decoration) CheckboxOption {
 func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
 	if c.config.ref != nil {
-		c.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		c.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for _, cmd := range c.config.ref.drainCommands() {
 			if c.config.disabled {
 				continue

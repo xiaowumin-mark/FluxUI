@@ -3,6 +3,7 @@ package ui
 import (
 	"reflect"
 	"strconv"
+	"sync/atomic"
 
 	fluxapp "github.com/xiaowumin-mark/FluxUI/app"
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
@@ -35,6 +36,7 @@ type fragmentElement struct {
 }
 
 type providerElement[T any] struct {
+	key   ContextKey[T]
 	value T
 	child Element
 }
@@ -153,7 +155,7 @@ func (e componentElement) Component() Component {
 }
 
 func (e providerElement[T]) providerContext(ctx *Context) *Context {
-	return internal.WithProviderValue[T](ctx, e.value)
+	return internal.WithProviderKeyValue[T](ctx, e.key.providerKey(), e.value)
 }
 
 // RunElement 启动 React 风格实验入口。
@@ -214,6 +216,19 @@ func ComponentElement(component Component) Element {
 // ContextKey identifies a typed provider value.
 type ContextKey[T any] struct {
 	Default T
+	Name    string
+	id      uint64
+}
+
+var contextKeyCounter atomic.Uint64
+
+// NewContextKey creates a context key with a unique identity, allowing
+// multiple providers of the same value type to coexist.
+func NewContextKey[T any](defaultValue T) ContextKey[T] {
+	return ContextKey[T]{
+		Default: defaultValue,
+		id:      contextKeyCounter.Add(1),
+	}
 }
 
 // Provider overrides a typed context value for a child subtree.
@@ -221,12 +236,12 @@ func Provider[T any](key ContextKey[T], value T, child Element) Element {
 	if child == nil {
 		return nil
 	}
-	return providerElement[T]{value: value, child: child}
+	return providerElement[T]{key: key, value: value, child: child}
 }
 
 // UseContext reads the nearest typed provider value or the key default.
 func UseContext[T any](ctx *Context, key ContextKey[T]) T {
-	return internal.ProviderValue[T](ctx, key.Default)
+	return internal.ProviderKeyValue[T](ctx, key.providerKey(), key.Default)
 }
 
 // RenderElement 将实验 Element 统一渲染为底层 Widget。
@@ -375,7 +390,11 @@ func (e keyElement) renderWithContext(ctx *Context) widget.Widget {
 }
 
 func (e providerElement[T]) renderWithContext(ctx *Context) widget.Widget {
-	return renderElementWithContext(internal.WithProviderValue[T](ctx, e.value), e.child)
+	return renderElementWithContext(internal.WithProviderKeyValue[T](ctx, e.key.providerKey(), e.value), e.child)
+}
+
+func (key ContextKey[T]) providerKey() internal.ProviderKey {
+	return internal.ProviderKeyFor[T](key.id, key.Name)
 }
 
 func useEffect(ctx *Context, hasDeps bool, deps []any, effect Effect) {

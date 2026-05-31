@@ -77,6 +77,31 @@ func TestComponentInstanceHookKindMismatchPanics(t *testing.T) {
 	inst.NextHook(HookAnimValue)
 }
 
+func TestHookStoreHookCountDecreasePanics(t *testing.T) {
+	store := NewHookStore()
+	identity := ComponentIdentity{ParentID: "root", TypeID: "Conditional", Key: "main"}
+
+	store.BeginFrame()
+	inst := store.BeginInstance(identity)
+	inst.NextHook(HookState)
+	inst.NextHook(HookEffect)
+	store.EndFrame()
+
+	store.BeginFrame()
+	inst = store.BeginInstance(identity)
+	inst.NextHook(HookState)
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic when hook count decreases")
+		}
+		if msg := r.(string); !strings.Contains(msg, "rendered 1 hooks this frame") {
+			t.Fatalf("unexpected panic message: %s", msg)
+		}
+	}()
+	store.EndFrame()
+}
+
 func TestHookStoreUnmountRunsCleanups(t *testing.T) {
 	store := NewHookStore()
 	identity := ComponentIdentity{ParentID: "root", TypeID: "Panel", Key: "settings"}

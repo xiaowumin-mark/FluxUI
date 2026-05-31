@@ -51,7 +51,7 @@ type taskCardProps struct {
 	Snapshot workspaceSnapshot
 }
 
-var taskCardPropsContext = ui.ContextKey[taskCardProps]{}
+var taskCardPropsContext = ui.NewContextKey(taskCardProps{})
 
 func main() {
 	_ = ui.RunElement(App, ui.Title("FluxUI 响应式工作区"), ui.Size(920, 680))

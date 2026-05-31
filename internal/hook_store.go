@@ -156,6 +156,18 @@ func (s *HookStore) EndFrame() {
 		return
 	}
 	for id, inst := range s.instances {
+		if _, ok := s.active[id]; !ok {
+			continue
+		}
+		if inst != nil && inst.hookCursor != len(inst.hooks) {
+			panic(fmt.Sprintf(
+				"FluxUI: component %q rendered %d hooks this frame, but rendered %d before -- "+
+					"hooks must be called in the same order every render",
+				inst.ID, inst.hookCursor, len(inst.hooks),
+			))
+		}
+	}
+	for id, inst := range s.instances {
 		if _, ok := s.active[id]; ok {
 			continue
 		}

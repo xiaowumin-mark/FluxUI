@@ -1925,6 +1925,9 @@ func ScrollAutoToEndKey(key any) ScrollOption {
 }
 
 func ListView(count int, itemBuilder func(ctx *Context, index int) Widget, opts ...ListOption) Widget {
+	if itemBuilder == nil {
+		return widget.ListView(count, nil, opts...)
+	}
 	return widget.ListView(count, func(ctx *internal.Context, index int) widget.Widget {
 		return itemBuilder(ctx, index)
 	}, opts...)
@@ -1959,6 +1962,9 @@ func Grid(columns int, children ...Widget) Widget {
 }
 
 func GridView(count int, columns int, itemBuilder func(ctx *Context, index int) Widget, opts ...GridOption) Widget {
+	if itemBuilder == nil {
+		return widget.GridView(count, columns, nil, opts...)
+	}
 	return widget.GridView(count, columns, func(ctx *internal.Context, index int) widget.Widget {
 		return itemBuilder(ctx, index)
 	}, opts...)

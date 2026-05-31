@@ -108,7 +108,7 @@ func SwitchDecoration(d style.Decoration) SwitchOption {
 func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
 	if s.config.ref != nil {
-		s.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		s.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for _, cmd := range s.config.ref.drainCommands() {
 			if s.config.disabled {
 				continue

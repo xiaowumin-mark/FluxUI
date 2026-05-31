@@ -255,7 +255,7 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	if t.config.ref != nil {
-		t.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		t.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for _, cmd := range t.config.ref.drainCommands() {
 			switch cmd.kind {
 			case inputCmdSetText:

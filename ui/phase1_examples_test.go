@@ -94,3 +94,35 @@ func TestPhase1FragmentExample(t *testing.T) {
 	}
 	rt.EndFrame()
 }
+
+func TestListViewNilBuilderDoesNotPanic(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	gtx := gioLayout.Context{Ops: &ops}
+	ctx := internal.NewContext(gtx, rt)
+
+	rt.BeginFrame()
+	defer rt.EndFrame()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("expected nil ListView builder to be ignored, got panic %v", r)
+		}
+	}()
+	ListView(1, nil).Layout(ctx)
+}
+
+func TestGridViewNilBuilderDoesNotPanic(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	gtx := gioLayout.Context{Ops: &ops}
+	ctx := internal.NewContext(gtx, rt)
+
+	rt.BeginFrame()
+	defer rt.EndFrame()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("expected nil GridView builder to be ignored, got panic %v", r)
+		}
+	}()
+	GridView(1, 2, nil).Layout(ctx)
+}

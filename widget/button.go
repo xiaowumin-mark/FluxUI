@@ -153,7 +153,7 @@ func ButtonAttachRef(ref *ButtonRef) ButtonOption {
 func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
 	if b.config.ref != nil {
-		b.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		b.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		commands := b.config.ref.drainCommands()
 		if !b.config.disabled {
 			for range commands {

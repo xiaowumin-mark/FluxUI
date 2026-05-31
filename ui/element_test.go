@@ -389,6 +389,48 @@ func TestProviderSiblingIsolation(t *testing.T) {
 	}
 }
 
+func TestNewContextKeyIsolatesSameValueType(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	ctx := internal.NewContext(gioLayout.Context{Ops: &ops}, rt)
+	first := NewContextKey[string]("first-default")
+	second := NewContextKey[string]("second-default")
+	var seenFirst, seenSecond string
+
+	renderElementWithContext(ctx, Provider(first, "first-value", Provider(second, "second-value", captureElement(func(ctx *Context) {
+		seenFirst = UseContext(ctx, first)
+		seenSecond = UseContext(ctx, second)
+	}))))
+
+	if seenFirst != "first-value" {
+		t.Fatalf("expected first key value, got %q", seenFirst)
+	}
+	if seenSecond != "second-value" {
+		t.Fatalf("expected second key value, got %q", seenSecond)
+	}
+}
+
+func TestContextKeyLiteralRemainsTypeWideForCompatibility(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	ctx := internal.NewContext(gioLayout.Context{Ops: &ops}, rt)
+	first := ContextKey[string]{Default: "first-default"}
+	second := ContextKey[string]{Default: "second-default"}
+	var seenFirst, seenSecond string
+
+	renderElementWithContext(ctx, Provider(first, "provided", captureElement(func(ctx *Context) {
+		seenFirst = UseContext(ctx, first)
+		seenSecond = UseContext(ctx, second)
+	})))
+
+	if seenFirst != "provided" {
+		t.Fatalf("expected first literal key to read provided value, got %q", seenFirst)
+	}
+	if seenSecond != "provided" {
+		t.Fatalf("expected second literal key to share type-wide value, got %q", seenSecond)
+	}
+}
+
 func TestProviderPreservesLegacyStateFallback(t *testing.T) {
 	rt := internal.NewRuntime(nil)
 	var ops op.Ops

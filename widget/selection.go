@@ -112,7 +112,7 @@ func RadioGroupDecoration(d style.Decoration) RadioGroupOption {
 func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	currentValue := r.value
 	if r.config.ref != nil {
-		r.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		r.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		commands := r.config.ref.drainCommands()
 		if !r.config.disabled {
 			for _, next := range commands {
@@ -340,7 +340,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 		state.opened = false
 	}
 	if s.config.ref != nil {
-		s.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		s.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		commands := s.config.ref.drainCommands()
 		if !s.config.disabled {
 			for _, cmd := range commands {

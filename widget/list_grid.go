@@ -121,7 +121,7 @@ func (s *scrollWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	state := scrollStateFor(ctx)
 	forceToEnd := false
 	if s.config.ref != nil {
-		s.config.ref.bindInvalidator(ctx.Runtime().RequestRedraw)
+		s.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for _, cmd := range s.config.ref.drainCommands() {
 			switch cmd.kind {
 			case scrollCmdToStart:
