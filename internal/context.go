@@ -249,6 +249,24 @@ func (c *Context) WindowSetSize(width, height int) bool {
 	return ctrl != nil && ctrl.SetSize(width, height)
 }
 
+// WindowSetMinSize 更新当前窗口最小尺寸（单位 dp）。
+func (c *Context) WindowSetMinSize(width, height int) bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.SetMinSize(width, height)
+}
+
+// WindowSetMaxSize 更新当前窗口最大尺寸（单位 dp）。
+func (c *Context) WindowSetMaxSize(width, height int) bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.SetMaxSize(width, height)
+}
+
 // WindowInvalidate 请求当前窗口立即重绘。
 func (c *Context) WindowInvalidate() bool {
 	if c == nil || c.runtime == nil {

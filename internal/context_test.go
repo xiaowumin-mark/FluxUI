@@ -186,6 +186,12 @@ func TestWindowMethodsNilController(t *testing.T) {
 	if ctx.WindowSetSize(100, 100) {
 		t.Fatal("expected false")
 	}
+	if ctx.WindowSetMinSize(100, 100) {
+		t.Fatal("expected false")
+	}
+	if ctx.WindowSetMaxSize(100, 100) {
+		t.Fatal("expected false")
+	}
 	if ctx.WindowInvalidate() {
 		t.Fatal("expected false")
 	}

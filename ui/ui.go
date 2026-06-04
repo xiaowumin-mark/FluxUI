@@ -34,6 +34,22 @@ type WindowID = fluxapp.WindowID
 // WindowHandle 是运行中的窗口句柄。
 type WindowHandle = fluxapp.WindowHandle
 
+// WindowState 是 FluxUI 运行时维护的窗口状态快照。
+type WindowState = fluxapp.WindowState
+
+// WindowEventKind 是窗口生命周期或状态变化事件类型。
+type WindowEventKind = fluxapp.WindowEventKind
+
+const (
+	WindowEventSizeChanged  = fluxapp.WindowEventSizeChanged
+	WindowEventFocusChanged = fluxapp.WindowEventFocusChanged
+	WindowEventStateChanged = fluxapp.WindowEventStateChanged
+	WindowEventClosed       = fluxapp.WindowEventClosed
+)
+
+// WindowEvent 记录窗口状态变化。
+type WindowEvent = fluxapp.WindowEvent
+
 // Insets 是公开的边距类型。
 type Insets = style.Insets
 
@@ -203,6 +219,16 @@ func Title(value string) AppOption {
 // Size 设置窗口尺寸。
 func Size(width, height int) AppOption {
 	return fluxapp.Size(width, height)
+}
+
+// MinSize 设置窗口初始最小尺寸。
+func MinSize(width, height int) AppOption {
+	return fluxapp.MinSize(width, height)
+}
+
+// MaxSize 设置窗口初始最大尺寸。
+func MaxSize(width, height int) AppOption {
+	return fluxapp.MaxSize(width, height)
 }
 
 // WithTheme 设置应用主题。
@@ -402,6 +428,16 @@ func WindowSetTitle(ctx *Context, title string) bool {
 // WindowSetSize 更新当前窗口尺寸（单位 dp）。
 func WindowSetSize(ctx *Context, width, height int) bool {
 	return ctx.WindowSetSize(width, height)
+}
+
+// WindowSetMinSize 更新当前窗口最小尺寸（单位 dp）。
+func WindowSetMinSize(ctx *Context, width, height int) bool {
+	return ctx.WindowSetMinSize(width, height)
+}
+
+// WindowSetMaxSize 更新当前窗口最大尺寸（单位 dp）。
+func WindowSetMaxSize(ctx *Context, width, height int) bool {
+	return ctx.WindowSetMaxSize(width, height)
 }
 
 // WindowInvalidate 请求当前窗口立即重绘。

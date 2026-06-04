@@ -140,8 +140,10 @@ func TestRouterElementPassesOptionsAndRouteMetadata(t *testing.T) {
 }
 
 func TestWindowElementCreatesWindowSpec(t *testing.T) {
-	spec := WindowElement(func(ctx *Context) Element { return TextElement("window") }, Title("Element Window"), Size(320, 240))
-	if spec.Root == nil || len(spec.Options) != 2 {
+	spec := WindowElement(func(ctx *Context) Element {
+		return TextElement("window")
+	}, Title("Element Window"), Size(320, 240), MinSize(240, 160), MaxSize(960, 720))
+	if spec.Root == nil || len(spec.Options) != 4 {
 		t.Fatalf("expected WindowElement to create root and clone options, got %#v", spec)
 	}
 	if reflect.ValueOf(spec.Root).IsNil() {

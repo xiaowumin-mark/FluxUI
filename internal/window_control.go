@@ -15,6 +15,8 @@ type WindowController interface {
 	Center() bool
 	SetTitle(title string) bool
 	SetSize(width, height int) bool
+	SetMinSize(width, height int) bool
+	SetMaxSize(width, height int) bool
 	Invalidate() bool
 	IsAlive() bool
 }

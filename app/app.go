@@ -3,6 +3,8 @@ package app
 import (
 	"errors"
 	"fmt"
+	"image"
+	"math"
 	"os"
 	"runtime"
 	"sort"
@@ -28,6 +30,44 @@ type Option func(*Application)
 // WindowID 是窗口唯一标识。
 type WindowID uint64
 
+// WindowState 是 FluxUI 运行时维护的窗口状态快照。
+//
+// Width/Height/MinWidth/MinHeight/MaxWidth/MaxHeight 使用 dp 单位。窗口实际被
+// 平台调整后，FluxUI 会在收到 frame/config 事件时尽量同步该快照。
+type WindowState struct {
+	ID         WindowID
+	Title      string
+	Width      int
+	Height     int
+	MinWidth   int
+	MinHeight  int
+	MaxWidth   int
+	MaxHeight  int
+	Minimized  bool
+	Maximized  bool
+	Fullscreen bool
+	Focused    bool
+	Decorated  bool
+	Alive      bool
+}
+
+// WindowEventKind 是窗口生命周期或状态变化事件类型。
+type WindowEventKind string
+
+const (
+	WindowEventSizeChanged  WindowEventKind = "size_changed"
+	WindowEventFocusChanged WindowEventKind = "focus_changed"
+	WindowEventStateChanged WindowEventKind = "state_changed"
+	WindowEventClosed       WindowEventKind = "closed"
+)
+
+// WindowEvent 记录窗口状态变化。State 是事件发生后的窗口状态快照。
+type WindowEvent struct {
+	Window WindowHandle
+	Kind   WindowEventKind
+	State  WindowState
+}
+
 // WindowHandle 表示运行中的窗口句柄。
 type WindowHandle struct {
 	id WindowID
@@ -44,6 +84,30 @@ func (h WindowHandle) IsAlive() bool {
 	return ok && entry != nil && entry.alive.Load()
 }
 
+// State 返回窗口当前状态快照。窗口不存在或已关闭时返回 false。
+func (h WindowHandle) State() (WindowState, bool) {
+	if h.id == 0 {
+		return WindowState{}, false
+	}
+	entry, ok := lookupWindow(h.id)
+	if !ok || entry == nil || !entry.alive.Load() {
+		return WindowState{}, false
+	}
+	return entry.snapshot(), true
+}
+
+// PollEvents 返回并清空窗口当前积累的事件。
+func (h WindowHandle) PollEvents() []WindowEvent {
+	if h.id == 0 {
+		return nil
+	}
+	entry, ok := lookupWindow(h.id)
+	if !ok || entry == nil {
+		return nil
+	}
+	return entry.drainEvents()
+}
+
 // Close 请求关闭窗口。
 func (h WindowHandle) Close() bool {
 	return h.perform(system.ActionClose)
@@ -51,22 +115,22 @@ func (h WindowHandle) Close() bool {
 
 // Minimize 最小化窗口。
 func (h WindowHandle) Minimize() bool {
-	return h.applyOption(gioApp.Minimized.Option())
+	return h.applyMode(gioApp.Minimized)
 }
 
 // Maximize 最大化窗口。
 func (h WindowHandle) Maximize() bool {
-	return h.applyOption(gioApp.Maximized.Option())
+	return h.applyMode(gioApp.Maximized)
 }
 
 // Restore 还原窗口为普通模式。
 func (h WindowHandle) Restore() bool {
-	return h.applyOption(gioApp.Windowed.Option())
+	return h.applyMode(gioApp.Windowed)
 }
 
 // Fullscreen 切换窗口为全屏模式。
 func (h WindowHandle) Fullscreen() bool {
-	return h.applyOption(gioApp.Fullscreen.Option())
+	return h.applyMode(gioApp.Fullscreen)
 }
 
 // Raise 请求将窗口置于最前。
@@ -81,10 +145,13 @@ func (h WindowHandle) Center() bool {
 
 // SetTitle 更新窗口标题。
 func (h WindowHandle) SetTitle(title string) bool {
-	if title == "" {
-		title = "FluxUI"
-	}
-	return h.applyOption(gioApp.Title(title))
+	title = normalizeTitle(title)
+	return h.apply(func(entry *windowEntry) {
+		entry.win.Option(gioApp.Title(title))
+		entry.updateState(func(state *WindowState) {
+			state.Title = title
+		})
+	})
 }
 
 // SetSize 更新窗口尺寸（单位为 dp）。
@@ -92,7 +159,42 @@ func (h WindowHandle) SetSize(width, height int) bool {
 	if width <= 0 || height <= 0 {
 		return false
 	}
-	return h.applyOption(gioApp.Size(unit.Dp(width), unit.Dp(height)))
+	return h.apply(func(entry *windowEntry) {
+		entry.win.Option(gioApp.Size(unit.Dp(width), unit.Dp(height)))
+		entry.updateState(func(state *WindowState) {
+			state.Width = width
+			state.Height = height
+			applyWindowModeState(state, gioApp.Windowed)
+		})
+	})
+}
+
+// SetMinSize 更新窗口最小尺寸（单位为 dp）。
+func (h WindowHandle) SetMinSize(width, height int) bool {
+	if width <= 0 || height <= 0 {
+		return false
+	}
+	return h.apply(func(entry *windowEntry) {
+		entry.win.Option(gioApp.MinSize(unit.Dp(width), unit.Dp(height)))
+		entry.updateState(func(state *WindowState) {
+			state.MinWidth = width
+			state.MinHeight = height
+		})
+	})
+}
+
+// SetMaxSize 更新窗口最大尺寸（单位为 dp）。
+func (h WindowHandle) SetMaxSize(width, height int) bool {
+	if width <= 0 || height <= 0 {
+		return false
+	}
+	return h.apply(func(entry *windowEntry) {
+		entry.win.Option(gioApp.MaxSize(unit.Dp(width), unit.Dp(height)))
+		entry.updateState(func(state *WindowState) {
+			state.MaxWidth = width
+			state.MaxHeight = height
+		})
+	})
 }
 
 // Invalidate 请求窗口重绘。
@@ -108,6 +210,15 @@ func (h WindowHandle) applyOption(opts ...gioApp.Option) bool {
 	}
 	return h.apply(func(entry *windowEntry) {
 		entry.win.Option(opts...)
+	})
+}
+
+func (h WindowHandle) applyMode(mode gioApp.WindowMode) bool {
+	return h.apply(func(entry *windowEntry) {
+		entry.win.Option(mode.Option())
+		entry.updateState(func(state *WindowState) {
+			applyWindowModeState(state, mode)
+		})
 	})
 }
 
@@ -134,11 +245,15 @@ func (h WindowHandle) apply(fn func(entry *windowEntry)) bool {
 
 // Application 是 Gio window loop 的封装。
 type Application struct {
-	Title  string
-	Width  int
-	Height int
-	Theme  *theme.Theme
-	Root   Builder
+	Title     string
+	Width     int
+	Height    int
+	MinWidth  int
+	MinHeight int
+	MaxWidth  int
+	MaxHeight int
+	Theme     *theme.Theme
+	Root      Builder
 }
 
 // WindowSpec 是多窗口运行时的窗口配置。
@@ -184,6 +299,22 @@ func Size(width, height int) Option {
 	return func(app *Application) {
 		app.Width = width
 		app.Height = height
+	}
+}
+
+// MinSize 设置窗口初始最小尺寸。
+func MinSize(width, height int) Option {
+	return func(app *Application) {
+		app.MinWidth = width
+		app.MinHeight = height
+	}
+}
+
+// MaxSize 设置窗口初始最大尺寸。
+func MaxSize(width, height int) Option {
+	return func(app *Application) {
+		app.MaxWidth = width
+		app.MaxHeight = height
 	}
 }
 
@@ -274,35 +405,50 @@ func (a *Application) Run() error {
 		return errors.New("app: nil application")
 	}
 
-	width := a.Width
-	height := a.Height
-	title := a.Title
-	if width <= 0 {
-		width = 420
-	}
-	if height <= 0 {
-		height = 240
-	}
-	if title == "" {
-		title = "FluxUI"
-	}
+	width, height := normalizeSize(a.Width, a.Height)
+	title := normalizeTitle(a.Title)
 	th := a.Theme
 	if th == nil {
 		th = theme.Default()
 	}
 
 	w := new(gioApp.Window)
-	w.Option(
+	opts := []gioApp.Option{
 		gioApp.Title(title),
 		gioApp.Size(unit.Dp(width), unit.Dp(height)),
-	)
+	}
+	if a.MinWidth > 0 && a.MinHeight > 0 {
+		opts = append(opts, gioApp.MinSize(unit.Dp(a.MinWidth), unit.Dp(a.MinHeight)))
+	}
+	if a.MaxWidth > 0 && a.MaxHeight > 0 {
+		opts = append(opts, gioApp.MaxSize(unit.Dp(a.MaxWidth), unit.Dp(a.MaxHeight)))
+	}
+	w.Option(opts...)
 
 	windowID := nextWindowID()
-	entry := &windowEntry{id: windowID, win: w}
+	entry := &windowEntry{
+		id:  windowID,
+		win: w,
+		state: WindowState{
+			ID:        windowID,
+			Title:     title,
+			Width:     width,
+			Height:    height,
+			MinWidth:  maxPositive(a.MinWidth),
+			MinHeight: maxPositive(a.MinHeight),
+			MaxWidth:  maxPositive(a.MaxWidth),
+			MaxHeight: maxPositive(a.MaxHeight),
+			Decorated: true,
+			Alive:     true,
+		},
+	}
 	entry.alive.Store(true)
 	registerWindow(entry)
 	defer func() {
 		entry.alive.Store(false)
+		entry.pushEvent(WindowEventClosed, func(state *WindowState) {
+			state.Alive = false
+		})
 		unregisterWindow(windowID)
 	}()
 
@@ -318,8 +464,14 @@ func (a *Application) Run() error {
 		switch evt := w.Event().(type) {
 		case gioApp.DestroyEvent:
 			entry.alive.Store(false)
+			entry.pushEvent(WindowEventClosed, func(state *WindowState) {
+				state.Alive = false
+			})
 			return evt.Err
+		case gioApp.ConfigEvent:
+			entry.updateFromConfig(evt.Config)
 		case gioApp.FrameEvent:
+			entry.updateFromFrame(evt.Size, evt.Metric)
 			gtx := gioApp.NewContext(&ops, evt)
 			rt.BeginFrame()
 			ctx := rt.Frame(gtx)
@@ -459,6 +611,14 @@ func (c *windowController) SetSize(width, height int) bool {
 	return c.handle.SetSize(width, height)
 }
 
+func (c *windowController) SetMinSize(width, height int) bool {
+	return c.handle.SetMinSize(width, height)
+}
+
+func (c *windowController) SetMaxSize(width, height int) bool {
+	return c.handle.SetMaxSize(width, height)
+}
+
 func (c *windowController) Invalidate() bool {
 	return c.handle.Invalidate()
 }
@@ -468,9 +628,13 @@ func (c *windowController) IsAlive() bool {
 }
 
 type windowEntry struct {
-	id    WindowID
-	win   *gioApp.Window
-	alive atomic.Bool
+	id     WindowID
+	win    *gioApp.Window
+	alive  atomic.Bool
+	mu     sync.RWMutex
+	metric unit.Metric
+	state  WindowState
+	events []WindowEvent
 }
 
 var (
@@ -503,4 +667,183 @@ func lookupWindow(id WindowID) (*windowEntry, bool) {
 	entry, ok := windowRegistry[id]
 	windowRegistryMu.RUnlock()
 	return entry, ok
+}
+
+func (entry *windowEntry) snapshot() WindowState {
+	entry.mu.RLock()
+	state := entry.state
+	entry.mu.RUnlock()
+	state.Alive = entry.alive.Load()
+	return state
+}
+
+func (entry *windowEntry) updateState(fn func(state *WindowState)) {
+	if entry == nil || fn == nil {
+		return
+	}
+	entry.mu.Lock()
+	fn(&entry.state)
+	entry.state.ID = entry.id
+	entry.state.Alive = entry.alive.Load()
+	entry.mu.Unlock()
+}
+
+func (entry *windowEntry) updateFromConfig(config gioApp.Config) {
+	entry.updateAndEmit(func(state *WindowState) {
+		if config.Title != "" {
+			state.Title = config.Title
+		}
+		state.Focused = config.Focused
+		state.Decorated = config.Decorated
+		applyWindowModeState(state, config.Mode)
+		updateDpSizeFromMetric(state, entry.metric, config.Size.X, config.Size.Y)
+		updateDpMinSizeFromMetric(state, entry.metric, config.MinSize.X, config.MinSize.Y)
+		updateDpMaxSizeFromMetric(state, entry.metric, config.MaxSize.X, config.MaxSize.Y)
+	})
+}
+
+func (entry *windowEntry) updateFromFrame(size image.Point, metric unit.Metric) {
+	entry.updateAndEmit(func(state *WindowState) {
+		entry.metric = metric
+		updateDpSizeFromMetric(state, metric, size.X, size.Y)
+	})
+}
+
+func (entry *windowEntry) updateAndEmit(fn func(state *WindowState)) {
+	if entry == nil || fn == nil {
+		return
+	}
+
+	entry.mu.Lock()
+	before := entry.state
+	fn(&entry.state)
+	entry.state.ID = entry.id
+	entry.state.Alive = entry.alive.Load()
+	after := entry.state
+	kinds := windowEventKinds(before, after)
+	for _, kind := range kinds {
+		entry.events = append(entry.events, WindowEvent{
+			Window: WindowHandle{id: entry.id},
+			Kind:   kind,
+			State:  after,
+		})
+	}
+	entry.mu.Unlock()
+}
+
+func (entry *windowEntry) pushEvent(kind WindowEventKind, fn func(state *WindowState)) {
+	if entry == nil || kind == "" {
+		return
+	}
+	entry.mu.Lock()
+	if kind == WindowEventClosed {
+		for _, event := range entry.events {
+			if event.Kind == WindowEventClosed {
+				entry.mu.Unlock()
+				return
+			}
+		}
+	}
+	if fn != nil {
+		fn(&entry.state)
+	}
+	entry.state.ID = entry.id
+	entry.state.Alive = entry.alive.Load()
+	entry.events = append(entry.events, WindowEvent{
+		Window: WindowHandle{id: entry.id},
+		Kind:   kind,
+		State:  entry.state,
+	})
+	entry.mu.Unlock()
+}
+
+func (entry *windowEntry) drainEvents() []WindowEvent {
+	entry.mu.Lock()
+	events := append([]WindowEvent(nil), entry.events...)
+	entry.events = nil
+	entry.mu.Unlock()
+	return events
+}
+
+func windowEventKinds(before, after WindowState) []WindowEventKind {
+	kinds := make([]WindowEventKind, 0, 3)
+	if before.Width != after.Width || before.Height != after.Height {
+		kinds = append(kinds, WindowEventSizeChanged)
+	}
+	if before.Focused != after.Focused {
+		kinds = append(kinds, WindowEventFocusChanged)
+	}
+	if before.Minimized != after.Minimized ||
+		before.Maximized != after.Maximized ||
+		before.Fullscreen != after.Fullscreen ||
+		before.Decorated != after.Decorated ||
+		before.Title != after.Title ||
+		before.MinWidth != after.MinWidth ||
+		before.MinHeight != after.MinHeight ||
+		before.MaxWidth != after.MaxWidth ||
+		before.MaxHeight != after.MaxHeight ||
+		before.Alive != after.Alive {
+		kinds = append(kinds, WindowEventStateChanged)
+	}
+	return kinds
+}
+
+func applyWindowModeState(state *WindowState, mode gioApp.WindowMode) {
+	state.Minimized = mode == gioApp.Minimized
+	state.Maximized = mode == gioApp.Maximized
+	state.Fullscreen = mode == gioApp.Fullscreen
+}
+
+func updateDpSizeFromMetric(state *WindowState, metric unit.Metric, widthPx, heightPx int) {
+	if widthPx > 0 {
+		state.Width = pxToDpInt(metric, widthPx)
+	}
+	if heightPx > 0 {
+		state.Height = pxToDpInt(metric, heightPx)
+	}
+}
+
+func updateDpMinSizeFromMetric(state *WindowState, metric unit.Metric, widthPx, heightPx int) {
+	state.MinWidth = pxToDpIntOrZero(metric, widthPx)
+	state.MinHeight = pxToDpIntOrZero(metric, heightPx)
+}
+
+func updateDpMaxSizeFromMetric(state *WindowState, metric unit.Metric, widthPx, heightPx int) {
+	state.MaxWidth = pxToDpIntOrZero(metric, widthPx)
+	state.MaxHeight = pxToDpIntOrZero(metric, heightPx)
+}
+
+func pxToDpIntOrZero(metric unit.Metric, px int) int {
+	if px <= 0 {
+		return 0
+	}
+	return pxToDpInt(metric, px)
+}
+
+func pxToDpInt(metric unit.Metric, px int) int {
+	return int(math.Round(float64(metric.PxToDp(px))))
+}
+
+func normalizeTitle(title string) string {
+	if title == "" {
+		return "FluxUI"
+	}
+	return title
+}
+
+func normalizeSize(width, height int) (int, int) {
+	if width <= 0 {
+		width = 420
+	}
+	if height <= 0 {
+		height = 240
+	}
+	return width, height
+}
+
+func maxPositive(value int) int {
+	if value < 0 {
+		return 0
+	}
+	return value
 }
