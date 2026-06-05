@@ -10,6 +10,8 @@
     "RunElementMulti(windows ...WindowSpec) error",
     "ListWindows() []WindowHandle",
     "GetWindow(id WindowID) (WindowHandle, bool)",
+    "(*WindowHandle).NativeHandle() (uintptr, bool)",
+    "CurrentWindowNativeHandle(ctx *Context) (uintptr, bool)",
     "(*WindowHandle).State() (WindowState, bool)",
     "(*WindowHandle).PollEvents() []WindowEvent",
     "(*WindowHandle).SetMinSize(width, height int) bool",
@@ -115,6 +117,7 @@ for _, handle := range ui.ListWindows() {
 
 - `ID()`
 - `IsAlive()`
+- `NativeHandle()`
 - `State()`
 - `PollEvents()`
 - `Close()`
@@ -130,7 +133,11 @@ for _, handle := range ui.ListWindows() {
 - `SetMaxSize(width, height)`
 - `Invalidate()`
 
-窗口关闭后，`State()` 返回 false，控制方法返回 false。
+`NativeHandle()` 返回平台原生窗口句柄。Windows 下该值是 `HWND`，主要用于把 `FileDialogOwner` / `MessageBoxOwner` 绑定到当前 FluxUI 窗口；非 Windows 平台、窗口尚未收到原生 view event 或窗口已关闭时返回 `false`。
+
+在组件事件回调中，也可以使用 `CurrentWindowNativeHandle(ctx)` 查询当前窗口的 native handle。普通文件选择器和消息框调用不需要手动查询；`ui.OpenFileDialog`、`ui.SaveFileDialog`、`ui.PickFolderDialog` 和 `ui.ShowMessageBox` 会自动绑定当前窗口 owner。
+
+窗口关闭后，`State()` 和 `NativeHandle()` 返回 false，控制方法返回 false。
 
 ## WindowEvent
 
@@ -194,20 +201,40 @@ type WindowState struct {
 - B4 已调研 Gio v0.9：没有公开的 always-on-top 或 request focus 窗口 API，因此当前不暴露 `SetAlwaysOnTop` / `RequestFocus`。
 - B5 已调研 Gio v0.9：没有可在 `DestroyEvent` 前稳定拦截 OS close 的公共 API，因此当前不实现关闭拦截。需要确认关闭前提示时，请使用应用内退出按钮配合 `Dialog`，不要承诺拦截系统关闭按钮。
 - B6 已新增轻量窗口事件模型：`WindowHandle.PollEvents()`、`WindowEvent` 和 size/focus/state/closed 事件。
-- B7 已完成 Gio v0.9 native owner 调研：公共 API 没有稳定暴露 HWND/NSWindow/X11 window handle。后续 FileDialog/MessageBox 第一版需要支持无 owner 路径，同时 API 保留 owner 参数设计空间。
+- B7 已完成 native owner 接入：Windows 下通过 Gio `Win32ViewEvent` 捕获 HWND，并由 `WindowHandle.NativeHandle()` 暴露为 `uintptr`；非 Windows 平台返回 false。
 - B8 已新增本指南作为窗口 API 集中入口。
 - B9 已新增 `examples/window_showcase`。
 
-## Native owner 限制
+## Native owner
 
-文件选择器和系统消息框最终应该绑定当前窗口 owner。但 Gio v0.9 的公共 API 没有稳定暴露 Windows HWND，也没有跨平台 native window handle 类型。
+文件选择器和系统消息框应绑定当前窗口 owner，避免原生弹窗成为无主窗口。Windows 下 FluxUI runtime 会在收到 Gio `Win32ViewEvent` 时记录 HWND，并通过 `WindowHandle.NativeHandle()` 提供给 `system` owner option。
 
-因此当前结论是：
+如果直接调用 `system` 包，可以显式传 owner：
 
-- 不在公共 API 中暴露 HWND、NSWindow、X11 Window 等平台类型。
-- Phase C/D 第一版可以实现无 owner 的 Windows FileDialog/MessageBox。
-- 公共 API 仍应预留 owner option，等内部 driver 能稳定拿到 native handle 后再绑定。
-- 文档必须明确无 owner 弹窗可能不会严格置于 FluxUI 窗口前方。
+```go
+owner, ok := handle.NativeHandle()
+if ok {
+    result, err := system.ShowMessageBox(ctx, system.MessageBoxOwner(owner))
+    _ = result
+    _ = err
+}
+```
+
+普通 UI 代码更推荐使用 `ui` wrapper，让 FluxUI 自动处理 owner：
+
+```go
+result, err := ui.ShowMessageBox(ctx, system.MessageBoxTitle("FluxUI"))
+_ = result
+_ = err
+```
+
+当前结论是：
+
+- 公共 API 只暴露 `uintptr`，不引入 HWND、NSWindow、X11 Window 等平台专属类型。
+- Windows 下 `NativeHandle()` 返回 HWND，可用于 `FileDialogOwner` 和 `MessageBoxOwner`。
+- `ui` 层的文件选择和消息框 wrapper 会自动注入当前窗口 owner。
+- 非 Windows 平台、窗口尚未完成 native view 初始化或窗口已关闭时，`NativeHandle()` 返回 false。
+- 未传 owner 或 owner 为 0 时，系统弹窗仍可显示，但不承诺严格 modal 到 FluxUI 主窗口。
 
 ## 验收
 
@@ -225,4 +252,5 @@ go vet ./app ./internal ./ui
 - 最小化、最大化、还原、全屏后状态快照正确。
 - `PollEvents()` 能收到并清空 size/focus/state/closed 事件。
 - 多窗口 `ListWindows` 和 `GetWindow` 不串窗口。
+- Windows 下 `NativeHandle()` 返回非 0 HWND，关闭后返回 false。
 - 关闭后 `WindowHandle` 不再可操作。

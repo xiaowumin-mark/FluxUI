@@ -67,6 +67,36 @@ func TestWindowHandleStateMutations(t *testing.T) {
 	}
 }
 
+func TestWindowNativeHandle(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:  "Initial",
+		Width:  320,
+		Height: 240,
+		Alive:  true,
+	})
+	handle := WindowHandle{id: entry.id}
+
+	if native, ok := handle.NativeHandle(); ok || native != 0 {
+		t.Fatalf("expected missing native handle, got %d ok=%v", native, ok)
+	}
+
+	entry.mu.Lock()
+	entry.nativeHandle = 12345
+	entry.mu.Unlock()
+
+	if native, ok := handle.NativeHandle(); !ok || native != 12345 {
+		t.Fatalf("expected native handle 12345, got %d ok=%v", native, ok)
+	}
+	if native, ok := (WindowHandle{id: entry.id + 1000}).NativeHandle(); ok || native != 0 {
+		t.Fatalf("expected missing window native handle to fail, got %d ok=%v", native, ok)
+	}
+
+	entry.alive.Store(false)
+	if native, ok := handle.NativeHandle(); ok || native != 0 {
+		t.Fatalf("expected closed window native handle to fail, got %d ok=%v", native, ok)
+	}
+}
+
 func TestWindowStateConfigAndFrameSync(t *testing.T) {
 	entry := testRegisterWindow(t, WindowState{
 		Title:  "Initial",

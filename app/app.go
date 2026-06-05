@@ -78,6 +78,24 @@ func (h WindowHandle) ID() WindowID {
 	return h.id
 }
 
+// NativeHandle returns the platform-native window handle when available.
+//
+// On Windows this is the HWND. Unsupported platforms or windows that have not
+// received a native view event return false.
+func (h WindowHandle) NativeHandle() (uintptr, bool) {
+	if h.id == 0 {
+		return 0, false
+	}
+	entry, ok := lookupWindow(h.id)
+	if !ok || entry == nil || !entry.alive.Load() {
+		return 0, false
+	}
+	entry.mu.RLock()
+	handle := entry.nativeHandle
+	entry.mu.RUnlock()
+	return handle, handle != 0
+}
+
 // IsAlive 返回窗口是否仍在运行。
 func (h WindowHandle) IsAlive() bool {
 	entry, ok := lookupWindow(h.id)
@@ -470,6 +488,8 @@ func (a *Application) Run() error {
 			return evt.Err
 		case gioApp.ConfigEvent:
 			entry.updateFromConfig(evt.Config)
+		case gioApp.ViewEvent:
+			entry.updateNativeHandle(evt)
 		case gioApp.FrameEvent:
 			entry.updateFromFrame(evt.Size, evt.Metric)
 			gtx := gioApp.NewContext(&ops, evt)
@@ -628,13 +648,14 @@ func (c *windowController) IsAlive() bool {
 }
 
 type windowEntry struct {
-	id     WindowID
-	win    *gioApp.Window
-	alive  atomic.Bool
-	mu     sync.RWMutex
-	metric unit.Metric
-	state  WindowState
-	events []WindowEvent
+	id           WindowID
+	win          *gioApp.Window
+	alive        atomic.Bool
+	mu           sync.RWMutex
+	metric       unit.Metric
+	nativeHandle uintptr
+	state        WindowState
+	events       []WindowEvent
 }
 
 var (

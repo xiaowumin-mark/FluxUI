@@ -45,8 +45,8 @@ func app(ctx *ui.Context) ui.Element {
 			ui.VSpacerElement(16),
 			ui.TextElement("File Dialog", ui.TextSize(16)),
 			ui.VSpacerElement(8),
-			dialogButton("打开文件", fileDialogDisabled, status, handle, func(ctx context.Context) (system.FileDialogResult, error) {
-				return system.OpenFileDialog(ctx,
+			dialogButton("打开文件", fileDialogDisabled, status, handle, func(ctx *ui.Context, callCtx context.Context) (system.FileDialogResult, error) {
+				return ui.OpenFileDialogContext(ctx, callCtx,
 					system.FileDialogTitle("打开文件"),
 					system.FileDialogFilters(
 						system.FileFilter{Name: "Text", Patterns: []string{"txt", "md", "json"}},
@@ -56,15 +56,15 @@ func app(ctx *ui.Context) ui.Element {
 				)
 			}),
 			ui.VSpacerElement(8),
-			dialogButton("打开多个文件", fileDialogDisabled, status, handle, func(ctx context.Context) (system.FileDialogResult, error) {
-				return system.OpenFilesDialog(ctx,
+			dialogButton("打开多个文件", fileDialogDisabled, status, handle, func(ctx *ui.Context, callCtx context.Context) (system.FileDialogResult, error) {
+				return ui.OpenFilesDialogContext(ctx, callCtx,
 					system.FileDialogTitle("打开多个文件"),
 					system.FileDialogFilters(system.FileFilter{Name: "All files", Patterns: []string{"*.*"}}),
 				)
 			}),
 			ui.VSpacerElement(8),
-			dialogButton("保存文件", fileDialogDisabled, status, handle, func(ctx context.Context) (system.FileDialogResult, error) {
-				return system.SaveFileDialog(ctx,
+			dialogButton("保存文件", fileDialogDisabled, status, handle, func(ctx *ui.Context, callCtx context.Context) (system.FileDialogResult, error) {
+				return ui.SaveFileDialogContext(ctx, callCtx,
 					system.FileDialogTitle("保存文件"),
 					system.FileDialogDefaultName("fluxui-output.txt"),
 					system.FileDialogFilters(
@@ -74,14 +74,16 @@ func app(ctx *ui.Context) ui.Element {
 				)
 			}),
 			ui.VSpacerElement(8),
-			dialogButton("选择目录", fileDialogDisabled, status, handle, func(ctx context.Context) (system.FileDialogResult, error) {
-				return system.PickFolderDialog(ctx, system.FileDialogTitle("选择目录"))
+			dialogButton("选择目录", fileDialogDisabled, status, handle, func(ctx *ui.Context, callCtx context.Context) (system.FileDialogResult, error) {
+				return ui.PickFolderDialogContext(ctx, callCtx,
+					system.FileDialogTitle("选择目录"),
+				)
 			}),
 			ui.VSpacerElement(16),
 			ui.TextElement("MessageBox", ui.TextSize(16)),
 			ui.VSpacerElement(8),
-			messageBoxButton("信息", messageBoxDisabled, status, handle, func(ctx context.Context) (system.MessageBoxResult, error) {
-				return system.ShowMessageBox(ctx,
+			messageBoxButton("信息", messageBoxDisabled, status, handle, func(ctx *ui.Context, callCtx context.Context) (system.MessageBoxResult, error) {
+				return ui.ShowMessageBoxContext(ctx, callCtx,
 					system.MessageBoxTitle("FluxUI"),
 					system.MessageBoxText("这是一条系统信息消息。"),
 					system.MessageBoxStyle(system.MessageBoxInfo),
@@ -89,8 +91,8 @@ func app(ctx *ui.Context) ui.Element {
 				)
 			}),
 			ui.VSpacerElement(8),
-			messageBoxButton("确认保存", messageBoxDisabled, status, handle, func(ctx context.Context) (system.MessageBoxResult, error) {
-				return system.ShowMessageBox(ctx,
+			messageBoxButton("确认保存", messageBoxDisabled, status, handle, func(ctx *ui.Context, callCtx context.Context) (system.MessageBoxResult, error) {
+				return ui.ShowMessageBoxContext(ctx, callCtx,
 					system.MessageBoxTitle("保存更改"),
 					system.MessageBoxText("关闭前是否保存当前文档？"),
 					system.MessageBoxStyle(system.MessageBoxQuestion),
@@ -99,8 +101,8 @@ func app(ctx *ui.Context) ui.Element {
 				)
 			}),
 			ui.VSpacerElement(8),
-			messageBoxButton("重试操作", messageBoxDisabled, status, handle, func(ctx context.Context) (system.MessageBoxResult, error) {
-				return system.ShowMessageBox(ctx,
+			messageBoxButton("重试操作", messageBoxDisabled, status, handle, func(ctx *ui.Context, callCtx context.Context) (system.MessageBoxResult, error) {
+				return ui.ShowMessageBoxContext(ctx, callCtx,
 					system.MessageBoxTitle("操作失败"),
 					system.MessageBoxText("网络请求失败，是否重试？"),
 					system.MessageBoxStyle(system.MessageBoxWarning),
@@ -109,8 +111,8 @@ func app(ctx *ui.Context) ui.Element {
 				)
 			}),
 			ui.VSpacerElement(8),
-			messageBoxButton("错误", messageBoxDisabled, status, handle, func(ctx context.Context) (system.MessageBoxResult, error) {
-				return system.ShowMessageBox(ctx,
+			messageBoxButton("错误", messageBoxDisabled, status, handle, func(ctx *ui.Context, callCtx context.Context) (system.MessageBoxResult, error) {
+				return ui.ShowMessageBoxContext(ctx, callCtx,
 					system.MessageBoxTitle("错误"),
 					system.MessageBoxText("示例错误消息。"),
 					system.MessageBoxStyle(system.MessageBoxError),
@@ -127,32 +129,32 @@ func app(ctx *ui.Context) ui.Element {
 	)
 }
 
-func dialogButton(label string, disabled bool, status dialogStatusSetter, handle ui.WindowHandle, run func(context.Context) (system.FileDialogResult, error)) ui.Element {
+func dialogButton(label string, disabled bool, status dialogStatusSetter, handle ui.WindowHandle, run func(*ui.Context, context.Context) (system.FileDialogResult, error)) ui.Element {
 	return ui.FillWidthElement(ui.OutlinedButtonElement(
 		ui.TextElement(label),
 		ui.Disabled(disabled),
 		ui.OnClick(func(ctx *ui.Context) {
 			status.Set(dialogStatus{Busy: true, Message: label + "..."})
-			go func() {
-				result, err := run(context.Background())
+			go func(uiCtx *ui.Context) {
+				result, err := run(uiCtx, context.Background())
 				status.Set(formatDialogResult(label, result, err))
 				handle.Invalidate()
-			}()
+			}(ctx)
 		}),
 	))
 }
 
-func messageBoxButton(label string, disabled bool, status dialogStatusSetter, handle ui.WindowHandle, run func(context.Context) (system.MessageBoxResult, error)) ui.Element {
+func messageBoxButton(label string, disabled bool, status dialogStatusSetter, handle ui.WindowHandle, run func(*ui.Context, context.Context) (system.MessageBoxResult, error)) ui.Element {
 	return ui.FillWidthElement(ui.OutlinedButtonElement(
 		ui.TextElement(label),
 		ui.Disabled(disabled),
 		ui.OnClick(func(ctx *ui.Context) {
 			status.Set(dialogStatus{Busy: true, Message: label + "..."})
-			go func() {
-				result, err := run(context.Background())
+			go func(uiCtx *ui.Context) {
+				result, err := run(uiCtx, context.Background())
 				status.Set(formatMessageBoxResult(label, result, err))
 				handle.Invalidate()
-			}()
+			}(ctx)
 		}),
 	))
 }

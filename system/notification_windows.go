@@ -5,6 +5,7 @@ package system
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
 	"sync"
 	"syscall"
@@ -31,6 +32,8 @@ const (
 	niifWarning = 0x00000002
 	niifError   = 0x00000003
 
+	ninBalloonHide      = 0x0403
+	ninBalloonTimeout   = 0x0404
 	ninBalloonUserClick = 0x0405
 
 	imageIcon = 1
@@ -108,20 +111,27 @@ type windowsNotificationCallback struct {
 	onClick func(NotificationEvent)
 }
 
+type windowsNotificationEntry struct {
+	data        notifyIconData
+	icon        uintptr
+	destroyIcon bool
+	callback    windowsNotificationCallback
+}
+
 type windowsNotificationWindowState struct {
-	once      sync.Once
-	ready     chan struct{}
-	mu        sync.Mutex
-	hWnd      uintptr
-	err       error
-	nextID    uint32
-	callbacks map[uint32]windowsNotificationCallback
+	once    sync.Once
+	ready   chan struct{}
+	mu      sync.Mutex
+	hWnd    uintptr
+	err     error
+	nextID  uint32
+	entries map[uint32]*windowsNotificationEntry
 }
 
 func newWindowsNotificationState() *windowsNotificationWindowState {
 	return &windowsNotificationWindowState{
-		ready:     make(chan struct{}),
-		callbacks: make(map[uint32]windowsNotificationCallback),
+		ready:   make(chan struct{}),
+		entries: make(map[uint32]*windowsNotificationEntry),
 	}
 }
 
@@ -152,42 +162,38 @@ func (windowsDriver) notify(ctx context.Context, opts notificationOptions) error
 		return err
 	}
 
-	if opts.onClick != nil {
-		windowsNotificationState.setCallback(id, windowsNotificationCallback{
+	entry := &windowsNotificationEntry{
+		data:        data,
+		icon:        icon,
+		destroyIcon: destroyIcon,
+		callback: windowsNotificationCallback{
 			group:   opts.group,
 			onClick: opts.onClick,
-		})
+		},
 	}
 
 	addData := data
 	addData.uFlags = nifMessage | nifIcon | nifTip
 	if err := shellNotifyIcon(nimAdd, &addData); err != nil {
-		windowsNotificationState.clearCallback(id)
 		if destroyIcon {
 			destroyWindowsIcon(icon)
 		}
 		return fmt.Errorf("system: %s: add notification icon: %w", CapabilityNotification, err)
 	}
 
+	windowsNotificationState.setEntry(id, entry)
+
 	data.uFlags = nifInfo
 	if err := ctx.Err(); err != nil {
-		_ = shellNotifyIcon(nimDelete, &data)
-		windowsNotificationState.clearCallback(id)
-		if destroyIcon {
-			destroyWindowsIcon(icon)
-		}
+		windowsNotificationState.cleanup(id)
 		return err
 	}
 	if err := shellNotifyIcon(nimModify, &data); err != nil {
-		_ = shellNotifyIcon(nimDelete, &data)
-		windowsNotificationState.clearCallback(id)
-		if destroyIcon {
-			destroyWindowsIcon(icon)
-		}
+		windowsNotificationState.cleanup(id)
 		return fmt.Errorf("system: %s: show notification: %w", CapabilityNotification, err)
 	}
 
-	go cleanupWindowsNotificationIcon(data, icon, destroyIcon, windowsNotificationDeleteDelay(opts.timeout))
+	go windowsNotificationState.cleanupAfter(id, windowsNotificationFallbackCleanupDelay(opts.timeout))
 	return nil
 }
 
@@ -240,30 +246,53 @@ func (s *windowsNotificationWindowState) nextIconID() uint32 {
 	return s.nextID
 }
 
-func (s *windowsNotificationWindowState) setCallback(id uint32, callback windowsNotificationCallback) {
+func (s *windowsNotificationWindowState) setEntry(id uint32, entry *windowsNotificationEntry) {
 	s.mu.Lock()
-	s.callbacks[id] = callback
+	s.entries[id] = entry
 	s.mu.Unlock()
 }
 
-func (s *windowsNotificationWindowState) clearCallback(id uint32) {
+func (s *windowsNotificationWindowState) entry(id uint32) *windowsNotificationEntry {
 	s.mu.Lock()
-	delete(s.callbacks, id)
+	entry := s.entries[id]
 	s.mu.Unlock()
+	return entry
+}
+
+func (s *windowsNotificationWindowState) removeEntry(id uint32) *windowsNotificationEntry {
+	s.mu.Lock()
+	entry := s.entries[id]
+	delete(s.entries, id)
+	s.mu.Unlock()
+	return entry
 }
 
 func (s *windowsNotificationWindowState) click(id uint32) {
-	s.mu.Lock()
-	callback, ok := s.callbacks[id]
-	s.mu.Unlock()
-	if !ok || callback.onClick == nil {
+	entry := s.entry(id)
+	if entry == nil || entry.callback.onClick == nil {
 		return
 	}
 
-	go callback.onClick(NotificationEvent{
+	go entry.callback.onClick(NotificationEvent{
 		Kind:  NotificationEventClicked,
-		Group: callback.group,
+		Group: entry.callback.group,
 	})
+}
+
+func (s *windowsNotificationWindowState) cleanup(id uint32) {
+	entry := s.removeEntry(id)
+	if entry == nil {
+		return
+	}
+	_ = shellNotifyIcon(nimDelete, &entry.data)
+	if entry.destroyIcon {
+		destroyWindowsIcon(entry.icon)
+	}
+}
+
+func (s *windowsNotificationWindowState) cleanupAfter(id uint32, delay time.Duration) {
+	time.Sleep(delay)
+	s.cleanup(id)
 }
 
 func createWindowsNotificationWindow() (uintptr, error) {
@@ -272,7 +301,7 @@ func createWindowsNotificationWindow() (uintptr, error) {
 		return 0, err
 	}
 
-	className, err := windows.UTF16PtrFromString("FluxUINotificationWindow")
+	className, err := windows.UTF16PtrFromString(windowsNotificationClassName())
 	if err != nil {
 		return 0, err
 	}
@@ -317,13 +346,35 @@ func createWindowsNotificationWindow() (uintptr, error) {
 }
 
 func windowsNotificationWindowProc(hWnd uintptr, msg uint32, wParam uintptr, lParam uintptr) uintptr {
-	if msg == wmFluxUINotification && uint32(lParam) == ninBalloonUserClick {
-		windowsNotificationState.click(uint32(wParam))
+	if msg == wmFluxUINotification {
+		id := uint32(wParam)
+		eventKind, shouldCleanup := windowsNotificationEvent(uint32(lParam))
+		if eventKind == NotificationEventClicked {
+			windowsNotificationState.click(id)
+		}
+		if shouldCleanup {
+			windowsNotificationState.cleanup(id)
+		}
 		return 0
 	}
 
 	r, _, _ := procDefWindowProc.Call(hWnd, uintptr(msg), wParam, lParam)
 	return r
+}
+
+func windowsNotificationClassName() string {
+	return fmt.Sprintf("FluxUINotificationWindow-%d-%x", os.Getpid(), uintptr(windowsNotificationProc))
+}
+
+func windowsNotificationEvent(lParam uint32) (NotificationEventKind, bool) {
+	switch lParam {
+	case ninBalloonUserClick:
+		return NotificationEventClicked, true
+	case ninBalloonHide, ninBalloonTimeout:
+		return "", true
+	default:
+		return "", false
+	}
 }
 
 func newWindowsNotificationData(hWnd uintptr, id uint32, icon uintptr, opts notificationOptions) (notifyIconData, error) {
@@ -416,17 +467,11 @@ func windowsNotificationTimeoutMilliseconds(timeout time.Duration) uint32 {
 	return uint32(timeout / time.Millisecond)
 }
 
-func windowsNotificationDeleteDelay(timeout time.Duration) time.Duration {
-	if timeout <= 0 {
-		return 15 * time.Second
+func windowsNotificationFallbackCleanupDelay(timeout time.Duration) time.Duration {
+	if timeout > 2*time.Minute {
+		return timeout + 30*time.Second
 	}
-	if timeout < 5*time.Second {
-		return 7 * time.Second
-	}
-	if timeout > time.Minute {
-		return 62 * time.Second
-	}
-	return timeout + 2*time.Second
+	return 2 * time.Minute
 }
 
 func copyWindowsUTF16Fixed(dst []uint16, value string) error {
@@ -456,15 +501,6 @@ func shellNotifyIcon(message uint32, data *notifyIconData) error {
 		return ErrUnavailable
 	}
 	return nil
-}
-
-func cleanupWindowsNotificationIcon(data notifyIconData, icon uintptr, destroyIcon bool, delay time.Duration) {
-	time.Sleep(delay)
-	_ = shellNotifyIcon(nimDelete, &data)
-	windowsNotificationState.clearCallback(data.uID)
-	if destroyIcon {
-		destroyWindowsIcon(icon)
-	}
 }
 
 func destroyWindowsIcon(icon uintptr) {

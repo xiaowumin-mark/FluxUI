@@ -14,7 +14,9 @@
     "system.FileDialogDefaultDir(value string) system.FileDialogOption",
     "system.FileDialogDefaultName(value string) system.FileDialogOption",
     "system.FileDialogFilters(filters ...system.FileFilter) system.FileDialogOption",
-    "system.FileDialogOwner(owner uintptr) system.FileDialogOption"
+    "system.FileDialogOwner(owner uintptr) system.FileDialogOption",
+    "ui.OpenFileDialog(ctx *ui.Context, opts ...system.FileDialogOption) (system.FileDialogResult, error)",
+    "ui.OpenFileDialogContext(ctx *ui.Context, callCtx context.Context, opts ...system.FileDialogOption) (system.FileDialogResult, error)"
   ]
 }
 -->
@@ -96,13 +98,29 @@ result, err := system.PickFolderDialog(ctx,
 
 选择目录时会忽略文件名和过滤器选项。
 
+## Owner 和模态行为
+
+`FileDialogOwner(owner)` 设置原生 owner 窗口句柄。Windows 下 `owner` 解释为 `HWND`；传 0 或不传该 option 时，对话框为无 owner。
+
+普通 FluxUI UI 代码不需要手动处理 HWND。使用 `ui` 层 wrapper 时，FluxUI 会从当前 `*ui.Context` 自动取得 `WindowHandle.NativeHandle()` 并注入 owner：
+
+```go
+result, err := ui.OpenFileDialogContext(ctx, context.Background(),
+    system.FileDialogTitle("选择文件"),
+)
+```
+
+如果直接调用 `system.OpenFileDialog` / `system.OpenFilesDialog` / `system.SaveFileDialog` / `system.PickFolderDialog`，则仍需要显式传 `FileDialogOwner(owner)` 才能获得 owner modal 行为。
+
+带 owner 的 Windows Common Item Dialog 会作为当前窗口的 modal 对话框显示；对话框关闭前，owner 窗口不能正常切回交互焦点。`examples/system_showcase` 已按这个方式传入 owner。
+
 ## 选项
 
 - `FileDialogTitle(value)`: 设置系统对话框标题。
 - `FileDialogDefaultDir(value)`: 设置初始目录。
 - `FileDialogDefaultName(value)`: 设置初始文件名，适用于打开文件和保存文件。
 - `FileDialogFilters(filters...)`: 设置文件类型过滤器。
-- `FileDialogOwner(owner)`: 设置原生 owner 窗口句柄。Windows 下解释为 `HWND`，传 0 表示无 owner。
+- `FileDialogOwner(owner)`: 设置原生 owner 窗口句柄。Windows 下解释为 `HWND`，通常来自 `WindowHandle.NativeHandle()`；传 0 表示无 owner。
 - `FileDialogAllowCreateDirs(allow)`: 控制保存时是否允许系统提示创建目录，默认 true。
 - `FileDialogAllowMissingPath(allow)`: 控制是否允许选择不存在路径，默认 false。
 - `FileDialogOverwritePrompt(prompt)`: 控制保存到已有文件时是否显示覆盖确认，默认 true。
@@ -117,12 +135,13 @@ result, err := system.PickFolderDialog(ctx,
 
 ## 示例
 
-`examples/system_showcase` 提供 File Dialog 的人工验收入口，覆盖打开单个文件、打开多个文件、保存文件和选择目录。示例会根据 `system.Supports(system.CapabilityFileDialog)` 禁用按钮。
+`examples/system_showcase` 提供 File Dialog 的人工验收入口，覆盖打开单个文件、打开多个文件、保存文件和选择目录。示例会根据 `system.Supports(system.CapabilityFileDialog)` 禁用按钮，并将当前 FluxUI 窗口的 native owner 传给系统对话框。
 
 ## 首版限制
 
-- Windows 当前支持显式 `FileDialogOwner(hwnd)`，但 FluxUI 不会自动从 `WindowHandle` 推导 HWND，因为 Gio v0.9 公共 API 没有稳定暴露 HWND。
-- 未传 `FileDialogOwner` 时使用无 owner 的 Common Item Dialog。
+- `ui.OpenFileDialog`、`ui.OpenFilesDialog`、`ui.SaveFileDialog` 和 `ui.PickFolderDialog` 会自动绑定当前窗口 owner。
+- `system` 包没有 `*ui.Context`，因此不会自动推导当前窗口；直接调用 `system` 包且需要 modal owner 时，调用方应显式传入 `FileDialogOwner(owner)`。
+- 未传 `FileDialogOwner` 或 owner 为 0 时使用无 owner 的 Common Item Dialog。
 - 对话框显示后，当前版本不能通过 context 强制关闭原生窗口。
 - 文件选择是阻塞调用，不要放在布局函数中。建议在点击回调或独立 goroutine 中调用，再把结果送回应用状态。
 
@@ -137,3 +156,4 @@ Windows 本地验收时至少覆盖：
 - 取消选择返回 `Cancelled=true` 且无错误。
 - 不存在的默认目录返回清晰错误。
 - 中文路径、空格路径和长路径能正确返回。
+- 传入当前窗口 owner 后，对话框关闭前主窗口不能正常切回交互焦点。

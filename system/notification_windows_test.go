@@ -88,6 +88,60 @@ func TestWindowsNotificationTimeoutMilliseconds(t *testing.T) {
 	}
 }
 
+func TestWindowsNotificationEvent(t *testing.T) {
+	tests := []struct {
+		name        string
+		lParam      uint32
+		wantKind    NotificationEventKind
+		wantCleanup bool
+	}{
+		{name: "click", lParam: ninBalloonUserClick, wantKind: NotificationEventClicked, wantCleanup: true},
+		{name: "hide", lParam: ninBalloonHide, wantCleanup: true},
+		{name: "timeout", lParam: ninBalloonTimeout, wantCleanup: true},
+		{name: "unknown", lParam: 123, wantCleanup: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotKind, gotCleanup := windowsNotificationEvent(tt.lParam)
+			if gotKind != tt.wantKind {
+				t.Fatalf("expected kind %q, got %q", tt.wantKind, gotKind)
+			}
+			if gotCleanup != tt.wantCleanup {
+				t.Fatalf("expected cleanup %v, got %v", tt.wantCleanup, gotCleanup)
+			}
+		})
+	}
+}
+
+func TestWindowsNotificationFallbackCleanupDelay(t *testing.T) {
+	tests := []struct {
+		timeout time.Duration
+		want    time.Duration
+	}{
+		{timeout: 0, want: 2 * time.Minute},
+		{timeout: 5 * time.Second, want: 2 * time.Minute},
+		{timeout: 2 * time.Minute, want: 2 * time.Minute},
+		{timeout: 3 * time.Minute, want: 3*time.Minute + 30*time.Second},
+	}
+
+	for _, tt := range tests {
+		if got := windowsNotificationFallbackCleanupDelay(tt.timeout); got != tt.want {
+			t.Fatalf("expected timeout %s to map to %s, got %s", tt.timeout, tt.want, got)
+		}
+	}
+}
+
+func TestWindowsNotificationClassNameIsProcessScoped(t *testing.T) {
+	name := windowsNotificationClassName()
+	if name == "" {
+		t.Fatal("expected non-empty class name")
+	}
+	if name == "FluxUINotificationWindow" {
+		t.Fatal("expected class name to be process scoped")
+	}
+}
+
 func TestWindowsNotificationDefaultTitle(t *testing.T) {
 	data, err := newWindowsNotificationData(1, 2, 3, notificationOptions{
 		body: "Body only",

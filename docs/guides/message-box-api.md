@@ -12,7 +12,9 @@
     "system.MessageBoxStyle(kind system.MessageBoxKind) system.MessageBoxOption",
     "system.MessageBoxButtonSet(buttons system.MessageBoxButtons) system.MessageBoxOption",
     "system.MessageBoxDefaultButton(result system.MessageBoxResult) system.MessageBoxOption",
-    "system.MessageBoxOwner(owner uintptr) system.MessageBoxOption"
+    "system.MessageBoxOwner(owner uintptr) system.MessageBoxOption",
+    "ui.ShowMessageBox(ctx *ui.Context, opts ...system.MessageBoxOption) (system.MessageBoxResult, error)",
+    "ui.ShowMessageBoxContext(ctx *ui.Context, callCtx context.Context, opts ...system.MessageBoxOption) (system.MessageBoxResult, error)"
   ]
 }
 -->
@@ -97,7 +99,20 @@ Windows v1 不能稳定区分点击 Cancel、按 Escape 和点击关闭按钮。
 
 `MessageBoxOwner(owner)` 设置原生 owner 窗口句柄。Windows 下解释为 `HWND`，传 0 表示无 owner。
 
-当前 FluxUI 不会自动从 `WindowHandle` 推导 HWND，因为 Gio v0.9 公共 API 没有稳定暴露 HWND。未传 owner 时使用无 owner 的系统消息框，仍可显示，但不承诺严格置于 FluxUI 窗口前方。
+普通 FluxUI UI 代码不需要手动处理 HWND。使用 `ui` 层 wrapper 时，FluxUI 会从当前 `*ui.Context` 自动取得 `WindowHandle.NativeHandle()` 并注入 owner：
+
+```go
+result, err := ui.ShowMessageBoxContext(ctx, context.Background(),
+    system.MessageBoxTitle("保存更改"),
+    system.MessageBoxText("关闭前是否保存当前文档？"),
+    system.MessageBoxStyle(system.MessageBoxQuestion),
+    system.MessageBoxButtonSet(system.MessageBoxYesNoCancel),
+)
+```
+
+如果直接调用 `system.ShowMessageBox`，则仍需要显式传 `MessageBoxOwner(owner)` 才能获得 owner modal 行为。
+
+带 owner 的 Windows `TaskDialog` / `MessageBoxW` 会作为当前窗口的 modal 消息框显示；消息框关闭前，owner 窗口不能正常切回交互焦点。未传 owner 或 owner 为 0 时使用无 owner 的系统消息框，仍可显示，但不承诺严格置于 FluxUI 窗口前方。`examples/system_showcase` 已按这个方式传入 owner。
 
 ## 错误和阻塞边界
 
@@ -114,7 +129,7 @@ MessageBox 是阻塞式系统 UI，不要放在布局函数中。建议在点击
 
 ## 示例
 
-`examples/system_showcase` 提供 MessageBox 的人工验收入口，覆盖信息、警告、错误、确认和重试消息框。示例会根据 `system.Supports(system.CapabilityMessageBox)` 禁用按钮。
+`examples/system_showcase` 提供 MessageBox 的人工验收入口，覆盖信息、警告、错误、确认和重试消息框。示例会根据 `system.Supports(system.CapabilityMessageBox)` 禁用按钮，并将当前 FluxUI 窗口的 native owner 传给系统消息框。
 
 ## 验收
 
@@ -125,4 +140,4 @@ Windows 本地验收时至少覆盖：
 - 默认按钮生效。
 - Escape 和关闭按钮在带 Cancel 的按钮集上返回 `MessageBoxResultCancel`。
 - 无 owner 时仍能显示。
-- 显式 owner 可用时消息框位于 owner 窗口前方。
+- 显式 owner 可用时消息框位于 owner 窗口前方，并且关闭前主窗口不能正常切回交互焦点。

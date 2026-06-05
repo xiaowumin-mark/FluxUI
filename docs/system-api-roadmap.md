@@ -13,6 +13,9 @@
     "system.NewTray(opts ...TrayOption) (*Tray, error)",
     "WindowElement(root Component, opts ...AppOption) WindowSpec",
     "RunElementMulti(windows ...WindowSpec) error",
+    "WindowHandle.NativeHandle() (uintptr, bool)",
+    "ui.OpenFileDialog(ctx *Context, opts ...system.FileDialogOption) (system.FileDialogResult, error)",
+    "ui.ShowMessageBox(ctx *Context, opts ...system.MessageBoxOption) (system.MessageBoxResult, error)",
     "WindowHandle.Close/Minimize/Maximize/Restore/Fullscreen/Raise/Center/SetTitle/SetSize/Invalidate"
   ]
 }
@@ -26,11 +29,11 @@
 
 ## 当前进展
 
-截至 2026-05-31，FluxUI 已经具备一部分窗口级基础能力。
+截至 2026-06-05，FluxUI 已经具备一部分窗口级基础能力。
 
 ### 已完成的窗口基础设施
 
-- `app.WindowHandle` 已提供 `ID`、`IsAlive`、`Close`、`Minimize`、`Maximize`、`Restore`、`Fullscreen`、`Raise`、`Center`、`SetTitle`、`SetSize`、`Invalidate`。
+- `app.WindowHandle` 已提供 `ID`、`IsAlive`、`NativeHandle`、`Close`、`Minimize`、`Maximize`、`Restore`、`Fullscreen`、`Raise`、`Center`、`SetTitle`、`SetSize`、`Invalidate`。
 - `app.RunMulti` 与 `ui.RunElementMulti` 已支持桌面多窗口启动。
 - `ui.WindowElement` 已提供 React-style 多窗口入口。
 - `ui.ListWindows` / `ui.GetWindow` 已能查询当前存活窗口。
@@ -108,18 +111,21 @@ func IsUnsupported(err error) bool {
 文件选择器和系统弹窗应默认绑定当前窗口。推荐公共 API 允许显式传入 owner：
 
 ```go
-system.OpenFileDialog(ctx, system.FileDialogOwner(handle))
-system.ShowMessageBox(ctx, system.MessageBoxOwner(handle))
+owner, ok := handle.NativeHandle()
+if ok {
+    system.OpenFileDialog(ctx, system.FileDialogOwner(owner))
+    system.ShowMessageBox(ctx, system.MessageBoxOwner(owner))
+}
 ```
 
-`ui` 层可以提供便利函数，自动使用当前窗口：
+`ui` 层已提供便利函数，自动使用当前窗口 owner：
 
 ```go
 ui.OpenFileDialog(ctx, opts...)
 ui.ShowMessageBox(ctx, opts...)
 ```
 
-如果底层 Gio Windows backend 无法稳定暴露 HWND，Windows driver 第一版可以支持无 owner 模态，并在文档中标注限制；但 API 仍应保留 owner 参数，为后续补齐 native owner 做准备。
+Windows v1 已通过 Gio `Win32ViewEvent` 捕获 HWND，并由 `WindowHandle.NativeHandle()` 暴露给调用方。`system` 包本身没有 `*ui.Context`，不会自动推导当前窗口；`ui` wrapper 会在调用 `system` API 前自动注入当前窗口 owner，直接调用 `system` 包时仍可显式传 owner。
 
 ### 自绘反馈与系统反馈各司其职
 
@@ -185,7 +191,7 @@ go vet ./...
 - B4 已完成 Gio v0.9 调研：当前没有公开 always-on-top 或 request focus 窗口 API，暂不暴露不可兑现的公共函数。
 - B5 已完成 Gio v0.9 调研：当前没有可在 `DestroyEvent` 前稳定拦截 OS close 的公共 API，关闭拦截暂不实现。
 - B6 已新增轻量窗口事件模型，提供 `WindowHandle.PollEvents()`、`WindowEvent` 和 size/focus/state/closed 事件。
-- B7 已完成 native owner 调研：Gio v0.9 公共 API 未稳定暴露 HWND/native window handle，后续 FileDialog/MessageBox 第一版需要支持无 owner 路径，同时保留 owner option 设计空间。
+- B7 已完成 native owner 接入：Windows 下通过 Gio `Win32ViewEvent` 捕获 HWND，并由 `WindowHandle.NativeHandle()` 暴露为 `uintptr`；非 Windows 平台返回 false。
 - B8 已新增 `docs/guides/window-api.md` 作为窗口 API 集中入口。
 - B9 已新增 `examples/window_showcase`，覆盖多窗口、状态快照、事件拉取和常用窗口动作。
 - B10 已通过 `go test ./...` 与 `go vet ./...` 验收。
@@ -197,7 +203,7 @@ go vet ./...
 - 评估并实现窗口位置、最小尺寸、最大尺寸、是否可调整大小、是否显示系统边框、置顶、可见性、焦点请求等能力。
 - 建立窗口事件模型：close requested、focus changed、size changed、scale/DPI changed、theme changed、display changed。
 - 设计关闭拦截：允许应用在用户点击关闭按钮时先弹确认，再决定是否关闭。
-- 调研 Gio Windows backend 暴露 native handle 的可行性；能稳定获取时在内部保存 owner handle，不能时保留 API 并记录限制。
+- 捕获 Gio Windows backend 暴露的 native handle，在内部保存 owner handle，并通过 `WindowHandle.NativeHandle()` 提供给 File Dialog / MessageBox owner option。
 - 为窗口 registry、WindowHandle 生命周期、关闭后操作返回 false 等行为补充测试。
 
 建议 API：
@@ -215,6 +221,7 @@ type WindowState struct {
 }
 
 func (h WindowHandle) State() (WindowState, bool)
+func (h WindowHandle) NativeHandle() (uintptr, bool)
 func (h WindowHandle) SetMinSize(width, height int) bool
 func (h WindowHandle) SetMaxSize(width, height int) bool
 func (h WindowHandle) SetResizable(resizable bool) bool
@@ -227,6 +234,7 @@ func (h WindowHandle) RequestFocus() bool
 - 旧窗口 API 行为保持不变。
 - 多窗口场景下 `ListWindows`、`GetWindow`、当前窗口 helper 不串窗口。
 - 关闭后的 `WindowHandle` 操作不 panic，返回 false。
+- Windows 下 `WindowHandle.NativeHandle()` 返回 HWND，关闭后返回 false。
 - Windows 能正确设置标题、大小、最小化、最大化、还原、全屏、置顶和居中。
 
 ### Phase C: File Dialog 文件选择器
@@ -240,9 +248,9 @@ func (h WindowHandle) RequestFocus() bool
 - C3 已完成：支持标题、默认目录、默认文件名、扩展名过滤器、是否允许不存在路径、是否允许创建目录、是否覆盖确认。
 - C4 已完成：Windows 实现使用 `IFileOpenDialog` / `IFileSaveDialog` 和 Common Item Dialog。
 - C5 已完成：处理 COM 初始化、线程绑定、UTF-16 路径转换、取消返回值和错误包装。
-- C6 已完成：新增显式 `FileDialogOwner(hwnd)`，Windows 下映射为 `HWND`；Gio 未暴露 HWND 时默认使用无 owner fallback，并在文档中说明。
+- C6 已完成：新增显式 `FileDialogOwner(hwnd)`，Windows 下映射为 `HWND`；FluxUI 可通过 `WindowHandle.NativeHandle()` 取得当前窗口 HWND，未传 owner 时仍保留无 owner fallback。
 - C7 已完成：非 Windows 平台保持可编译，默认 driver 返回 `ErrUnsupported`，并补充 `!windows` unsupported 测试。
-- C8 已完成：新增 `examples/system_showcase`，示例只在 `system.Supports(CapabilityFileDialog)` 时启用按钮。
+- C8 已完成：新增 `examples/system_showcase`，示例只在 `system.Supports(CapabilityFileDialog)` 时启用按钮，并通过 `ui` wrapper 自动将当前窗口 native owner 传给文件对话框。
 - C9 已完成：新增 `docs/guides/file-dialog-api.md`，并更新 System API 总入口。
 - C10 已完成：补充验收清单，覆盖取消、多选、过滤器、默认目录错误、中文路径、空格路径和长路径。
 
@@ -274,12 +282,13 @@ func FileDialogOwner(owner uintptr) FileDialogOption
 - 过滤器能正确显示并限制扩展名。
 - 默认目录不存在时返回清晰错误或由 Windows dialog 自身处理，但行为必须测试并文档化。
 - Windows 路径包含中文、空格、长路径时不乱码。
+- 显式 owner 可用时，文件对话框作为 owner 窗口的 modal 对话框显示。
 
 ### Phase D: MessageBox / TaskDialog 系统弹窗
 
 目标：提供系统原生消息框，用于轻量确认、警告和错误提示。
 
-当前状态：D1-D9 已完成，D10 自动化验收已完成，Windows 本地人工点验待执行。Phase D 已沿用 File Dialog 的系统层边界补齐 MessageBox 公共 API、unsupported 行为、Windows `TaskDialog` 优先实现、`MessageBoxW` 兼容回退、关闭/取消语义说明、文档指南和 `system_showcase` 示例。
+当前状态：D1-D9 已完成，D10 自动化验收已完成，Windows 本地人工点验待执行。Phase D 已沿用 File Dialog 的系统层边界补齐 MessageBox 公共 API、unsupported 行为、Windows `TaskDialog` 优先实现、`MessageBoxW` 兼容回退、owner modal 行为、关闭/取消语义说明、文档指南和 `system_showcase` 示例。
 
 任务：
 
@@ -291,8 +300,8 @@ func FileDialogOwner(owner uintptr) FileDialogOption
 - D6 已完成：取消和关闭语义。Windows v1 无法稳定区分 Cancel、Escape 和关闭按钮，只要系统返回 `IDCANCEL` 就映射为 `MessageBoxResultCancel`；`MessageBoxResultClose` 保留给后续能区分关闭动作的 driver。
 - D7 已完成：context 与阻塞边界。打开前检查 `context.Context`；原生窗口显示后暂不承诺强制关闭。文档强调只能从事件回调、后台任务或 app 生命周期触发，不要放进布局函数。
 - D8 已完成：单元测试覆盖 option 默认值、driver 分发、能力缺失、context 已取消、按钮/结果映射 helper、错误 helper 包装判断；Windows-only 测试使用 build tag。
-- D9 已完成：新增 `docs/guides/message-box-api.md`，更新 `docs/guides/system-api.md` 和 `examples/system_showcase`，示例按 `system.Supports(CapabilityMessageBox)` 启用按钮。
-- D10 部分完成：`go test ./...`、`go vet ./...`、`go test ./examples/system_showcase` 已作为自动化验收；Windows 人工验证 info/warning/error/question、OK/Cancel/Yes/No/Retry、Escape/关闭按钮、无 owner 与显式 owner 行为仍需本地点击确认。
+- D9 已完成：新增 `docs/guides/message-box-api.md`，更新 `docs/guides/system-api.md` 和 `examples/system_showcase`，示例按 `system.Supports(CapabilityMessageBox)` 启用按钮，并通过 `ui` wrapper 自动将当前窗口 native owner 传给消息框。
+- D10 部分完成：`go test ./...`、`go vet ./...`、`go test ./examples/system_showcase` 已作为自动化验收；Windows 人工验证 info/warning/error/question、OK/Cancel/Yes/No/Retry、Escape/关闭按钮、无 owner 与显式 owner modal 行为仍需本地点击确认。
 
 建议 API：
 
@@ -311,7 +320,7 @@ func MessageBoxOwner(owner uintptr) MessageBoxOption
 
 - 各按钮集返回值正确映射。
 - Escape、关闭按钮和 Cancel 行为一致且文档化。
-- owner window 可用时消息框置于当前窗口前方。
+- owner window 可用时消息框置于当前窗口前方，并在关闭前阻止 owner 窗口正常切回交互焦点。
 - 无 owner 时仍可使用，但不承诺置顶。
 
 ### Phase E: System Notification 系统通知与消息
@@ -460,11 +469,12 @@ Windows 本地人工验收：
 | 基础窗口控制 | 已有 | 已有 Gio 路径 | 部分可用 | 已有 | 已集中整理 | 稳定化中 |
 | 多窗口 | 已有 | 已有 Gio 路径 | 受平台限制 | 已有 | 已集中整理 | 稳定化中 |
 | 窗口属性查询 | 已有 `WindowState` / `State()` | 已有 runtime 快照 | 部分可用 | 已有 | 已集中整理 | 稳定化中 |
+| 原生窗口句柄 | 已有 `NativeHandle()` | 已有 HWND 捕获 | 返回 false | 已有 | 已集中整理 | Windows v1 已完成 |
 | 窗口事件 | 已有 `PollEvents()` | 已有 runtime pull model | 部分可用 | 已有 | 已集中整理 | 稳定化中 |
-| 文件打开 | 已有 | 已有 Common Item Dialog | 返回 `ErrUnsupported` | 暂缓 | 已补充 | v1 已完成 |
-| 文件保存 | 已有 | 已有 Common Item Dialog | 返回 `ErrUnsupported` | 暂缓 | 已补充 | v1 已完成 |
-| 目录选择 | 已有 | 已有 Common Item Dialog | 返回 `ErrUnsupported` | 暂缓 | 已补充 | v1 已完成 |
-| 系统消息框 | 已有 | 已有 `TaskDialog` 优先，`MessageBoxW` 回退 | 返回 `ErrUnsupported` | 暂缓 | 已补充 | v1 待人工点验 |
+| 文件打开 | 已有 | 已有 Common Item Dialog | 返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | v1 已完成 |
+| 文件保存 | 已有 | 已有 Common Item Dialog | 返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | v1 已完成 |
+| 目录选择 | 已有 | 已有 Common Item Dialog | 返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | v1 已完成 |
+| 系统消息框 | 已有 | 已有 `TaskDialog` 优先，`MessageBoxW` 回退 | 返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | v1 待人工点验 |
 | 系统通知 | E1-E10 已完成 | 已有 `Shell_NotifyIconW` 托盘气泡 | E4 已完成 | 暂缓 | 已补充 | v1 已完成 |
 | 托盘 | 待设计 | 待实现 | 待空实现 | 不适用 | 待补充 | 待开始 |
 | 剪贴板 | 待设计 | 待实现 | 待空实现 | 待设计 | 待补充 | 后续 |
@@ -503,7 +513,7 @@ go test ./examples/system_showcase
 
 ## 风险与约束
 
-- Gio 是否稳定暴露 Windows HWND 是 owner modal 的关键前置条件；如果拿不到，应先支持无 owner 模态并在文档中明确限制。
+- Windows owner modal 依赖 Gio `Win32ViewEvent` 提供 HWND；如果后续 Gio 事件语义变化，需要同步调整 `WindowHandle.NativeHandle()`。
 - Windows file dialog 依赖 COM apartment，必须把线程初始化、释放和回调边界封装在 driver 内。
 - 托盘需要 Win32 消息回调，不能破坏 Gio 主事件循环，也不能在系统回调线程直接修改 UI 状态。
 - Windows toast notification 的打包、AppUserModelID、快捷方式和激活回调复杂度较高，不应作为第一版通知承诺。

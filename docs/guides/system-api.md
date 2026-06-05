@@ -12,11 +12,13 @@
     "system.OpenFilesDialog(ctx context.Context, opts ...system.FileDialogOption) (system.FileDialogResult, error)",
     "system.SaveFileDialog(ctx context.Context, opts ...system.FileDialogOption) (system.FileDialogResult, error)",
     "system.PickFolderDialog(ctx context.Context, opts ...system.FileDialogOption) (system.FileDialogResult, error)",
+    "system.FileDialogOwner(owner uintptr) system.FileDialogOption",
     "system.ShowMessageBox(ctx context.Context, opts ...system.MessageBoxOption) (system.MessageBoxResult, error)",
     "system.MessageBoxTitle(value string) system.MessageBoxOption",
     "system.MessageBoxText(value string) system.MessageBoxOption",
     "system.MessageBoxStyle(kind system.MessageBoxKind) system.MessageBoxOption",
     "system.MessageBoxButtonSet(buttons system.MessageBoxButtons) system.MessageBoxOption",
+    "system.MessageBoxOwner(owner uintptr) system.MessageBoxOption",
     "system.Notify(ctx context.Context, opts ...system.NotificationOption) error",
     "system.NotificationTitle(value string) system.NotificationOption",
     "system.NotificationBody(value string) system.NotificationOption",
@@ -25,7 +27,10 @@
     "system.ErrUnsupported",
     "system.ErrUnavailable",
     "system.IsUnsupported(err error) bool",
-    "system.IsUnavailable(err error) bool"
+    "system.IsUnavailable(err error) bool",
+    "WindowHandle.NativeHandle() (uintptr, bool)",
+    "ui.OpenFileDialog(ctx *ui.Context, opts ...system.FileDialogOption) (system.FileDialogResult, error)",
+    "ui.ShowMessageBox(ctx *ui.Context, opts ...system.MessageBoxOption) (system.MessageBoxResult, error)"
   ]
 }
 -->
@@ -111,19 +116,22 @@ path := result.Paths[0]
 - `FileDialogDefaultDir(value)`: 设置初始目录。
 - `FileDialogDefaultName(value)`: 设置初始文件名。
 - `FileDialogFilters(filters...)`: 设置扩展名过滤器，`png`、`.png` 和 `*.png` 都会映射为 `*.png`。
-- `FileDialogOwner(owner)`: 设置原生 owner 窗口句柄。Windows 下解释为 `HWND`，传 0 表示无 owner。
+- `FileDialogOwner(owner)`: 设置原生 owner 窗口句柄。Windows 下解释为 `HWND`，通常由 `ui.OpenFileDialog` 自动注入；传 0 表示无 owner。
 - `FileDialogAllowCreateDirs(allow)`: 控制保存时是否允许系统提示创建目录。
 - `FileDialogAllowMissingPath(allow)`: 控制打开/保存/选目录时是否强制路径已存在。
 - `FileDialogOverwritePrompt(prompt)`: 控制保存到已有文件时是否显示覆盖确认。
 
 取消选择返回 `FileDialogResult{Cancelled: true}` 且 `err == nil`。成功选择时 `Paths` 返回绝对路径，多选结果保持系统返回顺序。
 
-`examples/system_showcase` 提供 File Dialog 的人工验收入口，示例会根据 `system.Supports(system.CapabilityFileDialog)` 禁用按钮。
+`ui.OpenFileDialog`、`ui.OpenFilesDialog`、`ui.SaveFileDialog` 和 `ui.PickFolderDialog` 会从当前 `*ui.Context` 自动取得 `WindowHandle.NativeHandle()` 并注入 owner；直接调用 `system` 包时才需要显式传 `FileDialogOwner(owner)`。
+
+`examples/system_showcase` 提供 File Dialog 的人工验收入口，示例会根据 `system.Supports(system.CapabilityFileDialog)` 禁用按钮，并通过 `ui` wrapper 自动把当前 FluxUI 窗口的 native owner 传给系统对话框。
 
 第一版限制：
 
-- 当前支持显式 `FileDialogOwner(hwnd)`，但不会自动从 `WindowHandle` 推导 HWND，因为 Gio v0.9 公共 API 没有稳定暴露 HWND。
-- 未传 `FileDialogOwner` 时使用无 owner 的系统对话框。
+- Windows 下可通过 `WindowHandle.NativeHandle()` 获取 HWND；`ui` wrapper 会自动处理这一步。
+- `system` 包没有 `*ui.Context`，因此不会自动推导当前窗口；直接调用 `system` 包且需要 modal owner 时由调用方显式传入 owner。
+- 未传 `FileDialogOwner` 或 owner 为 0 时使用无 owner 的系统对话框。
 - 调用会阻塞到用户确认或取消，应从事件处理逻辑或 goroutine 调用，不要放在布局函数中。
 - `context.Context` 会在打开前检查；原生窗口显示后，当前版本不强制关闭系统对话框。
 
@@ -157,14 +165,17 @@ if result == system.MessageBoxResultCancel {
 - `MessageBoxStyle(kind)`: 设置样式，支持 info、warning、error、question。
 - `MessageBoxButtonSet(buttons)`: 设置按钮集，支持 OK、OKCancel、YesNo、YesNoCancel、RetryCancel。
 - `MessageBoxDefaultButton(result)`: 设置默认按钮，必须属于当前按钮集。
-- `MessageBoxOwner(owner)`: 设置原生 owner 窗口句柄。Windows 下解释为 `HWND`，传 0 表示无 owner。
+- `MessageBoxOwner(owner)`: 设置原生 owner 窗口句柄。Windows 下解释为 `HWND`，通常由 `ui.ShowMessageBox` 自动注入；传 0 表示无 owner。
 
 Windows v1 不能稳定区分点击 Cancel、按 Escape 和点击关闭按钮。只要系统返回 `IDCANCEL`，FluxUI 都返回 `MessageBoxResultCancel`。`MessageBoxResultClose` 保留给后续能区分关闭动作的平台 driver。
 
+`ui.ShowMessageBox` 会从当前 `*ui.Context` 自动取得 `WindowHandle.NativeHandle()` 并注入 owner；直接调用 `system.ShowMessageBox` 时才需要显式传 `MessageBoxOwner(owner)`。`examples/system_showcase` 已改用 `ui.ShowMessageBoxContext` 自动传 owner。带 owner 的 Windows 消息框关闭前，主窗口不能正常切回交互焦点。
+
 第一版限制：
 
-- 当前支持显式 `MessageBoxOwner(hwnd)`，但不会自动从 `WindowHandle` 推导 HWND。
-- 未传 `MessageBoxOwner` 时使用无 owner 的系统消息框。
+- Windows 下可通过 `WindowHandle.NativeHandle()` 获取 HWND；`ui` wrapper 会自动处理这一步。
+- `system` 包没有 `*ui.Context`，因此不会自动推导当前窗口；直接调用 `system` 包且需要 modal owner 时由调用方显式传入 owner。
+- 未传 `MessageBoxOwner` 或 owner 为 0 时使用无 owner 的系统消息框。
 - Windows 优先使用 `TaskDialog`。如果应用没有启用 common controls v6，系统可能不提供 Task Dialog，此时会回退到传统 `MessageBoxW`。
 - 调用会阻塞到用户选择按钮，应从事件处理逻辑或 goroutine 调用，不要放在布局函数中。
 - `context.Context` 会在打开前检查；原生窗口显示后，当前版本不强制关闭系统消息框。
@@ -239,7 +250,7 @@ if system.IsUnavailable(err) {
 - `ui` 包后续只提供少量基于当前 `*ui.Context` 的便利封装。
 - `widget` 包不承载文件选择、系统通知和托盘能力，因为这些能力不参与布局。
 
-当前先通过 `system` 包暴露文件选择能力。`ui.OpenFileDialog(ctx, ...)` 这类便利 API 会等系统能力稳定后再加入，避免把阻塞式系统调用混入布局层。
+当前通过 `system` 包暴露底层系统能力；`ui.OpenFileDialog(ctx, ...)` 和 `ui.ShowMessageBox(ctx, ...)` 这类便利 API 只应从事件处理逻辑或 goroutine 调用，不要放进布局函数。
 
 ## 平台策略
 
