@@ -31,6 +31,14 @@ type WindowSpec = fluxapp.WindowSpec
 // WindowID 是窗口唯一标识。
 type WindowID = fluxapp.WindowID
 
+// WindowHiddenMemoryPolicy 定义窗口隐藏后的渲染内存策略。
+type WindowHiddenMemoryPolicy = fluxapp.WindowHiddenMemoryPolicy
+
+const (
+	WindowHiddenMemoryReleaseTransient   = fluxapp.WindowHiddenMemoryReleaseTransient
+	WindowHiddenMemoryKeepRenderingState = fluxapp.WindowHiddenMemoryKeepRenderingState
+)
+
 // WindowHandle 是运行中的窗口句柄。
 type WindowHandle = fluxapp.WindowHandle
 
@@ -231,6 +239,11 @@ func MaxSize(width, height int) AppOption {
 	return fluxapp.MaxSize(width, height)
 }
 
+// HiddenMemoryPolicy 设置窗口隐藏后的渲染内存策略。
+func HiddenMemoryPolicy(policy WindowHiddenMemoryPolicy) AppOption {
+	return fluxapp.HiddenMemoryPolicy(policy)
+}
+
 // WithTheme 设置应用主题。
 func WithTheme(th *Theme) AppOption {
 	return fluxapp.WithTheme(th)
@@ -390,6 +403,21 @@ func WindowClose(ctx *Context) bool {
 	return ctx.WindowClose()
 }
 
+// WindowShow 请求显示当前窗口。
+func WindowShow(ctx *Context) bool {
+	return ctx.WindowShow()
+}
+
+// WindowHide 请求隐藏当前窗口。
+func WindowHide(ctx *Context) bool {
+	return ctx.WindowHide()
+}
+
+// WindowSetHiddenMemoryPolicy 设置当前窗口隐藏后的渲染内存策略。
+func WindowSetHiddenMemoryPolicy(ctx *Context, policy WindowHiddenMemoryPolicy) bool {
+	return ctx.WindowSetHiddenMemoryPolicy(internal.WindowHiddenMemoryPolicy(policy))
+}
+
 // WindowMinimize 请求最小化当前窗口。
 func WindowMinimize(ctx *Context) bool {
 	return ctx.WindowMinimize()
@@ -410,9 +438,14 @@ func WindowFullscreen(ctx *Context) bool {
 	return ctx.WindowFullscreen()
 }
 
-// WindowRaise 请求将当前窗口置顶。
+// WindowRaise 请求将当前窗口一次性前置。
 func WindowRaise(ctx *Context) bool {
 	return ctx.WindowRaise()
+}
+
+// WindowSetAlwaysOnTop 设置当前窗口是否持续置顶。
+func WindowSetAlwaysOnTop(ctx *Context, always bool) bool {
+	return ctx.WindowSetAlwaysOnTop(always)
 }
 
 // WindowCenter 请求将当前窗口居中。

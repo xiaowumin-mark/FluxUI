@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -30,25 +31,39 @@ type Option func(*Application)
 // WindowID 是窗口唯一标识。
 type WindowID uint64
 
+// WindowHiddenMemoryPolicy 定义窗口隐藏后的渲染内存策略。
+type WindowHiddenMemoryPolicy int
+
+const (
+	// WindowHiddenMemoryReleaseTransient 会在窗口隐藏后暂停 FluxUI 渲染并释放临时内存。
+	WindowHiddenMemoryReleaseTransient WindowHiddenMemoryPolicy = iota
+	// WindowHiddenMemoryKeepRenderingState 保留隐藏窗口的渲染状态，不主动释放临时内存。
+	WindowHiddenMemoryKeepRenderingState
+)
+
 // WindowState 是 FluxUI 运行时维护的窗口状态快照。
 //
 // Width/Height/MinWidth/MinHeight/MaxWidth/MaxHeight 使用 dp 单位。窗口实际被
 // 平台调整后，FluxUI 会在收到 frame/config 事件时尽量同步该快照。
 type WindowState struct {
-	ID         WindowID
-	Title      string
-	Width      int
-	Height     int
-	MinWidth   int
-	MinHeight  int
-	MaxWidth   int
-	MaxHeight  int
-	Minimized  bool
-	Maximized  bool
-	Fullscreen bool
-	Focused    bool
-	Decorated  bool
-	Alive      bool
+	ID                 WindowID
+	Title              string
+	Width              int
+	Height             int
+	MinWidth           int
+	MinHeight          int
+	MaxWidth           int
+	MaxHeight          int
+	Visible            bool
+	AlwaysOnTop        bool
+	RenderSuspended    bool
+	HiddenMemoryPolicy WindowHiddenMemoryPolicy
+	Minimized          bool
+	Maximized          bool
+	Fullscreen         bool
+	Focused            bool
+	Decorated          bool
+	Alive              bool
 }
 
 // WindowEventKind 是窗口生命周期或状态变化事件类型。
@@ -131,6 +146,35 @@ func (h WindowHandle) Close() bool {
 	return h.perform(system.ActionClose)
 }
 
+// Show 显示窗口。
+func (h WindowHandle) Show() bool {
+	return h.setVisible(true)
+}
+
+// Hide 隐藏窗口。
+func (h WindowHandle) Hide() bool {
+	return h.setVisible(false)
+}
+
+// SetHiddenMemoryPolicy 设置窗口隐藏后的渲染内存策略。
+func (h WindowHandle) SetHiddenMemoryPolicy(policy WindowHiddenMemoryPolicy) bool {
+	if !validWindowHiddenMemoryPolicy(policy) {
+		return false
+	}
+	return h.apply(func(entry *windowEntry) {
+		trim := false
+		entry.updateAndEmit(func(state *WindowState) {
+			before := state.RenderSuspended
+			state.HiddenMemoryPolicy = policy
+			applyWindowRenderSuspendedState(state)
+			trim = !before && state.RenderSuspended
+		})
+		if trim {
+			entry.requestHiddenMemoryTrim()
+		}
+	})
+}
+
 // Minimize 最小化窗口。
 func (h WindowHandle) Minimize() bool {
 	return h.applyMode(gioApp.Minimized)
@@ -151,9 +195,25 @@ func (h WindowHandle) Fullscreen() bool {
 	return h.applyMode(gioApp.Fullscreen)
 }
 
-// Raise 请求将窗口置于最前。
+// Raise 请求将窗口一次性前置。
 func (h WindowHandle) Raise() bool {
 	return h.perform(system.ActionRaise)
+}
+
+// SetAlwaysOnTop 设置窗口是否持续置顶。
+func (h WindowHandle) SetAlwaysOnTop(always bool) bool {
+	entry, ok := h.liveEntry()
+	if !ok {
+		return false
+	}
+	if !setNativeWindowAlwaysOnTop(entry.nativeHandleSnapshot(), always) {
+		return false
+	}
+	entry.updateAndEmit(func(state *WindowState) {
+		state.AlwaysOnTop = always
+	})
+	entry.win.Invalidate()
+	return true
 }
 
 // Center 请求将窗口居中。
@@ -178,7 +238,9 @@ func (h WindowHandle) SetSize(width, height int) bool {
 		return false
 	}
 	return h.apply(func(entry *windowEntry) {
-		entry.win.Option(gioApp.Size(unit.Dp(width), unit.Dp(height)))
+		opts := []gioApp.Option{gioApp.Size(unit.Dp(width), unit.Dp(height))}
+		opts = append(opts, entry.constraintOptions()...)
+		entry.win.Option(opts...)
 		entry.updateState(func(state *WindowState) {
 			state.Width = width
 			state.Height = height
@@ -193,7 +255,9 @@ func (h WindowHandle) SetMinSize(width, height int) bool {
 		return false
 	}
 	return h.apply(func(entry *windowEntry) {
-		entry.win.Option(gioApp.MinSize(unit.Dp(width), unit.Dp(height)))
+		if !entry.snapshot().Fullscreen {
+			entry.win.Option(gioApp.MinSize(unit.Dp(width), unit.Dp(height)))
+		}
 		entry.updateState(func(state *WindowState) {
 			state.MinWidth = width
 			state.MinHeight = height
@@ -207,17 +271,23 @@ func (h WindowHandle) SetMaxSize(width, height int) bool {
 		return false
 	}
 	return h.apply(func(entry *windowEntry) {
-		entry.win.Option(gioApp.MaxSize(unit.Dp(width), unit.Dp(height)))
+		if !entry.snapshot().Fullscreen {
+			entry.win.Option(gioApp.MaxSize(unit.Dp(width), unit.Dp(height)))
+		}
 		entry.updateState(func(state *WindowState) {
 			state.MaxWidth = width
 			state.MaxHeight = height
 		})
+		entry.syncNativeMaximizeAvailability()
 	})
 }
 
 // Invalidate 请求窗口重绘。
 func (h WindowHandle) Invalidate() bool {
 	return h.apply(func(entry *windowEntry) {
+		if entry.renderSuspendedSnapshot() {
+			return
+		}
 		entry.win.Invalidate()
 	})
 }
@@ -232,12 +302,42 @@ func (h WindowHandle) applyOption(opts ...gioApp.Option) bool {
 }
 
 func (h WindowHandle) applyMode(mode gioApp.WindowMode) bool {
-	return h.apply(func(entry *windowEntry) {
-		entry.win.Option(mode.Option())
-		entry.updateState(func(state *WindowState) {
-			applyWindowModeState(state, mode)
-		})
+	entry, ok := h.liveEntry()
+	if !ok {
+		return false
+	}
+	if mode == gioApp.Maximized && entry.maximizeDisabledByConstraints() {
+		return false
+	}
+	entry.win.Option(entry.modeOptions(mode)...)
+	entry.updateState(func(state *WindowState) {
+		applyWindowModeState(state, mode)
 	})
+	return true
+}
+
+func (h WindowHandle) setVisible(visible bool) bool {
+	entry, ok := h.liveEntry()
+	if !ok {
+		return false
+	}
+	if !setNativeWindowVisible(entry.nativeHandleSnapshot(), visible) {
+		return false
+	}
+	trim := false
+	entry.updateAndEmit(func(state *WindowState) {
+		before := state.RenderSuspended
+		state.Visible = visible
+		applyWindowRenderSuspendedState(state)
+		trim = !before && state.RenderSuspended
+	})
+	if trim {
+		entry.requestHiddenMemoryTrim()
+	}
+	if visible {
+		entry.win.Invalidate()
+	}
+	return true
 }
 
 func (h WindowHandle) perform(actions system.Action) bool {
@@ -250,28 +350,40 @@ func (h WindowHandle) perform(actions system.Action) bool {
 }
 
 func (h WindowHandle) apply(fn func(entry *windowEntry)) bool {
-	if h.id == 0 || fn == nil {
+	if fn == nil {
 		return false
 	}
-	entry, ok := lookupWindow(h.id)
-	if !ok || entry == nil || !entry.alive.Load() {
+	entry, ok := h.liveEntry()
+	if !ok {
 		return false
 	}
 	fn(entry)
 	return true
 }
 
+func (h WindowHandle) liveEntry() (*windowEntry, bool) {
+	if h.id == 0 {
+		return nil, false
+	}
+	entry, ok := lookupWindow(h.id)
+	if !ok || entry == nil || !entry.alive.Load() {
+		return nil, false
+	}
+	return entry, true
+}
+
 // Application 是 Gio window loop 的封装。
 type Application struct {
-	Title     string
-	Width     int
-	Height    int
-	MinWidth  int
-	MinHeight int
-	MaxWidth  int
-	MaxHeight int
-	Theme     *theme.Theme
-	Root      Builder
+	Title              string
+	Width              int
+	Height             int
+	MinWidth           int
+	MinHeight          int
+	MaxWidth           int
+	MaxHeight          int
+	HiddenMemoryPolicy WindowHiddenMemoryPolicy
+	Theme              *theme.Theme
+	Root               Builder
 }
 
 // WindowSpec 是多窗口运行时的窗口配置。
@@ -283,11 +395,12 @@ type WindowSpec struct {
 // New 创建应用实例。
 func New(root Builder, opts ...Option) *Application {
 	app := &Application{
-		Title:  "FluxUI",
-		Width:  420,
-		Height: 240,
-		Theme:  theme.Default(),
-		Root:   root,
+		Title:              "FluxUI",
+		Width:              420,
+		Height:             240,
+		HiddenMemoryPolicy: WindowHiddenMemoryReleaseTransient,
+		Theme:              theme.Default(),
+		Root:               root,
 	}
 	for _, opt := range opts {
 		opt(app)
@@ -333,6 +446,15 @@ func MaxSize(width, height int) Option {
 	return func(app *Application) {
 		app.MaxWidth = width
 		app.MaxHeight = height
+	}
+}
+
+// HiddenMemoryPolicy 设置窗口隐藏后的渲染内存策略。
+func HiddenMemoryPolicy(policy WindowHiddenMemoryPolicy) Option {
+	return func(app *Application) {
+		if validWindowHiddenMemoryPolicy(policy) {
+			app.HiddenMemoryPolicy = policy
+		}
 	}
 }
 
@@ -448,16 +570,18 @@ func (a *Application) Run() error {
 		id:  windowID,
 		win: w,
 		state: WindowState{
-			ID:        windowID,
-			Title:     title,
-			Width:     width,
-			Height:    height,
-			MinWidth:  maxPositive(a.MinWidth),
-			MinHeight: maxPositive(a.MinHeight),
-			MaxWidth:  maxPositive(a.MaxWidth),
-			MaxHeight: maxPositive(a.MaxHeight),
-			Decorated: true,
-			Alive:     true,
+			ID:                 windowID,
+			Title:              title,
+			Width:              width,
+			Height:             height,
+			MinWidth:           maxPositive(a.MinWidth),
+			MinHeight:          maxPositive(a.MinHeight),
+			MaxWidth:           maxPositive(a.MaxWidth),
+			MaxHeight:          maxPositive(a.MaxHeight),
+			Visible:            true,
+			HiddenMemoryPolicy: normalizeWindowHiddenMemoryPolicy(a.HiddenMemoryPolicy),
+			Decorated:          true,
+			Alive:              true,
 		},
 	}
 	entry.alive.Store(true)
@@ -466,12 +590,17 @@ func (a *Application) Run() error {
 		entry.alive.Store(false)
 		entry.pushEvent(WindowEventClosed, func(state *WindowState) {
 			state.Alive = false
+			state.Visible = false
 		})
 		unregisterWindow(windowID)
 	}()
 
 	rt := internal.NewRuntime(th)
-	rt.SetInvalidator(w.Invalidate)
+	rt.SetInvalidator(func() {
+		if !entry.renderSuspendedSnapshot() {
+			w.Invalidate()
+		}
+	})
 	rt.SetWindowController(&windowController{
 		handle: WindowHandle{id: windowID},
 	})
@@ -484,6 +613,7 @@ func (a *Application) Run() error {
 			entry.alive.Store(false)
 			entry.pushEvent(WindowEventClosed, func(state *WindowState) {
 				state.Alive = false
+				state.Visible = false
 			})
 			return evt.Err
 		case gioApp.ConfigEvent:
@@ -492,6 +622,12 @@ func (a *Application) Run() error {
 			entry.updateNativeHandle(evt)
 		case gioApp.FrameEvent:
 			entry.updateFromFrame(evt.Size, evt.Metric)
+			if entry.renderSuspendedSnapshot() {
+				ops.Reset()
+				entry.releaseHiddenMemoryIfRequested()
+				evt.Frame(&ops)
+				continue
+			}
 			gtx := gioApp.NewContext(&ops, evt)
 			rt.BeginFrame()
 			ctx := rt.Frame(gtx)
@@ -505,6 +641,10 @@ func (a *Application) Run() error {
 			}
 			rt.EndFrame()
 
+			if entry.renderSuspendedSnapshot() {
+				ops.Reset()
+				entry.releaseHiddenMemoryIfRequested()
+			}
 			evt.Frame(gtx.Ops)
 		}
 	}
@@ -599,6 +739,18 @@ func (c *windowController) Close() bool {
 	return c.handle.Close()
 }
 
+func (c *windowController) Show() bool {
+	return c.handle.Show()
+}
+
+func (c *windowController) Hide() bool {
+	return c.handle.Hide()
+}
+
+func (c *windowController) SetHiddenMemoryPolicy(policy internal.WindowHiddenMemoryPolicy) bool {
+	return c.handle.SetHiddenMemoryPolicy(WindowHiddenMemoryPolicy(policy))
+}
+
 func (c *windowController) Minimize() bool {
 	return c.handle.Minimize()
 }
@@ -617,6 +769,10 @@ func (c *windowController) Fullscreen() bool {
 
 func (c *windowController) Raise() bool {
 	return c.handle.Raise()
+}
+
+func (c *windowController) SetAlwaysOnTop(always bool) bool {
+	return c.handle.SetAlwaysOnTop(always)
 }
 
 func (c *windowController) Center() bool {
@@ -648,14 +804,18 @@ func (c *windowController) IsAlive() bool {
 }
 
 type windowEntry struct {
-	id           WindowID
-	win          *gioApp.Window
-	alive        atomic.Bool
-	mu           sync.RWMutex
-	metric       unit.Metric
-	nativeHandle uintptr
-	state        WindowState
-	events       []WindowEvent
+	id                      WindowID
+	win                     *gioApp.Window
+	alive                   atomic.Bool
+	trimHiddenMemoryPending atomic.Bool
+	mu                      sync.RWMutex
+	metric                  unit.Metric
+	nativeHandle            uintptr
+	nativeMaximizeHandle    uintptr
+	nativeMaximizeSynced    bool
+	nativeMaximizeEnabled   bool
+	state                   WindowState
+	events                  []WindowEvent
 }
 
 var (
@@ -698,6 +858,67 @@ func (entry *windowEntry) snapshot() WindowState {
 	return state
 }
 
+func (entry *windowEntry) nativeHandleSnapshot() uintptr {
+	entry.mu.RLock()
+	handle := entry.nativeHandle
+	entry.mu.RUnlock()
+	return handle
+}
+
+func (entry *windowEntry) renderSuspendedSnapshot() bool {
+	entry.mu.RLock()
+	suspended := entry.state.RenderSuspended
+	entry.mu.RUnlock()
+	return suspended
+}
+
+func (entry *windowEntry) maximizeDisabledByConstraints() bool {
+	return hasWindowMaxSize(entry.snapshot())
+}
+
+func (entry *windowEntry) syncNativeMaximizeAvailability() {
+	entry.mu.Lock()
+	handle := entry.nativeHandle
+	if handle == 0 {
+		entry.mu.Unlock()
+		return
+	}
+	enabled := !hasWindowMaxSize(entry.state)
+	if enabled && !entry.nativeMaximizeSynced {
+		entry.mu.Unlock()
+		return
+	}
+	if entry.nativeMaximizeSynced &&
+		entry.nativeMaximizeHandle == handle &&
+		entry.nativeMaximizeEnabled == enabled {
+		entry.mu.Unlock()
+		return
+	}
+	entry.nativeMaximizeHandle = handle
+	entry.nativeMaximizeSynced = true
+	entry.nativeMaximizeEnabled = enabled
+	entry.mu.Unlock()
+
+	setNativeWindowMaximizeEnabled(handle, enabled)
+}
+
+func (entry *windowEntry) requestHiddenMemoryTrim() {
+	if entry == nil {
+		return
+	}
+	entry.trimHiddenMemoryPending.Store(true)
+}
+
+func (entry *windowEntry) releaseHiddenMemoryIfRequested() {
+	if entry == nil || !entry.trimHiddenMemoryPending.Swap(false) {
+		return
+	}
+	go func() {
+		runtime.GC()
+		debug.FreeOSMemory()
+	}()
+}
+
 func (entry *windowEntry) updateState(fn func(state *WindowState)) {
 	if entry == nil || fn == nil {
 		return
@@ -711,6 +932,7 @@ func (entry *windowEntry) updateState(fn func(state *WindowState)) {
 
 func (entry *windowEntry) updateFromConfig(config gioApp.Config) {
 	entry.updateAndEmit(func(state *WindowState) {
+		wasFullscreen := state.Fullscreen
 		if config.Title != "" {
 			state.Title = config.Title
 		}
@@ -718,8 +940,10 @@ func (entry *windowEntry) updateFromConfig(config gioApp.Config) {
 		state.Decorated = config.Decorated
 		applyWindowModeState(state, config.Mode)
 		updateDpSizeFromMetric(state, entry.metric, config.Size.X, config.Size.Y)
-		updateDpMinSizeFromMetric(state, entry.metric, config.MinSize.X, config.MinSize.Y)
-		updateDpMaxSizeFromMetric(state, entry.metric, config.MaxSize.X, config.MaxSize.Y)
+		if shouldSyncConfigConstraints(wasFullscreen, config) {
+			updateDpMinSizeFromMetric(state, entry.metric, config.MinSize.X, config.MinSize.Y)
+			updateDpMaxSizeFromMetric(state, entry.metric, config.MaxSize.X, config.MaxSize.Y)
+		}
 	})
 }
 
@@ -798,6 +1022,10 @@ func windowEventKinds(before, after WindowState) []WindowEventKind {
 		before.Maximized != after.Maximized ||
 		before.Fullscreen != after.Fullscreen ||
 		before.Decorated != after.Decorated ||
+		before.Visible != after.Visible ||
+		before.AlwaysOnTop != after.AlwaysOnTop ||
+		before.RenderSuspended != after.RenderSuspended ||
+		before.HiddenMemoryPolicy != after.HiddenMemoryPolicy ||
 		before.Title != after.Title ||
 		before.MinWidth != after.MinWidth ||
 		before.MinHeight != after.MinHeight ||
@@ -813,6 +1041,71 @@ func applyWindowModeState(state *WindowState, mode gioApp.WindowMode) {
 	state.Minimized = mode == gioApp.Minimized
 	state.Maximized = mode == gioApp.Maximized
 	state.Fullscreen = mode == gioApp.Fullscreen
+}
+
+func hasWindowMaxSize(state WindowState) bool {
+	return state.MaxWidth > 0 && state.MaxHeight > 0
+}
+
+func applyWindowRenderSuspendedState(state *WindowState) {
+	state.RenderSuspended = !state.Visible && state.HiddenMemoryPolicy == WindowHiddenMemoryReleaseTransient
+}
+
+func validWindowHiddenMemoryPolicy(policy WindowHiddenMemoryPolicy) bool {
+	switch policy {
+	case WindowHiddenMemoryReleaseTransient, WindowHiddenMemoryKeepRenderingState:
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeWindowHiddenMemoryPolicy(policy WindowHiddenMemoryPolicy) WindowHiddenMemoryPolicy {
+	if validWindowHiddenMemoryPolicy(policy) {
+		return policy
+	}
+	return WindowHiddenMemoryReleaseTransient
+}
+
+func (entry *windowEntry) modeOptions(mode gioApp.WindowMode) []gioApp.Option {
+	if mode == gioApp.Fullscreen {
+		return []gioApp.Option{
+			clearWindowConstraints(),
+			mode.Option(),
+		}
+	}
+
+	opts := []gioApp.Option{mode.Option()}
+	return append(opts, entry.constraintOptions()...)
+}
+
+func (entry *windowEntry) constraintOptions() []gioApp.Option {
+	state := entry.snapshot()
+	opts := make([]gioApp.Option, 0, 2)
+	if state.MinWidth > 0 && state.MinHeight > 0 {
+		opts = append(opts, gioApp.MinSize(unit.Dp(state.MinWidth), unit.Dp(state.MinHeight)))
+	}
+	if state.MaxWidth > 0 && state.MaxHeight > 0 {
+		opts = append(opts, gioApp.MaxSize(unit.Dp(state.MaxWidth), unit.Dp(state.MaxHeight)))
+	}
+	return opts
+}
+
+func clearWindowConstraints() gioApp.Option {
+	return func(_ unit.Metric, config *gioApp.Config) {
+		config.MinSize = image.Point{}
+		config.MaxSize = image.Point{}
+	}
+}
+
+func shouldSyncConfigConstraints(wasFullscreen bool, config gioApp.Config) bool {
+	if config.Mode == gioApp.Fullscreen {
+		return false
+	}
+	if wasFullscreen && config.MinSize == (image.Point{}) && config.MaxSize == (image.Point{}) {
+		return false
+	}
+	return true
 }
 
 func updateDpSizeFromMetric(state *WindowState, metric unit.Metric, widthPx, heightPx int) {

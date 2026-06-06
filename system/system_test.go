@@ -69,6 +69,84 @@ func (d *testNotificationDriver) notify(ctx context.Context, opts notificationOp
 	return d.err
 }
 
+type testTrayDriver struct {
+	testDriver
+	called bool
+	opts   trayOptions
+	handle *testTrayHandle
+	err    error
+}
+
+func (d *testTrayDriver) newTray(opts trayOptions) (trayHandle, error) {
+	d.called = true
+	d.opts = opts
+	if d.err != nil {
+		return nil, d.err
+	}
+	if d.handle == nil {
+		d.handle = &testTrayHandle{}
+	}
+	return d.handle, nil
+}
+
+type testTrayHandle struct {
+	icon       string
+	tooltip    string
+	menu       TrayMenu
+	showCount  int
+	hideCount  int
+	closeCount int
+	err        error
+}
+
+func (h *testTrayHandle) setIcon(path string) error {
+	if h.err != nil {
+		return h.err
+	}
+	h.icon = path
+	return nil
+}
+
+func (h *testTrayHandle) setTooltip(text string) error {
+	if h.err != nil {
+		return h.err
+	}
+	h.tooltip = text
+	return nil
+}
+
+func (h *testTrayHandle) setMenu(menu TrayMenu) error {
+	if h.err != nil {
+		return h.err
+	}
+	h.menu = cloneTrayMenu(menu)
+	return nil
+}
+
+func (h *testTrayHandle) show() error {
+	if h.err != nil {
+		return h.err
+	}
+	h.showCount++
+	return nil
+}
+
+func (h *testTrayHandle) hide() error {
+	if h.err != nil {
+		return h.err
+	}
+	h.hideCount++
+	return nil
+}
+
+func (h *testTrayHandle) close() error {
+	if h.err != nil {
+		return h.err
+	}
+	h.closeCount++
+	return nil
+}
+
 func withTestDriver(t *testing.T, d driver) {
 	t.Helper()
 
@@ -96,6 +174,12 @@ func TestErrorHelpers(t *testing.T) {
 	}
 	if IsUnavailable(errors.New("other")) {
 		t.Fatal("unrelated error should not be unavailable")
+	}
+	if !IsClosed(fmt.Errorf("wrapped: %w", ErrClosed)) {
+		t.Fatal("expected wrapped ErrClosed to be detected")
+	}
+	if IsClosed(errors.New("other")) {
+		t.Fatal("unrelated error should not be closed")
 	}
 }
 
@@ -165,6 +249,9 @@ func TestNilDriverFallsBackToPlatformDriver(t *testing.T) {
 		if !caps.Supports(CapabilityWindow) {
 			t.Fatal("windows platform driver should support window capability")
 		}
+		if !caps.Supports(CapabilityTray) {
+			t.Fatal("windows platform driver should support tray capability")
+		}
 		return
 	}
 
@@ -189,6 +276,9 @@ func TestCurrentPlatformCapabilities(t *testing.T) {
 		if !caps.Supports(CapabilityNotification) {
 			t.Fatal("windows should expose notification capability")
 		}
+		if !caps.Supports(CapabilityTray) {
+			t.Fatal("windows should expose tray capability")
+		}
 		return
 	}
 
@@ -203,6 +293,9 @@ func TestCurrentPlatformCapabilities(t *testing.T) {
 	}
 	if caps.Supports(CapabilityNotification) {
 		t.Fatal("unsupported platform should not expose notification capability")
+	}
+	if caps.Supports(CapabilityTray) {
+		t.Fatal("unsupported platform should not expose tray capability")
 	}
 }
 
@@ -557,5 +650,188 @@ func TestNotifyPropagatesUnavailable(t *testing.T) {
 	err := Notify(context.Background())
 	if !IsUnavailable(err) {
 		t.Fatalf("expected unavailable error, got %v", err)
+	}
+}
+
+func TestNewTrayRequiresCapability(t *testing.T) {
+	withTestDriver(t, testDriver{caps: CapabilitySet{}})
+
+	_, err := NewTray()
+	if !IsUnsupported(err) {
+		t.Fatalf("expected unsupported error, got %v", err)
+	}
+}
+
+func TestNewTrayRequiresDriverImplementation(t *testing.T) {
+	withTestDriver(t, testDriver{caps: CapabilitySet{CapabilityTray: true}})
+
+	_, err := NewTray()
+	if !IsUnsupported(err) {
+		t.Fatalf("expected unsupported error, got %v", err)
+	}
+}
+
+func TestNewTrayOptionsAndCallbacks(t *testing.T) {
+	td := &testTrayDriver{
+		testDriver: testDriver{caps: CapabilitySet{CapabilityTray: true}},
+	}
+	withTestDriver(t, td)
+
+	clicked := make(chan TrayEvent, 1)
+	doubleClicked := make(chan TrayEvent, 1)
+	menuClicked := make(chan TrayEvent, 1)
+	menu := TrayMenu{
+		TrayMenuAction("open", "Open", func(event TrayEvent) {
+			menuClicked <- event
+		}),
+		TrayMenuSeparator(),
+		{ID: "enabled", Label: "Enabled"},
+		{ID: "disabled", Label: "Disabled", Disabled: true},
+		{ID: "checked", Label: "Checked", Checked: true},
+	}
+
+	tray, err := NewTray(
+		TrayIcon("C:\\tmp\\tray.ico"),
+		TrayTooltip("FluxUI"),
+		TrayMenuItems(menu...),
+		TrayOnClick(func(event TrayEvent) {
+			clicked <- event
+		}),
+		TrayOnDoubleClick(func(event TrayEvent) {
+			doubleClicked <- event
+		}),
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if tray == nil {
+		t.Fatal("expected tray")
+	}
+	if !td.called {
+		t.Fatal("expected tray driver to be called")
+	}
+	if td.opts.icon != "C:\\tmp\\tray.ico" {
+		t.Fatalf("unexpected icon: %q", td.opts.icon)
+	}
+	if td.opts.tooltip != "FluxUI" {
+		t.Fatalf("unexpected tooltip: %q", td.opts.tooltip)
+	}
+	if len(td.opts.menu) != len(menu) {
+		t.Fatalf("expected %d menu items, got %d", len(menu), len(td.opts.menu))
+	}
+	if !td.opts.menu[1].Separator || !td.opts.menu[3].Disabled || !td.opts.menu[4].Checked {
+		t.Fatalf("menu item flags were not preserved: %#v", td.opts.menu)
+	}
+
+	menu[0].Label = "Mutated"
+	if td.opts.menu[0].Label != "Open" {
+		t.Fatalf("tray menu option should be cloned, got %q", td.opts.menu[0].Label)
+	}
+
+	td.opts.onClick(TrayEvent{Kind: TrayEventClicked})
+	assertTrayEvent(t, clicked, TrayEventClicked, "")
+	td.opts.onDoubleClick(TrayEvent{Kind: TrayEventDoubleClick})
+	assertTrayEvent(t, doubleClicked, TrayEventDoubleClick, "")
+	td.opts.menu[0].OnClick(TrayEvent{Kind: TrayEventMenuItem, ItemID: "open"})
+	assertTrayEvent(t, menuClicked, TrayEventMenuItem, "open")
+}
+
+func TestTrayLifecycleMethods(t *testing.T) {
+	handle := &testTrayHandle{}
+	td := &testTrayDriver{
+		testDriver: testDriver{caps: CapabilitySet{CapabilityTray: true}},
+		handle:     handle,
+	}
+	withTestDriver(t, td)
+
+	tray, err := NewTray()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if err := tray.SetIcon("C:\\tmp\\next.ico"); err != nil {
+		t.Fatalf("unexpected SetIcon error: %v", err)
+	}
+	if handle.icon != "C:\\tmp\\next.ico" {
+		t.Fatalf("unexpected icon: %q", handle.icon)
+	}
+	if err := tray.SetTooltip("Ready"); err != nil {
+		t.Fatalf("unexpected SetTooltip error: %v", err)
+	}
+	if handle.tooltip != "Ready" {
+		t.Fatalf("unexpected tooltip: %q", handle.tooltip)
+	}
+
+	menu := TrayMenu{{ID: "quit", Label: "Quit"}}
+	if err := tray.SetMenu(menu); err != nil {
+		t.Fatalf("unexpected SetMenu error: %v", err)
+	}
+	menu[0].Label = "Mutated"
+	if len(handle.menu) != 1 || handle.menu[0].Label != "Quit" {
+		t.Fatalf("expected menu to be cloned, got %#v", handle.menu)
+	}
+
+	if err := tray.Show(); err != nil {
+		t.Fatalf("unexpected Show error: %v", err)
+	}
+	if err := tray.Hide(); err != nil {
+		t.Fatalf("unexpected Hide error: %v", err)
+	}
+	if handle.showCount != 1 || handle.hideCount != 1 {
+		t.Fatalf("unexpected show/hide counts: %d/%d", handle.showCount, handle.hideCount)
+	}
+	if err := tray.Close(); err != nil {
+		t.Fatalf("unexpected Close error: %v", err)
+	}
+	if handle.closeCount != 1 {
+		t.Fatalf("expected close count 1, got %d", handle.closeCount)
+	}
+	if err := tray.SetIcon("C:\\tmp\\closed.ico"); !IsClosed(err) {
+		t.Fatalf("expected closed error after Close, got %v", err)
+	}
+	if err := tray.Show(); !IsClosed(err) {
+		t.Fatalf("expected closed Show error, got %v", err)
+	}
+	if err := tray.Close(); !IsClosed(err) {
+		t.Fatalf("expected second Close to report closed, got %v", err)
+	}
+	if handle.closeCount != 1 {
+		t.Fatalf("closed tray should not call driver again, got close count %d", handle.closeCount)
+	}
+}
+
+func TestTrayNilReceiverReportsClosed(t *testing.T) {
+	var tray *Tray
+	if err := tray.Show(); !IsClosed(err) {
+		t.Fatalf("expected nil tray Show to report closed, got %v", err)
+	}
+	if err := tray.Close(); !IsClosed(err) {
+		t.Fatalf("expected nil tray Close to report closed, got %v", err)
+	}
+}
+
+func TestNewTrayPropagatesUnavailable(t *testing.T) {
+	td := &testTrayDriver{
+		testDriver: testDriver{caps: CapabilitySet{CapabilityTray: true}},
+		err:        fmt.Errorf("wrapped: %w", ErrUnavailable),
+	}
+	withTestDriver(t, td)
+
+	_, err := NewTray()
+	if !IsUnavailable(err) {
+		t.Fatalf("expected unavailable error, got %v", err)
+	}
+}
+
+func assertTrayEvent(t *testing.T, ch <-chan TrayEvent, kind TrayEventKind, itemID string) {
+	t.Helper()
+
+	select {
+	case event := <-ch:
+		if event.Kind != kind || event.ItemID != itemID {
+			t.Fatalf("unexpected tray event: %#v", event)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for tray event %q", kind)
 	}
 }

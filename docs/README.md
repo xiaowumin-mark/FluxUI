@@ -11,7 +11,8 @@
 - `docs/guides/file-dialog-api.md`: 文档浏览器中的 File Dialog API 文件选择指南。
 - `docs/guides/message-box-api.md`: 文档浏览器中的 MessageBox API 系统消息框指南。
 - `docs/guides/notification-api.md`: 文档浏览器中的 Notification API 系统通知指南。
-- `examples/system_showcase`: System API 人工验收示例，当前覆盖 File Dialog、MessageBox 和 Notification。
+- `docs/guides/tray-api.md`: 文档浏览器中的 Tray API 托盘指南。
+- `examples/system_showcase`: System API 人工验收示例，当前覆盖 File Dialog、MessageBox、Notification 和 Tray。
 
 当前文档已重构为“每个主题一个 Markdown 文件”，文档浏览器会扫描以下目录：
 

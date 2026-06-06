@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
@@ -23,12 +24,13 @@ func mainWindow(ctx *ui.Context) ui.Element {
 			eventLog.Set(appendEventLog(eventLog.Value(), events))
 		}
 	}
+	maxLimited := hasWindowMaxSize(state)
 
 	return ui.ContainerDecorationElement(
 		ui.Bg(th.Surface).WithPad(ui.All(16)),
 		ui.ColumnElement(
 			ui.TextElement("Window API Showcase", ui.TextSize(22)),
-			ui.PaddingElement(ui.Insets{Top: 8}, ui.TextElement(formatState(state), ui.TextSize(13), ui.TextColor(th.SurfaceMuted))),
+			ui.PaddingElement(ui.Insets{Top: 8}, ui.TextElement(formatState(state), ui.TextSize(13), ui.TextColor(th.Primary))),
 			ui.PaddingElement(ui.Insets{Top: 12}, ui.RowElement(
 				ui.FilledButtonElement(ui.TextElement("改标题"), ui.OnClick(func(ctx *ui.Context) {
 					next := titleSeq.Value() + 1
@@ -48,7 +50,7 @@ func mainWindow(ctx *ui.Context) ui.Element {
 			ui.PaddingElement(ui.Insets{Top: 10}, ui.RowElement(
 				ui.ButtonElement(ui.TextElement("最小化"), ui.OnClick(func(ctx *ui.Context) { ui.WindowMinimize(ctx) })),
 				ui.HSpacerElement(8),
-				ui.ButtonElement(ui.TextElement("最大化"), ui.OnClick(func(ctx *ui.Context) { ui.WindowMaximize(ctx) })),
+				ui.ButtonElement(ui.TextElement(maximizeLabel(maxLimited)), ui.Disabled(maxLimited), ui.OnClick(func(ctx *ui.Context) { ui.WindowMaximize(ctx) })),
 				ui.HSpacerElement(8),
 				ui.ButtonElement(ui.TextElement("还原"), ui.OnClick(func(ctx *ui.Context) { ui.WindowRestore(ctx) })),
 				ui.HSpacerElement(8),
@@ -57,7 +59,30 @@ func mainWindow(ctx *ui.Context) ui.Element {
 			ui.PaddingElement(ui.Insets{Top: 10}, ui.RowElement(
 				ui.ButtonElement(ui.TextElement("居中"), ui.OnClick(func(ctx *ui.Context) { ui.WindowCenter(ctx) })),
 				ui.HSpacerElement(8),
-				ui.ButtonElement(ui.TextElement("置顶请求"), ui.OnClick(func(ctx *ui.Context) { ui.WindowRaise(ctx) })),
+				ui.ButtonElement(ui.TextElement("前置请求"), ui.OnClick(func(ctx *ui.Context) { ui.WindowRaise(ctx) })),
+				ui.HSpacerElement(8),
+				ui.ButtonElement(ui.TextElement(topmostLabel(state.AlwaysOnTop)), ui.OnClick(func(ctx *ui.Context) {
+					ui.WindowSetAlwaysOnTop(ctx, !state.AlwaysOnTop)
+				})),
+				ui.HSpacerElement(8),
+				ui.ButtonElement(ui.TextElement("隐藏 10 秒"), ui.OnClick(func(ctx *ui.Context) {
+					if !hasHandle {
+						return
+					}
+					ui.WindowHide(ctx)
+					go func(handle ui.WindowHandle) {
+						time.Sleep(10 * time.Second)
+						handle.Show()
+						handle.Invalidate()
+					}(handle)
+				})),
+			)),
+			ui.PaddingElement(ui.Insets{Top: 10}, ui.RowElement(
+				ui.ButtonElement(ui.TextElement(hiddenMemoryPolicyLabel(state.HiddenMemoryPolicy)), ui.OnClick(func(ctx *ui.Context) {
+					ui.WindowSetHiddenMemoryPolicy(ctx, toggleHiddenMemoryPolicy(state.HiddenMemoryPolicy))
+				})),
+				ui.HSpacerElement(8),
+				ui.ButtonElement(ui.TextElement("显示当前"), ui.OnClick(func(ctx *ui.Context) { ui.WindowShow(ctx) })),
 				ui.HSpacerElement(8),
 				ui.ButtonElement(ui.TextElement("关闭工具窗口"), ui.OnClick(func(ctx *ui.Context) {
 					for _, other := range ui.ListWindows() {
@@ -68,7 +93,7 @@ func mainWindow(ctx *ui.Context) ui.Element {
 				})),
 			)),
 			ui.PaddingElement(ui.Insets{Top: 16}, ui.TextElement("事件", ui.TextSize(16))),
-			ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement(formatEvents(eventLog.Value()), ui.TextSize(12), ui.TextColor(th.SurfaceMuted))),
+			ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement(formatEvents(eventLog.Value()), ui.TextSize(12), ui.TextColor(th.Primary))),
 		),
 	)
 }
@@ -88,7 +113,7 @@ func toolWindow(ctx *ui.Context) ui.Element {
 		ui.Bg(th.Surface).WithPad(ui.All(16)),
 		ui.ColumnElement(
 			ui.TextElement("Tool Window", ui.TextSize(20)),
-			ui.PaddingElement(ui.Insets{Top: 8}, ui.TextElement(formatState(state), ui.TextSize(13), ui.TextColor(th.SurfaceMuted))),
+			ui.PaddingElement(ui.Insets{Top: 8}, ui.TextElement(formatState(state), ui.TextSize(13), ui.TextColor(th.Primary))),
 			ui.PaddingElement(ui.Insets{Top: 12}, ui.RowElement(
 				ui.ButtonElement(ui.TextElement("改标题"), ui.OnClick(func(ctx *ui.Context) {
 					ui.WindowSetTitle(ctx, "Tool Window Active")
@@ -102,7 +127,7 @@ func toolWindow(ctx *ui.Context) ui.Element {
 
 func formatState(state ui.WindowState) string {
 	return fmt.Sprintf(
-		"ID=%d title=%q size=%dx%d min=%dx%d max=%dx%d minimized=%v maximized=%v fullscreen=%v focused=%v alive=%v",
+		"ID=%d title=%q size=%dx%d min=%dx%d max=%dx%d visible=%v topmost=%v renderSuspended=%v hiddenMemory=%s minimized=%v maximized=%v fullscreen=%v focused=%v alive=%v",
 		state.ID,
 		state.Title,
 		state.Width,
@@ -111,12 +136,55 @@ func formatState(state ui.WindowState) string {
 		state.MinHeight,
 		state.MaxWidth,
 		state.MaxHeight,
+		state.Visible,
+		state.AlwaysOnTop,
+		state.RenderSuspended,
+		hiddenMemoryPolicyName(state.HiddenMemoryPolicy),
 		state.Minimized,
 		state.Maximized,
 		state.Fullscreen,
 		state.Focused,
 		state.Alive,
 	)
+}
+
+func hasWindowMaxSize(state ui.WindowState) bool {
+	return state.MaxWidth > 0 && state.MaxHeight > 0
+}
+
+func maximizeLabel(limited bool) string {
+	if limited {
+		return "最大化不可用"
+	}
+	return "最大化"
+}
+
+func topmostLabel(always bool) string {
+	if always {
+		return "取消持续置顶"
+	}
+	return "持续置顶"
+}
+
+func hiddenMemoryPolicyLabel(policy ui.WindowHiddenMemoryPolicy) string {
+	if policy == ui.WindowHiddenMemoryKeepRenderingState {
+		return "隐藏释放临时内存"
+	}
+	return "隐藏保留渲染状态"
+}
+
+func toggleHiddenMemoryPolicy(policy ui.WindowHiddenMemoryPolicy) ui.WindowHiddenMemoryPolicy {
+	if policy == ui.WindowHiddenMemoryKeepRenderingState {
+		return ui.WindowHiddenMemoryReleaseTransient
+	}
+	return ui.WindowHiddenMemoryKeepRenderingState
+}
+
+func hiddenMemoryPolicyName(policy ui.WindowHiddenMemoryPolicy) string {
+	if policy == ui.WindowHiddenMemoryKeepRenderingState {
+		return "keep"
+	}
+	return "release"
 }
 
 func appendEventLog(log []string, events []ui.WindowEvent) []string {

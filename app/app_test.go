@@ -13,6 +13,7 @@ func TestWindowStateSnapshot(t *testing.T) {
 		Title:     "Initial",
 		Width:     320,
 		Height:    240,
+		Visible:   true,
 		Decorated: true,
 		Alive:     true,
 	})
@@ -22,7 +23,7 @@ func TestWindowStateSnapshot(t *testing.T) {
 	if !ok {
 		t.Fatal("expected state for live window")
 	}
-	if state.ID != entry.id || state.Title != "Initial" || state.Width != 320 || state.Height != 240 || !state.Alive {
+	if state.ID != entry.id || state.Title != "Initial" || state.Width != 320 || state.Height != 240 || !state.Visible || !state.Alive {
 		t.Fatalf("unexpected state: %#v", state)
 	}
 }
@@ -64,6 +65,174 @@ func TestWindowHandleStateMutations(t *testing.T) {
 	}
 	if !state.Fullscreen || state.Minimized || state.Maximized {
 		t.Fatalf("unexpected mode flags: %#v", state)
+	}
+}
+
+func TestWindowMaximizeBlockedByMaxSize(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:     "Initial",
+		Width:     320,
+		Height:    240,
+		MaxWidth:  900,
+		MaxHeight: 700,
+		Alive:     true,
+	})
+	handle := WindowHandle{id: entry.id}
+
+	if handle.Maximize() {
+		t.Fatal("expected Maximize to fail when max size is set")
+	}
+	state, ok := handle.State()
+	if !ok {
+		t.Fatal("expected state for live window")
+	}
+	if state.Maximized {
+		t.Fatalf("max size constrained window should not enter maximized state: %#v", state)
+	}
+}
+
+func TestWindowSetMaxSizeBlocksFutureMaximize(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:  "Initial",
+		Width:  320,
+		Height: 240,
+		Alive:  true,
+	})
+	handle := WindowHandle{id: entry.id}
+
+	if !handle.SetMaxSize(900, 700) {
+		t.Fatal("expected SetMaxSize to succeed")
+	}
+	if handle.Maximize() {
+		t.Fatal("expected Maximize to fail after SetMaxSize")
+	}
+	state, ok := handle.State()
+	if !ok {
+		t.Fatal("expected state for live window")
+	}
+	if state.MaxWidth != 900 || state.MaxHeight != 700 || state.Maximized {
+		t.Fatalf("unexpected constrained state: %#v", state)
+	}
+}
+
+func TestWindowFullscreenConfigPreservesRequestedConstraints(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:     "Initial",
+		Width:     640,
+		Height:    480,
+		MinWidth:  360,
+		MinHeight: 240,
+		MaxWidth:  900,
+		MaxHeight: 700,
+		Alive:     true,
+	})
+	entry.metric = unit.Metric{PxPerDp: 2, PxPerSp: 2}
+	handle := WindowHandle{id: entry.id}
+
+	if !handle.Fullscreen() {
+		t.Fatal("expected Fullscreen to succeed")
+	}
+	entry.updateFromConfig(gioApp.Config{
+		Mode:    gioApp.Fullscreen,
+		Size:    imagePoint(1920, 1080),
+		MinSize: imagePoint(0, 0),
+		MaxSize: imagePoint(0, 0),
+	})
+
+	state, ok := handle.State()
+	if !ok {
+		t.Fatal("expected state for live window")
+	}
+	if !state.Fullscreen {
+		t.Fatalf("expected fullscreen state: %#v", state)
+	}
+	if state.MinWidth != 360 || state.MinHeight != 240 || state.MaxWidth != 900 || state.MaxHeight != 700 {
+		t.Fatalf("fullscreen config should not drop requested constraints: %#v", state)
+	}
+}
+
+func TestNativeWindowControlsRequireNativeHandle(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:  "Initial",
+		Width:  320,
+		Height: 240,
+		Alive:  true,
+	})
+	handle := WindowHandle{id: entry.id}
+
+	if handle.SetAlwaysOnTop(true) {
+		t.Fatal("expected SetAlwaysOnTop without native handle to fail")
+	}
+	if handle.Hide() {
+		t.Fatal("expected Hide without native handle to fail")
+	}
+	if handle.Show() {
+		t.Fatal("expected Show without native handle to fail")
+	}
+}
+
+func TestWindowHiddenMemoryPolicyState(t *testing.T) {
+	state := WindowState{
+		Visible:            true,
+		HiddenMemoryPolicy: WindowHiddenMemoryReleaseTransient,
+	}
+	applyWindowRenderSuspendedState(&state)
+	if state.RenderSuspended {
+		t.Fatalf("visible window should not suspend rendering: %#v", state)
+	}
+
+	state.Visible = false
+	applyWindowRenderSuspendedState(&state)
+	if !state.RenderSuspended {
+		t.Fatalf("hidden release-transient window should suspend rendering: %#v", state)
+	}
+
+	state.HiddenMemoryPolicy = WindowHiddenMemoryKeepRenderingState
+	applyWindowRenderSuspendedState(&state)
+	if state.RenderSuspended {
+		t.Fatalf("keep-rendering policy should not suspend rendering: %#v", state)
+	}
+}
+
+func TestWindowSetHiddenMemoryPolicy(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:              "Initial",
+		Width:              320,
+		Height:             240,
+		Visible:            false,
+		HiddenMemoryPolicy: WindowHiddenMemoryKeepRenderingState,
+		Alive:              true,
+	})
+	handle := WindowHandle{id: entry.id}
+	entry.updateState(func(state *WindowState) {
+		state.Visible = false
+		state.HiddenMemoryPolicy = WindowHiddenMemoryKeepRenderingState
+		applyWindowRenderSuspendedState(state)
+	})
+
+	if handle.SetHiddenMemoryPolicy(WindowHiddenMemoryPolicy(99)) {
+		t.Fatal("expected invalid hidden memory policy to fail")
+	}
+	if !handle.SetHiddenMemoryPolicy(WindowHiddenMemoryReleaseTransient) {
+		t.Fatal("expected SetHiddenMemoryPolicy to succeed")
+	}
+	state, ok := handle.State()
+	if !ok {
+		t.Fatal("expected state for live window")
+	}
+	if state.HiddenMemoryPolicy != WindowHiddenMemoryReleaseTransient || !state.RenderSuspended {
+		t.Fatalf("expected release-transient policy to suspend hidden window: %#v", state)
+	}
+
+	if !handle.SetHiddenMemoryPolicy(WindowHiddenMemoryKeepRenderingState) {
+		t.Fatal("expected SetHiddenMemoryPolicy keep-rendering to succeed")
+	}
+	state, ok = handle.State()
+	if !ok {
+		t.Fatal("expected state for live window")
+	}
+	if state.HiddenMemoryPolicy != WindowHiddenMemoryKeepRenderingState || state.RenderSuspended {
+		t.Fatalf("expected keep-rendering policy to resume hidden window rendering state: %#v", state)
 	}
 }
 
@@ -164,10 +333,23 @@ func TestWindowInvalidInputsAndClosedState(t *testing.T) {
 	if handle.SetMaxSize(100, 0) {
 		t.Fatal("expected invalid SetMaxSize to fail")
 	}
+	if handle.SetHiddenMemoryPolicy(WindowHiddenMemoryPolicy(99)) {
+		t.Fatal("expected invalid SetHiddenMemoryPolicy to fail")
+	}
+	if handle.SetAlwaysOnTop(true) {
+		t.Fatal("expected SetAlwaysOnTop without native handle to fail")
+	}
+	if handle.Hide() {
+		t.Fatal("expected Hide without native handle to fail")
+	}
+	if handle.Show() {
+		t.Fatal("expected Show without native handle to fail")
+	}
 
 	entry.alive.Store(false)
 	entry.pushEvent(WindowEventClosed, func(state *WindowState) {
 		state.Alive = false
+		state.Visible = false
 	})
 	if _, ok := handle.State(); ok {
 		t.Fatal("expected closed window state lookup to fail")
@@ -191,6 +373,11 @@ func testRegisterWindow(t *testing.T, state WindowState) *windowEntry {
 	}
 	entry.state.ID = entry.id
 	entry.state.Alive = true
+	entry.state.Visible = true
+	if !validWindowHiddenMemoryPolicy(entry.state.HiddenMemoryPolicy) {
+		entry.state.HiddenMemoryPolicy = WindowHiddenMemoryReleaseTransient
+	}
+	applyWindowRenderSuspendedState(&entry.state)
 	entry.alive.Store(true)
 	registerWindow(entry)
 

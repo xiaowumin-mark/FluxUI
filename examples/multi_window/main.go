@@ -15,6 +15,12 @@ func mainWindow(ctx *ui.Context) ui.Element {
 	currentID := ui.CurrentWindowID(ctx)
 	allWindows := ui.ListWindows()
 	currentHandle, currentAlive := ui.GetWindow(currentID)
+	currentTopmost := false
+	if currentAlive {
+		if state, ok := currentHandle.State(); ok {
+			currentTopmost = state.AlwaysOnTop
+		}
+	}
 
 	return ui.ContainerDecorationElement(
 		ui.Bg(th.Surface).WithPad(ui.All(16)),
@@ -35,7 +41,11 @@ func mainWindow(ctx *ui.Context) ui.Element {
 			ui.PaddingElement(ui.Insets{Top: 10}, ui.RowElement(
 				ui.ButtonElement(ui.TextElement("居中"), ui.OnClick(func(ctx *ui.Context) { ui.WindowCenter(ctx) })),
 				ui.HSpacerElement(10),
-				ui.ButtonElement(ui.TextElement("置顶"), ui.OnClick(func(ctx *ui.Context) { ui.WindowRaise(ctx) })),
+				ui.ButtonElement(ui.TextElement("前置"), ui.OnClick(func(ctx *ui.Context) { ui.WindowRaise(ctx) })),
+				ui.HSpacerElement(10),
+				ui.ButtonElement(ui.TextElement(topmostLabel(currentTopmost)), ui.OnClick(func(ctx *ui.Context) {
+					ui.WindowSetAlwaysOnTop(ctx, !currentTopmost)
+				})),
 				ui.HSpacerElement(10),
 				ui.ButtonElement(ui.TextElement("最小化"), ui.OnClick(func(ctx *ui.Context) { ui.WindowMinimize(ctx) })),
 			)),
@@ -61,6 +71,13 @@ func mainWindow(ctx *ui.Context) ui.Element {
 			)),
 		),
 	)
+}
+
+func topmostLabel(always bool) string {
+	if always {
+		return "取消置顶"
+	}
+	return "持续置顶"
 }
 
 func toolWindow(ctx *ui.Context) ui.Element {

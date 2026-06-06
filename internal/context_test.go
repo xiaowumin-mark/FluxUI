@@ -162,6 +162,15 @@ func TestWindowMethodsNilController(t *testing.T) {
 	if ctx.WindowClose() {
 		t.Fatal("expected false")
 	}
+	if ctx.WindowShow() {
+		t.Fatal("expected false")
+	}
+	if ctx.WindowHide() {
+		t.Fatal("expected false")
+	}
+	if ctx.WindowSetHiddenMemoryPolicy(WindowHiddenMemoryPolicy(0)) {
+		t.Fatal("expected false")
+	}
 	if ctx.WindowMinimize() {
 		t.Fatal("expected false")
 	}
@@ -175,6 +184,9 @@ func TestWindowMethodsNilController(t *testing.T) {
 		t.Fatal("expected false")
 	}
 	if ctx.WindowRaise() {
+		t.Fatal("expected false")
+	}
+	if ctx.WindowSetAlwaysOnTop(true) {
 		t.Fatal("expected false")
 	}
 	if ctx.WindowCenter() {

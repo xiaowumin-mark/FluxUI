@@ -177,6 +177,33 @@ func (c *Context) WindowClose() bool {
 	return ctrl != nil && ctrl.Close()
 }
 
+// WindowShow 请求显示当前窗口。
+func (c *Context) WindowShow() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.Show()
+}
+
+// WindowHide 请求隐藏当前窗口。
+func (c *Context) WindowHide() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.Hide()
+}
+
+// WindowSetHiddenMemoryPolicy 设置当前窗口隐藏后的渲染内存策略。
+func (c *Context) WindowSetHiddenMemoryPolicy(policy WindowHiddenMemoryPolicy) bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.SetHiddenMemoryPolicy(policy)
+}
+
 // WindowMinimize 请求最小化当前窗口。
 func (c *Context) WindowMinimize() bool {
 	if c == nil || c.runtime == nil {
@@ -213,13 +240,22 @@ func (c *Context) WindowFullscreen() bool {
 	return ctrl != nil && ctrl.Fullscreen()
 }
 
-// WindowRaise 请求将当前窗口置顶。
+// WindowRaise 请求将当前窗口一次性前置。
 func (c *Context) WindowRaise() bool {
 	if c == nil || c.runtime == nil {
 		return false
 	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.Raise()
+}
+
+// WindowSetAlwaysOnTop 设置当前窗口是否持续置顶。
+func (c *Context) WindowSetAlwaysOnTop(always bool) bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.SetAlwaysOnTop(always)
 }
 
 // WindowCenter 请求将当前窗口居中。

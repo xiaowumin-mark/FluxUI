@@ -14,5 +14,6 @@ func (windowsDriver) capabilities() CapabilitySet {
 		CapabilityFileDialog:   true,
 		CapabilityMessageBox:   true,
 		CapabilityNotification: true,
+		CapabilityTray:         true,
 	}
 }

@@ -20,6 +20,11 @@ type dialogStatusSetter interface {
 	Set(dialogStatus)
 }
 
+type trayState interface {
+	Value() *system.Tray
+	Set(*system.Tray)
+}
+
 func app(ctx *ui.Context) ui.Element {
 	th := ui.UseTheme(ctx)
 	status := ui.UseState(ctx, dialogStatus{
@@ -29,19 +34,23 @@ func app(ctx *ui.Context) ui.Element {
 	fileDialogSupported := system.Supports(system.CapabilityFileDialog)
 	messageBoxSupported := system.Supports(system.CapabilityMessageBox)
 	notificationSupported := system.Supports(system.CapabilityNotification)
+	traySupported := system.Supports(system.CapabilityTray)
 	currentID := ui.CurrentWindowID(ctx)
 	handle, _ := ui.GetWindow(currentID)
+	trayRef := ui.UseState[*system.Tray](ctx, nil)
 
 	state := status.Value()
 	fileDialogDisabled := state.Busy || !fileDialogSupported
 	messageBoxDisabled := state.Busy || !messageBoxSupported
 	notificationDisabled := state.Busy || !notificationSupported
+	trayDisabled := state.Busy || !traySupported
 
 	return ui.ContainerDecorationElement(
 		ui.Bg(th.Surface).WithPad(ui.All(16)),
-		ui.ColumnElement(
+		ui.ScrollViewElement(ui.ColumnElement(
+			// 滚动、
 			ui.TextElement("System API Showcase", ui.TextSize(22)),
-			ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement(capabilityText(fileDialogSupported, messageBoxSupported, notificationSupported), ui.TextSize(13), ui.TextColor(th.SurfaceMuted))),
+			ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement(capabilityText(fileDialogSupported, messageBoxSupported, notificationSupported, traySupported), ui.TextSize(13), ui.TextColor(th.SurfaceMuted))),
 			ui.VSpacerElement(16),
 			ui.TextElement("File Dialog", ui.TextSize(16)),
 			ui.VSpacerElement(8),
@@ -123,9 +132,38 @@ func app(ctx *ui.Context) ui.Element {
 			ui.TextElement("Notification", ui.TextSize(16)),
 			ui.VSpacerElement(8),
 			notificationButton("发送通知", notificationDisabled, status, handle),
+			ui.VSpacerElement(16),
+			ui.TextElement("Tray", ui.TextSize(16)),
+			ui.VSpacerElement(8),
+			trayCreateButton("创建托盘", trayDisabled, status, handle, trayRef),
+			ui.VSpacerElement(8),
+			trayActionButton("显示托盘", trayDisabled || trayRef.Value() == nil, status, handle, func() error {
+				tray := trayRef.Value()
+				if tray == nil {
+					return system.ErrClosed
+				}
+				return tray.Show()
+			}),
+			ui.VSpacerElement(8),
+			trayActionButton("隐藏托盘", trayDisabled || trayRef.Value() == nil, status, handle, func() error {
+				tray := trayRef.Value()
+				if tray == nil {
+					return system.ErrClosed
+				}
+				return tray.Hide()
+			}),
+			ui.VSpacerElement(8),
+			trayActionButton("隐藏主窗口", trayDisabled || trayRef.Value() == nil, status, handle, func() error {
+				if !handle.Hide() {
+					return fmt.Errorf("hide window unavailable")
+				}
+				return nil
+			}),
+			ui.VSpacerElement(8),
+			trayCloseButton("关闭托盘", trayDisabled || trayRef.Value() == nil, status, handle, trayRef),
 			ui.VSpacerElement(18),
 			resultPanel(th, state),
-		),
+		)),
 	)
 }
 
@@ -186,6 +224,126 @@ func notificationButton(label string, disabled bool, status dialogStatusSetter, 
 	))
 }
 
+func trayCreateButton(label string, disabled bool, status dialogStatusSetter, handle ui.WindowHandle, trayRef trayState) ui.Element {
+	return ui.FillWidthElement(ui.OutlinedButtonElement(
+		ui.TextElement(label),
+		ui.Disabled(disabled),
+		ui.OnClick(func(ctx *ui.Context) {
+			status.Set(dialogStatus{Busy: true, Message: label + "..."})
+			go func() {
+				if current := trayRef.Value(); current != nil {
+					_ = current.Close()
+					trayRef.Set(nil)
+				}
+
+				var tray *system.Tray
+				tray, err := system.NewTray(
+					system.TrayTooltip("FluxUI System Showcase"),
+					system.TrayOnClick(func(event system.TrayEvent) {
+						_ = handle.Show()
+						status.Set(dialogStatus{
+							Message: "托盘图标已点击，主窗口已显示。",
+							Result:  string(event.Kind),
+						})
+						handle.Invalidate()
+					}),
+					system.TrayOnDoubleClick(func(event system.TrayEvent) {
+						_ = handle.Show()
+						status.Set(dialogStatus{
+							Message: "托盘图标已双击，主窗口已显示。",
+							Result:  string(event.Kind),
+						})
+						handle.Invalidate()
+					}),
+					system.TrayMenuItems(
+						system.TrayMenuAction("show-window", "显示主窗口", func(event system.TrayEvent) {
+							_ = handle.Show()
+							status.Set(dialogStatus{Message: "托盘菜单已显示主窗口。", Result: event.ItemID})
+							handle.Invalidate()
+						}),
+						system.TrayMenuAction("hide-window", "隐藏主窗口", func(event system.TrayEvent) {
+							_ = handle.Hide()
+							status.Set(dialogStatus{Message: "托盘菜单已隐藏主窗口。", Result: event.ItemID})
+							handle.Invalidate()
+						}),
+						system.TrayMenuSeparator(),
+						system.TrayMenuItem{ID: "disabled", Label: "禁用菜单项", Disabled: true},
+						system.TrayMenuItem{
+							ID:      "checked",
+							Label:   "已选中菜单项",
+							Checked: true,
+							OnClick: func(event system.TrayEvent) {
+								status.Set(dialogStatus{Message: "托盘菜单选中项已点击。", Result: event.ItemID})
+								handle.Invalidate()
+							},
+						},
+						system.TrayMenuSeparator(),
+						system.TrayMenuAction("close-tray", "关闭托盘", func(event system.TrayEvent) {
+							err := system.ErrClosed
+							if tray != nil {
+								err = tray.Close()
+							}
+							trayRef.Set(nil)
+							status.Set(formatTrayResult("关闭托盘", err))
+							handle.Invalidate()
+						}),
+					),
+				)
+				if err != nil {
+					status.Set(formatTrayResult(label, err))
+					handle.Invalidate()
+					return
+				}
+				if err := tray.Show(); err != nil {
+					_ = tray.Close()
+					status.Set(formatTrayResult(label, err))
+					handle.Invalidate()
+					return
+				}
+				trayRef.Set(tray)
+				status.Set(dialogStatus{
+					Message: label + " 已创建并显示。",
+					Result:  "右键托盘图标可打开菜单。",
+				})
+				handle.Invalidate()
+			}()
+		}),
+	))
+}
+
+func trayActionButton(label string, disabled bool, status dialogStatusSetter, handle ui.WindowHandle, run func() error) ui.Element {
+	return ui.FillWidthElement(ui.OutlinedButtonElement(
+		ui.TextElement(label),
+		ui.Disabled(disabled),
+		ui.OnClick(func(ctx *ui.Context) {
+			status.Set(dialogStatus{Busy: true, Message: label + "..."})
+			go func() {
+				status.Set(formatTrayResult(label, run()))
+				handle.Invalidate()
+			}()
+		}),
+	))
+}
+
+func trayCloseButton(label string, disabled bool, status dialogStatusSetter, handle ui.WindowHandle, trayRef trayState) ui.Element {
+	return ui.FillWidthElement(ui.OutlinedButtonElement(
+		ui.TextElement(label),
+		ui.Disabled(disabled),
+		ui.OnClick(func(ctx *ui.Context) {
+			status.Set(dialogStatus{Busy: true, Message: label + "..."})
+			go func() {
+				err := system.ErrClosed
+				if tray := trayRef.Value(); tray != nil {
+					err = tray.Close()
+				}
+				trayRef.Set(nil)
+				status.Set(formatTrayResult(label, err))
+				handle.Invalidate()
+			}()
+		}),
+	))
+}
+
 func resultPanel(th *ui.Theme, state dialogStatus) ui.Element {
 	body := state.Message
 	if state.Result != "" {
@@ -207,7 +365,7 @@ func resultPanel(th *ui.Theme, state dialogStatus) ui.Element {
 	)
 }
 
-func capabilityText(fileDialogSupported, messageBoxSupported, notificationSupported bool) string {
+func capabilityText(fileDialogSupported, messageBoxSupported, notificationSupported, traySupported bool) string {
 	parts := []string{}
 	if fileDialogSupported {
 		parts = append(parts, "FileDialog 可用")
@@ -223,6 +381,11 @@ func capabilityText(fileDialogSupported, messageBoxSupported, notificationSuppor
 		parts = append(parts, "Notification 可用")
 	} else {
 		parts = append(parts, "Notification 不可用")
+	}
+	if traySupported {
+		parts = append(parts, "Tray 可用")
+	} else {
+		parts = append(parts, "Tray 不可用")
 	}
 	return strings.Join(parts, "，") + "。"
 }
@@ -272,6 +435,22 @@ func formatNotificationResult(action string, err error) dialogStatus {
 	return dialogStatus{Message: action + " 已提交。"}
 }
 
+func formatTrayResult(action string, err error) dialogStatus {
+	if err != nil {
+		if system.IsUnsupported(err) {
+			return dialogStatus{Message: action + " 不受当前平台支持。"}
+		}
+		if system.IsUnavailable(err) {
+			return dialogStatus{Message: action + " 当前没有可用的托盘展示路径。"}
+		}
+		if system.IsClosed(err) {
+			return dialogStatus{Message: action + " 已关闭。"}
+		}
+		return dialogStatus{Message: fmt.Sprintf("%s 失败: %v", action, err)}
+	}
+	return dialogStatus{Message: action + " 已完成。"}
+}
+
 func main() {
-	_ = ui.RunElement(app, ui.Title("System API Showcase"), ui.Size(560, 820), ui.MinSize(420, 680))
+	_ = ui.RunElement(app, ui.Title("System API Showcase"), ui.Size(560, 920), ui.MinSize(420, 760))
 }

@@ -16,7 +16,7 @@
     "WindowHandle.NativeHandle() (uintptr, bool)",
     "ui.OpenFileDialog(ctx *Context, opts ...system.FileDialogOption) (system.FileDialogResult, error)",
     "ui.ShowMessageBox(ctx *Context, opts ...system.MessageBoxOption) (system.MessageBoxResult, error)",
-    "WindowHandle.Close/Minimize/Maximize/Restore/Fullscreen/Raise/Center/SetTitle/SetSize/Invalidate"
+    "WindowHandle.Close/Show/Hide/SetHiddenMemoryPolicy/Minimize/Maximize/Restore/Fullscreen/Raise/SetAlwaysOnTop/Center/SetTitle/SetSize/Invalidate"
   ]
 }
 -->
@@ -33,11 +33,11 @@
 
 ### 已完成的窗口基础设施
 
-- `app.WindowHandle` 已提供 `ID`、`IsAlive`、`NativeHandle`、`Close`、`Minimize`、`Maximize`、`Restore`、`Fullscreen`、`Raise`、`Center`、`SetTitle`、`SetSize`、`Invalidate`。
+- `app.WindowHandle` 已提供 `ID`、`IsAlive`、`NativeHandle`、`Close`、`Show`、`Hide`、`SetHiddenMemoryPolicy`、`Minimize`、`Maximize`、`Restore`、`Fullscreen`、`Raise`、`SetAlwaysOnTop`、`Center`、`SetTitle`、`SetSize`、`Invalidate`。
 - `app.RunMulti` 与 `ui.RunElementMulti` 已支持桌面多窗口启动。
 - `ui.WindowElement` 已提供 React-style 多窗口入口。
 - `ui.ListWindows` / `ui.GetWindow` 已能查询当前存活窗口。
-- `ui.CurrentWindowID(ctx)` 与 `WindowClose`、`WindowMinimize`、`WindowMaximize`、`WindowRestore`、`WindowFullscreen`、`WindowRaise`、`WindowCenter`、`WindowSetTitle`、`WindowSetSize`、`WindowInvalidate`、`WindowIsAlive` 已经把当前窗口控制暴露到 UI 层。
+- `ui.CurrentWindowID(ctx)` 与 `WindowClose`、`WindowShow`、`WindowHide`、`WindowSetHiddenMemoryPolicy`、`WindowMinimize`、`WindowMaximize`、`WindowRestore`、`WindowFullscreen`、`WindowRaise`、`WindowSetAlwaysOnTop`、`WindowCenter`、`WindowSetTitle`、`WindowSetSize`、`WindowInvalidate`、`WindowIsAlive` 已经把当前窗口控制暴露到 UI 层。
 - `internal.WindowController` 已形成当前窗口控制的内部接口，后续可以作为系统 API 与运行时之间的桥。
 
 ### 已完成的应用内反馈能力
@@ -45,15 +45,15 @@
 - `Dialog` / `DialogElement`、`Popup` / `PopupElement`、`Toast` / `ToastElement`、`Snackbar` / `SnackbarElement` 已提供应用内弹层与消息反馈。
 - 这些能力是 FluxUI 自绘 UI，不是系统原生弹窗、系统通知或任务栏托盘能力。后续系统 API 不应替代它们，而是补齐“需要操作系统参与”的场景。
 
-### 主要缺口
+### 当前进展与剩余缺口
 
-- 没有统一的系统能力包，窗口、文件、通知、托盘等能力缺少同一套错误、能力检测和平台 driver 约定。
-- 没有原生文件选择器：打开文件、保存文件、选择目录、多选、过滤器、默认目录和默认文件名均未封装。
-- 没有系统原生弹窗：信息、警告、错误、确认、取消、按钮结果、owner window、模态行为尚未封装。
-- 没有系统通知：Windows toast、托盘气泡或通知中心能力尚未封装。
-- 没有任务栏托盘：托盘图标、tooltip、左键/右键事件、菜单、退出动作尚未封装。
-- 没有系统消息订阅：窗口焦点、关闭请求、显示器/DPI 变化、主题变化、电源/会话等事件缺少统一的上层语义。
-- 多平台策略未明确：非 Windows 平台应如何编译、如何返回不支持、如何由社区补齐，需要先定规则。
+- 已新增统一的 `system` 包，窗口、文件选择、消息框、通知和托盘已经共享能力检测、错误语义和平台 driver 约定。
+- Windows 已封装原生文件选择器：打开文件、保存文件、选择目录、多选、过滤器、默认目录和默认文件名均已具备 v1 API。
+- Windows 已封装系统原生弹窗：信息、警告、错误、确认、取消、按钮结果、owner window 和模态行为已具备 v1 API。
+- Windows 已提供系统通知路径：当前通过 `Shell_NotifyIconW` 托盘气泡实现，Toast Notification 仍作为后续专项评估。
+- Windows 已提供任务栏托盘：长期托盘图标、tooltip、左键/右键事件、菜单、显示隐藏和退出动作已具备 v1 API。
+- 系统消息订阅仍待设计：显示器/DPI 变化、主题变化、电源/会话等事件缺少统一的上层语义。
+- 多平台真实 driver 仍待补齐：非 Windows 平台当前保持可编译并明确返回 `ErrUnsupported`。
 
 ## 长期目标
 
@@ -188,13 +188,15 @@ go vet ./...
 - B1 已完成现有窗口 API 梳理，窗口创建、多窗口、当前窗口 helper 和 `WindowHandle` 继续兼容。
 - B2 已新增 `WindowState` 与 `WindowHandle.State()`，作为 FluxUI runtime 维护的窗口状态快照。
 - B3 已新增 `MinSize` / `MaxSize` app option，以及 `WindowHandle.SetMinSize` / `SetMaxSize`、`WindowSetMinSize(ctx, ...)` / `WindowSetMaxSize(ctx, ...)`。
-- B4 已完成 Gio v0.9 调研：当前没有公开 always-on-top 或 request focus 窗口 API，暂不暴露不可兑现的公共函数。
+- B4 已补充 Windows 持续置顶能力：`WindowHandle.SetAlwaysOnTop(always)` / `WindowSetAlwaysOnTop(ctx, always)` 通过 native `HWND` 异步调用实现；`Raise` 保持为一次性前置请求。
 - B5 已完成 Gio v0.9 调研：当前没有可在 `DestroyEvent` 前稳定拦截 OS close 的公共 API，关闭拦截暂不实现。
 - B6 已新增轻量窗口事件模型，提供 `WindowHandle.PollEvents()`、`WindowEvent` 和 size/focus/state/closed 事件。
 - B7 已完成 native owner 接入：Windows 下通过 Gio `Win32ViewEvent` 捕获 HWND，并由 `WindowHandle.NativeHandle()` 暴露为 `uintptr`；非 Windows 平台返回 false。
 - B8 已新增 `docs/guides/window-api.md` 作为窗口 API 集中入口。
-- B9 已新增 `examples/window_showcase`，覆盖多窗口、状态快照、事件拉取和常用窗口动作。
-- B10 已通过 `go test ./...` 与 `go vet ./...` 验收。
+- B9 已新增 `examples/window_showcase`，覆盖多窗口、状态快照、事件拉取、持续置顶、显示/隐藏和常用窗口动作。
+- B10 已修正全屏尺寸约束：进入全屏时临时清除 Gio 层 `MinSize` / `MaxSize`，退出全屏或回到普通窗口模式时重新应用应用请求的约束。已通过 `go test ./...` 与 `go vet ./...` 验收。
+- B11 已新增隐藏内存策略：默认 `WindowHiddenMemoryReleaseTransient` 会在隐藏后暂停 FluxUI 渲染、跳过隐藏窗口 redraw invalidation、清空临时 `op.Ops` 并异步触发 Go 内存回收；`WindowHiddenMemoryKeepRenderingState` 可保留隐藏窗口渲染状态。当前不直接释放 Gio 内部 GPU context。
+- B12 已修正最大尺寸限制下的最大化行为：设置完整 `MaxSize(width, height)` 后，`WindowHandle.Maximize()` / `WindowMaximize(ctx)` 返回 `false`，Windows 原生标题栏最大化按钮和系统菜单最大化项同步禁用；全屏仍按 B10 逻辑保留可用。
 
 任务：
 
@@ -214,6 +216,10 @@ type WindowState struct {
     Title      string
     Width      int
     Height     int
+    Visible     bool
+    AlwaysOnTop bool
+    RenderSuspended bool
+    HiddenMemoryPolicy WindowHiddenMemoryPolicy
     Minimized  bool
     Maximized  bool
     Fullscreen bool
@@ -226,6 +232,9 @@ func (h WindowHandle) SetMinSize(width, height int) bool
 func (h WindowHandle) SetMaxSize(width, height int) bool
 func (h WindowHandle) SetResizable(resizable bool) bool
 func (h WindowHandle) SetAlwaysOnTop(always bool) bool
+func (h WindowHandle) Show() bool
+func (h WindowHandle) Hide() bool
+func (h WindowHandle) SetHiddenMemoryPolicy(policy WindowHiddenMemoryPolicy) bool
 func (h WindowHandle) RequestFocus() bool
 ```
 
@@ -235,7 +244,7 @@ func (h WindowHandle) RequestFocus() bool
 - 多窗口场景下 `ListWindows`、`GetWindow`、当前窗口 helper 不串窗口。
 - 关闭后的 `WindowHandle` 操作不 panic，返回 false。
 - Windows 下 `WindowHandle.NativeHandle()` 返回 HWND，关闭后返回 false。
-- Windows 能正确设置标题、大小、最小化、最大化、还原、全屏、置顶和居中。
+- Windows 能正确设置标题、大小、最小化、最大化、还原、全屏、一次性前置、持续置顶、显示、隐藏和居中。
 
 ### Phase C: File Dialog 文件选择器
 
@@ -336,7 +345,7 @@ func MessageBoxOwner(owner uintptr) MessageBoxOption
 - E3 已完成：driver 边界，新增 notification driver 分发；未支持或未声明 `CapabilityNotification` 时返回包装后的 `ErrUnsupported`。
 - E4 已完成：非 Windows 占位，非 Windows 平台可编译，调用 `Notify` 返回 `ErrUnsupported`，并补充 `!windows` 测试。
 - E5 已完成：Windows v1 展示路径已实现。Windows driver 声明 `CapabilityNotification`，通过隐藏消息窗口和 `Shell_NotifyIconW` 临时托盘图标提交气泡通知；Windows shell、通知区或图标加载不可用时返回包装后的 `ErrUnavailable`。
-- E6 已完成：展示路径决策已固定为托盘气泡通知；Toast Notification 需要 AppUserModelID、快捷方式、打包/非打包差异和激活回调，已写入限制文档，不做第一版承诺。完整 Tray API 生命周期仍放在 Phase F。
+- E6 已完成：展示路径决策已固定为托盘气泡通知；Toast Notification 需要 AppUserModelID、快捷方式、打包/非打包差异和激活回调，已写入限制文档，不做第一版承诺。长期 Tray API 生命周期已在 Phase F 完成。
 - E7 已完成：`NotificationOnClick(fn func(NotificationEvent))` 已作为 option 透传并接入 Windows `NIN_BALLOONUSERCLICK`；系统没有回调时不伪造 clicked/dismissed/action 事件。
 - E8 已完成：单元测试覆盖 option 默认值、driver 分发、能力缺失、context 已取消、`ErrUnavailable` 包装、unsupported 平台行为、click callback option 透传，以及 Windows notification data、图标标志和超时映射。
 - E9 已完成：新增 `docs/guides/notification-api.md`，更新 `docs/guides/system-api.md`、`docs/README.md` 和 `examples/system_showcase`；示例按 `system.Supports(CapabilityNotification)` 展示能力状态，并在系统通知区不可用时展示 `ErrUnavailable`。
@@ -367,22 +376,45 @@ v1 验收：
 
 目标：为后台驻留类桌面应用提供 Windows 托盘图标、菜单和事件。
 
+当前状态：F1-F10 已完成。公共 API、driver 边界、非 Windows/未实现平台错误语义、生命周期状态机、菜单回调规则、Windows 长期托盘图标、右键菜单、退出清理、示例、文档和自动化验收已经落地。Windows driver 当前声明 `CapabilityTray`。
+
 任务：
 
-- 定义 `Tray` 生命周期：创建、更新、显示、隐藏、关闭。
-- 支持图标、tooltip、左键点击、双击、右键菜单、菜单项启用/禁用、分隔线、勾选项。
-- Windows 使用 `Shell_NotifyIconW` 实现。
-- 设计隐藏消息窗口或 driver message pump，确保不破坏 Gio 主事件循环。
-- 支持托盘菜单中的退出动作调用 `WindowClose` 或应用自定义回调。
-- 托盘对象必须可释放，避免应用退出后残留托盘图标。
-- 非 Windows 返回 `ErrUnsupported`。
+- F1 已完成：定义 `Tray`、`TrayOption`、`TrayMenu`、`TrayMenuItem`、`TrayEvent` 和图标、tooltip、菜单、点击、双击 option。
+- F2 已完成：新增 `trayDriver` 与 `trayHandle` 边界，`NewTray(opts ...TrayOption)` 通过 active driver 和 `CapabilityTray` 分发。
+- F3 已完成：未实现平台或未声明能力的 driver 返回包装后的 `ErrUnsupported`，非 Windows 平台保持可编译。
+- F4 已完成：公共 `Tray` 外壳提供 `SetIcon`、`SetTooltip`、`SetMenu`、`Show`、`Hide`、`Close` 生命周期状态机；关闭后操作返回 `ErrClosed`。
+- F5 已完成：菜单模型支持普通项、分隔线、禁用项和勾选项；点击、双击和菜单项回调在公共层包装为异步派发。
+- F6 已完成：新增长期 Tray 专用隐藏消息窗口和独立 message pump，托盘 Win32 回调不复用 Gio 主事件循环。
+- F7 已完成：Windows 使用 `Shell_NotifyIconW` 实现长期托盘图标的 add/modify/delete，`SetIcon`、`SetTooltip`、`Show`、`Hide` 和 `Close` 已接入 native driver。
+- F8 已完成：Windows 右键菜单已实现，支持菜单项启用/禁用、分隔线、勾选项和 item ID 到 Go callback 的映射。
+- F9 已完成：新增 `docs/guides/tray-api.md`，更新 `docs/guides/system-api.md`、`docs/README.md` 和 `examples/system_showcase`。
+- F10 已完成：补齐公共层和 Windows 自动化测试，补充 Explorer `TaskbarCreated` 重启恢复策略说明；Windows 人工验收清单已写入文档。
 
 建议 API：
 
 ```go
 type Tray struct{}
 
+type TrayMenu []TrayMenuItem
+
+type TrayMenuItem struct {
+    ID        string
+    Label     string
+    Disabled  bool
+    Checked   bool
+    Separator bool
+    OnClick   func(TrayEvent)
+}
+
 func NewTray(opts ...TrayOption) (*Tray, error)
+func TrayIcon(path string) TrayOption
+func TrayTooltip(text string) TrayOption
+func TrayMenuItems(items ...TrayMenuItem) TrayOption
+func TrayOnClick(fn func(TrayEvent)) TrayOption
+func TrayOnDoubleClick(fn func(TrayEvent)) TrayOption
+func TrayMenuAction(id, label string, onClick func(TrayEvent)) TrayMenuItem
+func TrayMenuSeparator() TrayMenuItem
 func (t *Tray) SetIcon(path string) error
 func (t *Tray) SetTooltip(text string) error
 func (t *Tray) SetMenu(menu TrayMenu) error
@@ -394,7 +426,7 @@ func (t *Tray) Close() error
 验收：
 
 - 创建、更新、隐藏、关闭托盘不泄漏资源。
-- Explorer 重启后能恢复图标，或文档明确第一版不支持并列入后续任务。
+- Explorer 重启后能尝试恢复仍处于 visible 状态的图标。
 - 菜单点击回调线程安全，不直接在 Win32 回调里操作 Gio 布局状态。
 - 应用退出时自动清理托盘图标。
 
@@ -476,16 +508,16 @@ Windows 本地人工验收：
 | 目录选择 | 已有 | 已有 Common Item Dialog | 返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | v1 已完成 |
 | 系统消息框 | 已有 | 已有 `TaskDialog` 优先，`MessageBoxW` 回退 | 返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | v1 待人工点验 |
 | 系统通知 | E1-E10 已完成 | 已有 `Shell_NotifyIconW` 托盘气泡 | E4 已完成 | 暂缓 | 已补充 | v1 已完成 |
-| 托盘 | 待设计 | 待实现 | 待空实现 | 不适用 | 待补充 | 待开始 |
+| 托盘 | F1-F10 已完成 | 已有 `Shell_NotifyIconW` 长期图标和右键菜单 | 已有未实现平台错误语义 | 不适用 | 已补充 | Windows v1 已完成 |
 | 剪贴板 | 待设计 | 待实现 | 待空实现 | 待设计 | 待补充 | 后续 |
 | Shell open | 待设计 | 待实现 | 待空实现 | 待设计 | 待补充 | 后续 |
 
 ## 下一批推荐任务
 
-1. 进入 Phase F Tray，先定义 `Tray` 生命周期、菜单模型和释放语义。
-2. 复用 Notification 中已经落地的隐藏消息窗口/message pump 经验，设计完整 Windows `Shell_NotifyIconW` Tray driver。
-3. 明确 Notification 临时托盘图标与长期 Tray 图标共存规则，避免图标残留和回调串线。
-4. Tray 完成后补充 Explorer 重启恢复、菜单点击线程安全和退出清理人工验收。
+1. 推进 Phase G Clipboard：先设计文本读写 API、能力检测和 Windows clipboard driver 边界。
+2. 推进 Shell open / reveal in file manager：明确 URL、文件、目录和错误语义，避免隐藏 fallback。
+3. 为 Tray 和 Notification 补充更细的 Windows 人工验收记录，覆盖图标路径、Explorer 重启和通知区禁用场景。
+4. 评估 macOS / Linux 系统能力 driver 的最小接口映射，优先保证非 Windows 平台行为明确。
 
 ## 验收命令
 

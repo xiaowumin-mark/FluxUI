@@ -39,3 +39,14 @@ func TestPlatformNotificationUnsupported(t *testing.T) {
 		t.Fatalf("expected unsupported error, got %v", err)
 	}
 }
+
+func TestPlatformTrayUnsupported(t *testing.T) {
+	if Supports(CapabilityTray) {
+		t.Fatal("unsupported platform should not expose tray capability")
+	}
+
+	_, err := NewTray()
+	if !IsUnsupported(err) {
+		t.Fatalf("expected unsupported error, got %v", err)
+	}
+}

@@ -15,4 +15,5 @@ func (entry *windowEntry) updateNativeHandle(event gioApp.ViewEvent) {
 	entry.mu.Lock()
 	entry.nativeHandle = handle
 	entry.mu.Unlock()
+	entry.syncNativeMaximizeAvailability()
 }
