@@ -252,6 +252,20 @@ func PressableElement(child Element, onClick func(ctx *Context), opts ...Pressab
 	}}
 }
 
+// DropTargetElement 创建可参与 reconciler 的拖放接收区域 Element。
+func DropTargetElement(child Element, onDrop func(ctx *Context, event DropEvent), opts ...DropTargetOption) Element {
+	return &singleChildElement{kind: "drop-target", child: child, renderFn: func(child Widget) Widget {
+		return widget.DropTarget(child, onDrop, opts...)
+	}}
+}
+
+// DragSourceElement 创建可参与 reconciler 的拖拽数据源 Element。
+func DragSourceElement(child Element, opts ...DragSourceOption) Element {
+	return &singleChildElement{kind: "drag-source", child: child, renderFn: func(child Widget) Widget {
+		return widget.DragSource(child, opts...)
+	}}
+}
+
 // CheckboxElement 创建可参与 reconciler 的复选框 Element。
 func CheckboxElement(label string, checked bool, opts ...CheckboxOption) Element {
 	return FromWidget(widget.Checkbox(label, checked, opts...))

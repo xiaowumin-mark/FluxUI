@@ -8,6 +8,8 @@
   "example": { "id": "hooks_lifecycle_basic" },
   "apis": [
     "RunElement(root Component, opts ...AppOption) error",
+    "RunMulti(windows ...WindowSpec) error",
+    "RunElementMulti(windows ...WindowSpec) error",
     "type Component func(ctx *Context) Element",
     "UseState[T](ctx *Context, initial T) *State[T]",
     "UseEffect(ctx *Context, effect Effect)",
@@ -17,13 +19,26 @@
     "UseMemo[T](ctx *Context, deps []any, factory func() T) T",
     "UseRef[T](ctx *Context, initial T) *Ref[T]",
     "UseCallback[T](ctx *Context, deps []any, fn T) T",
+    "UseInterval(ctx *Context, interval time.Duration, fn func())",
+    "UseAsync[T](ctx *Context) *AsyncHandle[T]",
+    "type AsyncStatus",
+    "type AsyncHandle[T]",
+    "AsyncIdle",
+    "AsyncLoading",
+    "AsyncSuccess",
+    "AsyncError",
     "ComponentElement(component Component) Element",
     "Provider[T](key ContextKey[T], value T, child Element) Element",
     "Key(key string, child Element) Element",
     "Fragment(children ...Element) Element",
+    "RenderElement(el Element) Widget",
+    "ElementKey(el Element) string",
+    "ElementInfo(el Element) ElementIdentity",
+    "VisualRootBuilder(root Component) func(ctx *Context) Widget",
     "TextFieldElement(value string, opts ...InputOption) Element",
     "CardElement(child Element, opts ...CardOption) Element",
     "ListViewElement(count int, itemBuilder func(ctx *Context, index int) Element, opts ...ListOption) Element",
+    "WithFontElement(font FontSpec, child Element) Element",
     "FromWidget(w Widget) Element"
   ]
 }
@@ -43,6 +58,7 @@ FluxUI 保持 Gio 的 immediate-mode 渲染模型，同时提供 React-style `El
 ## 核心能力
 
 - `RunElement`：React-style root 入口，适合新组件和新示例。
+- `RunElementMulti`：React-style 多窗口入口；旧 `RunMulti` 仍保留为兼容路径。
 - `Component`：函数组件签名，返回 `Element`。
 - `UseState`：在 component instance 上优先使用 HookSlot 保存状态；没有 component instance 时回退到 legacy path state。
 - `UseEffect`：每次渲染后执行一次副作用；在下一次执行前先清理上次的 cleanup。
@@ -53,6 +69,8 @@ FluxUI 保持 Gio 的 immediate-mode 渲染模型，同时提供 React-style `El
 - `UseRef`：保存跨 render 持久的可变引用值。
 - `UseCallback`：依赖未变化时复用函数值。
 - `FromWidget`：长期保留的 Widget -> Element bridge，用于在 React-style tree 中复用 legacy widget。
+- `RenderElement` / `ElementKey` / `ElementInfo` 主要用于测试、调试和 runtime 桥接。
+- `VisualRootBuilder` 只在 `-tags visual` 构建下可用，用于视觉回归捕获。
 
 ## Element wrapper 覆盖
 
@@ -104,5 +122,37 @@ func Counter(ctx *ui.Context) ui.Element {
     })
 
     return ui.TextElement(fmt.Sprintf("count = %d, doubled = %d", count.Value(), doubled))
+}
+```
+
+```go
+var scopeKey = ui.NewContextKey("docs")
+
+func RuntimeComposition(ctx *ui.Context) ui.Element {
+    clicks := ui.UseState(ctx, 0)
+    stableClick := ui.UseCallback(ctx, []any{clicks.Value()}, func(ctx *ui.Context) {
+        clicks.Set(clicks.Value() + 1)
+    })
+
+    return ui.Provider[string](
+        scopeKey,
+        fmt.Sprintf("clicks:%d", clicks.Value()),
+        ui.Fragment(
+            ui.ButtonElement(ui.TextElement("Click"), ui.OnClick(stableClick)),
+            ui.ComponentElement(RuntimeChild),
+            ui.FromWidget(ui.Text("Legacy widget bridge")),
+        ),
+    )
+}
+
+func RuntimeChild(ctx *ui.Context) ui.Element {
+    scope := ui.UseContext(ctx, scopeKey)
+    return ui.ListViewElement(
+        3,
+        func(ctx *ui.Context, index int) ui.Element {
+            id := fmt.Sprintf("%s:%d", scope, index)
+            return ui.Key(id, ui.CardElement(ui.TextElement(id)))
+        },
+    )
 }
 ```

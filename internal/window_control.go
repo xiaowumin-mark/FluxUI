@@ -20,8 +20,12 @@ type WindowController interface {
 	Raise() bool
 	SetAlwaysOnTop(always bool) bool
 	Center() bool
+	RequestFocus() bool
 	SetTitle(title string) bool
+	SetPosition(x, y int) bool
 	SetSize(width, height int) bool
+	SetResizable(resizable bool) bool
+	SetDecorated(decorated bool) bool
 	SetMinSize(width, height int) bool
 	SetMaxSize(width, height int) bool
 	Invalidate() bool

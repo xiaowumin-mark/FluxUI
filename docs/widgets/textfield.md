@@ -22,6 +22,7 @@
     "InputForeground(color color.NRGBA) InputOption",
     "InputDecoration(d Decoration) InputOption",
     "InputTextSize(size float32) InputOption",
+    "InputFontFamily(family string) InputOption",
     "InputMaxLen(maxLen int) InputOption",
     "InputPassword(password bool) InputOption",
     "InputSingleLine(singleLine bool) InputOption",
@@ -74,6 +75,7 @@ func NameField(ctx *ui.Context) ui.Element {
     return ui.TextFieldElement(
         name.Value(),
         ui.InputPlaceholder("请输入名称"),
+        ui.InputFontFamily("Segoe UI"),
         ui.InputOnChange(func(ctx *ui.Context, value string) {
             name.Set(value)
         }),

@@ -9,10 +9,19 @@
   "apis": [
     "LinearProgressIndicator(value float32, opts ...ProgressOption) Widget",
     "LinearProgressIndicatorElement(value float32, opts ...ProgressOption) Element",
+    "CircularProgress(value float32, opts ...ProgressOption) Widget",
+    "CircularProgressElement(value float32, opts ...ProgressOption) Element",
     "CircularProgressIndicator(value float32, opts ...ProgressOption) Widget",
     "CircularProgressIndicatorElement(value float32, opts ...ProgressOption) Element",
+    "ProgressMin(min float32) ProgressOption",
+    "ProgressMax(max float32) ProgressOption",
+    "ProgressSize(size float32) ProgressOption",
+    "ProgressThickness(thickness float32) ProgressOption",
+    "ProgressTrackColor(col color.NRGBA) ProgressOption",
+    "ProgressFillColor(col color.NRGBA) ProgressOption",
     "ProgressLabelVisible(visible bool) ProgressOption",
-    "ProgressIndeterminate(indeterminate bool) ProgressOption"
+    "ProgressIndeterminate(indeterminate bool) ProgressOption",
+    "ProgressDecoration(d Decoration) ProgressOption"
   ]
 }
 -->
@@ -30,10 +39,16 @@ FluxUI 保留了已有的 `ProgressBar` 和 `CircularProgress` 命名，同时�
 
 ```go
 ui.ColumnElement(
-    ui.LinearProgressIndicatorElement(value.Value()),
+    ui.LinearProgressIndicatorElement(
+        value.Value(),
+        ui.ProgressMin(0),
+        ui.ProgressMax(100),
+        ui.ProgressFillColor(ui.NRGBA(37, 99, 235, 255)),
+    ),
     ui.CircularProgressIndicatorElement(
         value.Value(),
         ui.ProgressSize(72),
+        ui.ProgressThickness(8),
         ui.ProgressLabelVisible(true),
     ),
 )

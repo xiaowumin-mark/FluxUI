@@ -17,7 +17,8 @@ This document records the current role of each example after the React-style run
 | `examples/react_workspace` | Canonical React-style runtime showcase | React-style `RunElement` | Keep | Demonstrates hooks, context, router, keyed identity, fragments, components, stable Element wrappers, transitions, and `FromWidget` bridging. |
 | `examples/counter` | Minimal counter smoke demo | Legacy `Run` / `Widget` | Keep | Compact legacy state example. |
 | `examples/router` | Router compatibility showcase | Legacy `Run` / `Widget` | Keep | Comprehensive router demo and docs browser `router_basic` counterpart. |
-| `examples/docs_browser` | Docs runtime host | Legacy `Run` / `Widget` | Keep | Owns Markdown loading, metadata parsing, legacy example id mapping, previews, and online fallback. |
+| `examples/docs_browser` | Docs runtime host | React-style `RunElement` | Keep | Owns Markdown loading, metadata parsing, search/category filters, MD3 theme switching, API index, inline and popup previews, runtime/grid coverage, System API demos, and online fallback. |
+| `examples/drag_drop_showcase` | Drag-and-drop API showcase | React-style `RunElement` | Keep | Demonstrates `DragSourceElement`, `DropTargetElement`, MIME payloads, lifecycle events, active/error callbacks, and conservative system probe output. |
 | `examples/form_validation` | Complex input workflow | Legacy `Run` / `Widget` | Keep | Compatibility note exists; wait for stable input host-state strategy. |
 | `examples/virtual_scroll` | Virtual list/grid performance reference | Legacy `Run` / `Widget` | Keep | Compatibility note exists; wait for list/grid lifecycle and identity strategy. |
 | `examples/team_workspace` | Business dashboard integration showcase | Legacy `Run` / `Widget` | Keep | Compatibility note exists; migrate only through a parallel React-style dashboard. |

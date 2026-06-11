@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"unsafe"
 
@@ -180,11 +181,21 @@ func (windowsDriver) openFileDialog(ctx context.Context, mode FileDialogMode, op
 		return FileDialogResult{}, err
 	}
 
+	stopCancelWatcher := watchWindowsFileDialogContext(ctx, dialog)
+
 	if err := dialog.Show(opts.owner); err != nil {
+		stopCancelWatcher()
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return FileDialogResult{}, ctxErr
+		}
 		if isHRESULT(err, hresultCancelled) {
 			return FileDialogResult{Cancelled: true}, nil
 		}
 		return FileDialogResult{}, fmt.Errorf("system: show file dialog: %w", err)
+	}
+	stopCancelWatcher()
+	if err := ctx.Err(); err != nil {
+		return FileDialogResult{}, err
 	}
 
 	paths, err := windowsFileDialogPaths(dialog, mode)
@@ -195,6 +206,31 @@ func (windowsDriver) openFileDialog(ctx context.Context, mode FileDialogMode, op
 		return FileDialogResult{Cancelled: true}, nil
 	}
 	return FileDialogResult{Paths: paths}, nil
+}
+
+func watchWindowsFileDialogContext(ctx context.Context, dialog *iFileDialog) func() {
+	if ctx == nil || ctx.Done() == nil || dialog == nil {
+		return func() {}
+	}
+
+	done := make(chan struct{})
+	stopped := make(chan struct{})
+	var stopOnce sync.Once
+	go func() {
+		defer close(stopped)
+		select {
+		case <-ctx.Done():
+			_ = dialog.Close(hresultCancelled)
+		case <-done:
+		}
+	}()
+
+	return func() {
+		stopOnce.Do(func() {
+			close(done)
+			<-stopped
+		})
+	}
 }
 
 func initCOMApartment() (bool, error) {
@@ -286,6 +322,11 @@ func configureWindowsFileDialog(dialog *iFileDialog, mode FileDialogMode, opts f
 			return fmt.Errorf("system: configure file dialog default name: %w", err)
 		}
 	}
+	if opts.defaultExtension != "" && mode != FileDialogPickFolder {
+		if err := dialog.SetDefaultExtension(opts.defaultExtension); err != nil {
+			return fmt.Errorf("system: configure file dialog default extension: %w", err)
+		}
+	}
 	if len(opts.filters) > 0 && mode != FileDialogPickFolder {
 		if err := dialog.SetFileTypes(opts.filters); err != nil {
 			return fmt.Errorf("system: configure file dialog filters: %w", err)
@@ -294,7 +335,11 @@ func configureWindowsFileDialog(dialog *iFileDialog, mode FileDialogMode, opts f
 	if opts.defaultDir != "" {
 		folder, err := shellItemFromPath(opts.defaultDir)
 		if err != nil {
-			return fmt.Errorf("system: configure file dialog default dir: %w", err)
+			return fmt.Errorf("system: configure file dialog default dir: %w", &FileDialogError{
+				Kind: FileDialogErrorDefaultDir,
+				Path: opts.defaultDir,
+				Err:  err,
+			})
 		}
 		defer folder.Release()
 
@@ -357,6 +402,20 @@ func (d *iFileDialog) SetFileName(name string) error {
 		return err
 	}
 	r, _, _ := syscall.SyscallN(d.lpVtbl.SetFileName, uintptr(unsafe.Pointer(d)), uintptr(unsafe.Pointer(name16)))
+	return hresultError(r)
+}
+
+func (d *iFileDialog) SetDefaultExtension(extension string) error {
+	extension16, err := windows.UTF16PtrFromString(extension)
+	if err != nil {
+		return err
+	}
+	r, _, _ := syscall.SyscallN(d.lpVtbl.SetDefaultExtension, uintptr(unsafe.Pointer(d)), uintptr(unsafe.Pointer(extension16)))
+	return hresultError(r)
+}
+
+func (d *iFileDialog) Close(hr uintptr) error {
+	r, _, _ := syscall.SyscallN(d.lpVtbl.Close, uintptr(unsafe.Pointer(d)), hr)
 	return hresultError(r)
 }
 
@@ -432,7 +491,7 @@ func (item *iShellItem) Path() (string, error) {
 
 	path := windows.UTF16PtrToString(raw)
 	if path == "" {
-		return "", fmt.Errorf("system: selected path missing: %w", ErrUnavailable)
+		return "", &FileDialogError{Kind: FileDialogErrorSelectedPath, Err: ErrUnavailable}
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {

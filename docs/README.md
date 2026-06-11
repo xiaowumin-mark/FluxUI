@@ -12,10 +12,18 @@
 - `docs/guides/message-box-api.md`: 文档浏览器中的 MessageBox API 系统消息框指南。
 - `docs/guides/notification-api.md`: 文档浏览器中的 Notification API 系统通知指南。
 - `docs/guides/tray-api.md`: 文档浏览器中的 Tray API 托盘指南。
-- `examples/system_showcase`: System API 人工验收示例，当前覆盖 File Dialog、MessageBox、Notification 和 Tray。
+- `docs/guides/system-events-api.md`: 文档浏览器中的 System Events API 系统事件指南。
+- `docs/guides/clipboard-shell-api.md`: 文档浏览器中的 Clipboard / Shell API 剪贴板与系统打开指南。
+- `docs/guides/system-api-windows-validation.md`: System API Windows 自动化验证和人工点验记录。
+- `docs/guides/system-api-platform-plan.md`: System API macOS/Linux 最小 driver 平台计划。
+- `docs/widgets/drop_target.md`: DropTarget 拖放接收区组件指南。
+- `docs/widgets/drag_source.md`: DragSource 拖放数据源组件指南。
+- `examples/system_showcase`: System API 人工验收示例，当前覆盖 File Dialog、MessageBox、Notification、Tray 和 System Events。
+- `examples/system_validation`: System API 命令行验证示例，可探测 PA-F/G 核心能力，并可选择触发真实 notification、Toast shortcut/activator、tray、clipboard、shell 和 system events 验证。
 
-当前文档已重构为“每个主题一个 Markdown 文件”，文档浏览器会扫描以下目录：
+当前文档已重构为“每个主题一个 Markdown 文件”，文档浏览器会扫描以下入口：
 
+- `docs/*.md`: 顶层路线图与总览文档（仅加载文件开头包含 `fluxui-doc-meta` 的文档）
 - `docs/widgets`: 组件文档
 - `docs/style`: 样式系统 API 文档
 - `docs/theme`: 主题系统 API 文档
@@ -65,7 +73,7 @@
 - `example.id`: 示例渲染器 ID（由示例程序映射）
 - `apis`: 需要重点展示的 API 列表
 
-示例应用：`examples/docs_browser/main.go`。本地加载失败时，示例应用会从 GitHub `docs/widgets`、`docs/style`、`docs/theme`、`docs/guides` 拉取在线 Markdown 文档。
+示例应用：`examples/docs_browser/main.go`。本地加载失败时，示例应用会从 GitHub `docs/*.md`、`docs/widgets`、`docs/style`、`docs/theme`、`docs/guides` 拉取在线 Markdown 文档。
 
 ## 编码与终端显示说明
 

@@ -10,7 +10,9 @@
     "Spacer(width, height float32) Widget",
     "SpacerElement(width, height float32) Element",
     "HSpacer(width float32) Widget",
-    "VSpacer(height float32) Widget"
+    "HSpacerElement(width float32) Element",
+    "VSpacer(height float32) Widget",
+    "VSpacerElement(height float32) Element"
   ]
 }
 -->
@@ -34,7 +36,7 @@ React-style 写法使用 `SpacerElement(width, height)` 显式声明空白区域
 func App(ctx *ui.Context) ui.Element {
     return ui.RowElement(
         ui.TextElement("左"),
-        ui.SpacerElement(16, 0),
+        ui.HSpacerElement(16),
         ui.TextElement("右"),
     )
 }

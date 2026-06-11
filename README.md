@@ -127,6 +127,7 @@ go run ./examples/team_workspace
 go run ./examples/virtual_scroll
 go run ./examples/fonts
 go run ./examples/horizontal_scroll
+go run ./examples/drag_drop_showcase
 ```
 
 ## 构建项目

@@ -13,11 +13,12 @@ import (
 	"sync/atomic"
 
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	fluxSystem "github.com/xiaowumin-mark/FluxUI/system"
 	theme "github.com/xiaowumin-mark/FluxUI/theme"
 	widget "github.com/xiaowumin-mark/FluxUI/widget"
 
 	gioApp "gioui.org/app"
-	"gioui.org/io/system"
+	gioSystem "gioui.org/io/system"
 	"gioui.org/op"
 	"gioui.org/unit"
 )
@@ -48,8 +49,13 @@ const (
 type WindowState struct {
 	ID                 WindowID
 	Title              string
+	X                  int
+	Y                  int
 	Width              int
 	Height             int
+	Scale              float32
+	TextScale          float32
+	DPI                int
 	MinWidth           int
 	MinHeight          int
 	MaxWidth           int
@@ -63,6 +69,7 @@ type WindowState struct {
 	Fullscreen         bool
 	Focused            bool
 	Decorated          bool
+	Resizable          bool
 	Alive              bool
 }
 
@@ -70,16 +77,32 @@ type WindowState struct {
 type WindowEventKind string
 
 const (
-	WindowEventSizeChanged  WindowEventKind = "size_changed"
-	WindowEventFocusChanged WindowEventKind = "focus_changed"
-	WindowEventStateChanged WindowEventKind = "state_changed"
-	WindowEventClosed       WindowEventKind = "closed"
+	WindowEventSizeChanged    WindowEventKind = "size_changed"
+	WindowEventScaleChanged   WindowEventKind = "scale_changed"
+	WindowEventFocusChanged   WindowEventKind = "focus_changed"
+	WindowEventStateChanged   WindowEventKind = "state_changed"
+	WindowEventCloseRequested WindowEventKind = "close_requested"
+	WindowEventClosed         WindowEventKind = "closed"
 )
 
 // WindowEvent 记录窗口状态变化。State 是事件发生后的窗口状态快照。
 type WindowEvent struct {
 	Window WindowHandle
 	Kind   WindowEventKind
+	State  WindowState
+}
+
+// WindowEventSubscription receives window events without polling.
+type WindowEventSubscription struct {
+	window WindowID
+	id     uint64
+	ch     chan WindowEvent
+	closed atomic.Bool
+}
+
+// WindowCloseRequest is passed to close-request handlers.
+type WindowCloseRequest struct {
+	Window WindowHandle
 	State  WindowState
 }
 
@@ -141,9 +164,36 @@ func (h WindowHandle) PollEvents() []WindowEvent {
 	return entry.drainEvents()
 }
 
+// SubscribeEvents subscribes to future window events.
+//
+// Passing no kinds subscribes to every window event. Delivery is best-effort:
+// if the receiver stops draining the channel, newer events may be dropped to
+// avoid blocking the window event loop.
+func (h WindowHandle) SubscribeEvents(kinds ...WindowEventKind) (*WindowEventSubscription, bool) {
+	entry, ok := h.liveEntry()
+	if !ok {
+		return nil, false
+	}
+	return entry.addEventSubscriber(kinds...), true
+}
+
 // Close 请求关闭窗口。
 func (h WindowHandle) Close() bool {
-	return h.perform(system.ActionClose)
+	return h.perform(gioSystem.ActionClose)
+}
+
+// SetCloseRequestedHandler controls whether close requests are allowed.
+//
+// The handler returns true to allow the close request and false to cancel it.
+// Windows can intercept native WM_CLOSE requests; platforms without close-request
+// interception keep programmatic close behavior but may not stop system close.
+func (h WindowHandle) SetCloseRequestedHandler(fn func(WindowCloseRequest) bool) bool {
+	return h.apply(func(entry *windowEntry) {
+		entry.mu.Lock()
+		entry.closeRequested = fn
+		entry.mu.Unlock()
+		entry.syncNativeCloseHook()
+	})
 }
 
 // Show 显示窗口。
@@ -197,7 +247,7 @@ func (h WindowHandle) Fullscreen() bool {
 
 // Raise 请求将窗口一次性前置。
 func (h WindowHandle) Raise() bool {
-	return h.perform(system.ActionRaise)
+	return h.perform(gioSystem.ActionRaise)
 }
 
 // SetAlwaysOnTop 设置窗口是否持续置顶。
@@ -218,7 +268,19 @@ func (h WindowHandle) SetAlwaysOnTop(always bool) bool {
 
 // Center 请求将窗口居中。
 func (h WindowHandle) Center() bool {
-	return h.perform(system.ActionCenter)
+	return h.perform(gioSystem.ActionCenter)
+}
+
+// RequestFocus requests keyboard focus for the window.
+func (h WindowHandle) RequestFocus() bool {
+	entry, ok := h.liveEntry()
+	if !ok {
+		return false
+	}
+	if requestNativeWindowFocus(entry.nativeHandleSnapshot()) {
+		return true
+	}
+	return h.perform(gioSystem.ActionRaise)
 }
 
 // SetTitle 更新窗口标题。
@@ -226,10 +288,27 @@ func (h WindowHandle) SetTitle(title string) bool {
 	title = normalizeTitle(title)
 	return h.apply(func(entry *windowEntry) {
 		entry.win.Option(gioApp.Title(title))
-		entry.updateState(func(state *WindowState) {
+		entry.updateAndEmit(func(state *WindowState) {
 			state.Title = title
 		})
 	})
+}
+
+// SetPosition updates the window position in dp.
+func (h WindowHandle) SetPosition(x, y int) bool {
+	entry, ok := h.liveEntry()
+	if !ok {
+		return false
+	}
+	metric := entry.metricSnapshot()
+	if !setNativeWindowPosition(entry.nativeHandleSnapshot(), metric.Dp(unit.Dp(x)), metric.Dp(unit.Dp(y))) {
+		return false
+	}
+	entry.updateAndEmit(func(state *WindowState) {
+		state.X = x
+		state.Y = y
+	})
+	return true
 }
 
 // SetSize 更新窗口尺寸（单位为 dp）。
@@ -241,10 +320,35 @@ func (h WindowHandle) SetSize(width, height int) bool {
 		opts := []gioApp.Option{gioApp.Size(unit.Dp(width), unit.Dp(height))}
 		opts = append(opts, entry.constraintOptions()...)
 		entry.win.Option(opts...)
-		entry.updateState(func(state *WindowState) {
+		entry.updateAndEmit(func(state *WindowState) {
 			state.Width = width
 			state.Height = height
 			applyWindowModeState(state, gioApp.Windowed)
+		})
+	})
+}
+
+// SetResizable controls whether the window can be resized by the OS frame.
+func (h WindowHandle) SetResizable(resizable bool) bool {
+	entry, ok := h.liveEntry()
+	if !ok {
+		return false
+	}
+	if !setNativeWindowResizable(entry.nativeHandleSnapshot(), resizable) {
+		return false
+	}
+	entry.updateAndEmit(func(state *WindowState) {
+		state.Resizable = resizable
+	})
+	return true
+}
+
+// SetDecorated controls whether the window uses the OS decoration frame.
+func (h WindowHandle) SetDecorated(decorated bool) bool {
+	return h.apply(func(entry *windowEntry) {
+		entry.win.Option(gioApp.Decorated(decorated))
+		entry.updateAndEmit(func(state *WindowState) {
+			state.Decorated = decorated
 		})
 	})
 }
@@ -258,7 +362,7 @@ func (h WindowHandle) SetMinSize(width, height int) bool {
 		if !entry.snapshot().Fullscreen {
 			entry.win.Option(gioApp.MinSize(unit.Dp(width), unit.Dp(height)))
 		}
-		entry.updateState(func(state *WindowState) {
+		entry.updateAndEmit(func(state *WindowState) {
 			state.MinWidth = width
 			state.MinHeight = height
 		})
@@ -274,7 +378,7 @@ func (h WindowHandle) SetMaxSize(width, height int) bool {
 		if !entry.snapshot().Fullscreen {
 			entry.win.Option(gioApp.MaxSize(unit.Dp(width), unit.Dp(height)))
 		}
-		entry.updateState(func(state *WindowState) {
+		entry.updateAndEmit(func(state *WindowState) {
 			state.MaxWidth = width
 			state.MaxHeight = height
 		})
@@ -310,7 +414,7 @@ func (h WindowHandle) applyMode(mode gioApp.WindowMode) bool {
 		return false
 	}
 	entry.win.Option(entry.modeOptions(mode)...)
-	entry.updateState(func(state *WindowState) {
+	entry.updateAndEmit(func(state *WindowState) {
 		applyWindowModeState(state, mode)
 	})
 	return true
@@ -340,7 +444,7 @@ func (h WindowHandle) setVisible(visible bool) bool {
 	return true
 }
 
-func (h WindowHandle) perform(actions system.Action) bool {
+func (h WindowHandle) perform(actions gioSystem.Action) bool {
 	if actions == 0 {
 		return false
 	}
@@ -372,6 +476,28 @@ func (h WindowHandle) liveEntry() (*windowEntry, bool) {
 	return entry, true
 }
 
+// Events returns the subscription event channel.
+func (s *WindowEventSubscription) Events() <-chan WindowEvent {
+	if s == nil {
+		return nil
+	}
+	return s.ch
+}
+
+// Close closes the subscription. It returns false when the subscription is nil
+// or was already closed.
+func (s *WindowEventSubscription) Close() bool {
+	if s == nil || !s.closed.CompareAndSwap(false, true) {
+		return false
+	}
+	entry, ok := lookupWindow(s.window)
+	if ok && entry != nil {
+		entry.removeEventSubscriber(s.id)
+		return true
+	}
+	return true
+}
+
 // Application 是 Gio window loop 的封装。
 type Application struct {
 	Title              string
@@ -382,6 +508,9 @@ type Application struct {
 	MaxWidth           int
 	MaxHeight          int
 	HiddenMemoryPolicy WindowHiddenMemoryPolicy
+	Decorated          bool
+	Resizable          bool
+	CloseRequested     func(WindowCloseRequest) bool
 	Theme              *theme.Theme
 	Root               Builder
 }
@@ -399,6 +528,8 @@ func New(root Builder, opts ...Option) *Application {
 		Width:              420,
 		Height:             240,
 		HiddenMemoryPolicy: WindowHiddenMemoryReleaseTransient,
+		Decorated:          true,
+		Resizable:          true,
 		Theme:              theme.Default(),
 		Root:               root,
 	}
@@ -446,6 +577,27 @@ func MaxSize(width, height int) Option {
 	return func(app *Application) {
 		app.MaxWidth = width
 		app.MaxHeight = height
+	}
+}
+
+// Decorated sets whether the initial window uses the OS decoration frame.
+func Decorated(enabled bool) Option {
+	return func(app *Application) {
+		app.Decorated = enabled
+	}
+}
+
+// Resizable sets whether the initial window can be resized by the OS frame.
+func Resizable(enabled bool) Option {
+	return func(app *Application) {
+		app.Resizable = enabled
+	}
+}
+
+// OnCloseRequested sets the initial close-request handler.
+func OnCloseRequested(fn func(WindowCloseRequest) bool) Option {
+	return func(app *Application) {
+		app.CloseRequested = fn
 	}
 }
 
@@ -556,6 +708,7 @@ func (a *Application) Run() error {
 	opts := []gioApp.Option{
 		gioApp.Title(title),
 		gioApp.Size(unit.Dp(width), unit.Dp(height)),
+		gioApp.Decorated(a.Decorated),
 	}
 	if a.MinWidth > 0 && a.MinHeight > 0 {
 		opts = append(opts, gioApp.MinSize(unit.Dp(a.MinWidth), unit.Dp(a.MinHeight)))
@@ -580,9 +733,11 @@ func (a *Application) Run() error {
 			MaxHeight:          maxPositive(a.MaxHeight),
 			Visible:            true,
 			HiddenMemoryPolicy: normalizeWindowHiddenMemoryPolicy(a.HiddenMemoryPolicy),
-			Decorated:          true,
+			Decorated:          a.Decorated,
+			Resizable:          a.Resizable,
 			Alive:              true,
 		},
+		closeRequested: a.CloseRequested,
 	}
 	entry.alive.Store(true)
 	registerWindow(entry)
@@ -693,6 +848,9 @@ func runSpecs(specs ...WindowSpec) error {
 				firstErr = err
 			}
 		}
+		if err := fluxSystem.CloseTrays(); err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+		}
 		result <- firstErr
 
 		if !shouldAutoExit() {
@@ -779,12 +937,28 @@ func (c *windowController) Center() bool {
 	return c.handle.Center()
 }
 
+func (c *windowController) RequestFocus() bool {
+	return c.handle.RequestFocus()
+}
+
 func (c *windowController) SetTitle(title string) bool {
 	return c.handle.SetTitle(title)
 }
 
+func (c *windowController) SetPosition(x, y int) bool {
+	return c.handle.SetPosition(x, y)
+}
+
 func (c *windowController) SetSize(width, height int) bool {
 	return c.handle.SetSize(width, height)
+}
+
+func (c *windowController) SetResizable(resizable bool) bool {
+	return c.handle.SetResizable(resizable)
+}
+
+func (c *windowController) SetDecorated(decorated bool) bool {
+	return c.handle.SetDecorated(decorated)
 }
 
 func (c *windowController) SetMinSize(width, height int) bool {
@@ -814,8 +988,22 @@ type windowEntry struct {
 	nativeMaximizeHandle    uintptr
 	nativeMaximizeSynced    bool
 	nativeMaximizeEnabled   bool
+	nativeResizableHandle   uintptr
+	nativeResizableSynced   bool
+	nativeResizableEnabled  bool
+	nativeCloseHookHandle   uintptr
+	nativeCloseHooked       bool
+	nativeCloseOldProc      uintptr
 	state                   WindowState
+	closeRequested          func(WindowCloseRequest) bool
 	events                  []WindowEvent
+	eventSubscribers        map[uint64]*windowEventSubscriber
+	nextEventSubscriberID   uint64
+}
+
+type windowEventSubscriber struct {
+	ch     chan WindowEvent
+	filter map[WindowEventKind]bool
 }
 
 var (
@@ -839,8 +1027,13 @@ func registerWindow(entry *windowEntry) {
 
 func unregisterWindow(id WindowID) {
 	windowRegistryMu.Lock()
+	entry := windowRegistry[id]
 	delete(windowRegistry, id)
 	windowRegistryMu.Unlock()
+	if entry != nil {
+		entry.closeEventSubscribers()
+	}
+	forgetNativeWindowCloseHook(entry)
 }
 
 func lookupWindow(id WindowID) (*windowEntry, bool) {
@@ -872,6 +1065,13 @@ func (entry *windowEntry) renderSuspendedSnapshot() bool {
 	return suspended
 }
 
+func (entry *windowEntry) metricSnapshot() unit.Metric {
+	entry.mu.RLock()
+	metric := entry.metric
+	entry.mu.RUnlock()
+	return metric
+}
+
 func (entry *windowEntry) maximizeDisabledByConstraints() bool {
 	return hasWindowMaxSize(entry.snapshot())
 }
@@ -900,6 +1100,80 @@ func (entry *windowEntry) syncNativeMaximizeAvailability() {
 	entry.mu.Unlock()
 
 	setNativeWindowMaximizeEnabled(handle, enabled)
+}
+
+func (entry *windowEntry) syncNativeResizable() {
+	entry.mu.Lock()
+	handle := entry.nativeHandle
+	if handle == 0 {
+		entry.mu.Unlock()
+		return
+	}
+	enabled := entry.state.Resizable
+	if entry.nativeResizableSynced &&
+		entry.nativeResizableHandle == handle &&
+		entry.nativeResizableEnabled == enabled {
+		entry.mu.Unlock()
+		return
+	}
+	entry.nativeResizableHandle = handle
+	entry.nativeResizableSynced = true
+	entry.nativeResizableEnabled = enabled
+	entry.mu.Unlock()
+
+	setNativeWindowResizable(handle, enabled)
+}
+
+func (entry *windowEntry) syncNativeCloseHook() {
+	entry.mu.Lock()
+	handle := entry.nativeHandle
+	enabled := entry.closeRequested != nil
+	hooked := entry.nativeCloseHooked
+	if handle == 0 {
+		entry.mu.Unlock()
+		if hooked {
+			uninstallNativeWindowCloseHook(entry)
+		}
+		return
+	}
+	if !enabled {
+		entry.mu.Unlock()
+		if hooked {
+			uninstallNativeWindowCloseHook(entry)
+		}
+		return
+	}
+	if entry.nativeCloseHooked && entry.nativeCloseHookHandle == handle {
+		entry.mu.Unlock()
+		return
+	}
+	entry.mu.Unlock()
+
+	installNativeWindowCloseHook(entry)
+}
+
+func (entry *windowEntry) handleCloseRequested() bool {
+	entry.mu.Lock()
+	handler := entry.closeRequested
+	state := entry.state
+	state.ID = entry.id
+	state.Alive = entry.alive.Load()
+	event := WindowEvent{
+		Window: WindowHandle{id: entry.id},
+		Kind:   WindowEventCloseRequested,
+		State:  state,
+	}
+	entry.events = append(entry.events, event)
+	entry.dispatchEventLocked(event)
+	entry.mu.Unlock()
+
+	if handler == nil {
+		return true
+	}
+	return handler(WindowCloseRequest{
+		Window: WindowHandle{id: entry.id},
+		State:  state,
+	})
 }
 
 func (entry *windowEntry) requestHiddenMemoryTrim() {
@@ -950,6 +1224,7 @@ func (entry *windowEntry) updateFromConfig(config gioApp.Config) {
 func (entry *windowEntry) updateFromFrame(size image.Point, metric unit.Metric) {
 	entry.updateAndEmit(func(state *WindowState) {
 		entry.metric = metric
+		updateScaleFromMetric(state, metric)
 		updateDpSizeFromMetric(state, metric, size.X, size.Y)
 	})
 }
@@ -967,11 +1242,13 @@ func (entry *windowEntry) updateAndEmit(fn func(state *WindowState)) {
 	after := entry.state
 	kinds := windowEventKinds(before, after)
 	for _, kind := range kinds {
-		entry.events = append(entry.events, WindowEvent{
+		event := WindowEvent{
 			Window: WindowHandle{id: entry.id},
 			Kind:   kind,
 			State:  after,
-		})
+		}
+		entry.events = append(entry.events, event)
+		entry.dispatchEventLocked(event)
 	}
 	entry.mu.Unlock()
 }
@@ -994,11 +1271,13 @@ func (entry *windowEntry) pushEvent(kind WindowEventKind, fn func(state *WindowS
 	}
 	entry.state.ID = entry.id
 	entry.state.Alive = entry.alive.Load()
-	entry.events = append(entry.events, WindowEvent{
+	event := WindowEvent{
 		Window: WindowHandle{id: entry.id},
 		Kind:   kind,
 		State:  entry.state,
-	})
+	}
+	entry.events = append(entry.events, event)
+	entry.dispatchEventLocked(event)
 	entry.mu.Unlock()
 }
 
@@ -1010,10 +1289,84 @@ func (entry *windowEntry) drainEvents() []WindowEvent {
 	return events
 }
 
+func (entry *windowEntry) addEventSubscriber(kinds ...WindowEventKind) *WindowEventSubscription {
+	entry.mu.Lock()
+	entry.nextEventSubscriberID++
+	id := entry.nextEventSubscriberID
+	if entry.eventSubscribers == nil {
+		entry.eventSubscribers = make(map[uint64]*windowEventSubscriber)
+	}
+	ch := make(chan WindowEvent, 16)
+	entry.eventSubscribers[id] = &windowEventSubscriber{
+		ch:     ch,
+		filter: windowEventFilter(kinds),
+	}
+	entry.mu.Unlock()
+
+	return &WindowEventSubscription{
+		window: entry.id,
+		id:     id,
+		ch:     ch,
+	}
+}
+
+func (entry *windowEntry) removeEventSubscriber(id uint64) {
+	entry.mu.Lock()
+	sub := entry.eventSubscribers[id]
+	delete(entry.eventSubscribers, id)
+	entry.mu.Unlock()
+	if sub != nil {
+		close(sub.ch)
+	}
+}
+
+func (entry *windowEntry) closeEventSubscribers() {
+	entry.mu.Lock()
+	subscribers := entry.eventSubscribers
+	entry.eventSubscribers = nil
+	entry.mu.Unlock()
+
+	for _, sub := range subscribers {
+		close(sub.ch)
+	}
+}
+
+func (entry *windowEntry) dispatchEventLocked(event WindowEvent) {
+	for _, sub := range entry.eventSubscribers {
+		if !sub.accepts(event.Kind) {
+			continue
+		}
+		select {
+		case sub.ch <- event:
+		default:
+		}
+	}
+}
+
+func (sub *windowEventSubscriber) accepts(kind WindowEventKind) bool {
+	return sub != nil && (len(sub.filter) == 0 || sub.filter[kind])
+}
+
+func windowEventFilter(kinds []WindowEventKind) map[WindowEventKind]bool {
+	if len(kinds) == 0 {
+		return nil
+	}
+	filter := make(map[WindowEventKind]bool, len(kinds))
+	for _, kind := range kinds {
+		if kind != "" {
+			filter[kind] = true
+		}
+	}
+	return filter
+}
+
 func windowEventKinds(before, after WindowState) []WindowEventKind {
 	kinds := make([]WindowEventKind, 0, 3)
 	if before.Width != after.Width || before.Height != after.Height {
 		kinds = append(kinds, WindowEventSizeChanged)
+	}
+	if before.Scale != after.Scale || before.TextScale != after.TextScale || before.DPI != after.DPI {
+		kinds = append(kinds, WindowEventScaleChanged)
 	}
 	if before.Focused != after.Focused {
 		kinds = append(kinds, WindowEventFocusChanged)
@@ -1022,11 +1375,17 @@ func windowEventKinds(before, after WindowState) []WindowEventKind {
 		before.Maximized != after.Maximized ||
 		before.Fullscreen != after.Fullscreen ||
 		before.Decorated != after.Decorated ||
+		before.Resizable != after.Resizable ||
 		before.Visible != after.Visible ||
 		before.AlwaysOnTop != after.AlwaysOnTop ||
 		before.RenderSuspended != after.RenderSuspended ||
 		before.HiddenMemoryPolicy != after.HiddenMemoryPolicy ||
 		before.Title != after.Title ||
+		before.X != after.X ||
+		before.Y != after.Y ||
+		before.Scale != after.Scale ||
+		before.TextScale != after.TextScale ||
+		before.DPI != after.DPI ||
 		before.MinWidth != after.MinWidth ||
 		before.MinHeight != after.MinHeight ||
 		before.MaxWidth != after.MaxWidth ||
@@ -1125,6 +1484,16 @@ func updateDpMinSizeFromMetric(state *WindowState, metric unit.Metric, widthPx, 
 func updateDpMaxSizeFromMetric(state *WindowState, metric unit.Metric, widthPx, heightPx int) {
 	state.MaxWidth = pxToDpIntOrZero(metric, widthPx)
 	state.MaxHeight = pxToDpIntOrZero(metric, heightPx)
+}
+
+func updateScaleFromMetric(state *WindowState, metric unit.Metric) {
+	if metric.PxPerDp > 0 {
+		state.Scale = metric.PxPerDp
+		state.DPI = int(math.Round(float64(metric.PxPerDp * 96)))
+	}
+	if metric.PxPerSp > 0 {
+		state.TextScale = metric.PxPerSp
+	}
 }
 
 func pxToDpIntOrZero(metric unit.Metric, px int) int {

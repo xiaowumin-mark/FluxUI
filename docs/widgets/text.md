@@ -10,8 +10,12 @@
     "Text(content string, opts ...TextOption) Widget",
     "TextElement(content string, opts ...TextOption) Element",
     "TextSize(size float32) TextOption",
+    "TextLineHeight(lineHeight float32) TextOption",
+    "TextType(style TextStyle) TextOption",
     "TextColor(value color.NRGBA) TextOption",
-    "TextAlign(alignment TextAlignment) TextOption"
+    "TextAlign(alignment TextAlignment) TextOption",
+    "TextFont(font FontSpec) TextOption",
+    "TextFontWeight(weight FontWeight) TextOption"
   ]
 }
 -->
@@ -23,6 +27,8 @@ Text 是最基础展示组件，支持字号、颜色和对齐控制。所有文
 
 ## 使用方法
 - 标题、正文、说明分别定义字号规范。
+- Material 3 字体层级可通过 `TextType(th.Types.TitleMedium)` 直接套用。
+- 单段文本可用 `TextLineHeight`、`TextFont` 和 `TextFontWeight` 局部覆盖排版。
 - 强调文本建议结合主题色，而不是硬编码随机颜色。
 
 ## 使用示例
@@ -34,8 +40,11 @@ Text 是最基础展示组件，支持字号、颜色和对齐控制。所有文
 func App(ctx *ui.Context) ui.Element {
     return ui.TextElement(
         "Hello FluxUI",
-        ui.TextSize(18),
+        ui.TextType(ui.UseTheme(ctx).Types.TitleMedium),
+        ui.TextLineHeight(26),
         ui.TextColor(ui.NRGBA(30, 41, 59, 255)),
+        ui.TextFont(ui.FontFamily("Segoe UI")),
+        ui.TextFontWeight(ui.FontWeightSemiBold),
     )
 }
 ```

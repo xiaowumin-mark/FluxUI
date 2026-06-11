@@ -785,6 +785,12 @@ func TestInteractiveElementsWrapLegacyWidgets(t *testing.T) {
 	if el := ClickAreaElement(TextElement("tap"), nil); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected ClickAreaElement to wrap a legacy click area widget")
 	}
+	if el := DropTargetElement(TextElement("drop"), nil); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected DropTargetElement to wrap a legacy drop target widget")
+	}
+	if el := DragSourceElement(TextElement("drag"), DragSourceText("payload")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected DragSourceElement to wrap a legacy drag source widget")
+	}
 	if el := CheckboxElement("check", true); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected CheckboxElement to wrap a legacy checkbox widget")
 	}

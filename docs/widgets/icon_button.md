@@ -17,7 +17,11 @@
     "OutlinedIconButtonElement(child Element, opts ...IconButtonOption) Element",
     "IconButtonSelected(selected bool) IconButtonOption",
     "IconButtonDisabled(disabled bool) IconButtonOption",
-    "IconButtonOnClick(fn func(ctx *Context)) IconButtonOption"
+    "IconButtonOnClick(fn func(ctx *Context)) IconButtonOption",
+    "IconButtonSize(size float32) IconButtonOption",
+    "IconButtonBackground(col color.NRGBA) IconButtonOption",
+    "IconButtonForeground(col color.NRGBA) IconButtonOption",
+    "IconButtonDecoration(d Decoration) IconButtonOption"
   ]
 }
 -->
@@ -32,5 +36,14 @@ ui.RowElement(
     ui.FilledIconButtonElement(ui.IconElement("E"), ui.IconButtonSelected(true)),
     ui.FilledTonalIconButtonElement(ui.IconElement("T")),
     ui.OutlinedIconButtonElement(ui.IconElement("M")),
+)
+```
+
+```go
+ui.FilledTonalIconButtonElement(
+    ui.IconElement("T"),
+    ui.IconButtonSize(42),
+    ui.IconButtonBackground(ui.NRGBA(219, 234, 254, 255)),
+    ui.IconButtonForeground(ui.NRGBA(30, 64, 175, 255)),
 )
 ```

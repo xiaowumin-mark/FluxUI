@@ -16,6 +16,10 @@
     "BottomNavActiveColor(col color.NRGBA) BottomNavOption",
     "BottomNavInactiveColor(col color.NRGBA) BottomNavOption",
     "BottomNavAlignmentOf(alignment BottomNavAlignment) BottomNavOption",
+    "BottomNavAlignStart",
+    "BottomNavAlignCenter",
+    "BottomNavAlignEnd",
+    "BottomNavAlignSpaceEvenly",
     "NewBottomNavRef() *BottomNavRef",
     "BottomNavAttachRef(ref *BottomNavRef) BottomNavOption",
     "(*BottomNavRef).SetActive(key string)"
@@ -40,6 +44,7 @@ BottomNavigation 适用于移动端或工具型应用的一级页面切换。
 - `items` 定义导航项。
 - 在 `BottomNavOnChange` 中回写状态并切换页面内容。
 - 外部程序切页可通过 `BottomNavAttachRef` 绑定后调用 `SetActive`。
+- `BottomNavAlignmentOf` 支持 `BottomNavAlignStart`、`BottomNavAlignCenter`、`BottomNavAlignEnd` 和 `BottomNavAlignSpaceEvenly`。
 
 ## 使用示例
 
@@ -56,6 +61,7 @@ func BottomTabs(ctx *ui.Context) ui.Element {
             {Key: "home", Label: "首页", Icon: ui.TextElement("H")},
             {Key: "docs", Label: "文档", Icon: ui.TextElement("D")},
         },
+        ui.BottomNavAlignmentOf(ui.BottomNavAlignSpaceEvenly),
         ui.BottomNavOnChange(func(ctx *ui.Context, key string) { active.Set(key) }),
     )
 }

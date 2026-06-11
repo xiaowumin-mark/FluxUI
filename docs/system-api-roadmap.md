@@ -5,12 +5,29 @@
   "category": "使用指南",
   "order": 122,
   "summary": "规划 FluxUI 后续系统层 API 封装，包括窗口、文件选择、系统弹窗、系统通知、托盘与多平台占位策略。",
+  "example": { "id": "system_api_basic" },
   "apis": [
     "system.OpenFileDialog(ctx context.Context, opts ...FileDialogOption) (FileDialogResult, error)",
     "system.SaveFileDialog(ctx context.Context, opts ...FileDialogOption) (FileDialogResult, error)",
     "system.ShowMessageBox(ctx context.Context, opts ...MessageBoxOption) (MessageBoxResult, error)",
+    "system.ShowMessageBoxDetailed(ctx context.Context, opts ...MessageBoxOption) (MessageBoxDetailedResult, error)",
     "system.Notify(ctx context.Context, opts ...NotificationOption) error",
+    "system.ProbeNotificationBackend(ctx context.Context, backend NotificationBackend, opts ...NotificationOption) NotificationBackendProbe",
+    "system.CancelNotificationGroup(ctx context.Context, group string) error",
+    "system.RegisterToastShortcut(ctx context.Context, appID, shortcutName, executable string, opts ...ToastShortcutOption) error",
+    "system.ToastShortcutActivatorCLSID(clsid string) ToastShortcutOption",
+    "system.RegisterToastActivator(ctx context.Context, clsid, command string) error",
+    "system.UnregisterToastActivator(ctx context.Context, clsid string) error",
+    "system.StartToastActivator(ctx context.Context, clsid string, fn func(ToastActivationEvent)) (*ToastActivator, error)",
+    "system.RunToastActivator(ctx context.Context, clsid string, fn func(ToastActivationEvent)) error",
+    "system.SubscribeSystemEvents(ctx context.Context, kinds ...SystemEventKind) (*SystemEventSubscription, error)",
     "system.NewTray(opts ...TrayOption) (*Tray, error)",
+    "system.ReadClipboardText(ctx context.Context) (string, error)",
+    "system.WriteClipboardText(ctx context.Context, text string) error",
+    "system.OpenURL(ctx context.Context, target string) error",
+    "system.OpenPath(ctx context.Context, path string) error",
+    "system.RevealPath(ctx context.Context, path string) error",
+    "system.ProbeDragAndDrop(ctx context.Context) DragAndDropProbe",
     "WindowElement(root Component, opts ...AppOption) WindowSpec",
     "RunElementMulti(windows ...WindowSpec) error",
     "WindowHandle.NativeHandle() (uintptr, bool)",
@@ -29,15 +46,15 @@
 
 ## 当前进展
 
-截至 2026-06-05，FluxUI 已经具备一部分窗口级基础能力。
+截至 2026-06-09，FluxUI 已经具备一部分窗口级基础能力。
 
 ### 已完成的窗口基础设施
 
-- `app.WindowHandle` 已提供 `ID`、`IsAlive`、`NativeHandle`、`Close`、`Show`、`Hide`、`SetHiddenMemoryPolicy`、`Minimize`、`Maximize`、`Restore`、`Fullscreen`、`Raise`、`SetAlwaysOnTop`、`Center`、`SetTitle`、`SetSize`、`Invalidate`。
+- `app.WindowHandle` 已提供 `ID`、`IsAlive`、`NativeHandle`、`Close`、`Show`、`Hide`、`SetHiddenMemoryPolicy`、`Minimize`、`Maximize`、`Restore`、`Fullscreen`、`Raise`、`RequestFocus`、`SetAlwaysOnTop`、`Center`、`SetTitle`、`SetPosition`、`SetSize`、`SetResizable`、`SetDecorated`、`Invalidate`。
 - `app.RunMulti` 与 `ui.RunElementMulti` 已支持桌面多窗口启动。
 - `ui.WindowElement` 已提供 React-style 多窗口入口。
 - `ui.ListWindows` / `ui.GetWindow` 已能查询当前存活窗口。
-- `ui.CurrentWindowID(ctx)` 与 `WindowClose`、`WindowShow`、`WindowHide`、`WindowSetHiddenMemoryPolicy`、`WindowMinimize`、`WindowMaximize`、`WindowRestore`、`WindowFullscreen`、`WindowRaise`、`WindowSetAlwaysOnTop`、`WindowCenter`、`WindowSetTitle`、`WindowSetSize`、`WindowInvalidate`、`WindowIsAlive` 已经把当前窗口控制暴露到 UI 层。
+- `ui.CurrentWindowID(ctx)` 与 `WindowClose`、`WindowShow`、`WindowHide`、`WindowSetHiddenMemoryPolicy`、`WindowMinimize`、`WindowMaximize`、`WindowRestore`、`WindowFullscreen`、`WindowRaise`、`WindowRequestFocus`、`WindowSetAlwaysOnTop`、`WindowCenter`、`WindowSetTitle`、`WindowSetPosition`、`WindowSetSize`、`WindowSetResizable`、`WindowSetDecorated`、`WindowInvalidate`、`WindowIsAlive` 已经把当前窗口控制暴露到 UI 层。
 - `internal.WindowController` 已形成当前窗口控制的内部接口，后续可以作为系统 API 与运行时之间的桥。
 
 ### 已完成的应用内反馈能力
@@ -50,10 +67,11 @@
 - 已新增统一的 `system` 包，窗口、文件选择、消息框、通知和托盘已经共享能力检测、错误语义和平台 driver 约定。
 - Windows 已封装原生文件选择器：打开文件、保存文件、选择目录、多选、过滤器、默认目录和默认文件名均已具备 v1 API。
 - Windows 已封装系统原生弹窗：信息、警告、错误、确认、取消、按钮结果、owner window 和模态行为已具备 v1 API。
-- Windows 已提供系统通知路径：当前通过 `Shell_NotifyIconW` 托盘气泡实现，Toast Notification 仍作为后续专项评估。
+- Windows 已提供系统通知路径：默认通过 `Shell_NotifyIconW` 托盘气泡实现；显式 Toast backend、action button XML、AppUserModelID 开始菜单快捷方式注册、ToastActivatorCLSID shortcut 前置属性、COM LocalServer 注册、当前进程 `INotificationActivationCallback` 分发和短生命周期实时 click/action/dismiss 回调已落地。通知中心持久点击到具体应用启动模式仍需要按应用命令行做人工点验。
 - Windows 已提供任务栏托盘：长期托盘图标、tooltip、左键/右键事件、菜单、显示隐藏和退出动作已具备 v1 API。
-- 系统消息订阅仍待设计：显示器/DPI 变化、主题变化、电源/会话等事件缺少统一的上层语义。
-- 多平台真实 driver 仍待补齐：非 Windows 平台当前保持可编译并明确返回 `ErrUnsupported`。
+- Windows 已提供系统事件订阅第一版：`SubscribeSystemEvents` 可订阅 display、DPI、theme、settings、power 和 session 事件；具体事件到达仍受 Windows 消息模型限制。
+- Windows 已提供 Clipboard / Shell open / Drag & Drop probe 第一版：文本剪贴板读写、默认程序打开 URL/文件/目录、Explorer 定位路径和 Gio transfer 拖放能力探测已具备 v1 API；`file:` URL 和本地路径会在提交 Explorer 前检查目标存在，避免已删除目标触发系统“位置不可用”弹窗。
+- macOS / Linux 已补 File Dialog、Clipboard 文本、Shell open、MessageBox、Notification、System Events 和 Tray 最小 driver：macOS 使用 `osascript choose file/folder/file name`、`pbpaste` / `pbcopy`、`open` / `open -R`、`osascript display dialog`、`osascript display notification`，通过 `ioreg` / `defaults` / `pmset` / `stat` 轮询系统事件快照，并用 `osascript` + AppKit `NSStatusItem` 提供命令型最小 Tray；Linux 使用 `zenity` / `kdialog`、`wl-clipboard` / `xclip` / `xsel`、`xdg-open`、`notify-send` / `kdialog --passivepopup`，通过 `/sys` / `gsettings` / `loginctl` 轮询系统事件快照，并用 `yad --notification` 提供命令型最小 Tray；其它未实现平台仍保持可编译并明确返回 `ErrUnsupported`。
 
 ## 长期目标
 
@@ -189,11 +207,11 @@ go vet ./...
 - B2 已新增 `WindowState` 与 `WindowHandle.State()`，作为 FluxUI runtime 维护的窗口状态快照。
 - B3 已新增 `MinSize` / `MaxSize` app option，以及 `WindowHandle.SetMinSize` / `SetMaxSize`、`WindowSetMinSize(ctx, ...)` / `WindowSetMaxSize(ctx, ...)`。
 - B4 已补充 Windows 持续置顶能力：`WindowHandle.SetAlwaysOnTop(always)` / `WindowSetAlwaysOnTop(ctx, always)` 通过 native `HWND` 异步调用实现；`Raise` 保持为一次性前置请求。
-- B5 已完成 Gio v0.9 调研：当前没有可在 `DestroyEvent` 前稳定拦截 OS close 的公共 API，关闭拦截暂不实现。
+- B5 已完成 Windows 关闭拦截：通过 native close hook 在 `WM_CLOSE` 路径触发 `WindowEventCloseRequested`，`WindowHandle.SetCloseRequestedHandler` / `ui.OnCloseRequested` 的 handler 返回 false 时可取消关闭；非 Windows 平台仍保持可编译并按平台能力降级。
 - B6 已新增轻量窗口事件模型，提供 `WindowHandle.PollEvents()`、`WindowEvent` 和 size/focus/state/closed 事件。
 - B7 已完成 native owner 接入：Windows 下通过 Gio `Win32ViewEvent` 捕获 HWND，并由 `WindowHandle.NativeHandle()` 暴露为 `uintptr`；非 Windows 平台返回 false。
 - B8 已新增 `docs/guides/window-api.md` 作为窗口 API 集中入口。
-- B9 已新增 `examples/window_showcase`，覆盖多窗口、状态快照、事件拉取、持续置顶、显示/隐藏和常用窗口动作。
+- B9 已新增 `examples/window_showcase`，覆盖多窗口、状态快照、事件订阅、关闭请求拦截、关闭前“是否保存”系统消息框、持续置顶、显示/隐藏、隐藏内存策略和常用窗口动作；`PollEvents()` 作为兼容入口继续保留。
 - B10 已修正全屏尺寸约束：进入全屏时临时清除 Gio 层 `MinSize` / `MaxSize`，退出全屏或回到普通窗口模式时重新应用应用请求的约束。已通过 `go test ./...` 与 `go vet ./...` 验收。
 - B11 已新增隐藏内存策略：默认 `WindowHiddenMemoryReleaseTransient` 会在隐藏后暂停 FluxUI 渲染、跳过隐藏窗口 redraw invalidation、清空临时 `op.Ops` 并异步触发 Go 内存回收；`WindowHiddenMemoryKeepRenderingState` 可保留隐藏窗口渲染状态。当前不直接释放 Gio 内部 GPU context。
 - B12 已修正最大尺寸限制下的最大化行为：设置完整 `MaxSize(width, height)` 后，`WindowHandle.Maximize()` / `WindowMaximize(ctx)` 返回 `false`，Windows 原生标题栏最大化按钮和系统菜单最大化项同步禁用；全屏仍按 B10 逻辑保留可用。
@@ -256,10 +274,10 @@ func (h WindowHandle) RequestFocus() bool
 - C2 已完成：支持打开单个文件、打开多个文件、保存文件、选择目录。
 - C3 已完成：支持标题、默认目录、默认文件名、扩展名过滤器、是否允许不存在路径、是否允许创建目录、是否覆盖确认。
 - C4 已完成：Windows 实现使用 `IFileOpenDialog` / `IFileSaveDialog` 和 Common Item Dialog。
-- C5 已完成：处理 COM 初始化、线程绑定、UTF-16 路径转换、取消返回值和错误包装。
+- C5 已完成：处理 COM 初始化、线程绑定、UTF-16 路径转换、取消返回值、context 打开后取消和错误包装。Windows 下 context 取消会调用 `IFileDialog.Close` 尝试关闭正在显示的 Common Item Dialog；取消 watcher 会在 dialog 返回后停止并等待退出，避免释放 COM 对象后继续关闭，Windows-only helper 测试已覆盖该边界。
 - C6 已完成：新增显式 `FileDialogOwner(hwnd)`，Windows 下映射为 `HWND`；FluxUI 可通过 `WindowHandle.NativeHandle()` 取得当前窗口 HWND，未传 owner 时仍保留无 owner fallback。
-- C7 已完成：非 Windows 平台保持可编译，默认 driver 返回 `ErrUnsupported`，并补充 `!windows` unsupported 测试。
-- C8 已完成：新增 `examples/system_showcase`，示例只在 `system.Supports(CapabilityFileDialog)` 时启用按钮，并通过 `ui` wrapper 自动将当前窗口 native owner 传给文件对话框。
+- C7 已完成并扩展：非 Windows 平台保持可编译；macOS / Linux 已声明 `CapabilityFileDialog` 并提供最小命令 driver，其他未实现平台调用 File Dialog API 返回 `ErrUnsupported`。
+- C8 已完成：新增 `examples/system_showcase`，示例只在 `system.Supports(CapabilityFileDialog)` 时启用按钮，并通过 `ui` wrapper 自动将当前窗口 native owner 传给文件对话框；示例已覆盖记忆目录、保存默认扩展名和显示后 context 自动取消。
 - C9 已完成：新增 `docs/guides/file-dialog-api.md`，并更新 System API 总入口。
 - C10 已完成：补充验收清单，覆盖取消、多选、过滤器、默认目录错误、中文路径、空格路径和长路径。
 
@@ -297,20 +315,21 @@ func FileDialogOwner(owner uintptr) FileDialogOption
 
 目标：提供系统原生消息框，用于轻量确认、警告和错误提示。
 
-当前状态：D1-D9 已完成，D10 自动化验收已完成，Windows 本地人工点验待执行。Phase D 已沿用 File Dialog 的系统层边界补齐 MessageBox 公共 API、unsupported 行为、Windows `TaskDialog` 优先实现、`MessageBoxW` 兼容回退、owner modal 行为、关闭/取消语义说明、文档指南和 `system_showcase` 示例。
+当前状态：D1-D9 已完成，D10 自动化验收已完成，Windows 本地人工点验待执行。Phase D 已沿用 File Dialog 的系统层边界补齐 MessageBox 公共 API、unsupported 行为、Windows `TaskDialogIndirect` 优先实现、`TaskDialog` / `MessageBoxW` 兼容回退、owner modal 行为、关闭/取消语义说明、异步入口、富 TaskDialog 选项、macOS/Linux 最小命令 driver、文档指南和 `system_showcase` 示例。
 
 任务：
 
 - D1 已完成：公共类型设计，定义 `MessageBoxKind`、`MessageBoxButtons`、`MessageBoxResult`、`MessageBoxOption` 和内部 `messageBoxOptions`，覆盖 info、warning、error、question、OK、OKCancel、YesNo、YesNoCancel、RetryCancel。
 - D2 已完成：公共入口与 option，新增 `ShowMessageBox(ctx context.Context, opts ...MessageBoxOption) (MessageBoxResult, error)`，以及 `MessageBoxTitle`、`MessageBoxText`、`MessageBoxStyle`、`MessageBoxButtonSet`、`MessageBoxDefaultButton`、`MessageBoxOwner`。
 - D3 已完成：driver 边界，新增 message box driver 分发；未支持或未声明 `CapabilityMessageBox` 时返回包装后的 `ErrUnsupported`。
-- D4 已完成：非 Windows 占位，非 Windows 平台可编译，调用 `ShowMessageBox` 返回 `ErrUnsupported`，并补充 `!windows` 测试。
-- D5 已完成：Windows 优先使用 `TaskDialog`，实现 icon、button set、owner HWND、返回值到 `MessageBoxResult` 的映射；`TaskDialog` 不可用时回退到 `MessageBoxW`。复杂默认按钮语义后续可再评估 `TaskDialogIndirect`。
-- D6 已完成：取消和关闭语义。Windows v1 无法稳定区分 Cancel、Escape 和关闭按钮，只要系统返回 `IDCANCEL` 就映射为 `MessageBoxResultCancel`；`MessageBoxResultClose` 保留给后续能区分关闭动作的 driver。
-- D7 已完成：context 与阻塞边界。打开前检查 `context.Context`；原生窗口显示后暂不承诺强制关闭。文档强调只能从事件回调、后台任务或 app 生命周期触发，不要放进布局函数。
+- D4 已完成并扩展：非 Windows 平台保持可编译；macOS / Linux 已声明 `CapabilityMessageBox` 并提供最小命令 driver，其他未实现平台调用 `ShowMessageBox` 返回 `ErrUnsupported`。
+- D5 已完成：Windows 优先使用 `TaskDialogIndirect`，实现 icon、button set、默认按钮、owner HWND、返回值到 `MessageBoxResult` 的映射；不可用时依次回退到 `TaskDialog` 和 `MessageBoxW`。使用富选项时不会静默降级到会丢能力的旧实现。
+- D6 已完成第一版：取消和关闭语义。Windows `TaskDialogIndirect` 会记录真实按钮点击和关闭来源：点击 Cancel 按钮返回 `MessageBoxResultCancel`，Escape 返回 `MessageBoxResultEscape`，右上角关闭按钮或 `WM_CLOSE` 返回 `MessageBoxResultClose`；`TaskDialog` / `MessageBoxW` 回退路径仍把 `IDCANCEL` 映射为 Cancel。
+- D7 已完成：context 与阻塞边界。打开前检查 `context.Context`；Windows `TaskDialogIndirect` 显示后会监听 context 取消并向原生 dialog 投递关闭请求。`TaskDialog` / `MessageBoxW` 回退路径会在调用期间锁定当前 OS 线程，context 取消后通过枚举该线程上的原生 dialog 做 best-effort 关闭。文档强调只能从事件回调、后台任务或 app 生命周期触发，不要放进布局函数。已补 `ShowMessageBoxAsync` 和 `ShowMessageBoxDetailedAsync`。
+- D7.1 已完成：富 TaskDialog 选项。新增 `ShowMessageBoxDetailed`、`MessageBoxDetails`、`MessageBoxFooter`、`MessageBoxVerification`、`MessageBoxCustomButtons`、`MessageBoxDefaultButtonID`、`MessageBoxCommandLinks` 等 API，可返回自定义按钮 ID 和复选框状态。
 - D8 已完成：单元测试覆盖 option 默认值、driver 分发、能力缺失、context 已取消、按钮/结果映射 helper、错误 helper 包装判断；Windows-only 测试使用 build tag。
-- D9 已完成：新增 `docs/guides/message-box-api.md`，更新 `docs/guides/system-api.md` 和 `examples/system_showcase`，示例按 `system.Supports(CapabilityMessageBox)` 启用按钮，并通过 `ui` wrapper 自动将当前窗口 native owner 传给消息框。
-- D10 部分完成：`go test ./...`、`go vet ./...`、`go test ./examples/system_showcase` 已作为自动化验收；Windows 人工验证 info/warning/error/question、OK/Cancel/Yes/No/Retry、Escape/关闭按钮、无 owner 与显式 owner modal 行为仍需本地点击确认。
+- D9 已完成：新增 `docs/guides/message-box-api.md`，更新 `docs/guides/system-api.md` 和 `examples/system_showcase`，示例按 `system.Supports(CapabilityMessageBox)` 启用按钮，并通过 `ui` wrapper 自动将当前窗口 native owner 传给消息框；示例已覆盖富 TaskDialog 和显示后 context 自动取消。
+- D10 部分完成：`go test ./...`、`go vet ./...`、`go test ./examples/system_showcase` 已作为自动化验收；Windows 人工验证 info/warning/error/question、OK/Cancel/Yes/No/Retry、富 TaskDialog、context 自动取消、Cancel/Escape/关闭按钮区分、无 owner 与显式 owner modal 行为仍需本地点击确认。
 
 建议 API：
 
@@ -328,7 +347,7 @@ func MessageBoxOwner(owner uintptr) MessageBoxOption
 验收：
 
 - 各按钮集返回值正确映射。
-- Escape、关闭按钮和 Cancel 行为一致且文档化。
+- `TaskDialogIndirect` 路径下 Cancel、Escape 和关闭按钮行为可区分且文档化；`TaskDialog` / `MessageBoxW` 回退路径的 `IDCANCEL` 行为文档化。
 - owner window 可用时消息框置于当前窗口前方，并在关闭前阻止 owner 窗口正常切回交互焦点。
 - 无 owner 时仍可使用，但不承诺置顶。
 
@@ -336,16 +355,16 @@ func MessageBoxOwner(owner uintptr) MessageBoxOption
 
 目标：提供非阻塞系统消息能力，用于后台任务完成、错误、提醒和托盘气泡。
 
-当前状态：E1-E10 已完成并补充 Windows 展示修复。Phase E v1 已补齐 Notification 公共 API、option 模型、driver 分发、事件 callback 承载点、非 Windows `ErrUnsupported`、Windows `Shell_NotifyIconW` 托盘气泡展示路径、文档、示例和自动化验收。Toast Notification 继续作为后续专项评估，不进入第一版承诺。
+当前状态：E1-E10 已完成并补充 Windows 展示修复；macOS / Linux Notification 命令型最小 driver 已补充。Phase E v1 已补齐 Notification 公共 API、option 模型、driver 分发、事件 callback 承载点、Windows `Shell_NotifyIconW` 托盘气泡展示路径、Toast 请求路径、Toast backend 级探测、action button XML、协议 URI 激活、AppUserModelID shortcut 注册、ToastActivatorCLSID shortcut 前置属性、COM LocalServer 注册、当前进程 `INotificationActivationCallback` 分发、短生命周期实时 Toast 事件监听、macOS `osascript display notification`、Linux `notify-send` / `kdialog`、文档、示例和自动化验收。通知中心点击后跨进程回到具体应用启动模式仍作为应用打包/命令行集成点验项保留。
 
 任务：
 
 - E1 已完成：公共类型设计，定义 `NotificationKind`、`NotificationOption`、`NotificationEvent`、`notificationOptions`，覆盖 info、success、warning、error、title、body、icon、group、timeout。
 - E2 已完成：公共入口与 option，新增 `Notify(ctx context.Context, opts ...NotificationOption) error`，以及 `NotificationTitle`、`NotificationBody`、`NotificationKindStyle`、`NotificationIcon`、`NotificationGroup`、`NotificationTimeout`。
 - E3 已完成：driver 边界，新增 notification driver 分发；未支持或未声明 `CapabilityNotification` 时返回包装后的 `ErrUnsupported`。
-- E4 已完成：非 Windows 占位，非 Windows 平台可编译，调用 `Notify` 返回 `ErrUnsupported`，并补充 `!windows` 测试。
+- E4 已完成并升级：非 Windows 平台可编译；macOS / Linux 已提供命令型最小 notification driver，缺少平台命令时返回 `ErrUnavailable`，Toast、actions、protocol activation 等不支持子能力返回 `ErrUnsupported`；其它平台仍返回 `ErrUnsupported`。
 - E5 已完成：Windows v1 展示路径已实现。Windows driver 声明 `CapabilityNotification`，通过隐藏消息窗口和 `Shell_NotifyIconW` 临时托盘图标提交气泡通知；Windows shell、通知区或图标加载不可用时返回包装后的 `ErrUnavailable`。
-- E6 已完成：展示路径决策已固定为托盘气泡通知；Toast Notification 需要 AppUserModelID、快捷方式、打包/非打包差异和激活回调，已写入限制文档，不做第一版承诺。长期 Tray API 生命周期已在 Phase F 完成。
+- E6 已完成：默认展示路径固定为托盘气泡通知；显式请求 Toast 或配置 action buttons 时走 Toast 请求路径。Toast 支持 backend 级探测、foreground action、协议 URI 激活和短生命周期实时回调；AppUserModelID、快捷方式/安装器注册、打包/非打包差异和 COM activation callback 已写入限制文档。长期 Tray API 生命周期已在 Phase F 完成。
 - E7 已完成：`NotificationOnClick(fn func(NotificationEvent))` 已作为 option 透传并接入 Windows `NIN_BALLOONUSERCLICK`；系统没有回调时不伪造 clicked/dismissed/action 事件。
 - E8 已完成：单元测试覆盖 option 默认值、driver 分发、能力缺失、context 已取消、`ErrUnavailable` 包装、unsupported 平台行为、click callback option 透传，以及 Windows notification data、图标标志和超时映射。
 - E9 已完成：新增 `docs/guides/notification-api.md`，更新 `docs/guides/system-api.md`、`docs/README.md` 和 `examples/system_showcase`；示例按 `system.Supports(CapabilityNotification)` 展示能力状态，并在系统通知区不可用时展示 `ErrUnavailable`。
@@ -369,7 +388,7 @@ v1 验收：
 
 - Windows v1 调用 `Notify` 可显示托盘气泡通知；系统通知区不可用时返回包装后的 `ErrUnavailable`。
 - 托盘气泡路径不要求安装程序或 AppUserModelID。
-- Toast 路径如果未实现，必须明确返回不支持或不可用，不假装成功。
+- Toast 路径如果系统 AppID/Toast 服务不可用，必须明确返回不支持或不可用，不假装成功。
 - 点击回调只在 driver 能稳定收到真实事件时调用；Windows 当前处理 `NIN_BALLOONUSERCLICK`。
 
 ### Phase F: Tray 托盘
@@ -430,18 +449,45 @@ func (t *Tray) Close() error
 - 菜单点击回调线程安全，不直接在 Win32 回调里操作 Gio 布局状态。
 - 应用退出时自动清理托盘图标。
 
+### Phase F+: System Stabilization 系统能力稳定化
+
+目标：在进入更多桌面系统能力前，先补齐 A-F 暴露出的稳定性、易用性和生命周期缺口。
+
+当前状态：第一批稳定化已完成。已新增能力探测 API、File Dialog 默认扩展名和最近目录记忆、File Dialog 结构化错误、MessageBox 异步入口和显示后 context 取消、Tray 状态查询、动态菜单、子菜单、默认项，以及 app lifecycle 退出时的统一托盘清理。
+
+已完成：
+
+- F+1 已完成：新增 `CapabilityStatus`、`CapabilityAvailability`、`system.Probe(cap)` 和 `system.Availability(cap)`，可区分 unsupported、unavailable、available。Windows driver 已对 File Dialog COM 创建、MessageBox native 入口、通知/托盘/系统事件隐藏窗口做轻量真实探测；没有深度 driver probe 时，已声明能力默认视为 available，具体调用仍可返回 `ErrUnavailable`。
+- F+2 已完成：File Dialog 新增 `FileDialogDefaultExtension(value)`、`FileDialogRememberDir(key)`、`FileDialogError` 和 `IsFileDialogErrorKind`，Windows `IFileDialog.SetDefaultExtension` 已接入，默认目录错误会携带 `FileDialogErrorDefaultDir`。
+- F+3 已完成：MessageBox 新增 `ShowMessageBoxAsync`、`MessageBoxResponse`，`ui` 层新增自动注入 owner 的异步 wrapper；Windows `TaskDialogIndirect` 路径在显示后监听 context 取消并向原生 dialog 投递关闭请求，`TaskDialog` / `MessageBoxW` fallback 通过锁定调用线程和枚举线程 dialog 做 best-effort 显示后取消。
+- F+4 已完成：Tray 新增 `Visible()`、`Closed()`、`TrayMenuProvider`、`SetMenuProvider`、菜单 `Default` 和 `Children` 字段；Windows 右键菜单支持子菜单和默认项。
+- F+5 已完成：新增 `system.CloseTrays()`，`app.runSpecs` 在窗口全部结束后统一清理注册中的托盘。
+
+仍待继续：
+
+- F+6 已完成：Window close requested / 关闭拦截。Windows 下通过 native `WM_CLOSE` hook 支持 allow/cancel，并产生 `WindowEventCloseRequested`；非 Windows 平台暂不承诺可取消系统关闭。
+- F+7 第一批已完成：Window 新增 `RequestFocus`、`SetPosition`、`SetResizable`、`SetDecorated`，`ui` 层新增当前窗口 helper，app option 新增 `Decorated` / `Resizable`；Windows 下焦点、位置和可调整大小通过 native HWND 实现。
+- F+8 已完成第一版：新增 `CapabilitySystemEvents`、`SystemEvent`、`SubscribeSystemEvents` 和 `SystemEventSubscription`。Windows 通过隐藏消息窗口接收 display、DPI、theme/settings、power、session 相关消息；macOS / Linux 已补轮询型最小 driver，按平台命令或系统路径比较 display/DPI/theme/settings/power/session 快照变化。
+- F+8.1 已完成：窗口事件从单一 pull model 扩展为 pull + subscription。`WindowHandle.SubscribeEvents(kinds...)` 可订阅 size/scale/focus/state/close_requested/closed 事件，`PollEvents()` 保持兼容；`WindowEventScaleChanged` 与 `WindowState.Scale` / `DPI` 补充 per-window DPI/scale 精度。
+- F+9 已完成第一版并扩展：Notification 新增 `NotificationOnDismiss`、`NotificationOnAction`、`NotificationBackendPath`、`NotificationAppID`、`NotificationLaunchURI`、`NotificationActions`、`ProbeNotificationBackend`、`CancelNotificationGroup`。Windows 同组托盘气泡和 Toast 会在新通知显示前清理前一个 group 通知；Toast 请求路径、backend 级探测、action button XML、协议 URI 激活、AppUserModelID 开始菜单快捷方式注册、ToastActivatorCLSID shortcut 前置属性、COM LocalServer 注册、当前进程 `INotificationActivationCallback` 分发和短生命周期实时 click/action/dismiss 回调已落地。macOS / Linux 已补命令型最小 notification driver；macOS 使用 `osascript display notification`，Linux 使用 `notify-send` / `kdialog`，其中 `notify-send` 可记录 id 做 group replace，cancel 需要 `gdbus`。Windows Toast backend 可用时 `NotificationBackendProbe.SupportsDurableActivation=true`；真实通知中心点击到具体应用启动模式仍需按应用命令行人工点验。
+- F+10 已完成并扩展：Tray 支持 `TrayIconBytes`、`TrayIconResource`、`SetIconBytes` 和 `SetIconResource`，Windows 可从 `.ico` bytes 或进程资源 id 加载图标；macOS `osascript` + AppKit `NSStatusItem` 命令型 driver 支持路径/bytes 图标、tooltip、菜单/子菜单、显示隐藏、关闭清理和点击/菜单项回调，缺少 `osascript` 或脚本无法创建状态栏项时返回 `ErrUnavailable`，resource icon 和双击事件仍不作为 v1 承诺；Linux `yad --notification` 命令型 driver 支持路径/bytes 图标、tooltip、扁平菜单、显示隐藏、关闭清理和点击/菜单项回调，缺少 `yad` 时返回 `ErrUnavailable`，resource icon 仍返回 `ErrUnsupported`。
+- F+11 已完成文档入口：新增 `docs/guides/system-api-windows-validation.md`，区分自动化已通过和 Windows GUI 人工点验待执行项。
+- F+12 已完成平台规划：新增 `docs/guides/system-api-platform-plan.md`，规划 macOS/Linux 最小 driver 的接口映射、实现顺序和错误语义。
+
 ### Phase G: Clipboard、Shell 与后续系统能力
 
 目标：在核心窗口、文件、弹窗、通知、托盘稳定后，补充常见桌面系统能力。
 
+当前状态：Clipboard / Shell / Drag & Drop probe v1 已完成，macOS / Linux File Dialog 与 MessageBox 命令 driver v1 已补充。Windows driver 已声明 `CapabilityClipboard`、`CapabilityShell` 和 `CapabilityDragAndDrop`，支持 Unicode 文本剪贴板读写、Explorer 文件列表剪贴板、PNG 图片剪贴板、默认程序打开 URL/文件/目录、Explorer 定位路径、Gio transfer 拖放能力探测，以及 `ErrInvalidTarget` / `ErrTargetNotFound` / `ErrNoDefaultHandler` / `ErrAccessDenied` 等更细 Shell 错误分类；macOS / Linux driver 已声明 `CapabilityClipboard`、`CapabilityFileDialog`、`CapabilityMessageBox`、`CapabilityShell` 和 `CapabilityDragAndDrop`，支持通过系统命令读写文本剪贴板、显示基础文件选择和系统消息框、打开 URL/文件/目录并提供最小 reveal 行为，并已在 `OpenPath`、`RevealPath` 和 `OpenURL(file://...)` 提交前覆盖本地目标缺失与权限拒绝分类。Drag & Drop 的真实收发由 `widget.DropTarget` / `widget.DragSource` 基于 Gio `io/transfer` 完成；system 层只负责 probe。后续 macOS/Linux 图片/文件列表剪贴板、默认 handler/桌面环境启动后的更细错误分类和 File Dialog / MessageBox owner/modal 原生 toolkit driver 仍可继续扩展。
+
 候选能力：
 
-- Clipboard：读取/写入文本，后续支持图片和文件列表。
-- Shell open：用默认程序打开 URL、文件和目录。
-- Reveal in file manager：在资源管理器中定位文件。
-- Drag and drop：接收文件拖放，后续支持拖出。
-- Global shortcuts：全局快捷键，需谨慎处理权限和平台差异。
-- Single instance：单实例应用、二次启动参数转发。
+- Clipboard：文本读取/写入已完成；Windows 文件列表和 PNG 图片剪贴板已完成；macOS/Linux 文件列表和图片剪贴板后续扩展。
+- Shell open：默认程序打开 URL、文件和目录已完成。
+- Reveal in file manager：Windows Explorer 定位文件已完成；macOS Finder `open -R` 已完成；Linux v1 打开父目录，后续可按桌面环境补更精确定位。
+- Drag and drop：`system.ProbeDragAndDrop` 已提供能力探测；`widget.DropTarget` / `ui.DropTargetElement` 接收 v1 已完成，支持 URI list / 文本 payload、本地路径解析、active/error 回调、大小限制和应用级 operation；`widget.DragSource` / `ui.DragSourceElement` 应用内拖拽源 v1 已完成，支持文本、`text/uri-list` 文件 URI、自定义 MIME payload、生命周期事件、禁用和应用级 operation。跨应用拖出不再默认承诺，只有后端明确支持时才会通过 `SupportsExternalDragOut` 报告。
+- Global shortcuts：Windows v1 已完成，后续补 macOS/Linux driver、冲突诊断和示例。
+- Single instance：Windows/macOS/Linux loopback v1 已完成，后续补主窗口恢复/置前和 URI/file handoff 示例。
 - Power/session events：锁屏、解锁、睡眠、恢复。
 - Theme/accent：系统深浅色、强调色变化。
 
@@ -455,7 +501,7 @@ func (t *Tray) Close() error
 
 - 新增 `docs/guides/system-api.md`，作为文档浏览器中的系统 API 总入口。
 - 为 Window、File Dialog、MessageBox、Notification、Tray 分别补充独立文档或章节。
-- 新增 `examples/system_showcase`，集中展示窗口控制、文件选择、消息框、通知和托盘。
+- 新增 `examples/system_showcase`，集中展示窗口控制、文件选择、消息框、通知、托盘和系统事件。
 - 示例必须根据 `system.Supports` 做能力禁用提示，不能在非 Windows 平台崩溃。
 - Windows-only 行为测试放入带 build tag 的测试文件。
 - 不把系统 UI 纳入视觉回归，但要提供人工验收清单。
@@ -466,6 +512,7 @@ func (t *Tray) Close() error
 go test ./...
 go vet ./...
 go test ./examples/system_showcase
+go run ./examples/system_validation
 ```
 
 Windows 本地人工验收：
@@ -482,8 +529,9 @@ Windows 本地人工验收：
 
 平台策略：
 
-- macOS：文件选择可映射 `NSOpenPanel` / `NSSavePanel`，通知可映射 UserNotifications，托盘可映射 status item。
-- Linux：文件选择可优先考虑 xdg-desktop-portal，托盘可考虑 StatusNotifierItem/AppIndicator，通知可考虑 freedesktop notifications。
+- macOS：MessageBox 和 Notification v1 已用 `osascript` 命令实现，文件选择可映射 `NSOpenPanel` / `NSSavePanel`，通知后续可升级到 UserNotifications，托盘可映射 status item。
+- macOS：MessageBox / Notification v1 已用 `osascript` 命令实现，Tray v1 已用 `osascript` + AppKit `NSStatusItem` 命令型 driver 实现；后续可升级到更完整的 AppKit driver，并补 owner/modal、UserNotifications 和原生事件流。
+- Linux：MessageBox v1 已用 `zenity` / `kdialog` 命令实现，Notification v1 已用 `notify-send` / `kdialog` 命令实现，Tray v1 已用 `yad --notification` 命令实现，文件选择可优先考虑 xdg-desktop-portal，托盘后续可升级到 StatusNotifierItem/AppIndicator，通知后续可升级到 freedesktop DBus notifications。
 - Android/iOS：按移动端能力重新评估，不强行照搬桌面托盘。
 - Web/js：文件选择和通知需走浏览器权限模型，API 可能只提供受限实现。
 
@@ -502,22 +550,24 @@ Windows 本地人工验收：
 | 多窗口 | 已有 | 已有 Gio 路径 | 受平台限制 | 已有 | 已集中整理 | 稳定化中 |
 | 窗口属性查询 | 已有 `WindowState` / `State()` | 已有 runtime 快照 | 部分可用 | 已有 | 已集中整理 | 稳定化中 |
 | 原生窗口句柄 | 已有 `NativeHandle()` | 已有 HWND 捕获 | 返回 false | 已有 | 已集中整理 | Windows v1 已完成 |
-| 窗口事件 | 已有 `PollEvents()` | 已有 runtime pull model | 部分可用 | 已有 | 已集中整理 | 稳定化中 |
-| 文件打开 | 已有 | 已有 Common Item Dialog | 返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | v1 已完成 |
-| 文件保存 | 已有 | 已有 Common Item Dialog | 返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | v1 已完成 |
-| 目录选择 | 已有 | 已有 Common Item Dialog | 返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | v1 已完成 |
-| 系统消息框 | 已有 | 已有 `TaskDialog` 优先，`MessageBoxW` 回退 | 返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | v1 待人工点验 |
-| 系统通知 | E1-E10 已完成 | 已有 `Shell_NotifyIconW` 托盘气泡 | E4 已完成 | 暂缓 | 已补充 | v1 已完成 |
-| 托盘 | F1-F10 已完成 | 已有 `Shell_NotifyIconW` 长期图标和右键菜单 | 已有未实现平台错误语义 | 不适用 | 已补充 | Windows v1 已完成 |
-| 剪贴板 | 待设计 | 待实现 | 待空实现 | 待设计 | 待补充 | 后续 |
-| Shell open | 待设计 | 待实现 | 待空实现 | 待设计 | 待补充 | 后续 |
+| 窗口事件 | 已有 `PollEvents()` / `SubscribeEvents()` | 已有 runtime pull + subscription，含 scale 事件 | 部分可用 | 已有 | 已集中整理 | 稳定化中 |
+| 系统能力探测 | 已有 `Probe` / `Availability` | 已有轻量真实探测 | 已有 unsupported 状态 | 不适用 | 已补充 | F+ 已完成第一批 |
+| 文件打开 | 已有 | 已有 Common Item Dialog | macOS/Linux 已有最小命令 driver，其它平台返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | Windows v1 已完成；macOS/Linux command v1 已完成 |
+| 文件保存 | 已有 | 已有 Common Item Dialog | macOS/Linux 已有最小命令 driver，其它平台返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | Windows v1 已完成；macOS/Linux command v1 已完成 |
+| 目录选择 | 已有 | 已有 Common Item Dialog | macOS/Linux 已有最小命令 driver，其它平台返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | Windows v1 已完成；macOS/Linux command v1 已完成 |
+| 系统消息框 | 已有 | 已有 `TaskDialog` 优先，`MessageBoxW` 回退 | macOS/Linux 已有最小命令 driver，其它平台返回 `ErrUnsupported` | 已有自动 owner wrapper | 已补充 | Windows v1 待人工点验；macOS/Linux command v1 已完成 |
+| 系统通知 | E1-E10 已完成 | 已有 `Shell_NotifyIconW` 托盘气泡和 Toast 请求路径 | macOS/Linux 已有最小命令 driver，其它平台返回 `ErrUnsupported` | 暂缓 | 已补充 | Windows/macOS/Linux v1 已完成 |
+| 系统事件订阅 | 已有 `SubscribeSystemEvents` | 已有隐藏消息窗口接收系统消息 | macOS/Linux 已有最小轮询 driver，其它平台返回 `ErrUnsupported` | 不适用 | 已补充 | Windows/macOS/Linux v1 已完成 |
+| 托盘 | F1-F10 已完成 | 已有 `Shell_NotifyIconW` 长期图标、bytes/resource 图标和右键菜单 | macOS 已有 `osascript` + AppKit `NSStatusItem` 最小命令 driver；Linux 已有 `yad --notification` 最小命令 driver；其它平台返回 `ErrUnsupported` | 不适用 | 已补充 | Windows v1 已完成；macOS/Linux command v1 已完成 |
+| 剪贴板 | 已有文本读写 API | 已有 Windows Clipboard cmdlets 文本路径 | macOS/Linux 已有文本最小 driver，其它平台返回 `ErrUnsupported` | 暂缓 | 已补充 | Windows/macOS/Linux v1 已完成 |
+| Shell open | 已有 URL/路径打开与定位 API | 已有 `ShellExecuteW` / Explorer reveal | macOS/Linux 已有最小 driver，其它平台返回 `ErrUnsupported` | 暂缓 | 已补充 | Windows/macOS/Linux v1 已完成 |
+| Drag & Drop probe | 已有 `ProbeDragAndDrop` | 已报告 Gio transfer 能力 | macOS/Linux 已报告 Gio transfer 能力，其它平台返回 `ErrUnsupported` | 不适用 | 已补充 | system probe v1 已完成；真实拖放由 widget/ui 层提供 |
 
 ## 下一批推荐任务
 
-1. 推进 Phase G Clipboard：先设计文本读写 API、能力检测和 Windows clipboard driver 边界。
-2. 推进 Shell open / reveal in file manager：明确 URL、文件、目录和错误语义，避免隐藏 fallback。
-3. 为 Tray 和 Notification 补充更细的 Windows 人工验收记录，覆盖图标路径、Explorer 重启和通知区禁用场景。
-4. 评估 macOS / Linux 系统能力 driver 的最小接口映射，优先保证非 Windows 平台行为明确。
+1. 继续 Phase F+：执行并回填 Windows GUI 人工点验记录；命令行 validation 默认探测、dialog 显示后 context 取消、owner modal 禁用、notification group cancel/replace、Toast action button 提交/取消、Toast shortcut/activator 注册、tray bytes/path/resource icon、Explorer `TaskbarCreated` 恢复路径、native `WM_CLOSE` close-request hook 和 system events 订阅已通过，Toast 实时 callbacks 的用户点击路径和真实通知中心点击到具体应用启动模式仍需点击确认。
+2. 继续 Phase F+：补充 Windows 打包/安装器专项文档，明确 common-controls v6 manifest、AppUserModelID shortcut、ToastActivatorCLSID、COM LocalServer 命令行和应用启动路由之间的发布约束。
+3. 继续 Phase G / Phase I 扩展：补 macOS/Linux Clipboard 图片/文件列表、Shell 默认 handler/桌面环境启动后的更细错误分类，并继续推进 macOS Tray 原生 AppKit driver、Linux Tray 原生 StatusNotifier/AppIndicator、System Events 原生事件流、Notification 原生 DBus/UserNotifications 升级，以及 File Dialog / MessageBox owner/modal 原生 toolkit 或 portal driver；Drag & Drop 接收和应用内拖拽源 v1 已落地，真实跨应用拖入仍需按平台人工点验，跨应用拖出待后端明确支持后再开放。
 
 ## 验收命令
 
@@ -526,6 +576,13 @@ Windows 本地人工验收：
 ```sh
 go test ./...
 go vet ./...
+go run ./examples/system_validation
+go run ./examples/system_validation -dialogs
+go run ./examples/system_validation -messagebox-sources
+go run ./examples/system_validation -owner-modal
+go run ./examples/system_validation -toast
+go run ./examples/system_validation -toast-shortcut -toast-app-id com.example.FluxUI -toast-activator-clsid "{01234567-89AB-CDEF-0123-456789ABCDEF}"
+go run ./examples/system_validation -toast-activator -toast-activator-clsid "{01234567-89AB-CDEF-0123-456789ABCDEF}"
 ```
 
 涉及 Windows driver 时追加：
@@ -533,6 +590,34 @@ go vet ./...
 ```sh
 go test ./system ./internal/...
 go test ./examples/system_showcase
+go run ./examples/system_validation -dialogs
+go run ./examples/system_validation -messagebox-sources
+go run ./examples/system_validation -owner-modal
+go run ./examples/system_validation -notify
+go run ./examples/system_validation -toast
+go run ./examples/system_validation -toast-shortcut -toast-app-id com.example.FluxUI -toast-shortcut-name "FluxUI Validation Activator" -toast-activator-clsid "{01234567-89AB-CDEF-0123-456789ABCDEF}"
+go run ./examples/system_validation -toast-activator -toast-activator-clsid "{01234567-89AB-CDEF-0123-456789ABCDEF}"
+go run ./examples/system_validation -tray
+go run ./examples/system_validation -tray -tray-resource-id 2
+go run ./examples/system_validation -clipboard
+go run ./examples/system_validation -clipboard-files
+go run ./examples/system_validation -clipboard-image
+go run ./examples/system_validation -shell
+go run ./examples/system_validation -shell-errors
+go run ./examples/system_validation -drag-drop
+go run ./examples/drag_drop_showcase
+go run ./examples/system_validation -events 30s
+```
+
+涉及非 Windows unsupported 占位时追加最小交叉编译：
+
+```sh
+GOOS=linux GOARCH=amd64 go test -c ./system
+GOOS=linux GOARCH=amd64 go test -c ./widget
+GOOS=linux GOARCH=amd64 go test -c ./examples/system_validation
+GOOS=darwin GOARCH=amd64 go test -c ./system
+GOOS=darwin GOARCH=amd64 go test -c ./widget
+GOOS=darwin GOARCH=amd64 go test -c ./examples/system_validation
 ```
 
 涉及窗口生命周期、回调、托盘、通知时追加人工验收：
@@ -548,7 +633,7 @@ go test ./examples/system_showcase
 - Windows owner modal 依赖 Gio `Win32ViewEvent` 提供 HWND；如果后续 Gio 事件语义变化，需要同步调整 `WindowHandle.NativeHandle()`。
 - Windows file dialog 依赖 COM apartment，必须把线程初始化、释放和回调边界封装在 driver 内。
 - 托盘需要 Win32 消息回调，不能破坏 Gio 主事件循环，也不能在系统回调线程直接修改 UI 状态。
-- Windows toast notification 的打包、AppUserModelID、快捷方式和激活回调复杂度较高，不应作为第一版通知承诺。
+- Windows toast notification 的打包、AppUserModelID、快捷方式和持久激活回调复杂度较高；当前已完成请求路径、action button XML、协议 URI 激活、ToastActivatorCLSID shortcut 前置属性、COM LocalServer 注册、当前进程 `INotificationActivationCallback` 分发和短生命周期实时回调。真实通知中心点击到具体应用启动模式仍依赖应用自己的命令行入口、安装器和人工点验。
 - 非 Windows 平台不能因为未实现而编译失败；空实现是长期兼容策略的一部分。
 - 系统 API 的阻塞行为必须清晰文档化，避免用户在布局期间调用导致卡帧或死锁。
 - 公共 API 一旦发布，后续平台实现会依赖它；命名和错误语义需要比具体 Windows 实现更谨慎。

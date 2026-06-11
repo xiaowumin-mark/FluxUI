@@ -14,6 +14,7 @@
     "ListItemSelected(selected bool) ListItemOption",
     "ListItemDisabled(disabled bool) ListItemOption",
     "ListItemOnClick(fn func(ctx *Context)) ListItemOption",
+    "ListItemMinHeight(height float32) ListItemOption",
     "ListItemDecoration(d Decoration) ListItemOption"
   ]
 }
@@ -30,5 +31,6 @@ ui.ListItemElementWithSlots(
     ui.IconElement("I"),
     ui.TextElement("12"),
     ui.ListItemSelected(true),
+    ui.ListItemMinHeight(64),
 )
 ```

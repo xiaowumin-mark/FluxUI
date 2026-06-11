@@ -3,6 +3,7 @@
 package system
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
 	"runtime"
@@ -27,9 +28,13 @@ const (
 	mfGrayed    = 0x0001
 	mfSeparator = 0x0800
 	mfChecked   = 0x0008
+	mfPopup     = 0x0010
+	mfDefault   = 0x1000
 
 	tpmRightButton = 0x0002
 	tpmReturnCmd   = 0x0100
+
+	rtIconVersion = 0x00030000
 )
 
 var (
@@ -41,10 +46,12 @@ var (
 	procSetForegroundWindow   = user32.NewProc("SetForegroundWindow")
 	procPostMessage           = user32.NewProc("PostMessageW")
 	procRegisterWindowMessage = user32.NewProc("RegisterWindowMessageW")
+	procCreateIconFromResourceEx = user32.NewProc("CreateIconFromResourceEx")
 
 	windowsTrayState             = newWindowsTrayState()
 	windowsTrayProc              = syscall.NewCallback(windowsTrayWindowProc)
 	windowsTaskbarCreatedMessage = registerWindowsMessage("TaskbarCreated")
+	trackWindowsTrayMenuFunc     = trackWindowsTrayMenu
 )
 
 type windowsPoint struct {
@@ -63,16 +70,17 @@ type windowsTrayWindowState struct {
 }
 
 type windowsTrayHandle struct {
-	mu          sync.Mutex
-	id          uint32
-	data        notifyIconData
-	icon        uintptr
-	destroyIcon bool
-	menu        TrayMenu
-	onClick     func(TrayEvent)
-	onDblClick  func(TrayEvent)
-	visible     bool
-	closed      bool
+	mu           sync.Mutex
+	id           uint32
+	data         notifyIconData
+	icon         uintptr
+	destroyIcon  bool
+	menu         TrayMenu
+	menuProvider func() TrayMenu
+	onClick      func(TrayEvent)
+	onDblClick   func(TrayEvent)
+	visible      bool
+	closed       bool
 }
 
 func newWindowsTrayState() *windowsTrayWindowState {
@@ -88,7 +96,7 @@ func (windowsDriver) newTray(opts trayOptions) (trayHandle, error) {
 		return nil, fmt.Errorf("system: %s: initialize tray window: %w", CapabilityTray, err)
 	}
 
-	icon, destroyIcon, err := windowsNotificationIcon(opts.icon)
+	icon, destroyIcon, err := windowsTrayIcon(opts)
 	if err != nil {
 		return nil, fmt.Errorf("system: %s: load tray icon: %w", CapabilityTray, err)
 	}
@@ -103,13 +111,14 @@ func (windowsDriver) newTray(opts trayOptions) (trayHandle, error) {
 	}
 
 	handle := &windowsTrayHandle{
-		id:          id,
-		data:        data,
-		icon:        icon,
-		destroyIcon: destroyIcon,
-		menu:        cloneTrayMenu(opts.menu),
-		onClick:     opts.onClick,
-		onDblClick:  opts.onDoubleClick,
+		id:           id,
+		data:         data,
+		icon:         icon,
+		destroyIcon:  destroyIcon,
+		menu:         cloneTrayMenu(opts.menu),
+		menuProvider: opts.menuProvider,
+		onClick:      opts.onClick,
+		onDblClick:   opts.onDoubleClick,
 	}
 	runtime.SetFinalizer(handle, func(h *windowsTrayHandle) {
 		_ = h.close()
@@ -291,11 +300,30 @@ func newWindowsTrayData(hWnd uintptr, id uint32, icon uintptr, tooltip string) (
 }
 
 func (h *windowsTrayHandle) setIcon(path string) error {
-	icon, destroyIcon, err := windowsNotificationIcon(path)
+	icon, destroyIcon, err := windowsTrayIcon(trayOptions{icon: path})
 	if err != nil {
 		return fmt.Errorf("system: %s: load tray icon: %w", CapabilityTray, err)
 	}
+	return h.replaceIcon(icon, destroyIcon)
+}
 
+func (h *windowsTrayHandle) setIconData(data []byte) error {
+	icon, destroyIcon, err := windowsTrayIcon(trayOptions{iconData: data})
+	if err != nil {
+		return fmt.Errorf("system: %s: load tray icon: %w", CapabilityTray, err)
+	}
+	return h.replaceIcon(icon, destroyIcon)
+}
+
+func (h *windowsTrayHandle) setIconResource(id uint16) error {
+	icon, destroyIcon, err := windowsTrayIcon(trayOptions{iconResource: id})
+	if err != nil {
+		return fmt.Errorf("system: %s: load tray icon: %w", CapabilityTray, err)
+	}
+	return h.replaceIcon(icon, destroyIcon)
+}
+
+func (h *windowsTrayHandle) replaceIcon(icon uintptr, destroyIcon bool) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.closed {
@@ -304,7 +332,6 @@ func (h *windowsTrayHandle) setIcon(path string) error {
 		}
 		return trayClosedError()
 	}
-
 	nextData := h.data
 	nextData.hIcon = icon
 	nextData.uFlags = nifIcon
@@ -326,6 +353,77 @@ func (h *windowsTrayHandle) setIcon(path string) error {
 		destroyWindowsIcon(oldIcon)
 	}
 	return nil
+}
+
+func windowsTrayIcon(opts trayOptions) (uintptr, bool, error) {
+	if len(opts.iconData) > 0 {
+		return windowsIconFromICO(opts.iconData)
+	}
+	if opts.iconResource != 0 {
+		return windowsIconFromResource(opts.iconResource)
+	}
+	return windowsNotificationIcon(opts.icon)
+}
+
+func windowsIconFromResource(id uint16) (uintptr, bool, error) {
+	hInstance, err := windowsModuleHandle()
+	if err != nil {
+		return 0, false, err
+	}
+	icon, _, callErr := procLoadIcon.Call(hInstance, uintptr(id))
+	if icon == 0 {
+		if callErr != syscall.Errno(0) {
+			return 0, false, callErr
+		}
+		return 0, false, ErrUnavailable
+	}
+	return icon, false, nil
+}
+
+func windowsIconFromICO(data []byte) (uintptr, bool, error) {
+	resource, err := windowsIconResourceDataFromICO(data)
+	if err != nil {
+		return 0, false, err
+	}
+	icon, _, callErr := procCreateIconFromResourceEx.Call(
+		uintptr(unsafe.Pointer(&resource[0])),
+		uintptr(len(resource)),
+		1,
+		rtIconVersion,
+		0,
+		0,
+		lrDefaultSize,
+	)
+	if icon == 0 {
+		if callErr != syscall.Errno(0) {
+			return 0, false, callErr
+		}
+		return 0, false, ErrUnavailable
+	}
+	return icon, true, nil
+}
+
+func windowsIconResourceDataFromICO(data []byte) ([]byte, error) {
+	if len(data) < 22 {
+		return nil, fmt.Errorf("ico data too short: %w", ErrUnavailable)
+	}
+	if binary.LittleEndian.Uint16(data[0:2]) != 0 || binary.LittleEndian.Uint16(data[2:4]) != 1 {
+		return nil, fmt.Errorf("ico header invalid: %w", ErrUnavailable)
+	}
+	count := int(binary.LittleEndian.Uint16(data[4:6]))
+	if count <= 0 {
+		return nil, fmt.Errorf("ico contains no images: %w", ErrUnavailable)
+	}
+	entryOffset := 6
+	if len(data) < entryOffset+16 {
+		return nil, fmt.Errorf("ico directory missing: %w", ErrUnavailable)
+	}
+	size := int(binary.LittleEndian.Uint32(data[entryOffset+8 : entryOffset+12]))
+	offset := int(binary.LittleEndian.Uint32(data[entryOffset+12 : entryOffset+16]))
+	if size <= 0 || offset < 0 || offset+size > len(data) {
+		return nil, fmt.Errorf("ico image out of range: %w", ErrUnavailable)
+	}
+	return data[offset : offset+size], nil
 }
 
 func (h *windowsTrayHandle) setTooltip(text string) error {
@@ -357,6 +455,16 @@ func (h *windowsTrayHandle) setMenu(menu TrayMenu) error {
 		return trayClosedError()
 	}
 	h.menu = cloneTrayMenu(menu)
+	return nil
+}
+
+func (h *windowsTrayHandle) setMenuProvider(fn func() TrayMenu) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.closed {
+		return trayClosedError()
+	}
+	h.menuProvider = fn
 	return nil
 }
 
@@ -464,13 +572,17 @@ func (h *windowsTrayHandle) dispatch(event TrayEvent) {
 func (h *windowsTrayHandle) showContextMenu() {
 	h.mu.Lock()
 	menu := cloneTrayMenu(h.menu)
+	provider := h.menuProvider
 	hWnd := h.data.hWnd
 	h.mu.Unlock()
+	if provider != nil {
+		menu = provider()
+	}
 	if len(menu) == 0 || hWnd == 0 {
 		return
 	}
 
-	command, items, err := trackWindowsTrayMenu(hWnd, menu)
+	command, items, err := trackWindowsTrayMenuFunc(hWnd, menu)
 	if err != nil || command == 0 {
 		return
 	}
@@ -494,21 +606,12 @@ func trackWindowsTrayMenu(hWnd uintptr, menu TrayMenu) (uint32, map[uint32]TrayM
 	defer procDestroyMenu.Call(hMenu)
 
 	items := make(map[uint32]TrayMenuItem)
-	nextCommand := uint32(1)
-	for _, item := range menu {
-		if item.Separator {
-			if err := appendWindowsTrayMenuSeparator(hMenu); err != nil {
-				return 0, nil, err
-			}
-			continue
-		}
-
-		command := nextCommand
-		nextCommand++
-		if err := appendWindowsTrayMenuItem(hMenu, command, item); err != nil {
-			return 0, nil, err
-		}
-		items[command] = item
+	nextCommand, err := appendWindowsTrayMenuItems(hMenu, menu, 1, items)
+	if err != nil {
+		return 0, nil, err
+	}
+	if nextCommand == 1 {
+		return 0, nil, nil
 	}
 
 	var pt windowsPoint
@@ -531,6 +634,46 @@ func trackWindowsTrayMenu(hWnd uintptr, menu TrayMenu) (uint32, map[uint32]TrayM
 	)
 	procPostMessage.Call(hWnd, wmNull, 0, 0)
 	return uint32(command), items, nil
+}
+
+func appendWindowsTrayMenuItems(hMenu uintptr, menu TrayMenu, nextCommand uint32, items map[uint32]TrayMenuItem) (uint32, error) {
+	for _, item := range menu {
+		if item.Separator {
+			if err := appendWindowsTrayMenuSeparator(hMenu); err != nil {
+				return nextCommand, err
+			}
+			continue
+		}
+
+		if len(item.Children) > 0 {
+			hSubMenu, _, callErr := procCreatePopupMenu.Call()
+			if hSubMenu == 0 {
+				if callErr != syscall.Errno(0) {
+					return nextCommand, callErr
+				}
+				return nextCommand, ErrUnavailable
+			}
+			var err error
+			nextCommand, err = appendWindowsTrayMenuItems(hSubMenu, item.Children, nextCommand, items)
+			if err != nil {
+				procDestroyMenu.Call(hSubMenu)
+				return nextCommand, err
+			}
+			if err := appendWindowsTraySubMenu(hMenu, hSubMenu, item); err != nil {
+				procDestroyMenu.Call(hSubMenu)
+				return nextCommand, err
+			}
+			continue
+		}
+
+		command := nextCommand
+		nextCommand++
+		if err := appendWindowsTrayMenuItem(hMenu, command, item); err != nil {
+			return nextCommand, err
+		}
+		items[command] = item
+	}
+	return nextCommand, nil
 }
 
 func appendWindowsTrayMenuSeparator(hMenu uintptr) error {
@@ -564,11 +707,50 @@ func appendWindowsTrayMenuItem(hMenu uintptr, command uint32, item TrayMenuItem)
 	if item.Checked {
 		flags |= mfChecked
 	}
+	if item.Default {
+		flags |= mfDefault
+	}
 
 	r, _, callErr := procAppendMenu.Call(
 		hMenu,
 		flags,
 		uintptr(command),
+		uintptr(unsafe.Pointer(label16)),
+	)
+	if r == 0 {
+		if callErr != syscall.Errno(0) {
+			return callErr
+		}
+		return ErrUnavailable
+	}
+	return nil
+}
+
+func appendWindowsTraySubMenu(hMenu uintptr, hSubMenu uintptr, item TrayMenuItem) error {
+	label := item.Label
+	if label == "" {
+		label = item.ID
+	}
+	if label == "" {
+		label = "Menu"
+	}
+	label16, err := windows.UTF16PtrFromString(label)
+	if err != nil {
+		return err
+	}
+
+	flags := uintptr(mfString | mfPopup)
+	if item.Disabled {
+		flags |= mfGrayed
+	}
+	if item.Default {
+		flags |= mfDefault
+	}
+
+	r, _, callErr := procAppendMenu.Call(
+		hMenu,
+		flags,
+		hSubMenu,
 		uintptr(unsafe.Pointer(label16)),
 	)
 	if r == 0 {

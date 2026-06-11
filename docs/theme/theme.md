@@ -18,7 +18,21 @@
     "UseFont(ctx *Context) FontSpec",
     "WithDefaultFont(spec FontSpec) AppOption",
     "WithFonts(faces ...FontFace) AppOption",
-    "WithSystemFonts(enabled bool) AppOption"
+    "WithSystemFonts(enabled bool) AppOption",
+    "WithDensity(density DensityScale) AppOption",
+    "DefaultDensityScale() DensityScale",
+    "Density(level DensityLevel) DensityScale",
+    "CompactDensityScale() DensityScale",
+    "DefaultFontSpec() FontSpec",
+    "FontFamily(family string) FontSpec",
+    "ListFontFamilies(faces []FontFace) []string",
+    "ParseFontFile(path string) ([]FontFace, error)",
+    "LoadFontsFromPaths(paths ...string) ([]FontFace, error)",
+    "LoadFontsFromDir(dir string) ([]FontFace, error)",
+    "DiscoverSystemFonts() ([]FontFace, error)",
+    "DiscoverSystemFontFamilies() ([]string, error)",
+    "SystemFontDirs() []string",
+    "WithFontElement(font FontSpec, child Element) Element"
   ]
 }
 -->
@@ -60,7 +74,12 @@ func main() {
     th := ui.NewTheme(ui.LightColors())
     th.TextSize = 15
 
-    ui.RunElement(App, ui.Title("Theme Demo"), ui.WithTheme(th))
+    ui.RunElement(
+        App,
+        ui.Title("Theme Demo"),
+        ui.WithTheme(th),
+        ui.WithDensity(ui.CompactDensityScale()),
+    )
 }
 ```
 
@@ -86,6 +105,31 @@ return ui.ThemeProviderElement(
     ),
 )
 ```
+
+## 字体
+应用级字体通过 `WithFonts` / `WithDefaultFont` / `WithSystemFonts` 配置；组件子树可用 `WithFontElement` 局部覆盖默认字体。
+
+```go
+faces, err := ui.LoadFontsFromDir("assets/fonts")
+if err != nil {
+    return err
+}
+
+ui.RunElement(
+    App,
+    ui.WithFonts(faces...),
+    ui.WithDefaultFont(ui.FontFamily("Inter")),
+)
+```
+
+```go
+ui.WithFontElement(
+    ui.FontFamily("Segoe UI").WithWeight(ui.FontWeightMedium),
+    ui.TextElement("Scoped font"),
+)
+```
+
+字体发现辅助函数包括 `DefaultFontSpec`、`ParseFontFile`、`LoadFontsFromPaths`、`DiscoverSystemFonts`、`DiscoverSystemFontFamilies`、`SystemFontDirs` 和 `ListFontFamilies`。
 
 ## 使用建议
 - 组件样式优先读取 `ctx.Theme()`，避免硬编码黑白色。

@@ -30,15 +30,19 @@ func TestWindowStateSnapshot(t *testing.T) {
 
 func TestWindowHandleStateMutations(t *testing.T) {
 	entry := testRegisterWindow(t, WindowState{
-		Title:  "Initial",
-		Width:  320,
-		Height: 240,
-		Alive:  true,
+		Title:     "Initial",
+		Width:     320,
+		Height:    240,
+		Decorated: true,
+		Alive:     true,
 	})
 
 	handle := WindowHandle{id: entry.id}
 	if !handle.SetTitle("Updated") {
 		t.Fatal("expected SetTitle to succeed")
+	}
+	if !handle.SetDecorated(false) {
+		t.Fatal("expected SetDecorated to succeed")
 	}
 	if !handle.SetSize(640, 480) {
 		t.Fatal("expected SetSize to succeed")
@@ -57,7 +61,7 @@ func TestWindowHandleStateMutations(t *testing.T) {
 	if !ok {
 		t.Fatal("expected state for live window")
 	}
-	if state.Title != "Updated" || state.Width != 640 || state.Height != 480 {
+	if state.Title != "Updated" || state.Width != 640 || state.Height != 480 || state.Decorated {
 		t.Fatalf("unexpected title/size: %#v", state)
 	}
 	if state.MinWidth != 300 || state.MinHeight != 200 || state.MaxWidth != 900 || state.MaxHeight != 700 {
@@ -93,11 +97,16 @@ func TestWindowMaximizeBlockedByMaxSize(t *testing.T) {
 
 func TestWindowSetMaxSizeBlocksFutureMaximize(t *testing.T) {
 	entry := testRegisterWindow(t, WindowState{
-		Title:  "Initial",
-		Width:  320,
-		Height: 240,
-		Alive:  true,
+		Title:     "Initial",
+		Width:     320,
+		Height:    240,
+		Scale:     1,
+		TextScale: 1,
+		DPI:       96,
+		Decorated: true,
+		Alive:     true,
 	})
+	entry.metric = unit.Metric{PxPerDp: 1, PxPerSp: 1}
 	handle := WindowHandle{id: entry.id}
 
 	if !handle.SetMaxSize(900, 700) {
@@ -112,6 +121,152 @@ func TestWindowSetMaxSizeBlocksFutureMaximize(t *testing.T) {
 	}
 	if state.MaxWidth != 900 || state.MaxHeight != 700 || state.Maximized {
 		t.Fatalf("unexpected constrained state: %#v", state)
+	}
+}
+
+func TestWindowCloseRequestedHandler(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:  "Unsaved",
+		Width:  320,
+		Height: 240,
+		Alive:  true,
+	})
+	handle := WindowHandle{id: entry.id}
+
+	calls := 0
+	if !handle.SetCloseRequestedHandler(func(request WindowCloseRequest) bool {
+		calls++
+		if request.Window.ID() != entry.id {
+			t.Fatalf("unexpected request window: %#v", request.Window)
+		}
+		if request.State.Title != "Unsaved" || !request.State.Alive {
+			t.Fatalf("unexpected request state: %#v", request.State)
+		}
+		return false
+	}) {
+		t.Fatal("expected SetCloseRequestedHandler to succeed")
+	}
+	if entry.handleCloseRequested() {
+		t.Fatal("expected close request to be canceled")
+	}
+	if calls != 1 {
+		t.Fatalf("expected one handler call, got %d", calls)
+	}
+	events := handle.PollEvents()
+	if !hasWindowEvent(events, WindowEventCloseRequested) {
+		t.Fatalf("expected close requested event, got %#v", events)
+	}
+
+	if !handle.SetCloseRequestedHandler(func(WindowCloseRequest) bool {
+		return true
+	}) {
+		t.Fatal("expected SetCloseRequestedHandler to update handler")
+	}
+	if !entry.handleCloseRequested() {
+		t.Fatal("expected close request to be allowed")
+	}
+}
+
+func TestWindowEventSubscription(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:     "Initial",
+		Width:     320,
+		Height:    240,
+		Scale:     1,
+		TextScale: 1,
+		DPI:       96,
+		Decorated: true,
+		Alive:     true,
+	})
+	entry.metric = unit.Metric{PxPerDp: 1, PxPerSp: 1}
+	handle := WindowHandle{id: entry.id}
+
+	sub, ok := handle.SubscribeEvents(WindowEventStateChanged)
+	if !ok {
+		t.Fatal("expected SubscribeEvents to succeed")
+	}
+	if sub.Events() == nil {
+		t.Fatal("expected subscription event channel")
+	}
+
+	if !handle.SetDecorated(false) {
+		t.Fatal("expected SetDecorated to succeed")
+	}
+	select {
+	case event := <-sub.Events():
+		if event.Kind != WindowEventStateChanged || event.State.Decorated {
+			t.Fatalf("unexpected subscription event: %#v", event)
+		}
+	default:
+		t.Fatal("expected state changed event")
+	}
+
+	entry.updateFromFrame(imagePoint(640, 480), unit.Metric{PxPerDp: 1, PxPerSp: 1})
+	select {
+	case event := <-sub.Events():
+		t.Fatalf("size event should be filtered out, got %#v", event)
+	default:
+	}
+
+	if !sub.Close() {
+		t.Fatal("expected subscription Close to succeed")
+	}
+	if sub.Close() {
+		t.Fatal("second subscription Close should fail")
+	}
+	if _, ok := <-sub.Events(); ok {
+		t.Fatal("expected subscription channel to close")
+	}
+}
+
+func TestWindowScaleChangedEvent(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:     "Initial",
+		Width:     320,
+		Height:    240,
+		Scale:     1,
+		TextScale: 1,
+		DPI:       96,
+		Alive:     true,
+	})
+	entry.metric = unit.Metric{PxPerDp: 1, PxPerSp: 1}
+	handle := WindowHandle{id: entry.id}
+
+	sub, ok := handle.SubscribeEvents(WindowEventScaleChanged)
+	if !ok {
+		t.Fatal("expected SubscribeEvents to succeed")
+	}
+	defer sub.Close()
+
+	entry.updateFromFrame(imagePoint(1280, 960), unit.Metric{PxPerDp: 2, PxPerSp: 2})
+	select {
+	case event := <-sub.Events():
+		if event.Kind != WindowEventScaleChanged {
+			t.Fatalf("expected scale changed event, got %#v", event)
+		}
+		if event.State.Scale != 2 || event.State.TextScale != 2 || event.State.DPI != 192 {
+			t.Fatalf("unexpected scale state: %#v", event.State)
+		}
+	default:
+		t.Fatal("expected scale changed event")
+	}
+}
+
+func TestWindowEventSubscriptionClosesOnUnregister(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:  "Initial",
+		Width:  320,
+		Height: 240,
+		Alive:  true,
+	})
+	sub, ok := (WindowHandle{id: entry.id}).SubscribeEvents()
+	if !ok {
+		t.Fatal("expected SubscribeEvents to succeed")
+	}
+
+	unregisterWindow(entry.id)
+	if _, ok := <-sub.Events(); ok {
+		t.Fatal("expected subscription channel to close when window unregisters")
 	}
 }
 
@@ -168,6 +323,15 @@ func TestNativeWindowControlsRequireNativeHandle(t *testing.T) {
 	}
 	if handle.Show() {
 		t.Fatal("expected Show without native handle to fail")
+	}
+	if handle.SetPosition(20, 40) {
+		t.Fatal("expected SetPosition without native handle to fail")
+	}
+	if handle.SetResizable(false) {
+		t.Fatal("expected SetResizable without native handle to fail")
+	}
+	if !handle.RequestFocus() {
+		t.Fatal("expected RequestFocus to fall back to Gio raise request")
 	}
 }
 
@@ -303,6 +467,9 @@ func TestWindowStateConfigAndFrameSync(t *testing.T) {
 	events := (WindowHandle{id: entry.id}).PollEvents()
 	if !hasWindowEvent(events, WindowEventSizeChanged) {
 		t.Fatalf("expected size changed event, got %#v", events)
+	}
+	if !hasWindowEvent(events, WindowEventScaleChanged) {
+		t.Fatalf("expected scale changed event, got %#v", events)
 	}
 	if !hasWindowEvent(events, WindowEventFocusChanged) {
 		t.Fatalf("expected focus changed event, got %#v", events)

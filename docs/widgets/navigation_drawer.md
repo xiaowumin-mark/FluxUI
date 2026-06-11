@@ -13,6 +13,8 @@
     "NavigationDrawerWidth(width float32) NavigationDrawerOption",
     "NavigationDrawerHeader(header Widget) NavigationDrawerOption",
     "NavigationDrawerFooter(footer Widget) NavigationDrawerOption",
+    "NavigationDrawerActiveColor(col color.NRGBA) NavigationDrawerOption",
+    "NavigationDrawerInactiveColor(col color.NRGBA) NavigationDrawerOption",
     "NavigationDrawerDecoration(d Decoration) NavigationDrawerOption"
   ]
 }
@@ -29,6 +31,8 @@ ui.NavigationDrawerElement(
         {Key: "inbox", Label: "Inbox", Icon: ui.IconElement("I")},
         {Key: "sent", Label: "Sent", Icon: ui.IconElement("S")},
     },
+    ui.NavigationDrawerActiveColor(ui.NRGBA(30, 64, 175, 255)),
+    ui.NavigationDrawerInactiveColor(ui.NRGBA(100, 116, 139, 255)),
     ui.NavigationDrawerOnChange(func(ctx *ui.Context, key string) { active.Set(key) }),
 )
 ```

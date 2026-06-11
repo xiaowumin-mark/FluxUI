@@ -16,7 +16,10 @@
     "LargeFloatingActionButtonElement(icon Element, opts ...FloatingActionButtonOption) Element",
     "ExtendedFloatingActionButtonElement(icon, label Element, opts ...FloatingActionButtonOption) Element",
     "FloatingActionButtonOnClick(fn func(ctx *Context)) FloatingActionButtonOption",
-    "FloatingActionButtonDisabled(disabled bool) FloatingActionButtonOption"
+    "FloatingActionButtonDisabled(disabled bool) FloatingActionButtonOption",
+    "FloatingActionButtonBackground(col color.NRGBA) FloatingActionButtonOption",
+    "FloatingActionButtonForeground(col color.NRGBA) FloatingActionButtonOption",
+    "FloatingActionButtonDecoration(d Decoration) FloatingActionButtonOption"
   ]
 }
 -->
@@ -31,5 +34,14 @@ ui.RowElement(
     ui.FloatingActionButtonElement(ui.IconElement("+")),
     ui.LargeFloatingActionButtonElement(ui.IconElement("+")),
     ui.ExtendedFloatingActionButtonElement(ui.IconElement("+"), ui.TextElement("Create")),
+)
+```
+
+```go
+ui.LargeFloatingActionButtonElement(
+    ui.IconElement("+"),
+    ui.FloatingActionButtonBackground(ui.NRGBA(37, 99, 235, 255)),
+    ui.FloatingActionButtonForeground(ui.NRGBA(255, 255, 255, 255)),
+    ui.FloatingActionButtonDecoration(ui.Bg(ui.NRGBA(37, 99, 235, 255)).WithRad(28)),
 )
 ```

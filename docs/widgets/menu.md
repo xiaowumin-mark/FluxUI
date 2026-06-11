@@ -14,7 +14,15 @@
     "type MenuItem struct { Key string; Label string; Leading Widget; Trailing Widget; Disabled bool; Selected bool }",
     "MenuSelectedKey(key string) MenuOption",
     "MenuOnSelect(fn func(ctx *Context, key string)) MenuOption",
-    "DropdownMenuOnOpenChange(fn func(ctx *Context, open bool)) DropdownMenuOption"
+    "MenuWidth(width float32) MenuOption",
+    "MenuMaxHeight(height float32) MenuOption",
+    "MenuDecoration(d Decoration) MenuOption",
+    "DropdownMenuSelectedKey(key string) DropdownMenuOption",
+    "DropdownMenuOnSelect(fn func(ctx *Context, key string)) DropdownMenuOption",
+    "DropdownMenuOnOpenChange(fn func(ctx *Context, open bool)) DropdownMenuOption",
+    "DropdownMenuWidth(width float32) DropdownMenuOption",
+    "DropdownMenuMaxHeight(height float32) DropdownMenuOption",
+    "DropdownMenuDecoration(d Decoration) DropdownMenuOption"
   ]
 }
 -->
@@ -43,7 +51,23 @@ return ui.DropdownMenuElement(
         {Key: "delete", Label: "Delete", Disabled: true},
     },
     ui.DropdownMenuSelectedKey(selected.Value()),
+    ui.DropdownMenuWidth(220),
+    ui.DropdownMenuMaxHeight(180),
+    ui.DropdownMenuDecoration(ui.Bg(ui.UseTheme(ctx).Colors.SurfaceContainer).WithRad(10)),
     ui.DropdownMenuOnOpenChange(func(ctx *ui.Context, next bool) { open.Set(next) }),
     ui.DropdownMenuOnSelect(func(ctx *ui.Context, key string) { selected.Set(key) }),
+)
+```
+
+静态菜单可在外层弹层中直接使用 `MenuElement`，并通过宽度、高度和 Decoration 统一控制样式：
+
+```go
+ui.MenuElement(
+    items,
+    ui.MenuSelectedKey(selected.Value()),
+    ui.MenuWidth(190),
+    ui.MenuMaxHeight(160),
+    ui.MenuDecoration(ui.Bg(ui.UseTheme(ctx).Colors.SurfaceContainerLow).WithRad(10)),
+    ui.MenuOnSelect(func(ctx *ui.Context, key string) { selected.Set(key) }),
 )
 ```

@@ -76,6 +76,37 @@ func ShowMessageBoxContext(ctx *Context, callCtx context.Context, opts ...system
 	return system.ShowMessageBox(callCtx, withMessageBoxOwner(ctx, opts)...)
 }
 
+// ShowMessageBoxDetailed opens a native message box and returns rich result data.
+func ShowMessageBoxDetailed(ctx *Context, opts ...system.MessageBoxOption) (system.MessageBoxDetailedResult, error) {
+	return ShowMessageBoxDetailedContext(ctx, context.Background(), opts...)
+}
+
+// ShowMessageBoxDetailedContext is ShowMessageBoxDetailed with an explicit cancellation context.
+func ShowMessageBoxDetailedContext(ctx *Context, callCtx context.Context, opts ...system.MessageBoxOption) (system.MessageBoxDetailedResult, error) {
+	return system.ShowMessageBoxDetailed(callCtx, withMessageBoxOwner(ctx, opts)...)
+}
+
+// ShowMessageBoxAsync opens a native message box in a goroutine and automatically
+// binds it to the current FluxUI window when a native owner handle is available.
+func ShowMessageBoxAsync(ctx *Context, opts ...system.MessageBoxOption) <-chan system.MessageBoxResponse {
+	return ShowMessageBoxAsyncContext(ctx, context.Background(), opts...)
+}
+
+// ShowMessageBoxAsyncContext is ShowMessageBoxAsync with an explicit cancellation context.
+func ShowMessageBoxAsyncContext(ctx *Context, callCtx context.Context, opts ...system.MessageBoxOption) <-chan system.MessageBoxResponse {
+	return system.ShowMessageBoxAsync(callCtx, withMessageBoxOwner(ctx, opts)...)
+}
+
+// ShowMessageBoxDetailedAsync opens a detailed native message box in a goroutine.
+func ShowMessageBoxDetailedAsync(ctx *Context, opts ...system.MessageBoxOption) <-chan system.MessageBoxDetailedResponse {
+	return ShowMessageBoxDetailedAsyncContext(ctx, context.Background(), opts...)
+}
+
+// ShowMessageBoxDetailedAsyncContext is ShowMessageBoxDetailedAsync with an explicit cancellation context.
+func ShowMessageBoxDetailedAsyncContext(ctx *Context, callCtx context.Context, opts ...system.MessageBoxOption) <-chan system.MessageBoxDetailedResponse {
+	return system.ShowMessageBoxDetailedAsync(callCtx, withMessageBoxOwner(ctx, opts)...)
+}
+
 func withFileDialogOwner(ctx *Context, opts []system.FileDialogOption) []system.FileDialogOption {
 	owner, ok := CurrentWindowNativeHandle(ctx)
 	if !ok {

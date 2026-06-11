@@ -13,6 +13,8 @@
     "NavigationRailWidth(width float32) NavigationRailOption",
     "NavigationRailHeader(header Widget) NavigationRailOption",
     "NavigationRailFooter(footer Widget) NavigationRailOption",
+    "NavigationRailActiveColor(col color.NRGBA) NavigationRailOption",
+    "NavigationRailInactiveColor(col color.NRGBA) NavigationRailOption",
     "NavigationRailDecoration(d Decoration) NavigationRailOption"
   ]
 }
@@ -29,6 +31,8 @@ ui.NavigationRailElement(
         {Key: "home", Label: "Home", Icon: ui.IconElement("H")},
         {Key: "search", Label: "Search", Icon: ui.IconElement("S")},
     },
+    ui.NavigationRailActiveColor(ui.NRGBA(30, 64, 175, 255)),
+    ui.NavigationRailInactiveColor(ui.NRGBA(100, 116, 139, 255)),
     ui.NavigationRailOnChange(func(ctx *ui.Context, key string) { active.Set(key) }),
 )
 ```

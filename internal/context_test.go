@@ -192,10 +192,22 @@ func TestWindowMethodsNilController(t *testing.T) {
 	if ctx.WindowCenter() {
 		t.Fatal("expected false")
 	}
+	if ctx.WindowRequestFocus() {
+		t.Fatal("expected false")
+	}
 	if ctx.WindowSetTitle("test") {
 		t.Fatal("expected false")
 	}
+	if ctx.WindowSetPosition(10, 10) {
+		t.Fatal("expected false")
+	}
 	if ctx.WindowSetSize(100, 100) {
+		t.Fatal("expected false")
+	}
+	if ctx.WindowSetResizable(false) {
+		t.Fatal("expected false")
+	}
+	if ctx.WindowSetDecorated(false) {
 		t.Fatal("expected false")
 	}
 	if ctx.WindowSetMinSize(100, 100) {

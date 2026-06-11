@@ -54,6 +54,26 @@ func CapabilityGrid(ctx *ui.Context) ui.Element {
 }
 ```
 
+Dynamic data should use `GridViewElement`. Wrap item content in `Key` when the backing data can be inserted, removed, or reordered:
+
+```go
+func CapabilityGridView(ctx *ui.Context) ui.Element {
+    items := []string{"Input", "Layout", "Feedback", "Navigation", "System API", "Hooks"}
+    return ui.GridViewElement(
+        len(items),
+        3,
+        func(ctx *ui.Context, index int) ui.Element {
+            return ui.Key(items[index], ui.TextElement(items[index]))
+        },
+        ui.GridGap(8, 8),
+        ui.GridMinItemWidth(120),
+        ui.GridOnReachEnd(func(ctx *ui.Context) {
+            // load the next page
+        }),
+    )
+}
+```
+
 ### Legacy Widget
 旧 `ui.Grid` / `Widget` 写法继续可用：
 

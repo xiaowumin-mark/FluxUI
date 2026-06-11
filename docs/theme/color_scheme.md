@@ -10,6 +10,18 @@
     "type ColorScheme = theme.ColorScheme",
     "LightColors() ColorScheme",
     "DarkColors() ColorScheme",
+    "ColorSchemeFromSeed(seed color.NRGBA, opts ...ColorOption) ColorScheme",
+    "LightColorSchemeFromSeed(seed color.NRGBA, opts ...ColorOption) ColorScheme",
+    "DarkColorSchemeFromSeed(seed color.NRGBA, opts ...ColorOption) ColorScheme",
+    "ThemeFromSeed(seed color.NRGBA, opts ...ColorOption) *Theme",
+    "LightThemeFromSeed(seed color.NRGBA, opts ...ColorOption) *Theme",
+    "DarkThemeFromSeed(seed color.NRGBA, opts ...ColorOption) *Theme",
+    "WithColorSchemeDark(dark bool) ColorOption",
+    "WithSecondarySeed(seed color.NRGBA) ColorOption",
+    "WithTertiarySeed(seed color.NRGBA) ColorOption",
+    "WithErrorSeed(seed color.NRGBA) ColorOption",
+    "WithSuccessSeed(seed color.NRGBA) ColorOption",
+    "WithWarningSeed(seed color.NRGBA) ColorOption",
     "NewTheme(cs ColorScheme) *Theme",
     "NRGBA(r, g, b, a uint8) color.NRGBA"
   ]
@@ -77,6 +89,24 @@ cs.Warning = ui.NRGBA(245, 158, 11, 255)
 cs.OnWarning = ui.NRGBA(17, 24, 39, 255)
 
 th := ui.NewTheme(cs)
+```
+
+## Seed 色板
+Material 3 seed API 可从主色自动生成 light/dark 语义色板，并可为 secondary、tertiary、error、success、warning 提供独立 seed。
+
+```go
+seed := ui.NRGBA(56, 106, 232, 255)
+light := ui.LightColorSchemeFromSeed(
+    seed,
+    ui.WithSecondarySeed(ui.NRGBA(0, 143, 104, 255)),
+    ui.WithWarningSeed(ui.NRGBA(183, 100, 0, 255)),
+)
+dark := ui.DarkColorSchemeFromSeed(seed)
+
+_ = ui.NewTheme(light)
+_ = ui.DarkThemeFromSeed(seed)
+_ = ui.ColorSchemeFromSeed(seed, ui.WithColorSchemeDark(true))
+_ = dark
 ```
 
 ## MD3 使用建议

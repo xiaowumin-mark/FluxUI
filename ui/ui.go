@@ -19,6 +19,43 @@ import (
 // Deprecated: Widget 已不再维护，推荐使用 React-style Element API (RunElement + Element)。
 type Widget = widget.Widget
 
+// DropEvent describes data dropped onto a DropTarget.
+type DropEvent = widget.DropEvent
+
+// DropTargetStateEvent describes drag activity over a DropTarget.
+type DropTargetStateEvent = widget.DropTargetStateEvent
+
+// DropTargetOption configures a DropTarget.
+type DropTargetOption = widget.DropTargetOption
+
+// DragOperation identifies the application-level operation associated with a transfer.
+type DragOperation = widget.DragOperation
+
+const (
+	DragOperationCopy = widget.DragOperationCopy
+	DragOperationMove = widget.DragOperationMove
+	DragOperationLink = widget.DragOperationLink
+)
+
+// DragPayload is one MIME payload offered by a DragSource.
+type DragPayload = widget.DragPayload
+
+// DragSourceEventKind identifies a DragSource lifecycle event.
+type DragSourceEventKind = widget.DragSourceEventKind
+
+const (
+	DragSourceEventStarted   = widget.DragSourceEventStarted
+	DragSourceEventRequested = widget.DragSourceEventRequested
+	DragSourceEventCompleted = widget.DragSourceEventCompleted
+	DragSourceEventCancelled = widget.DragSourceEventCancelled
+)
+
+// DragSourceEvent describes a transfer request handled by a DragSource.
+type DragSourceEvent = widget.DragSourceEvent
+
+// DragSourceOption configures a DragSource.
+type DragSourceOption = widget.DragSourceOption
+
 // Context 是对外暴露的 frame 上下文。
 type Context = internal.Context
 
@@ -49,14 +86,22 @@ type WindowState = fluxapp.WindowState
 type WindowEventKind = fluxapp.WindowEventKind
 
 const (
-	WindowEventSizeChanged  = fluxapp.WindowEventSizeChanged
-	WindowEventFocusChanged = fluxapp.WindowEventFocusChanged
-	WindowEventStateChanged = fluxapp.WindowEventStateChanged
-	WindowEventClosed       = fluxapp.WindowEventClosed
+	WindowEventSizeChanged    = fluxapp.WindowEventSizeChanged
+	WindowEventScaleChanged   = fluxapp.WindowEventScaleChanged
+	WindowEventFocusChanged   = fluxapp.WindowEventFocusChanged
+	WindowEventStateChanged   = fluxapp.WindowEventStateChanged
+	WindowEventCloseRequested = fluxapp.WindowEventCloseRequested
+	WindowEventClosed         = fluxapp.WindowEventClosed
 )
 
 // WindowEvent 记录窗口状态变化。
 type WindowEvent = fluxapp.WindowEvent
+
+// WindowEventSubscription 是窗口事件订阅句柄。
+type WindowEventSubscription = fluxapp.WindowEventSubscription
+
+// WindowCloseRequest 是窗口关闭请求回调的参数。
+type WindowCloseRequest = fluxapp.WindowCloseRequest
 
 // Insets 是公开的边距类型。
 type Insets = style.Insets
@@ -237,6 +282,21 @@ func MinSize(width, height int) AppOption {
 // MaxSize 设置窗口初始最大尺寸。
 func MaxSize(width, height int) AppOption {
 	return fluxapp.MaxSize(width, height)
+}
+
+// Decorated 设置窗口是否使用系统装饰边框。
+func Decorated(enabled bool) AppOption {
+	return fluxapp.Decorated(enabled)
+}
+
+// Resizable 设置窗口是否可被系统边框调整大小。
+func Resizable(enabled bool) AppOption {
+	return fluxapp.Resizable(enabled)
+}
+
+// OnCloseRequested 设置窗口关闭请求拦截回调。
+func OnCloseRequested(fn func(WindowCloseRequest) bool) AppOption {
+	return fluxapp.OnCloseRequested(fn)
 }
 
 // HiddenMemoryPolicy 设置窗口隐藏后的渲染内存策略。
@@ -453,14 +513,34 @@ func WindowCenter(ctx *Context) bool {
 	return ctx.WindowCenter()
 }
 
+// WindowRequestFocus 请求当前窗口获得焦点。
+func WindowRequestFocus(ctx *Context) bool {
+	return ctx.WindowRequestFocus()
+}
+
 // WindowSetTitle 更新当前窗口标题。
 func WindowSetTitle(ctx *Context, title string) bool {
 	return ctx.WindowSetTitle(title)
 }
 
+// WindowSetPosition 更新当前窗口位置（单位 dp）。
+func WindowSetPosition(ctx *Context, x, y int) bool {
+	return ctx.WindowSetPosition(x, y)
+}
+
 // WindowSetSize 更新当前窗口尺寸（单位 dp）。
 func WindowSetSize(ctx *Context, width, height int) bool {
 	return ctx.WindowSetSize(width, height)
+}
+
+// WindowSetResizable 设置当前窗口是否可被系统边框调整大小。
+func WindowSetResizable(ctx *Context, resizable bool) bool {
+	return ctx.WindowSetResizable(resizable)
+}
+
+// WindowSetDecorated 设置当前窗口是否使用系统装饰边框。
+func WindowSetDecorated(ctx *Context, decorated bool) bool {
+	return ctx.WindowSetDecorated(decorated)
 }
 
 // WindowSetMinSize 更新当前窗口最小尺寸（单位 dp）。
@@ -576,6 +656,16 @@ func Slider(value float32, opts ...SliderOption) Widget {
 // Deprecated: Container 已被 ContainerDecoration 取代。
 func Container(st Style, child Widget) Widget {
 	return widget.Container(st, child)
+}
+
+// DropTarget accepts drag-and-drop transfer data over the child area.
+func DropTarget(child Widget, onDrop func(ctx *Context, event DropEvent), opts ...DropTargetOption) Widget {
+	return widget.DropTarget(child, onDrop, opts...)
+}
+
+// DragSource makes the child area draggable and offers transfer data to drop targets.
+func DragSource(child Widget, opts ...DragSourceOption) Widget {
+	return widget.DragSource(child, opts...)
 }
 
 // ContainerDecorationOption 是装饰容器的可选配置项。
@@ -737,6 +827,66 @@ func NewButtonRef() *ButtonRef {
 
 func ButtonAttachRef(ref *ButtonRef) ButtonOption {
 	return widget.ButtonAttachRef(ref)
+}
+
+func DropTargetTypes(types ...string) DropTargetOption {
+	return widget.DropTargetTypes(types...)
+}
+
+func DropTargetMaxBytes(maxBytes int64) DropTargetOption {
+	return widget.DropTargetMaxBytes(maxBytes)
+}
+
+func DropTargetOperation(operation DragOperation) DropTargetOption {
+	return widget.DropTargetOperation(operation)
+}
+
+func DropTargetDisabled(disabled bool) DropTargetOption {
+	return widget.DropTargetDisabled(disabled)
+}
+
+func DropTargetOnActiveChange(fn func(ctx *Context, event DropTargetStateEvent)) DropTargetOption {
+	return widget.DropTargetOnActiveChange(fn)
+}
+
+func DropTargetOnError(fn func(ctx *Context, event DropEvent)) DropTargetOption {
+	return widget.DropTargetOnError(fn)
+}
+
+func DragSourcePayloads(payloads ...DragPayload) DragSourceOption {
+	return widget.DragSourcePayloads(payloads...)
+}
+
+func DragSourceData(mime string, data []byte) DragSourceOption {
+	return widget.DragSourceData(mime, data)
+}
+
+func DragSourceText(text string) DragSourceOption {
+	return widget.DragSourceText(text)
+}
+
+func DragSourceFiles(paths ...string) DragSourceOption {
+	return widget.DragSourceFiles(paths...)
+}
+
+func DragSourcePreview(preview Widget) DragSourceOption {
+	return widget.DragSourcePreview(preview)
+}
+
+func DragSourceOperations(operations ...DragOperation) DragSourceOption {
+	return widget.DragSourceOperations(operations...)
+}
+
+func DragSourceDisabled(disabled bool) DragSourceOption {
+	return widget.DragSourceDisabled(disabled)
+}
+
+func DragSourceOnEvent(fn func(ctx *Context, event DragSourceEvent)) DragSourceOption {
+	return widget.DragSourceOnEvent(fn)
+}
+
+func DragSourceOnRequest(fn func(ctx *Context, event DragSourceEvent)) DragSourceOption {
+	return widget.DragSourceOnRequest(fn)
 }
 
 // All 创建统一边距。

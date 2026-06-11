@@ -6,6 +6,10 @@ type driver interface {
 	capabilities() CapabilitySet
 }
 
+type capabilityProbeDriver interface {
+	probeCapability(cap Capability) CapabilityAvailability
+}
+
 var (
 	driverMu     sync.RWMutex
 	activeDriver driver = newPlatformDriver()
@@ -30,4 +34,18 @@ func currentCapabilities() CapabilitySet {
 		return CapabilitySet{}
 	}
 	return d.capabilities().clone()
+}
+
+func currentAvailability(cap Capability) CapabilityAvailability {
+	driverMu.RLock()
+	d := activeDriver
+	driverMu.RUnlock()
+
+	if d == nil {
+		return defaultCapabilityAvailability(nil, cap)
+	}
+	if pd, ok := d.(capabilityProbeDriver); ok {
+		return normalizeCapabilityAvailability(cap, pd.probeCapability(cap))
+	}
+	return defaultCapabilityAvailability(d.capabilities(), cap)
 }

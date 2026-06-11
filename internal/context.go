@@ -267,6 +267,15 @@ func (c *Context) WindowCenter() bool {
 	return ctrl != nil && ctrl.Center()
 }
 
+// WindowRequestFocus 请求当前窗口获得焦点。
+func (c *Context) WindowRequestFocus() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.RequestFocus()
+}
+
 // WindowSetTitle 更新当前窗口标题。
 func (c *Context) WindowSetTitle(title string) bool {
 	if c == nil || c.runtime == nil {
@@ -276,6 +285,15 @@ func (c *Context) WindowSetTitle(title string) bool {
 	return ctrl != nil && ctrl.SetTitle(title)
 }
 
+// WindowSetPosition 更新当前窗口位置（单位 dp）。
+func (c *Context) WindowSetPosition(x, y int) bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.SetPosition(x, y)
+}
+
 // WindowSetSize 更新当前窗口尺寸（单位 dp）。
 func (c *Context) WindowSetSize(width, height int) bool {
 	if c == nil || c.runtime == nil {
@@ -283,6 +301,24 @@ func (c *Context) WindowSetSize(width, height int) bool {
 	}
 	ctrl := c.runtime.WindowController()
 	return ctrl != nil && ctrl.SetSize(width, height)
+}
+
+// WindowSetResizable 设置当前窗口是否可被系统边框调整大小。
+func (c *Context) WindowSetResizable(resizable bool) bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.SetResizable(resizable)
+}
+
+// WindowSetDecorated 设置当前窗口是否使用系统装饰边框。
+func (c *Context) WindowSetDecorated(decorated bool) bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.SetDecorated(decorated)
 }
 
 // WindowSetMinSize 更新当前窗口最小尺寸（单位 dp）。

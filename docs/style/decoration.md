@@ -46,7 +46,13 @@
     "(Decoration).WithDisabled(d Decoration) Decoration",
     "(Decoration).WithImage(f ImageFill) Decoration",
     "(Decoration).WithTransform(t Transform2D) Decoration",
-    "(Decoration).Merge(other Decoration) Decoration"
+    "(Decoration).Merge(other Decoration) Decoration",
+    "ContainerDecorationDisabled(disabled bool) ContainerDecorationOption",
+    "OnDecoClick(fn func(ctx *Context)) ContainerDecorationOption",
+    "OnDecoHoverEnter(fn func(ctx *Context)) ContainerDecorationOption",
+    "OnDecoHoverLeave(fn func(ctx *Context)) ContainerDecorationOption",
+    "OnDecoHover(fn func(ctx *Context, hovering bool)) ContainerDecorationOption",
+    "OnDecoPressed(fn func(ctx *Context, pressed bool)) ContainerDecorationOption"
   ]
 }
 -->
@@ -98,6 +104,23 @@ primary := ui.Bg(ui.NRGBA(37, 99, 235, 255)).
 ui.Button(
     ui.Text("提交", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
     ui.ButtonDecoration(primary),
+)
+```
+
+## 容器事件
+`ContainerDecorationElement` 可以在样式容器上直接绑定点击、hover 和 pressed 事件，也可以通过 `ContainerDecorationDisabled` 保留布局但关闭交互。
+
+```go
+ui.ContainerDecorationElement(
+    ui.Bg(ui.NRGBA(248, 250, 252, 255)).
+        WithPad(ui.All(12)).
+        WithRad(10).
+        WithHover(ui.Bg(ui.NRGBA(239, 246, 255, 255))).
+        WithPressed(ui.Bg(ui.NRGBA(219, 234, 254, 255))),
+    ui.TextElement("Interactive surface"),
+    ui.OnDecoClick(func(ctx *ui.Context) {}),
+    ui.OnDecoHover(func(ctx *ui.Context, hovering bool) {}),
+    ui.OnDecoPressed(func(ctx *ui.Context, pressed bool) {}),
 )
 ```
 

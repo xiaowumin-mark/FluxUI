@@ -9,7 +9,7 @@ This document is the current status page for the React-style runtime and docs/ex
 - `FromWidget` remains a long-term escape hatch for mixing legacy widgets into Element trees.
 - Docs/examples rollout Batches 1-6 are complete. The rollout updated low-risk widget docs with React-style snippets, consolidated redundant standalone examples into the full React-style workspace, and recorded compatibility notes for complex examples.
 - Widget docs have been audited for React runtime coverage. Stable wrappers are documented with React-style snippets; host-state/lifecycle-heavy controls still document which state remains owned by the underlying widget host.
-- The docs browser still uses legacy example ids and legacy preview mappings. Do not migrate `examples/docs_browser` without a separate runtime migration design.
+- `examples/docs_browser` now runs with `ui.RunElement` and owns the integrated documentation experience: Markdown rendering, metadata-driven example ids, API index, inline previews, popup previews, theme controls, runtime/grid coverage, and System API demos.
 
 ## Canonical examples
 
@@ -48,6 +48,7 @@ This document is the current status page for the React-style runtime and docs/ex
 - It covers `RunElement`, function components, `UseState`, `UseMount`, `UseEffectWithDeps`, `Provider`, `UseContext`, `RouterElement`, route hooks, `Fragment`, `ComponentElement`, `Key`, stable Element wrappers, and `FromWidget`.
 - Its route pages receive live app settings through route component factories because `RouterElement` still bridges through the legacy router host; `Provider` / `UseContext` coverage stays inside the keyed task-card subtree.
 - It keeps `FromWidget` coverage as an escape-hatch example while stable wrappers are available for the full public widget set.
+- `examples/docs_browser` is the user-facing docs showcase. It mirrors the same runtime primitives in documented pages, adds popup/inline examples for every docs `example.id`, and includes live System API examples.
 
 ## Active strategy documents
 

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
+	"github.com/xiaowumin-mark/FluxUI/system"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
@@ -20,10 +23,35 @@ func mainWindow(ctx *ui.Context) ui.Element {
 		if next, ok := handle.State(); ok {
 			state = next
 		}
-		if events := handle.PollEvents(); len(events) > 0 {
-			eventLog.Set(appendEventLog(eventLog.Value(), events))
-		}
 	}
+	ui.UseEffectWithDeps(ctx, []any{currentID, hasHandle}, func() func() {
+		if !hasHandle {
+			return nil
+		}
+		sub, ok := handle.SubscribeEvents()
+		if !ok {
+			return nil
+		}
+		done := make(chan struct{})
+		go func() {
+			for {
+				select {
+				case event, ok := <-sub.Events():
+					if !ok {
+						return
+					}
+					eventLog.Set(appendEventLog(eventLog.Value(), []ui.WindowEvent{event}))
+					handle.Invalidate()
+				case <-done:
+					return
+				}
+			}
+		}()
+		return func() {
+			close(done)
+			sub.Close()
+		}
+	})
 	maxLimited := hasWindowMaxSize(state)
 
 	return ui.ContainerDecorationElement(
@@ -92,7 +120,7 @@ func mainWindow(ctx *ui.Context) ui.Element {
 					}
 				})),
 			)),
-			ui.PaddingElement(ui.Insets{Top: 16}, ui.TextElement("事件", ui.TextSize(16))),
+			ui.PaddingElement(ui.Insets{Top: 16}, ui.TextElement("事件订阅", ui.TextSize(16))),
 			ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement(formatEvents(eventLog.Value()), ui.TextSize(12), ui.TextColor(th.Primary))),
 		),
 	)
@@ -206,12 +234,27 @@ func formatEvents(events []string) string {
 }
 
 func main() {
+	var closeAllowed atomic.Bool
+	var closePrompting atomic.Bool
+
 	_ = ui.RunElementMulti(
 		ui.WindowElement(
 			mainWindow,
 			ui.Title("Window Showcase"),
 			ui.Size(680, 520),
 			ui.MinSize(520, 360),
+			ui.OnCloseRequested(func(request ui.WindowCloseRequest) bool {
+				if closeAllowed.Load() {
+					return true
+				}
+				if closePrompting.CompareAndSwap(false, true) {
+					go confirmWindowClose(request.Window, &closeAllowed, &closePrompting)
+				} else {
+					request.Window.SetTitle("关闭确认已打开")
+					request.Window.Invalidate()
+				}
+				return false
+			}),
 		),
 		ui.WindowElement(
 			toolWindow,
@@ -220,4 +263,43 @@ func main() {
 			ui.MinSize(320, 220),
 		),
 	)
+}
+
+func confirmWindowClose(handle ui.WindowHandle, closeAllowed *atomic.Bool, closePrompting *atomic.Bool) {
+	handle.SetTitle("等待关闭确认")
+	handle.Invalidate()
+
+	opts := []system.MessageBoxOption{
+		system.MessageBoxTitle("保存更改"),
+		system.MessageBoxText("关闭前是否保存当前文档？"),
+		system.MessageBoxStyle(system.MessageBoxQuestion),
+		system.MessageBoxButtonSet(system.MessageBoxYesNoCancel),
+		system.MessageBoxDefaultButton(system.MessageBoxResultCancel),
+	}
+	if owner, ok := handle.NativeHandle(); ok {
+		opts = append(opts, system.MessageBoxOwner(owner))
+	}
+
+	result, err := system.ShowMessageBox(context.Background(), opts...)
+	if err != nil {
+		handle.SetTitle(fmt.Sprintf("关闭确认失败: %v", err))
+		handle.Invalidate()
+		closePrompting.Store(false)
+		return
+	}
+
+	switch result {
+	case system.MessageBoxResultYes:
+		handle.SetTitle("已保存，正在关闭")
+		closeAllowed.Store(true)
+		handle.Close()
+	case system.MessageBoxResultNo:
+		handle.SetTitle("不保存，正在关闭")
+		closeAllowed.Store(true)
+		handle.Close()
+	default:
+		handle.SetTitle("关闭已取消")
+		handle.Invalidate()
+		closePrompting.Store(false)
+	}
 }
