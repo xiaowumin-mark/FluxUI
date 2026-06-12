@@ -53,10 +53,11 @@ func docsLeftPanel(
 				),
 				ui.PaddingElement(
 					ui.Insets{Top: 10},
-					ui.TextFieldElement(
+					ui.SearchBarElement(
 						searchKeyword.Value(),
-						ui.InputPlaceholder("Search docs / API"),
-						ui.InputOnChange(func(ctx *ui.Context, value string) {
+						ui.SearchBarPlaceholder("Search docs / API"),
+						ui.SearchBarInputOptions(ui.InputSingleLine(true)),
+						ui.SearchBarOnChange(func(ctx *ui.Context, value string) {
 							searchKeyword.Set(value)
 						}),
 					),

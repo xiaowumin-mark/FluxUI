@@ -14,7 +14,7 @@ func docsRightPanelContent(
 	th *ui.Theme,
 	examplePopupOpen docsBoolState,
 	apiCopyStatus docsStringState,
-	markdownCopyStatus docsStringState,
+	markdownContent []ui.Element,
 	buildDemo docsDemoBuilder,
 ) []ui.Element {
 	if doc == nil {
@@ -37,7 +37,6 @@ func docsRightPanelContent(
 	presentation := docsDemoPresentationFor(exampleID)
 	demoContent := buildDemo(doc)
 	demoViewport := docsDemoViewport(exampleID, demoContent)
-	popupDemoContent := buildDemo(doc)
 
 	content := []ui.Element{
 		ui.TextElement(doc.Meta.Title, ui.TextSize(26), ui.TextColor(th.Colors.OnSurface)),
@@ -69,14 +68,6 @@ func docsRightPanelContent(
 			ui.Insets{Top: 8},
 			docsInlineExampleFrame(presentation.Height, demoViewport, th),
 		),
-		docsExamplePopup(
-			examplePopupOpen.Value(),
-			doc.Meta.Title,
-			exampleID,
-			popupDemoContent,
-			examplePopupOpen,
-			th,
-		),
 	)
 
 	if len(doc.Meta.APIs) > 0 {
@@ -93,13 +84,31 @@ func docsRightPanelContent(
 			ui.Insets{Top: 14},
 			ui.TextElement("文档正文", ui.TextSize(17), ui.TextColor(th.Colors.OnSurface)),
 		),
-		ui.PaddingElement(
-			ui.Insets{Top: 8},
-			ui.ColumnElement(renderMarkdownDocument(doc.Content, th, markdownCopyStatus)...),
-		),
 	)
+	if len(markdownContent) == 0 {
+		markdownContent = []ui.Element{ui.TextElement("No markdown content", ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant))}
+	}
+	for _, item := range markdownContent {
+		content = append(content, ui.PaddingElement(ui.Insets{Top: 8}, item))
+	}
 
 	return content
+}
+
+func docsRightPanelList(content []ui.Element) ui.Element {
+	if len(content) == 0 {
+		return ui.SpacerElement(0, 0)
+	}
+	return ui.ListViewElement(
+		len(content),
+		func(ctx *ui.Context, index int) ui.Element {
+			if index < 0 || index >= len(content) {
+				return ui.SpacerElement(0, 0)
+			}
+			return content[index]
+		},
+		ui.ListVirtualized(true),
+	)
 }
 
 func docsRightPanelEmptyState(th *ui.Theme) []ui.Element {

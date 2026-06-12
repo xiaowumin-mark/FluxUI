@@ -133,6 +133,10 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	sliderValue := state.value
 	clickable := state.hover
 	currentValue := applySliderStep(s.config.value, s.config.min, s.config.max, s.config.step)
+	if sliderValue.Dragging() {
+		currentValue = s.config.min + sliderValue.Value*(s.config.max-s.config.min)
+		currentValue = applySliderStep(currentValue, s.config.min, s.config.max, s.config.step)
+	}
 	if s.config.ref != nil {
 		s.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for _, cmd := range s.config.ref.drainCommands() {
@@ -148,7 +152,9 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 	progress := toSliderProgress(currentValue, s.config.min, s.config.max)
-	sliderValue.Value = progress
+	if !sliderValue.Dragging() {
+		sliderValue.Value = progress
+	}
 	before := sliderValue.Value
 
 	cs := ctx.Theme().Colors

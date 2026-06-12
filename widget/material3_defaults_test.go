@@ -3,6 +3,8 @@ package widget
 import (
 	"image"
 	"image/color"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
@@ -211,5 +213,25 @@ func TestCardMD3VariantDefaults(t *testing.T) {
 	}
 	if elevated.shadow.IsZero() {
 		t.Fatalf("elevated card shadow should be set")
+	}
+}
+
+func TestClickableCardDoesNotUseButtonWrapper(t *testing.T) {
+	data, err := os.ReadFile("media_card.go")
+	if err != nil {
+		t.Fatalf("read media_card.go: %v", err)
+	}
+	text := string(data)
+	start := strings.Index(text, "func (c *cardWidget) Layout")
+	end := strings.Index(text, "type cardDefaults struct")
+	if start < 0 || end <= start {
+		t.Fatal("could not locate cardWidget.Layout source")
+	}
+	cardLayout := text[start:end]
+	if strings.Contains(cardLayout, "Button(") || strings.Contains(cardLayout, "ButtonAttachRef") {
+		t.Fatal("clickable Card should register card-bounded input directly, not wrap the surface in Button")
+	}
+	if !strings.Contains(cardLayout, "LayoutRippleOverlayArea") {
+		t.Fatal("clickable Card should keep pressed feedback bounded to the card surface")
 	}
 }

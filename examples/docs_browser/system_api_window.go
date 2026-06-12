@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
@@ -12,6 +13,35 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 		status := ui.UseState(sectionCtx, "Window controls act on the current docs browser window.")
 		titleSeq := ui.UseState(sectionCtx, 0)
 		hiddenPolicy := ui.UseState(sectionCtx, ui.WindowHiddenMemoryReleaseTransient)
+		closeGuard := ui.UseState(sectionCtx, false)
+		eventLog := ui.UseState(sectionCtx, []string{"No window events observed yet."})
+		windowSub := ui.UseState[*ui.WindowEventSubscription](sectionCtx, nil)
+
+		currentSub := windowSub.Value()
+		ui.UseEffectWithDeps(sectionCtx, []any{currentSub}, func() func() {
+			sub := currentSub
+			if sub == nil {
+				return nil
+			}
+			done := make(chan struct{})
+			go func() {
+				for {
+					select {
+					case event, ok := <-sub.Events():
+						if !ok {
+							return
+						}
+						eventLog.Set(docsSystemPrependLog(eventLog.Value(), formatDocsWindowEvent("sub", event), 8))
+					case <-done:
+						return
+					}
+				}
+			}()
+			return func() {
+				close(done)
+				_ = sub.Close()
+			}
+		})
 
 		currentID := ui.CurrentWindowID(sectionCtx)
 		handle, hasHandle := ui.GetWindow(currentID)
@@ -30,6 +60,7 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 		if hiddenPolicy.Value() == ui.WindowHiddenMemoryKeepRenderingState {
 			hiddenLabel = "Hidden memory: keep rendering state"
 		}
+		subscriptionActive := currentSub != nil
 
 		button := func(label string, onClick func(*ui.Context)) ui.Element {
 			return ui.OutlinedButtonElement(
@@ -130,6 +161,110 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
+				ui.ExpandedElement(button(resizableLabel(windowState.Resizable), func(ctx *ui.Context) {
+					next := !windowState.Resizable
+					if !ui.WindowSetResizable(ctx, next) {
+						status.Set("Window resizable update failed.")
+						return
+					}
+					status.Set(fmt.Sprintf("Resizable set to %v.", next))
+				})),
+				ui.HSpacerElement(8),
+				ui.ExpandedElement(button(decoratedLabel(windowState.Decorated), func(ctx *ui.Context) {
+					next := !windowState.Decorated
+					if !ui.WindowSetDecorated(ctx, next) {
+						status.Set("Window decoration update failed.")
+						return
+					}
+					status.Set(fmt.Sprintf("Decorated set to %v.", next))
+				})),
+				ui.HSpacerElement(8),
+				ui.ExpandedElement(button("Set min/max", func(ctx *ui.Context) {
+					if !ui.WindowSetMinSize(ctx, 640, 420) {
+						status.Set("Window min size update failed.")
+						return
+					}
+					if !ui.WindowSetMaxSize(ctx, 1200, 900) {
+						status.Set("Window max size update failed.")
+						return
+					}
+					status.Set("Window min/max set to 640x420 / 1200x900.")
+				})),
+			),
+			ui.VSpacerElement(8),
+			ui.RowElement(
+				ui.ExpandedElement(button(closeGuardLabel(closeGuard.Value()), func(ctx *ui.Context) {
+					if !hasHandle {
+						status.Set("Window handle unavailable.")
+						return
+					}
+					if closeGuard.Value() {
+						if !handle.SetCloseRequestedHandler(nil) {
+							status.Set("Clear close guard failed.")
+							return
+						}
+						closeGuard.Set(false)
+						status.Set("Close guard cleared.")
+						return
+					}
+					if !handle.SetCloseRequestedHandler(func(request ui.WindowCloseRequest) bool {
+						eventLog.Set(docsSystemPrependLog(eventLog.Value(), "close requested and cancelled by docs guard", 8))
+						return false
+					}) {
+						status.Set("Install close guard failed.")
+						return
+					}
+					closeGuard.Set(true)
+					status.Set("Close guard installed; click again to clear before closing.")
+				})),
+				ui.HSpacerElement(8),
+				ui.ExpandedElement(button("Poll events", func(ctx *ui.Context) {
+					if !hasHandle {
+						status.Set("Window handle unavailable.")
+						return
+					}
+					events := handle.PollEvents()
+					if len(events) == 0 {
+						status.Set("No queued window events.")
+						return
+					}
+					lines := eventLog.Value()
+					for _, event := range events {
+						lines = docsSystemPrependLog(lines, formatDocsWindowEvent("poll", event), 8)
+					}
+					eventLog.Set(lines)
+					status.Set(fmt.Sprintf("Polled %d window events.", len(events)))
+				})),
+				ui.HSpacerElement(8),
+				ui.ExpandedElement(button(windowSubscribeLabel(subscriptionActive), func(ctx *ui.Context) {
+					if !hasHandle {
+						status.Set("Window handle unavailable.")
+						return
+					}
+					if current := windowSub.Value(); current != nil {
+						_ = current.Close()
+						windowSub.Set(nil)
+						status.Set("Window event subscription stopped.")
+						return
+					}
+					sub, ok := handle.SubscribeEvents(
+						ui.WindowEventSizeChanged,
+						ui.WindowEventScaleChanged,
+						ui.WindowEventFocusChanged,
+						ui.WindowEventStateChanged,
+						ui.WindowEventCloseRequested,
+						ui.WindowEventClosed,
+					)
+					if !ok {
+						status.Set("Window event subscription failed.")
+						return
+					}
+					windowSub.Set(sub)
+					status.Set("Window event subscription started.")
+				})),
+			),
+			ui.VSpacerElement(8),
+			ui.RowElement(
 				ui.ExpandedElement(button("Restore", func(ctx *ui.Context) {
 					if !ui.WindowRestore(ctx) {
 						status.Set("Window restore failed.")
@@ -157,6 +292,8 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 				})),
 			),
 			ui.VSpacerElement(8),
+			docsSystemLogPanel("Window events", eventLog.Value(), th, 92),
+			ui.VSpacerElement(8),
 			ui.TextElement(status.Value(), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		), th)
 	})
@@ -168,7 +305,7 @@ func docsSystemWindowSummary(state ui.WindowState, nativeHandle uintptr, nativeO
 		native = fmt.Sprintf("native=0x%X", nativeHandle)
 	}
 	return fmt.Sprintf(
-		"ID=%d title=%q size=%dx%d min=%dx%d max=%dx%d scale=%.2f dpi=%d visible=%v topmost=%v hiddenMemory=%s minimized=%v maximized=%v fullscreen=%v focused=%v alive=%v %s",
+		"ID=%d title=%q size=%dx%d min=%dx%d max=%dx%d scale=%.2f dpi=%d visible=%v topmost=%v hiddenMemory=%s renderSuspended=%v decorated=%v resizable=%v minimized=%v maximized=%v fullscreen=%v focused=%v alive=%v %s",
 		state.ID,
 		state.Title,
 		state.Width,
@@ -182,6 +319,9 @@ func docsSystemWindowSummary(state ui.WindowState, nativeHandle uintptr, nativeO
 		state.Visible,
 		state.AlwaysOnTop,
 		windowHiddenMemoryPolicyName(state.HiddenMemoryPolicy),
+		state.RenderSuspended,
+		state.Decorated,
+		state.Resizable,
 		state.Minimized,
 		state.Maximized,
 		state.Fullscreen,
@@ -189,6 +329,19 @@ func docsSystemWindowSummary(state ui.WindowState, nativeHandle uintptr, nativeO
 		state.Alive,
 		native,
 	)
+}
+
+func formatDocsWindowEvent(source string, event ui.WindowEvent) string {
+	parts := []string{
+		source,
+		string(event.Kind),
+		fmt.Sprintf("size=%dx%d", event.State.Width, event.State.Height),
+		fmt.Sprintf("focused=%v", event.State.Focused),
+	}
+	if event.State.Scale > 0 {
+		parts = append(parts, fmt.Sprintf("scale=%.2f", event.State.Scale))
+	}
+	return strings.Join(parts, " ")
 }
 
 func windowHiddenMemoryPolicyName(policy ui.WindowHiddenMemoryPolicy) string {
@@ -210,4 +363,32 @@ func topmostLabel(always bool) string {
 		return "Turn off topmost"
 	}
 	return "Turn on topmost"
+}
+
+func resizableLabel(resizable bool) string {
+	if resizable {
+		return "Disable resize"
+	}
+	return "Enable resize"
+}
+
+func decoratedLabel(decorated bool) string {
+	if decorated {
+		return "Hide frame"
+	}
+	return "Show frame"
+}
+
+func closeGuardLabel(enabled bool) string {
+	if enabled {
+		return "Clear close guard"
+	}
+	return "Install close guard"
+}
+
+func windowSubscribeLabel(active bool) string {
+	if active {
+		return "Stop subscription"
+	}
+	return "Subscribe events"
 }

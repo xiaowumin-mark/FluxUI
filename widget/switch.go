@@ -34,8 +34,8 @@ type switchWidget struct {
 
 func Switch(checked bool, opts ...SwitchOption) Widget {
 	cfg := switchConfig{
-		width:  50,
-		height: 26,
+		width:  52,
+		height: 32,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -135,9 +135,13 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	cs := ctx.Theme().Colors
-	trackColor := cs.SurfaceVariant
+	trackColor := cs.SurfaceContainerHighest
+	trackBorderColor := cs.Outline
+	trackBorderWidth := float32(1)
 	if s.config.hasTrackColor {
 		trackColor = s.config.trackColor
+		trackBorderColor = color.NRGBA{}
+		trackBorderWidth = 0
 	}
 	if s.value {
 		if s.config.hasColor {
@@ -145,6 +149,8 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		} else {
 			trackColor = cs.Primary
 		}
+		trackBorderColor = color.NRGBA{}
+		trackBorderWidth = 0
 	}
 
 	thumbColor := cs.Outline
@@ -156,6 +162,8 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 	if s.config.disabled {
 		trackColor = style.DisabledContainer(cs.OnSurface)
+		trackBorderColor = color.NRGBA{}
+		trackBorderWidth = 0
 		thumbColor = style.DisabledContent(cs.OnSurface)
 	}
 	checkedProgress := md3SelectionProgress(ctx, s.value)
@@ -163,14 +171,16 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	thumbColor = md3AnimateColor(ctx, "switch-thumb", thumbColor, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 	content := func(contentCtx *internal.Context) image.Point {
 		return contentCtx.LayoutSwitch(nil, s.value, internal.SwitchSpec{
-			Width:           s.config.width,
-			Height:          s.config.height,
-			TrackColor:      trackColor,
-			ThumbColor:      thumbColor,
-			CheckedProgress: checkedProgress,
-			Disabled:        s.config.disabled,
-			Hovered:         clickable.Hovered(),
-			Pressed:         clickable.Pressed(),
+			Width:            s.config.width,
+			Height:           s.config.height,
+			TrackColor:       trackColor,
+			TrackBorderColor: trackBorderColor,
+			TrackBorderWidth: trackBorderWidth,
+			ThumbColor:       thumbColor,
+			CheckedProgress:  checkedProgress,
+			Disabled:         s.config.disabled,
+			Hovered:          clickable.Hovered(),
+			Pressed:          clickable.Pressed(),
 		})
 	}
 
@@ -197,14 +207,28 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		Radius:  s.config.height / 2,
 		Opacity: style.StateLayerPressedOpacity,
 	}, 48, 40, func(size image.Point) image.Point {
-		thumbPadding := 2
-		thumbSize := size.Y - thumbPadding*2
-		if thumbSize < 2 {
-			thumbSize = 2
+		trackHeight := size.Y
+		if trackHeight <= 0 {
+			trackHeight = ctx.Gtx.Dp(safeDp(s.config.height))
 		}
-		x := thumbPadding + thumbSize/2
+		thumbSize := trackHeight / 2
 		if s.value {
-			x = size.X - thumbPadding - thumbSize/2
+			thumbSize = trackHeight - ctx.Gtx.Dp(safeDp(8))
+		}
+		if clickable.Pressed() {
+			pressedSize := ctx.Gtx.Dp(safeDp(28))
+			if pressedSize > thumbSize {
+				thumbSize = pressedSize
+			}
+		}
+		maxThumb := trackHeight - ctx.Gtx.Dp(safeDp(4))
+		if thumbSize > maxThumb {
+			thumbSize = maxThumb
+		}
+		left := ctx.Gtx.Dp(safeDp(4))
+		x := left + thumbSize/2
+		if s.value {
+			x = size.X - left - thumbSize/2
 		}
 		return image.Pt(x, size.Y/2)
 	}, func() float32 {

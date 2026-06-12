@@ -14,12 +14,18 @@ func docsSystemFileDialogSection(th *ui.Theme) ui.Element {
 	return ui.ComponentElement(func(sectionCtx *ui.Context) ui.Element {
 		status := ui.UseState(sectionCtx, "File dialogs bind to the current window owner.")
 		disabled := !system.Supports(system.CapabilityFileDialog)
+		owner, ownerOK := ui.CurrentWindowNativeHandle(sectionCtx)
+		ownerText := docsSystemNativeOwnerLabel(owner, ownerOK)
+		defaultDir := docsSystemDefaultDialogDir()
 
 		return docsSystemSection("File Dialog API", ui.ColumnElement(
+			ui.TextElement(ownerText, ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.VSpacerElement(8),
 			ui.RowElement(
 				ui.ExpandedElement(docsSystemRunAsyncButton("Open file", status, disabled, func(ctx *ui.Context) string {
 					result, err := ui.OpenFileDialogContext(ctx, context.Background(),
 						system.FileDialogTitle("Open file"),
+						system.FileDialogDefaultDir(defaultDir),
 						system.FileDialogRememberDir("docs-browser-open"),
 						system.FileDialogFilters(
 							system.FileFilter{Name: "Text", Patterns: []string{"txt", "md", "json"}},
@@ -44,8 +50,12 @@ func docsSystemFileDialogSection(th *ui.Theme) ui.Element {
 				ui.ExpandedElement(docsSystemRunAsyncButton("Save file", status, disabled, func(ctx *ui.Context) string {
 					result, err := ui.SaveFileDialogContext(ctx, context.Background(),
 						system.FileDialogTitle("Save file"),
+						system.FileDialogDefaultDir(defaultDir),
 						system.FileDialogDefaultName("fluxui-docs"),
 						system.FileDialogDefaultExtension("txt"),
+						system.FileDialogAllowCreateDirs(true),
+						system.FileDialogAllowMissingPath(true),
+						system.FileDialogOverwritePrompt(true),
 						system.FileDialogRememberDir("docs-browser-save"),
 						system.FileDialogFilters(
 							system.FileFilter{Name: "Text", Patterns: []string{"txt"}},
@@ -60,6 +70,7 @@ func docsSystemFileDialogSection(th *ui.Theme) ui.Element {
 				ui.ExpandedElement(docsSystemRunAsyncButton("Pick folder", status, disabled, func(ctx *ui.Context) string {
 					result, err := ui.PickFolderDialogContext(ctx, context.Background(),
 						system.FileDialogTitle("Pick folder"),
+						system.FileDialogDefaultDir(defaultDir),
 						system.FileDialogRememberDir("docs-browser-folder"),
 					)
 					return formatDocsSystemFileDialogResult("Pick folder", result, err)
@@ -77,11 +88,37 @@ func docsSystemFileDialogSection(th *ui.Theme) ui.Element {
 					)
 					return formatDocsSystemFileDialogResult("Auto cancel", result, err)
 				})),
+				ui.HSpacerElement(8),
+				ui.ExpandedElement(docsSystemRunAsyncButton("System owner", status, disabled, func(ctx *ui.Context) string {
+					owner, _ := ui.CurrentWindowNativeHandle(ctx)
+					result, err := system.OpenFileDialog(context.Background(),
+						system.FileDialogTitle("Open with explicit owner"),
+						system.FileDialogOwner(owner),
+						system.FileDialogDefaultDir(defaultDir),
+						system.FileDialogAllowMissingPath(false),
+						system.FileDialogFilters(system.FileFilter{Name: "Markdown", Patterns: []string{".md"}}),
+					)
+					return formatDocsSystemFileDialogResult("System owner", result, err)
+				})),
 			),
 			ui.VSpacerElement(8),
 			ui.TextElement(status.Value(), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		), th)
 	})
+}
+
+func docsSystemDefaultDialogDir() string {
+	if docsRoot, err := resolveDocsRootDir(); err == nil {
+		return docsRoot
+	}
+	return ""
+}
+
+func docsSystemNativeOwnerLabel(owner uintptr, ok bool) string {
+	if !ok || owner == 0 {
+		return "Native owner: unavailable; ui wrappers will fall back to ownerless dialogs."
+	}
+	return fmt.Sprintf("Native owner: 0x%X; ui wrappers inject this automatically, system.* calls can pass FileDialogOwner explicitly.", owner)
 }
 
 func formatDocsSystemFileDialogResult(label string, result system.FileDialogResult, err error) string {

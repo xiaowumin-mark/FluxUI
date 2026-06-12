@@ -61,14 +61,15 @@ func buildDocsSystemAPIDemo(ctx *ui.Context, status docsStringState, th *ui.Them
 }
 
 func systemCapabilityCard(label string, cap system.Capability, th *ui.Theme) ui.Element {
-	supported := system.Supports(cap)
+	caps := system.Capabilities()
+	availability := system.Availability(cap)
+	supported := caps.Supports(cap) && availability.Supported()
 	bg := th.Colors.SurfaceContainer
 	fg := th.Colors.OnSurfaceVariant
-	stateText := "unsupported"
+	stateText := string(availability.Status)
 	if supported {
 		bg = th.Colors.PrimaryContainer
 		fg = th.Colors.OnPrimaryContainer
-		stateText = "supported"
 	}
 	return ui.ExpandedElement(
 		ui.ContainerDecorationElement(

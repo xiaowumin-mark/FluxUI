@@ -13,8 +13,11 @@ func docsSystemMessageBoxSection(th *ui.Theme) ui.Element {
 	return ui.ComponentElement(func(sectionCtx *ui.Context) ui.Element {
 		status := ui.UseState(sectionCtx, "Message boxes are native and owner-bound.")
 		disabled := !system.Supports(system.CapabilityMessageBox)
+		owner, ownerOK := ui.CurrentWindowNativeHandle(sectionCtx)
 
 		return docsSystemSection("MessageBox API", ui.ColumnElement(
+			ui.TextElement(docsSystemMessageBoxOwnerLabel(owner, ownerOK), ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.VSpacerElement(8),
 			ui.RowElement(
 				ui.ExpandedElement(docsSystemRunAsyncButton("Info", status, disabled, func(ctx *ui.Context) string {
 					result, err := ui.ShowMessageBoxContext(ctx, context.Background(),
@@ -74,6 +77,8 @@ func docsSystemMessageBoxSection(th *ui.Theme) ui.Element {
 						),
 						system.MessageBoxDefaultButtonID("cancel"),
 						system.MessageBoxCommandLinks(true),
+						system.MessageBoxExpandedDetailsByDefault(true),
+						system.MessageBoxExpandDetailsInFooterArea(false),
 					)
 					return formatDocsSystemMessageBoxDetailedResult("Detailed", result, err)
 				})),
@@ -93,9 +98,55 @@ func docsSystemMessageBoxSection(th *ui.Theme) ui.Element {
 				})),
 			),
 			ui.VSpacerElement(8),
+			ui.RowElement(
+				ui.ExpandedElement(docsSystemRunAsyncButton("Async info", status, disabled, func(ctx *ui.Context) string {
+					response := <-ui.ShowMessageBoxAsyncContext(ctx, context.Background(),
+						system.MessageBoxTitle("Async message"),
+						system.MessageBoxText("This uses ui.ShowMessageBoxAsyncContext and reports through the response channel."),
+						system.MessageBoxStyle(system.MessageBoxInfo),
+						system.MessageBoxButtonSet(system.MessageBoxOKCancel),
+					)
+					return formatDocsSystemMessageBoxResult("Async info", response.Result, response.Err)
+				})),
+				ui.HSpacerElement(8),
+				ui.ExpandedElement(docsSystemRunAsyncButton("Async detailed", status, disabled, func(ctx *ui.Context) string {
+					response := <-ui.ShowMessageBoxDetailedAsyncContext(ctx, context.Background(),
+						system.MessageBoxTitle("Async detailed"),
+						system.MessageBoxText("This uses the detailed async wrapper."),
+						system.MessageBoxDetails("The result channel carries button id and verification state when the platform supports them."),
+						system.MessageBoxVerification("Keep this setting", true),
+						system.MessageBoxCustomButtons(
+							system.MessageBoxButton{ID: "apply", Label: "Apply", Result: system.MessageBoxResultCustom},
+							system.MessageBoxButton{ID: "cancel", Label: "Cancel", Result: system.MessageBoxResultCancel},
+						),
+						system.MessageBoxDefaultButtonID("apply"),
+						system.MessageBoxCommandLinksNoIcon(true),
+					)
+					return formatDocsSystemMessageBoxDetailedResult("Async detailed", response.Result, response.Err)
+				})),
+				ui.HSpacerElement(8),
+				ui.ExpandedElement(docsSystemRunAsyncButton("System owner", status, disabled, func(ctx *ui.Context) string {
+					owner, _ := ui.CurrentWindowNativeHandle(ctx)
+					result, err := system.ShowMessageBox(context.Background(),
+						system.MessageBoxOwner(owner),
+						system.MessageBoxTitle("Explicit owner"),
+						system.MessageBoxText("This direct system.ShowMessageBox call receives MessageBoxOwner explicitly."),
+						system.MessageBoxButtonSet(system.MessageBoxOK),
+					)
+					return formatDocsSystemMessageBoxResult("System owner", result, err)
+				})),
+			),
+			ui.VSpacerElement(8),
 			ui.TextElement(status.Value(), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		), th)
 	})
+}
+
+func docsSystemMessageBoxOwnerLabel(owner uintptr, ok bool) string {
+	if !ok || owner == 0 {
+		return "Native owner: unavailable; ui wrappers will fall back to ownerless message boxes."
+	}
+	return fmt.Sprintf("Native owner: 0x%X; ui wrappers inject this automatically, system.* calls can pass MessageBoxOwner explicitly.", owner)
 }
 
 func formatDocsSystemMessageBoxResult(label string, result system.MessageBoxResult, err error) string {

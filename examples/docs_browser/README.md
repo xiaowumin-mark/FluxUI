@@ -12,7 +12,8 @@
 - `left_panel.go`, `search.go`, `api_search.go`, `category_filter.go`: navigation list, multi-term document/API search, API quick-reference matches, counted category filters, theme controls, and load status.
 - `right_panel.go`, `example_viewer.go`: document body, API index, inline demo, and popup demo.
 - `markdown_renderer.go`, `api_index.go`: Markdown H1-H6 headings, nested/task/numbered lists, blockquotes, tables, code blocks, copy buttons, and API list rendering.
-- `*_demo.go`: focused demo modules for layout/style, layout/grid, controls/feedback, navigation/router, drag/drop, Material 3, animation, runtime/hooks, and System API.
+- `controls_core_demo.go`, `controls_feedback_demo.go`, `controls_selection_demo.go`, `controls_media_demo.go`, `controls_overlay_demo.go`, `controls_progress_demo.go`: focused control demos split by responsibility.
+- `*_demo.go`: focused demo modules for layout/style, layout/grid, navigation/router, drag/drop, Material 3, animation, runtime/hooks, and System API.
 
 ## Coverage Rules
 
@@ -25,6 +26,6 @@ Every Markdown document with an `example.id` must have a matching case in `demo_
 - metadata, API signatures, and Markdown content are searchable;
 - theme seed and dark mode changes produce distinct MD3 color schemes;
 - key UI sections such as Markdown rendering, API index, popup demos, Material 3, drag/drop, runtime/hooks, grid, Router, and System API build without nil results;
-- representative React-style APIs stay visible in the docs browser demo source, including `GridViewElement`, `ScrollHorizontal`, `ScrollAutoToEndKey`, `ListVirtualized`, hooks/context/router APIs, command refs such as `ButtonAttachRef`, `InputAttachRef`, `TabsAttachRef`, `DialogAttachRef`, and common MD3 variants/options such as filled/tonal/elevated buttons, outlined/filled text fields, filled/elevated/outlined cards, chip slots, menu sizing, navigation colors/alignment, search/badge/tooltip options, decoration events, drag/drop lifecycle constants, typography options, and progress indeterminate/size states.
+- representative React-style APIs stay visible in the docs browser demo source, including `GridViewElement`, `ScrollHorizontal`, `ScrollAutoToEndKey`, `ListVirtualized`, hooks/context/router APIs, command refs such as `ButtonAttachRef`, `InputAttachRef`, `TabsAttachRef`, `DialogAttachRef`, and common MD3 variants/options such as filled/tonal/elevated buttons, outlined/filled text fields, filled/elevated/outlined cards, chip slots, menu sizing, navigation colors/alignment, search/badge/tooltip options, decoration events, drag/drop lifecycle constants, typography options, progress indeterminate/size states, and System API owner/window-event/notification-backend/tray-update paths.
 
 When adding a new docs example, prefer adding a small focused `*_demo.go` module and then registering it in `demo_registry.go`. Avoid putting new demo implementations directly into `docs_browser_app.go`.

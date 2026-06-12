@@ -112,6 +112,15 @@ func docsBrowserApp(ctx *ui.Context, runtimeState *docsRuntimeState) ui.Element 
 	buildDemo := func(doc *widgetDoc) ui.Element {
 		return buildDocsDemo(ctx, doc, demoState)
 	}
+	currentDocID := ""
+	currentDocContent := ""
+	if currentDoc != nil {
+		currentDocID = currentDoc.Meta.ID
+		currentDocContent = currentDoc.Content
+	}
+	markdownElements := ui.UseMemo(ctx, []any{currentDocID, currentDocContent, themeSeed.Value(), themeDark.Value(), markdownCopyStatus.Value()}, func() []ui.Element {
+		return renderMarkdownDocument(currentDocContent, th, markdownCopyStatus)
+	})
 	leftPanel := docsLeftPanel(
 		docs,
 		filteredDocs,
@@ -131,9 +140,24 @@ func docsBrowserApp(ctx *ui.Context, runtimeState *docsRuntimeState) ui.Element 
 		th,
 		examplePopupOpen,
 		apiCopyStatus,
-		markdownCopyStatus,
+		markdownElements,
 		buildDemo,
 	)
+	examplePopup := ui.SpacerElement(0, 0)
+	if currentDoc != nil && examplePopupOpen.Value() {
+		exampleID := currentDoc.Meta.Example.ID
+		if exampleID == "" {
+			exampleID = currentDoc.Meta.ID
+		}
+		examplePopup = docsExamplePopup(
+			true,
+			currentDoc.Meta.Title,
+			exampleID,
+			buildDemo(currentDoc),
+			examplePopupOpen,
+			th,
+		)
+	}
 
 	rightPanel := ui.ExpandedElement(
 		ui.ContainerElement(
@@ -141,9 +165,9 @@ func docsBrowserApp(ctx *ui.Context, runtimeState *docsRuntimeState) ui.Element 
 				Background: th.Surface,
 				Padding:    ui.All(16),
 			},
-			ui.ScrollViewElement(
-				ui.ColumnElement(rightPanelContent...),
-				ui.ScrollVertical(true),
+			ui.StackElement(
+				docsRightPanelList(rightPanelContent),
+				examplePopup,
 			),
 		),
 	)

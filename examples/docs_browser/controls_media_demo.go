@@ -1,0 +1,230 @@
+package main
+
+import (
+	"fmt"
+
+	ui "github.com/xiaowumin-mark/FluxUI/ui"
+)
+
+func docsImageDemo() ui.Element {
+	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		ref := ui.UseRef(ctx, ui.NewButtonRef())
+		clicks := ui.UseState(ctx, 0)
+		if ref.Current == nil {
+			ref.Current = ui.NewButtonRef()
+		}
+		src := ui.ImageSource{Path: "examples/assets/sample.png", Label: "sample.png"}
+		return ui.ColumnElement(
+			ui.RowElement(
+				ui.ImageElement(
+					src,
+					ui.ImageWidth(150),
+					ui.ImageHeight(90),
+					ui.ImageFitMode(ui.ImageFitContain),
+					ui.ImageRadius(8),
+					ui.ImageBackground(ui.NRGBA(241, 245, 249, 255)),
+					ui.ImageDecoration(ui.BorderDeco(1, ui.NRGBA(203, 213, 225, 255))),
+					ui.ImageAttachRef(ref.Current),
+					ui.ImageOnClick(func(ctx *ui.Context) {
+						clicks.Set(clicks.Value() + 1)
+					}),
+				),
+				ui.PaddingElement(
+					ui.Insets{Left: 10},
+					ui.ImageElement(
+						src,
+						ui.ImageWidth(150),
+						ui.ImageHeight(90),
+						ui.ImageFitMode(ui.ImageFitCover),
+						ui.ImageRadius(8),
+					),
+				),
+			),
+			ui.VSpacerElement(8),
+			ui.RowElement(
+				docsDemoControlButton("ImageRef.Click", func(ctx *ui.Context) {
+					clicks.Set(clicks.Value() + 1)
+					ref.Current.Click()
+				}),
+				ui.HSpacerElement(8),
+				ui.TextElement(fmt.Sprintf("image clicks = %d", clicks.Value()), ui.TextSize(12)),
+			),
+		)
+	})
+}
+
+func docsIconDemo() ui.Element {
+	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		ref := ui.UseRef(ctx, ui.NewButtonRef())
+		clicks := ui.UseState(ctx, 0)
+		if ref.Current == nil {
+			ref.Current = ui.NewButtonRef()
+		}
+		return ui.RowElement(
+			ui.IconElement("H", ui.IconSize(20), ui.IconColor(ui.NRGBA(30, 136, 229, 255)), ui.IconAttachRef(ref.Current), ui.IconOnClick(func(ctx *ui.Context) {
+				clicks.Set(clicks.Value() + 1)
+			})),
+			ui.PaddingElement(ui.Insets{Left: 12}, ui.IconElement("S", ui.IconSize(20), ui.IconColor(ui.NRGBA(67, 160, 71, 255)))),
+			ui.PaddingElement(ui.Insets{Left: 12}, ui.IconElement("G", ui.IconSize(20), ui.IconColor(ui.NRGBA(245, 124, 0, 255)))),
+			ui.PaddingElement(ui.Insets{Left: 12}, docsDemoControlButton(fmt.Sprintf("clicks %d", clicks.Value()), func(ctx *ui.Context) {
+				clicks.Set(clicks.Value() + 1)
+				ref.Current.Click()
+			})),
+		)
+	})
+}
+
+func docsListItemDemo(selected docsStringState) ui.Element {
+	return ui.FixedWidthElement(
+		380,
+		ui.ColumnElement(
+			ui.ListItemElementWithSlots(
+				ui.TextElement("Inbox"),
+				ui.TextElement("12 unread messages"),
+				ui.IconElement("I"),
+				ui.TextElement("12"),
+				ui.ListItemSelected(selected.Value() == "inbox"),
+				ui.ListItemMinHeight(64),
+				ui.ListItemDecoration(ui.Bg(ui.NRGBA(248, 250, 252, 255)).WithRad(10)),
+				ui.ListItemOnClick(func(ctx *ui.Context) { selected.Set("inbox") }),
+			),
+			ui.ListItemElementWithSlots(
+				ui.TextElement("Archive"),
+				ui.TextElement("Older conversations"),
+				ui.IconElement("A"),
+				nil,
+				ui.ListItemSelected(selected.Value() == "archive"),
+				ui.ListItemOnClick(func(ctx *ui.Context) { selected.Set("archive") }),
+			),
+			ui.ListItemElement("Compact item", ui.ListItemOnClick(func(ctx *ui.Context) { selected.Set("compact") })),
+			ui.ListItemElementWithSlots(
+				ui.TextElement("Disabled"),
+				ui.TextElement("Unavailable item"),
+				ui.IconElement("D"),
+				nil,
+				ui.ListItemDisabled(true),
+			),
+		),
+	)
+}
+
+func docsIconButtonDemo(selected docsBoolState) ui.Element {
+	return ui.RowElement(
+		ui.PaddingElement(ui.Insets{Right: 10}, ui.IconButtonElement(ui.IconElement("S"), ui.IconButtonSelected(selected.Value()), ui.IconButtonOnClick(func(ctx *ui.Context) {
+			selected.Set(!selected.Value())
+		}))),
+		ui.PaddingElement(ui.Insets{Right: 10}, ui.FilledIconButtonElement(ui.IconElement("F"), ui.IconButtonSelected(true), ui.IconButtonSize(42))),
+		ui.PaddingElement(ui.Insets{Right: 10}, ui.FilledTonalIconButtonElement(ui.IconElement("T"), ui.IconButtonBackground(ui.NRGBA(219, 234, 254, 255)), ui.IconButtonForeground(ui.NRGBA(30, 64, 175, 255)))),
+		ui.PaddingElement(ui.Insets{Right: 10}, ui.OutlinedIconButtonElement(ui.IconElement("O"), ui.IconButtonDecoration(ui.BorderDeco(1, ui.NRGBA(148, 163, 184, 255))))),
+		ui.OutlinedIconButtonElement(ui.IconElement("D"), ui.IconButtonDisabled(true)),
+	)
+}
+
+func docsFloatingActionButtonDemo(count docsIntState) ui.Element {
+	click := ui.FloatingActionButtonOnClick(func(ctx *ui.Context) {
+		count.Set(count.Value() + 1)
+	})
+	return ui.ColumnElement(
+		ui.RowElement(
+			ui.PaddingElement(ui.Insets{Right: 12}, ui.SmallFloatingActionButtonElement(ui.IconElement("+"), click)),
+			ui.PaddingElement(ui.Insets{Right: 12}, ui.FloatingActionButtonElement(ui.IconElement("+"), click)),
+			ui.PaddingElement(ui.Insets{Right: 12}, ui.LargeFloatingActionButtonElement(ui.IconElement("+"), click, ui.FloatingActionButtonBackground(ui.NRGBA(37, 99, 235, 255)), ui.FloatingActionButtonForeground(ui.NRGBA(255, 255, 255, 255)))),
+			ui.PaddingElement(ui.Insets{Right: 12}, ui.ExtendedFloatingActionButtonElement(ui.IconElement("+"), ui.TextElement("Create"), click, ui.FloatingActionButtonDecoration(ui.Bg(ui.NRGBA(220, 252, 231, 255)).WithRad(16)))),
+			ui.FloatingActionButtonElement(ui.IconElement("x"), ui.FloatingActionButtonDisabled(true)),
+		),
+		ui.PaddingElement(ui.Insets{Top: 12}, ui.TextElement(fmt.Sprintf("FAB clicks: %d", count.Value()), ui.TextSize(13))),
+	)
+}
+
+func docsBadgeDemo() ui.Element {
+	return ui.RowElement(
+		ui.PaddingElement(
+			ui.Insets{Right: 24},
+			ui.BadgeElement(
+				ui.IconButtonElement(ui.IconElement("M")),
+				"3",
+				ui.BadgeBackground(ui.NRGBA(220, 38, 38, 255)),
+				ui.BadgeForeground(ui.NRGBA(255, 255, 255, 255)),
+				ui.BadgeOffset(3, -3),
+			),
+		),
+		ui.PaddingElement(
+			ui.Insets{Right: 24},
+			ui.BadgeElement(
+				ui.IconButtonElement(ui.IconElement("N")),
+				"",
+				ui.BadgeVisible(true),
+				ui.BadgeDecoration(ui.Bg(ui.NRGBA(37, 99, 235, 255)).WithRad(999)),
+			),
+		),
+		ui.BadgeElement(ui.TextElement("Hidden"), "0", ui.BadgeVisible(false)),
+	)
+}
+
+func docsChipDemo(selected docsBoolState) ui.Element {
+	return ui.ColumnElement(
+		ui.RowElement(
+			ui.PaddingElement(
+				ui.Insets{Right: 8},
+				ui.AssistChipElement("Assist", ui.ChipLeading(ui.Icon("i", ui.IconSize(16)))),
+			),
+			ui.PaddingElement(
+				ui.Insets{Right: 8},
+				ui.FilterChipElement(
+					"Filter",
+					ui.ChipSelected(selected.Value()),
+					ui.ChipOnClick(func(ctx *ui.Context) {
+						selected.Set(!selected.Value())
+					}),
+				),
+			),
+			ui.PaddingElement(
+				ui.Insets{Right: 8},
+				ui.InputChipElement("Input", ui.ChipTrailing(ui.Icon("x", ui.IconSize(14)))),
+			),
+			ui.PaddingElement(
+				ui.Insets{Right: 8},
+				ui.SuggestionChipElement("Suggestion"),
+			),
+			ui.AssistChipElement("Disabled", ui.ChipDisabled(true)),
+		),
+		ui.VSpacerElement(8),
+		ui.ChipElementWithSlots(
+			ui.RowElement(
+				ui.IconElement("S", ui.IconSize(14), ui.IconColor(ui.NRGBA(30, 64, 175, 255))),
+				ui.HSpacerElement(6),
+				ui.TextElement("Styled slots", ui.TextSize(12), ui.TextColor(ui.NRGBA(30, 64, 175, 255))),
+			),
+			ui.ChipBackground(ui.NRGBA(219, 234, 254, 255)),
+			ui.ChipForeground(ui.NRGBA(30, 64, 175, 255)),
+			ui.ChipDecoration(ui.Bg(ui.NRGBA(219, 234, 254, 255)).WithRad(999).WithBorder(ui.Border{Width: 1, Color: ui.NRGBA(147, 197, 253, 255)})),
+		),
+	)
+}
+
+func docsSearchBarDemo(value docsStringState, th *ui.Theme) ui.Element {
+	return ui.FixedWidthElement(
+		460,
+		ui.ColumnElement(
+			ui.SearchBarElement(
+				value.Value(),
+				ui.SearchBarPlaceholder("Search docs"),
+				ui.SearchBarLeading(ui.Icon("S", ui.IconSize(18))),
+				ui.SearchBarTrailing(ui.Icon("x", ui.IconSize(16))),
+				ui.SearchBarInputOptions(ui.InputSingleLine(true), ui.InputMaxLen(40)),
+				ui.SearchBarDecoration(ui.Bg(th.Colors.SurfaceContainerLow).WithRad(999).WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant})),
+				ui.SearchBarOnChange(func(ctx *ui.Context, next string) {
+					value.Set(next)
+				}),
+			),
+			ui.PaddingElement(
+				ui.Insets{Top: 10},
+				ui.TextElement("value = "+value.Value(), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			),
+			ui.PaddingElement(
+				ui.Insets{Top: 8},
+				ui.SearchBarElement("disabled", ui.SearchBarDisabled(true)),
+			),
+		),
+	)
+}

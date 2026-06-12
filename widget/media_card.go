@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
@@ -597,25 +598,34 @@ func (c *cardWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		deco = deco.WithShadow(defaults.shadow)
 	}
 
-	var root Widget = ContainerDecoration(deco, withTextStyle(ctx.Theme().Types.BodyMedium, c.child))
+	cardSurface := ContainerDecoration(deco, withTextStyle(ctx.Theme().Types.BodyMedium, c.child))
+	var root Widget = cardSurface
 
 	if c.config.onClick != nil || c.config.ref != nil {
-		opts := []ButtonOption{
-			ButtonBackground(color.NRGBA{}),
-			ButtonForeground(ctx.Theme().TextColor),
-			ButtonPadding(style.All(0)),
-			ButtonRadius(radius),
-		}
-		if c.config.onClick != nil {
-			opts = append(opts, OnClick(c.config.onClick))
-		}
 		if c.config.ref != nil {
-			opts = append(opts, ButtonAttachRef(c.config.ref))
+			c.config.ref.bindInvalidator(redrawInvalidator(ctx))
+			for range c.config.ref.drainCommands() {
+				if c.config.onClick != nil {
+					c.config.onClick(ctx)
+				}
+			}
 		}
-		root = Button(
-			root,
-			opts...,
-		)
+		clickable := event.UseClickable(ctx)
+		for clickable.Clicked(ctx) {
+			if c.config.onClick != nil {
+				c.config.onClick(ctx)
+			}
+		}
+		root = layoutWidgetFunc(func(cardCtx *internal.Context) layout.Dimensions {
+			size := cardCtx.LayoutRippleOverlayArea(clickable.Handle(), internal.RippleSpec{
+				Color:   cardCtx.Theme().Colors.OnSurface,
+				Radius:  radius,
+				Opacity: style.StateLayerPressedOpacity,
+			}, func(childCtx *internal.Context) image.Point {
+				return cardSurface.Layout(childCtx.Child(0)).Size
+			})
+			return layout.Dimensions{Size: size}
+		})
 	}
 
 	return root.Layout(ctx.Child(0))

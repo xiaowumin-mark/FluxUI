@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/system"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
@@ -12,6 +15,7 @@ func docsSystemNotificationSection(th *ui.Theme) ui.Element {
 	return ui.ComponentElement(func(sectionCtx *ui.Context) ui.Element {
 		status := ui.UseState(sectionCtx, "Notifications can report click, dismiss, and action callbacks when supported.")
 		disabled := !system.Supports(system.CapabilityNotification)
+		iconPath := docsSystemNotificationIconPath()
 
 		sendNotification := func(ctx *ui.Context, title, body string, group string, kind system.NotificationKind) string {
 			err := system.Notify(context.Background(),
@@ -19,8 +23,11 @@ func docsSystemNotificationSection(th *ui.Theme) ui.Element {
 				system.NotificationBody(body),
 				system.NotificationKindStyle(kind),
 				system.NotificationGroup(group),
+				system.NotificationIcon(iconPath),
+				system.NotificationBackendPath(system.NotificationBackendAuto),
 				system.NotificationAppID("FluxUI"),
 				system.NotificationLaunchURI("https://github.com/xiaowumin-mark/FluxUI"),
+				system.NotificationTimeout(4*time.Second),
 				system.NotificationActions(
 					system.NotificationAction{ID: "open", Label: "Open FluxUI", URI: "https://github.com/xiaowumin-mark/FluxUI"},
 					system.NotificationAction{ID: "docs", Label: "Open docs", URI: "https://github.com/xiaowumin-mark/FluxUI/tree/main/docs"},
@@ -41,7 +48,31 @@ func docsSystemNotificationSection(th *ui.Theme) ui.Element {
 			return fmt.Sprintf("Notification sent: %s", title)
 		}
 
+		sendBalloonNotification := func(title, body string, group string, kind system.NotificationKind) string {
+			err := system.Notify(context.Background(),
+				system.NotificationTitle(title),
+				system.NotificationBody(body),
+				system.NotificationKindStyle(kind),
+				system.NotificationGroup(group),
+				system.NotificationIcon(iconPath),
+				system.NotificationBackendPath(system.NotificationBackendBalloon),
+				system.NotificationTimeout(3*time.Second),
+				system.NotificationOnClick(func(ev system.NotificationEvent) {
+					status.Set(formatDocsSystemNotificationEvent("clicked", ev))
+				}),
+				system.NotificationOnDismiss(func(ev system.NotificationEvent) {
+					status.Set(formatDocsSystemNotificationEvent("dismissed", ev))
+				}),
+			)
+			if err != nil {
+				return "Balloon notification failed: " + err.Error()
+			}
+			return fmt.Sprintf("Balloon notification sent: %s", title)
+		}
+
 		return docsSystemSection("Notification API", ui.ColumnElement(
+			ui.TextElement("Icon path: "+docsSystemOptionalPathLabel(iconPath), ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.VSpacerElement(8),
 			ui.RowElement(
 				ui.ExpandedElement(docsSystemRunAsyncButton("Notify info", status, disabled, func(ctx *ui.Context) string {
 					return sendNotification(ctx, "FluxUI Docs", "This is a basic notification.", "docs-browser", system.NotificationInfo)
@@ -64,6 +95,16 @@ func docsSystemNotificationSection(th *ui.Theme) ui.Element {
 					probe := system.ProbeNotificationBackend(context.Background(), system.NotificationBackendToast,
 						system.NotificationTitle("FluxUI Docs"),
 						system.NotificationBody("Probe backend"),
+						system.NotificationAppID("FluxUI"),
+					)
+					return formatDocsSystemNotificationProbe(probe)
+				})),
+				ui.HSpacerElement(8),
+				ui.ExpandedElement(docsSystemRunAsyncButton("Probe balloon", status, disabled, func(ctx *ui.Context) string {
+					probe := system.ProbeNotificationBackend(context.Background(), system.NotificationBackendBalloon,
+						system.NotificationTitle("FluxUI Docs"),
+						system.NotificationBody("Probe balloon backend"),
+						system.NotificationIcon(iconPath),
 					)
 					return formatDocsSystemNotificationProbe(probe)
 				})),
@@ -73,9 +114,40 @@ func docsSystemNotificationSection(th *ui.Theme) ui.Element {
 				})),
 			),
 			ui.VSpacerElement(8),
+			ui.RowElement(
+				ui.ExpandedElement(docsSystemRunAsyncButton("Notify balloon", status, disabled, func(ctx *ui.Context) string {
+					return sendBalloonNotification("FluxUI balloon", "This explicitly requests the balloon backend.", "docs-browser-balloon", system.NotificationInfo)
+				})),
+				ui.HSpacerElement(8),
+				ui.ExpandedElement(docsSystemRunAsyncButton("Notify error", status, disabled, func(ctx *ui.Context) string {
+					return sendNotification(ctx, "FluxUI Docs", "Error style notification with timeout and actions.", "docs-browser-error", system.NotificationError)
+				})),
+			),
+			ui.VSpacerElement(8),
 			ui.TextElement(status.Value(), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		), th)
 	})
+}
+
+func docsSystemNotificationIconPath() string {
+	candidates := []string{
+		filepath.Join("examples", "docs_browser", "docs.ico"),
+		filepath.Join("examples", "system_showcase", "system_showcase.ico"),
+		filepath.Join("examples", "assets", "sample.ico"),
+	}
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func docsSystemOptionalPathLabel(path string) string {
+	if path == "" {
+		return "(default platform icon)"
+	}
+	return path
 }
 
 func formatDocsSystemNotificationEvent(action string, ev system.NotificationEvent) string {

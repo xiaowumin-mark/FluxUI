@@ -37,6 +37,9 @@ func docsInlineExampleFrame(demoHeight float32, demoViewport ui.Element, th *ui.
 }
 
 func docsExamplePopup(open bool, title string, exampleID string, demo ui.Element, popupOpen docsBoolState, th *ui.Theme) ui.Element {
+	if !open {
+		return ui.PopupElement(false, ui.SpacerElement(0, 0))
+	}
 	return ui.PopupElement(
 		open,
 		ui.ContainerDecorationElement(

@@ -85,18 +85,19 @@ func (m *minSizeWidget) Layout(ctx *internal.Context) layout.Dimensions {
 }
 
 type md3ActionSurfaceSpec struct {
-	Background color.NRGBA
-	Foreground color.NRGBA
-	Radius     float32
-	Padding    style.Insets
-	Border     style.Border
-	Shadow     style.BoxShadow
-	MinWidth   float32
-	MinHeight  float32
-	FillWidth  bool
-	Disabled   bool
-	FocusColor color.NRGBA
-	TextStyle  theme.TextStyle
+	Background     color.NRGBA
+	Foreground     color.NRGBA
+	Radius         float32
+	Padding        style.Insets
+	Border         style.Border
+	Shadow         style.BoxShadow
+	MinWidth       float32
+	MinHeight      float32
+	FillWidth      bool
+	Disabled       bool
+	FocusColor     color.NRGBA
+	TextStyle      theme.TextStyle
+	SnapBackground bool
 }
 
 func md3ActionSurface(ctx *internal.Context, clickable *event.Clickable, spec md3ActionSurfaceSpec, child Widget) layout.Dimensions {
@@ -125,7 +126,9 @@ func md3ActionSurface(ctx *internal.Context, clickable *event.Clickable, spec md
 			bg = style.StateLayer(bg, fg, opacity)
 		}
 	}
-	bg = md3AnimateColor(ctx, "md3-action-bg", bg, duration, easing)
+	if !spec.SnapBackground {
+		bg = md3AnimateColor(ctx, "md3-action-bg", bg, duration, easing)
+	}
 	fg = md3AnimateColor(ctx, "md3-action-fg", fg, duration, easing)
 	border := style.Border{
 		Width: md3AnimateFloat(ctx, "md3-action-border-width", spec.Border.Width, duration, easing),
@@ -1076,7 +1079,6 @@ func (n *navigationRailWidget) railItem(item NavItem) Widget {
 			}
 		}
 		fg = md3AnimateColor(itemCtx, "rail-fg", fg, style.InteractionSelectedDuration, style.InteractionStandardEasing)
-		indicatorBg = md3AnimateColor(itemCtx, "rail-indicator", indicatorBg, style.InteractionSelectedIndicatorDuration, style.InteractionStandardEasing)
 		icon := item.Icon
 		if icon == nil {
 			icon = Text(firstLabelRune(item.Label))
@@ -1090,12 +1092,13 @@ func (n *navigationRailWidget) railItem(item NavItem) Widget {
 			Padding(style.Insets{Top: 4}, Center(Text(item.Label, TextType(itemCtx.Theme().Types.LabelMedium)))),
 		))
 		return md3ActionSurface(itemCtx, clickable, md3ActionSurfaceSpec{
-			Background: color.NRGBA{},
-			Foreground: fg,
-			Radius:     itemCtx.Theme().Shapes.Large,
-			Padding:    style.Symmetric(4, 0),
-			MinHeight:  64,
-			FillWidth:  true,
+			Background:     color.NRGBA{},
+			Foreground:     fg,
+			Radius:         itemCtx.Theme().Shapes.Large,
+			Padding:        style.Symmetric(4, 0),
+			MinHeight:      64,
+			FillWidth:      true,
+			SnapBackground: true,
 		}, content)
 	})
 }
@@ -1225,7 +1228,6 @@ func (n *navigationDrawerWidget) drawerItem(item NavItem) Widget {
 				fg = n.config.activeColor
 			}
 		}
-		bg = md3AnimateColor(itemCtx, "drawer-bg", bg, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 		fg = md3AnimateColor(itemCtx, "drawer-fg", fg, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 		icon := item.Icon
 		if icon == nil {
@@ -1237,12 +1239,13 @@ func (n *navigationDrawerWidget) drawerItem(item NavItem) Widget {
 			Expanded(Text(item.Label, TextType(itemCtx.Theme().Types.BodyLarge))),
 		)
 		return md3ActionSurface(itemCtx, clickable, md3ActionSurfaceSpec{
-			Background: bg,
-			Foreground: fg,
-			Radius:     itemCtx.Theme().Shapes.Full,
-			Padding:    densityInsets(itemCtx, style.Symmetric(4, 16), style.Symmetric(2, 16)),
-			MinHeight:  densityHeight(itemCtx, 48, 40),
-			FillWidth:  true,
+			Background:     bg,
+			Foreground:     fg,
+			Radius:         itemCtx.Theme().Shapes.Full,
+			Padding:        densityInsets(itemCtx, style.Symmetric(4, 16), style.Symmetric(2, 16)),
+			MinHeight:      densityHeight(itemCtx, 48, 40),
+			FillWidth:      true,
+			SnapBackground: true,
 		}, content)
 	})
 }
@@ -1688,6 +1691,10 @@ func (s *searchBarWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if s.config.disabled {
 		fg = style.DisabledContent(cs.OnSurface)
 	}
+	iconColor := cs.OnSurface
+	if s.config.disabled {
+		iconColor = style.DisabledContent(cs.OnSurface)
+	}
 
 	leading := s.config.leading
 	if leading == nil {
@@ -1699,6 +1706,7 @@ func (s *searchBarWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		InputPlaceholder(s.config.placeholder),
 		InputDisabled(s.config.disabled),
 		InputBackground(color.NRGBA{}),
+		InputForeground(fg),
 		InputBorder(color.NRGBA{}),
 		InputBorderFocus(color.NRGBA{}),
 		InputPadding(style.Symmetric(4, 0)),
@@ -1709,13 +1717,13 @@ func (s *searchBarWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	rowChildren := []Widget{
-		FixedWidth(24, Center(withForeground(cs.OnSurfaceVariant, leading))),
+		FixedWidth(24, Center(withForeground(iconColor, leading))),
 		Padding(style.Insets{Left: 12}, Spacer(0, 0)),
 		Expanded(TextField(s.value, inputOpts...)),
 	}
 	if s.config.trailing != nil {
 		rowChildren = append(rowChildren,
-			Padding(style.Insets{Left: 12}, FixedWidth(24, Center(withForeground(cs.OnSurfaceVariant, s.config.trailing)))),
+			Padding(style.Insets{Left: 12}, FixedWidth(24, Center(withForeground(iconColor, s.config.trailing)))),
 		)
 	}
 

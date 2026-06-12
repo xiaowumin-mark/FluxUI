@@ -296,9 +296,9 @@ func layoutStateLayerTouchTarget(ctx *internal.Context, clickable *internal.Clic
 	ctx.DrawStateLayerCircle(clickable, center, layerDiameterDp, spec, opacity)
 	layerCall := layerMacro.Stop()
 
+	childCall.Add(ctx.Gtx.Ops)
 	targetCall.Add(ctx.Gtx.Ops)
 	layerCall.Add(ctx.Gtx.Ops)
-	childCall.Add(ctx.Gtx.Ops)
 	return layout.Dimensions{Size: childSize}
 }
 

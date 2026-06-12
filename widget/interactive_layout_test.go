@@ -44,7 +44,7 @@ func TestDefaultInteractiveWidgetsDoNotAddDecorationPadding(t *testing.T) {
 	rt.BeginFrame()
 	ctx := newInteractiveLayoutTestContext(rt)
 
-	if got, want := Switch(true).Layout(ctx).Size, image.Pt(50, 26); got != want {
+	if got, want := Switch(true).Layout(ctx).Size, image.Pt(52, 32); got != want {
 		t.Fatalf("default switch size = %v, want %v", got, want)
 	}
 

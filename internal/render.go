@@ -157,14 +157,16 @@ type RadioSpec struct {
 
 // SwitchSpec 描述开关样式。
 type SwitchSpec struct {
-	Width           float32
-	Height          float32
-	TrackColor      color.NRGBA
-	ThumbColor      color.NRGBA
-	CheckedProgress float32
-	Disabled        bool
-	Hovered         bool
-	Pressed         bool
+	Width            float32
+	Height           float32
+	TrackColor       color.NRGBA
+	TrackBorderColor color.NRGBA
+	TrackBorderWidth float32
+	ThumbColor       color.NRGBA
+	CheckedProgress  float32
+	Disabled         bool
+	Hovered          bool
+	Pressed          bool
 }
 
 // SliderSpec 描述滑块样式。
@@ -880,24 +882,51 @@ func (c *Context) LayoutSwitch(clickable *ClickableState, checked bool, spec Swi
 		trackRect := image.Rectangle{Max: image.Point{X: width, Y: height}}
 		paint.FillShape(gtx.Ops, trackColor, clip.UniformRRect(trackRect, rr).Op(gtx.Ops))
 
-		thumbPadding := 2
-		thumbSize := height - thumbPadding*2
-		if thumbSize < 2 {
-			thumbSize = 2
+		if spec.TrackBorderWidth > 0 && spec.TrackBorderColor.A > 0 {
+			drawBorderWidth(gtx, trackRect.Max, spec.TrackBorderColor, float32(rr), spec.TrackBorderWidth)
 		}
-		thumbOffset := thumbPadding
+
 		progress := spec.CheckedProgress
 		if checked && progress <= 0 {
 			progress = 1
 		}
-		if progress > 0 && progress < 1 {
-			thumbOffset = thumbPadding + int(float32(width-thumbSize-2*thumbPadding)*progress+0.5)
-		} else if progress >= 1 {
-			thumbOffset = width - thumbSize - thumbPadding
+		if progress < 0 {
+			progress = 0
 		}
+		if progress > 1 {
+			progress = 1
+		}
+
+		offThumbSize := gtx.Dp(unit.Dp(16))
+		onThumbSize := gtx.Dp(unit.Dp(24))
+		pressedThumbSize := gtx.Dp(unit.Dp(28))
+		if offThumbSize <= 0 {
+			offThumbSize = height / 2
+		}
+		if onThumbSize <= 0 {
+			onThumbSize = height - 8
+		}
+		thumbSize := offThumbSize + int(float32(onThumbSize-offThumbSize)*progress+0.5)
+		if spec.Pressed && pressedThumbSize > thumbSize {
+			thumbSize = pressedThumbSize
+		}
+		maxThumb := height - 4
+		if thumbSize > maxThumb {
+			thumbSize = maxThumb
+		}
+		if thumbSize < 2 {
+			thumbSize = 2
+		}
+		thumbStart := gtx.Dp(unit.Dp(4))
+		thumbEnd := width - thumbStart - thumbSize
+		if thumbEnd < thumbStart {
+			thumbEnd = thumbStart
+		}
+		thumbOffset := thumbStart + int(float32(thumbEnd-thumbStart)*progress+0.5)
+		thumbTop := (height - thumbSize) / 2
 		thumbRect := image.Rectangle{
-			Min: image.Point{X: thumbOffset, Y: thumbPadding},
-			Max: image.Point{X: thumbOffset + thumbSize, Y: thumbPadding + thumbSize},
+			Min: image.Point{X: thumbOffset, Y: thumbTop},
+			Max: image.Point{X: thumbOffset + thumbSize, Y: thumbTop + thumbSize},
 		}
 		thumbRR := thumbSize / 2
 		paint.FillShape(gtx.Ops, thumbColor, clip.UniformRRect(thumbRect, thumbRR).Op(gtx.Ops))

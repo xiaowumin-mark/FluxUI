@@ -286,7 +286,8 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			if opacity := materialAnimatedStateLayerOpacity(tabCtx, clickable.Hovered(), clickable.Pressed(), false); opacity > 0 {
 				bg = style.StateLayer(bg, col, opacity)
 			}
-			bg = md3AnimateColor(tabCtx, "bottom-nav-bg", bg, duration, easing)
+			_ = duration
+			_ = easing
 			itemColor := md3AnimateColor(tabCtx, "bottom-nav-color", col, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 			displayIcon := withForeground(itemColor, icon)
 			if displayIcon == nil {
