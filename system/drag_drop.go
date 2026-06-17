@@ -59,11 +59,8 @@ func ProbeDragAndDrop(ctx context.Context) DragAndDropProbe {
 		}
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
-	if d == nil || !d.capabilities().Supports(CapabilityDragAndDrop) {
+	d, supported := currentDriverFor(CapabilityDragAndDrop)
+	if !supported {
 		return DragAndDropProbe{
 			Status: CapabilityStatusUnsupported,
 			Err:    fmt.Errorf("system: %s: %w", CapabilityDragAndDrop, ErrUnsupported),

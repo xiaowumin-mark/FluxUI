@@ -25,6 +25,16 @@ func (d testDriver) capabilities() CapabilitySet {
 	return d.caps
 }
 
+type countingCapabilityDriver struct {
+	caps  CapabilitySet
+	calls *int
+}
+
+func (d countingCapabilityDriver) capabilities() CapabilitySet {
+	(*d.calls)++
+	return d.caps
+}
+
 type testProbeDriver struct {
 	testDriver
 	results map[Capability]CapabilityAvailability
@@ -656,13 +666,15 @@ func withTestDriver(t *testing.T, d driver) {
 
 	driverMu.Lock()
 	previous := activeDriver
-	activeDriver = d
+	previousCaps := activeCapabilities.clone()
 	driverMu.Unlock()
+	setDriver(d)
 
 	t.Cleanup(func() {
 		_ = CloseTrays()
 		driverMu.Lock()
 		activeDriver = previous
+		activeCapabilities = previousCaps
 		driverMu.Unlock()
 	})
 }
@@ -769,6 +781,28 @@ func TestSupportsUsesActiveDriver(t *testing.T) {
 	}
 	if Supports(CapabilityNotification) {
 		t.Fatal("unexpected unsupported capability")
+	}
+}
+
+func TestSupportsUsesCachedCapabilities(t *testing.T) {
+	calls := 0
+	withTestDriver(t, countingCapabilityDriver{
+		caps: CapabilitySet{
+			CapabilityShell: true,
+		},
+		calls: &calls,
+	})
+	if calls != 1 {
+		t.Fatalf("expected setDriver to read capabilities once, got %d", calls)
+	}
+	if !Supports(CapabilityShell) {
+		t.Fatal("expected shell support")
+	}
+	if Supports(CapabilityTray) {
+		t.Fatal("unexpected tray support")
+	}
+	if calls != 1 {
+		t.Fatalf("Supports should use cached capabilities, driver calls=%d", calls)
 	}
 }
 

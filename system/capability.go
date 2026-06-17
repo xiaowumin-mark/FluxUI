@@ -77,7 +77,7 @@ func Capabilities() CapabilitySet {
 
 // Supports reports whether the active platform driver supports cap.
 func Supports(cap Capability) bool {
-	return Capabilities().Supports(cap)
+	return currentSupports(cap)
 }
 
 // Probe returns a point-in-time availability result for one capability.

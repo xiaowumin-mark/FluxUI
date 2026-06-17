@@ -5,6 +5,26 @@ import (
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
+type docsSystemCapabilityItem struct {
+	Label      string
+	Capability system.Capability
+}
+
+var docsSystemCapabilities = []docsSystemCapabilityItem{
+	{Label: "Window", Capability: system.CapabilityWindow},
+	{Label: "File Dialog", Capability: system.CapabilityFileDialog},
+	{Label: "MessageBox", Capability: system.CapabilityMessageBox},
+	{Label: "Notification", Capability: system.CapabilityNotification},
+	{Label: "Tray", Capability: system.CapabilityTray},
+	{Label: "System Events", Capability: system.CapabilitySystemEvents},
+	{Label: "Clipboard", Capability: system.CapabilityClipboard},
+	{Label: "Shell", Capability: system.CapabilityShell},
+	{Label: "Single Instance", Capability: system.CapabilitySingleInstance},
+	{Label: "System Registration", Capability: system.CapabilitySystemRegistration},
+	{Label: "Global Shortcut", Capability: system.CapabilityGlobalShortcut},
+	{Label: "Drag & Drop", Capability: system.CapabilityDragAndDrop},
+}
+
 func docsSystemSection(title string, body ui.Element, th *ui.Theme) ui.Element {
 	if th == nil {
 		th = docsBrowserTheme(defaultDocsThemeSeed, false)
@@ -42,41 +62,29 @@ func docsSystemRunAsyncButton(label string, status docsStringState, disabled boo
 	)
 }
 
-func docsSystemCapabilityGrid(th *ui.Theme) ui.Element {
+func docsSystemCapabilityGrid(probe docsSystemProbeState, th *ui.Theme) ui.Element {
 	if th == nil {
 		th = docsBrowserTheme(defaultDocsThemeSeed, false)
 	}
-	return ui.ColumnElement(
-		ui.RowElement(
-			systemCapabilityCard("Window", system.CapabilityWindow, th),
-			ui.HSpacerElement(8),
-			systemCapabilityCard("File Dialog", system.CapabilityFileDialog, th),
-			ui.HSpacerElement(8),
-			systemCapabilityCard("MessageBox", system.CapabilityMessageBox, th),
-			ui.HSpacerElement(8),
-			systemCapabilityCard("Notification", system.CapabilityNotification, th),
-		),
-		ui.VSpacerElement(8),
-		ui.RowElement(
-			systemCapabilityCard("Tray", system.CapabilityTray, th),
-			ui.HSpacerElement(8),
-			systemCapabilityCard("System Events", system.CapabilitySystemEvents, th),
-			ui.HSpacerElement(8),
-			systemCapabilityCard("Clipboard", system.CapabilityClipboard, th),
-			ui.HSpacerElement(8),
-			systemCapabilityCard("Shell", system.CapabilityShell, th),
-		),
-		ui.VSpacerElement(8),
-		ui.RowElement(
-			systemCapabilityCard("Single Instance", system.CapabilitySingleInstance, th),
-			ui.HSpacerElement(8),
-			systemCapabilityCard("System Registration", system.CapabilitySystemRegistration, th),
-			ui.HSpacerElement(8),
-			systemCapabilityCard("Global Shortcut", system.CapabilityGlobalShortcut, th),
-			ui.HSpacerElement(8),
-			systemCapabilityCard("Drag & Drop", system.CapabilityDragAndDrop, th),
-		),
-	)
+	rows := make([]ui.Element, 0, (len(docsSystemCapabilities)+3)/4*2)
+	for start := 0; start < len(docsSystemCapabilities); start += 4 {
+		end := start + 4
+		if end > len(docsSystemCapabilities) {
+			end = len(docsSystemCapabilities)
+		}
+		cells := make([]ui.Element, 0, (end-start)*2-1)
+		for idx, item := range docsSystemCapabilities[start:end] {
+			if idx > 0 {
+				cells = append(cells, ui.HSpacerElement(8))
+			}
+			cells = append(cells, systemCapabilityCard(item.Label, item.Capability, probe, th))
+		}
+		if len(rows) > 0 {
+			rows = append(rows, ui.VSpacerElement(8))
+		}
+		rows = append(rows, ui.RowElement(cells...))
+	}
+	return ui.ColumnElement(rows...)
 }
 
 func docsSystemPrependLog(lines []string, line string, max int) []string {

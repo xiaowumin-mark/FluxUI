@@ -347,15 +347,5 @@ func prependDocsDragDropEvent(events []string, event string) []string {
 }
 
 func docsDragSampleFile() string {
-	if docsRoot, err := resolveDocsRootDir(); err == nil {
-		if path, err := filepath.Abs(filepath.Join(docsRoot, "README.md")); err == nil {
-			return path
-		}
-		return filepath.Join(docsRoot, "README.md")
-	}
-	path, err := filepath.Abs(filepath.Join("docs", "README.md"))
-	if err != nil {
-		return filepath.Join("docs", "README.md")
-	}
-	return path
+	return cachedDocsDragSampleFile()
 }

@@ -126,12 +126,9 @@ func AcquireSingleInstance(ctx context.Context, options ...SingleInstanceOption)
 		return nil, err
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilitySingleInstance)
 	sd, ok := d.(singleInstanceDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilitySingleInstance) {
+	if !ok || !supported {
 		return nil, fmt.Errorf("system: %s: %w", CapabilitySingleInstance, ErrUnsupported)
 	}
 

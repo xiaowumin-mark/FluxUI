@@ -244,12 +244,9 @@ func ShowMessageBox(ctx context.Context, options ...MessageBoxOption) (MessageBo
 		}
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityMessageBox)
 	mb, ok := d.(messageBoxDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityMessageBox) {
+	if !ok || !supported {
 		return "", fmt.Errorf("system: %s: %w", CapabilityMessageBox, ErrUnsupported)
 	}
 	return mb.showMessageBox(ctx, opts)
@@ -271,11 +268,8 @@ func ShowMessageBoxDetailed(ctx context.Context, options ...MessageBoxOption) (M
 		}
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
-	if d == nil || !d.capabilities().Supports(CapabilityMessageBox) {
+	d, supported := currentDriverFor(CapabilityMessageBox)
+	if !supported {
 		return MessageBoxDetailedResult{}, fmt.Errorf("system: %s: %w", CapabilityMessageBox, ErrUnsupported)
 	}
 	if detailed, ok := d.(detailedMessageBoxDriver); ok {

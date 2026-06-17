@@ -213,12 +213,9 @@ func openFileDialog(ctx context.Context, mode FileDialogMode, options ...FileDia
 		opts.defaultDir = rememberedFileDialogDir(opts.rememberDirKey)
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityFileDialog)
 	fd, ok := d.(fileDialogDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityFileDialog) {
+	if !ok || !supported {
 		return FileDialogResult{}, fmt.Errorf("system: %s: %w", CapabilityFileDialog, ErrUnsupported)
 	}
 	result, err := fd.openFileDialog(ctx, mode, opts)

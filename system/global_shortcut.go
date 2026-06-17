@@ -60,12 +60,9 @@ func RegisterGlobalShortcut(ctx context.Context, spec GlobalShortcutSpec, fn fun
 		return nil, err
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityGlobalShortcut)
 	gd, ok := d.(globalShortcutDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityGlobalShortcut) {
+	if !ok || !supported {
 		return nil, fmt.Errorf("system: %s: %w", CapabilityGlobalShortcut, ErrUnsupported)
 	}
 	handle, err := gd.registerGlobalShortcut(ctx, spec, fn)

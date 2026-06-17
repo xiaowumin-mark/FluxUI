@@ -233,17 +233,20 @@ func reconcileChildren(parent *fiberNode, elements []Element) []*fiberNode {
 		return nil
 	}
 	previous := parent.Children
-	byKey := make(map[string]*fiberNode)
-	for _, child := range previous {
-		if child != nil && child.Key != "" {
-			byKey[childMatchKey(child.Kind, child.TypeID, child.Key)] = child
+	var byKey map[string]*fiberNode
+	if containsKeyedElement(elements) {
+		byKey = make(map[string]*fiberNode)
+		for _, child := range previous {
+			if child != nil && child.Key != "" {
+				byKey[childMatchKey(child.Kind, child.TypeID, child.Key)] = child
+			}
 		}
 	}
-	next := make([]*fiberNode, 0, len(elements))
+	next := previous[:0]
 	for idx, el := range elements {
 		kind, typeID, key := elementFiberIdentity(el)
 		var node *fiberNode
-		if key != "" {
+		if key != "" && byKey != nil {
 			node = byKey[childMatchKey(kind, typeID, key)]
 		} else if idx < len(previous) {
 			prev := previous[idx]
@@ -262,7 +265,29 @@ func reconcileChildren(parent *fiberNode, elements []Element) []*fiberNode {
 		node.ID = fiberStableID(parent, kind, typeID, key, idx)
 		next = append(next, node)
 	}
+	if len(next) < len(previous) {
+		clear(previous[len(next):])
+	}
 	return next
+}
+
+func containsKeyedElement(elements []Element) bool {
+	for _, el := range elements {
+		if elementExplicitKey(el) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func elementExplicitKey(el Element) string {
+	if el == nil {
+		return ""
+	}
+	if keyed, ok := el.(keyElement); ok {
+		return keyed.Key()
+	}
+	return ElementKey(el)
 }
 
 func elementFiberIdentity(el Element) (fiberKind, string, string) {

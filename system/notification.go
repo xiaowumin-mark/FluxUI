@@ -248,11 +248,8 @@ func ProbeNotificationBackend(ctx context.Context, backend NotificationBackend, 
 	}
 	opts.actions = cloneNotificationActions(opts.actions)
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
-	if d == nil || !d.capabilities().Supports(CapabilityNotification) {
+	d, supported := currentDriverFor(CapabilityNotification)
+	if !supported {
 		return normalizeNotificationBackendProbe(backend, NotificationBackendProbe{
 			Backend: backend,
 			Status:  CapabilityStatusUnsupported,
@@ -289,12 +286,9 @@ func Notify(ctx context.Context, options ...NotificationOption) error {
 	}
 	opts.actions = cloneNotificationActions(opts.actions)
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityNotification)
 	nd, ok := d.(notificationDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityNotification) {
+	if !ok || !supported {
 		return fmt.Errorf("system: %s: %w", CapabilityNotification, ErrUnsupported)
 	}
 	return nd.notify(ctx, opts)
@@ -316,12 +310,9 @@ func CancelNotificationGroup(ctx context.Context, group string) error {
 		return fmt.Errorf("system: notification group is empty")
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityNotification)
 	cd, ok := d.(notificationCancelDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityNotification) {
+	if !ok || !supported {
 		return fmt.Errorf("system: %s: %w", CapabilityNotification, ErrUnsupported)
 	}
 	return cd.cancelNotificationGroup(group)

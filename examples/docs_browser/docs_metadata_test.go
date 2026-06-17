@@ -303,6 +303,31 @@ func TestDocsDemoPresentationRules(t *testing.T) {
 	}
 }
 
+func TestSystemAPIDemoDoesNotProbeDuringCapabilityCardRender(t *testing.T) {
+	data, err := os.ReadFile("system_api_demo.go")
+	if err != nil {
+		t.Fatalf("read system_api_demo.go: %v", err)
+	}
+	text := string(data)
+	cardStart := strings.Index(text, "func systemCapabilityCard(")
+	if cardStart < 0 {
+		t.Fatal("systemCapabilityCard not found")
+	}
+	cardEnd := strings.Index(text[cardStart:], "\nfunc ")
+	if cardEnd < 0 {
+		t.Fatal("systemCapabilityCard end not found")
+	}
+	cardBody := text[cardStart : cardStart+cardEnd]
+	if strings.Contains(cardBody, "system.Capabilities(") || strings.Contains(cardBody, "system.Availability(") {
+		t.Fatal("systemCapabilityCard must use cached probe state, not live system probing")
+	}
+	if !strings.Contains(text, "func docsSystemProbeSnapshot(") ||
+		!strings.Contains(text, "system.Capabilities()") ||
+		!strings.Contains(text, "system.Availability(") {
+		t.Fatal("expected docsSystemProbeSnapshot to own system capability probing")
+	}
+}
+
 func TestRenderMarkdownDocumentBuildsCodeBlocks(t *testing.T) {
 	th := docsBrowserTheme(defaultDocsThemeSeed, false)
 	state := &testStringState{}

@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/system"
@@ -130,17 +128,7 @@ func docsSystemNotificationSection(th *ui.Theme) ui.Element {
 }
 
 func docsSystemNotificationIconPath() string {
-	candidates := []string{
-		filepath.Join("examples", "docs_browser", "docs.ico"),
-		filepath.Join("examples", "system_showcase", "system_showcase.ico"),
-		filepath.Join("examples", "assets", "sample.ico"),
-	}
-	for _, candidate := range candidates {
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-	}
-	return ""
+	return cachedDocsSystemNotificationIconPath()
 }
 
 func docsSystemOptionalPathLabel(path string) string {

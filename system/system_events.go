@@ -55,12 +55,9 @@ func SubscribeSystemEvents(ctx context.Context, kinds ...SystemEventKind) (*Syst
 		return nil, err
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilitySystemEvents)
 	sd, ok := d.(systemEventDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilitySystemEvents) {
+	if !ok || !supported {
 		return nil, fmt.Errorf("system: %s: %w", CapabilitySystemEvents, ErrUnsupported)
 	}
 

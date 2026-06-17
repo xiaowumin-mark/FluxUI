@@ -34,12 +34,9 @@ func ReadClipboardText(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityClipboard)
 	cd, ok := d.(clipboardDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityClipboard) {
+	if !ok || !supported {
 		return "", fmt.Errorf("system: %s: %w", CapabilityClipboard, ErrUnsupported)
 	}
 	return cd.readClipboardText(ctx)
@@ -54,12 +51,9 @@ func WriteClipboardText(ctx context.Context, text string) error {
 		return err
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityClipboard)
 	cd, ok := d.(clipboardDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityClipboard) {
+	if !ok || !supported {
 		return fmt.Errorf("system: %s: %w", CapabilityClipboard, ErrUnsupported)
 	}
 	return cd.writeClipboardText(ctx, text)
@@ -78,12 +72,9 @@ func ReadClipboardFiles(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityClipboard)
 	fd, ok := d.(clipboardFilesDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityClipboard) {
+	if !ok || !supported {
 		return nil, fmt.Errorf("system: %s files: %w", CapabilityClipboard, ErrUnsupported)
 	}
 	paths, err := fd.readClipboardFiles(ctx)
@@ -106,12 +97,9 @@ func WriteClipboardFiles(ctx context.Context, paths []string) error {
 		return err
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityClipboard)
 	fd, ok := d.(clipboardFilesDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityClipboard) {
+	if !ok || !supported {
 		return fmt.Errorf("system: %s files: %w", CapabilityClipboard, ErrUnsupported)
 	}
 	return fd.writeClipboardFiles(ctx, normalized)
@@ -129,12 +117,9 @@ func ReadClipboardImagePNG(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityClipboard)
 	id, ok := d.(clipboardImageDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityClipboard) {
+	if !ok || !supported {
 		return nil, fmt.Errorf("system: %s image: %w", CapabilityClipboard, ErrUnsupported)
 	}
 	data, err := id.readClipboardImagePNG(ctx)
@@ -159,12 +144,9 @@ func WriteClipboardImagePNG(ctx context.Context, data []byte) error {
 		return err
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityClipboard)
 	id, ok := d.(clipboardImageDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityClipboard) {
+	if !ok || !supported {
 		return fmt.Errorf("system: %s image: %w", CapabilityClipboard, ErrUnsupported)
 	}
 	return id.writeClipboardImagePNG(ctx, append([]byte(nil), data...))

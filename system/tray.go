@@ -167,12 +167,9 @@ func NewTray(options ...TrayOption) (*Tray, error) {
 		}
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityTray)
 	td, ok := d.(trayDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityTray) {
+	if !ok || !supported {
 		return nil, fmt.Errorf("system: %s: %w", CapabilityTray, ErrUnsupported)
 	}
 

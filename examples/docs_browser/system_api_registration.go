@@ -238,6 +238,10 @@ func docsSystemRegistrationSection(th *ui.Theme) ui.Element {
 }
 
 func docsSystemRegistrationTargetsForCurrentExe() (docsSystemRegistrationTargets, error) {
+	return cachedDocsSystemRegistrationTargetsForCurrentExe()
+}
+
+func buildDocsSystemRegistrationTargetsForCurrentExe() (docsSystemRegistrationTargets, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return docsSystemRegistrationTargets{}, err

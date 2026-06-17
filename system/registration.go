@@ -307,24 +307,18 @@ func UnregisterToastActivator(ctx context.Context, clsid string) error {
 }
 
 func withRegistrationDriver(ctx context.Context, fn func(context.Context, registrationDriver) error) error {
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilitySystemRegistration)
 	rd, ok := d.(registrationDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilitySystemRegistration) {
+	if !ok || !supported {
 		return fmt.Errorf("system: %s: %w", CapabilitySystemRegistration, ErrUnsupported)
 	}
 	return fn(ctx, rd)
 }
 
 func withToastActivatorRegistrationDriver(ctx context.Context, fn func(context.Context, toastActivatorRegistrationDriver) error) error {
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilitySystemRegistration)
 	rd, ok := d.(toastActivatorRegistrationDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilitySystemRegistration) {
+	if !ok || !supported {
 		return fmt.Errorf("system: %s: %w", CapabilitySystemRegistration, ErrUnsupported)
 	}
 	return fn(ctx, rd)

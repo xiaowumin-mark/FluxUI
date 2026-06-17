@@ -50,12 +50,9 @@ func StartToastActivator(ctx context.Context, clsid string, fn func(ToastActivat
 		return nil, fmt.Errorf("system: %s: toast activator callback is nil", CapabilityNotification)
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityNotification)
 	td, ok := d.(toastActivatorDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityNotification) {
+	if !ok || !supported {
 		return nil, fmt.Errorf("system: %s: %w", CapabilityNotification, ErrUnsupported)
 	}
 	handle, err := td.startToastActivator(ctx, clsid, fn)

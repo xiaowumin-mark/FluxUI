@@ -4,24 +4,47 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/system"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
+type docsSystemProbeState struct {
+	Loading      bool
+	CapturedAt   time.Time
+	Capabilities system.CapabilitySet
+	Availability map[system.Capability]system.CapabilityAvailability
+}
+
 func buildDocsSystemAPIDemo(ctx *ui.Context, status docsStringState, th *ui.Theme) ui.Element {
-	_ = ctx
 	if th == nil {
 		th = docsBrowserTheme(defaultDocsThemeSeed, false)
 	}
 
-	return ui.ScrollViewElement(
-		ui.ColumnElement(
+	return ui.Key("docs-system-api-demo", ui.ComponentElement(func(demoCtx *ui.Context) ui.Element {
+		probe := ui.UseState(demoCtx, docsSystemProbeState{Loading: true})
+		ui.UseMount(demoCtx, func() func() {
+			var cancelled atomic.Bool
+			go func() {
+				next := docsSystemProbeSnapshot()
+				if cancelled.Load() {
+					return
+				}
+				probe.Set(next)
+			}()
+			return func() {
+				cancelled.Store(true)
+			}
+		})
+
+		return ui.ScrollViewElement(ui.ColumnElement(
 			ui.TextElement("System API", ui.TextSize(16), ui.TextColor(th.Colors.OnSurface)),
 			ui.VSpacerElement(8),
 			ui.TextElement("Probe capabilities first, then try the live sections below.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			ui.VSpacerElement(12),
-			docsSystemCapabilityGrid(th),
+			docsSystemCapabilityGrid(probe.Value(), th),
 			ui.VSpacerElement(14),
 			docsSystemDragDropProbeSection(th),
 			ui.VSpacerElement(12),
@@ -47,7 +70,7 @@ func buildDocsSystemAPIDemo(ctx *ui.Context, status docsStringState, th *ui.Them
 			ui.VSpacerElement(14),
 			ui.RowElement(
 				systemActionButton("Copy probe", false, func(actionCtx *ui.Context) {
-					copySystemProbe(status)
+					copySystemProbe(status, probe.Value())
 				}),
 			),
 			ui.VSpacerElement(8),
@@ -55,18 +78,38 @@ func buildDocsSystemAPIDemo(ctx *ui.Context, status docsStringState, th *ui.Them
 				ui.Bg(th.Colors.SurfaceContainer).WithPad(ui.All(10)).WithRad(8),
 				ui.TextElement(status.Value(), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			),
-		),
-		ui.ScrollVertical(true),
-	)
+		), ui.ScrollVertical(true))
+	}))
 }
 
-func systemCapabilityCard(label string, cap system.Capability, th *ui.Theme) ui.Element {
+func docsSystemProbeSnapshot() docsSystemProbeState {
 	caps := system.Capabilities()
-	availability := system.Availability(cap)
-	supported := caps.Supports(cap) && availability.Supported()
+	probes := make(map[system.Capability]system.CapabilityAvailability, len(docsSystemCapabilities))
+	for _, item := range docsSystemCapabilities {
+		probes[item.Capability] = system.Availability(item.Capability)
+	}
+	return docsSystemProbeState{
+		CapturedAt:   time.Now(),
+		Capabilities: caps,
+		Availability: probes,
+	}
+}
+
+func systemCapabilityCard(label string, cap system.Capability, probe docsSystemProbeState, th *ui.Theme) ui.Element {
+	availability, ok := probe.Availability[cap]
+	if !ok {
+		availability = system.CapabilityAvailability{
+			Capability: cap,
+			Status:     system.CapabilityStatusUnavailable,
+		}
+	}
+	supported := probe.Capabilities.Supports(cap) && availability.Supported()
 	bg := th.Colors.SurfaceContainer
 	fg := th.Colors.OnSurfaceVariant
 	stateText := string(availability.Status)
+	if probe.Loading {
+		stateText = "probing"
+	}
 	if supported {
 		bg = th.Colors.PrimaryContainer
 		fg = th.Colors.OnPrimaryContainer
@@ -95,8 +138,11 @@ func systemActionButton(label string, disabled bool, fn func(ctx *ui.Context)) u
 	)
 }
 
-func copySystemProbe(status docsStringState) {
-	text := systemProbeSummary()
+func copySystemProbe(status docsStringState, probe docsSystemProbeState) {
+	if probe.Loading || len(probe.Availability) == 0 {
+		probe = docsSystemProbeSnapshot()
+	}
+	text := systemProbeSummary(probe)
 	if err := system.WriteClipboardText(context.Background(), text); err != nil {
 		status.Set("Copy probe failed: " + err.Error())
 		return
@@ -104,24 +150,14 @@ func copySystemProbe(status docsStringState) {
 	status.Set("Copied capability probe to clipboard.")
 }
 
-func systemProbeSummary() string {
-	caps := []system.Capability{
-		system.CapabilityWindow,
-		system.CapabilityFileDialog,
-		system.CapabilityMessageBox,
-		system.CapabilityNotification,
-		system.CapabilityTray,
-		system.CapabilitySystemEvents,
-		system.CapabilityClipboard,
-		system.CapabilityShell,
-		system.CapabilitySingleInstance,
-		system.CapabilitySystemRegistration,
-		system.CapabilityGlobalShortcut,
-		system.CapabilityDragAndDrop,
+func systemProbeSummary(probe docsSystemProbeState) string {
+	lines := make([]string, 0, len(docsSystemCapabilities)+1)
+	if !probe.CapturedAt.IsZero() {
+		lines = append(lines, "captured_at="+probe.CapturedAt.Format(time.RFC3339))
 	}
-	lines := make([]string, 0, len(caps))
-	for _, cap := range caps {
-		lines = append(lines, fmt.Sprintf("%s=%t", cap, system.Supports(cap)))
+	for _, item := range docsSystemCapabilities {
+		availability := probe.Availability[item.Capability]
+		lines = append(lines, fmt.Sprintf("%s supported=%t status=%s", item.Capability, probe.Capabilities.Supports(item.Capability), availability.Status))
 	}
 	return strings.Join(lines, "\n")
 }

@@ -61,12 +61,9 @@ func withShellDriver(ctx context.Context, fn func(context.Context, shellDriver) 
 		return err
 	}
 
-	driverMu.RLock()
-	d := activeDriver
-	driverMu.RUnlock()
-
+	d, supported := currentDriverFor(CapabilityShell)
 	sd, ok := d.(shellDriver)
-	if !ok || d == nil || !d.capabilities().Supports(CapabilityShell) {
+	if !ok || !supported {
 		return fmt.Errorf("system: %s: %w", CapabilityShell, ErrUnsupported)
 	}
 	return fn(ctx, sd)

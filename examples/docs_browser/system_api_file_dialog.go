@@ -108,10 +108,7 @@ func docsSystemFileDialogSection(th *ui.Theme) ui.Element {
 }
 
 func docsSystemDefaultDialogDir() string {
-	if docsRoot, err := resolveDocsRootDir(); err == nil {
-		return docsRoot
-	}
-	return ""
+	return cachedDocsSystemDefaultDialogDir()
 }
 
 func docsSystemNativeOwnerLabel(owner uintptr, ok bool) string {

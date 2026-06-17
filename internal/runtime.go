@@ -67,13 +67,14 @@ func NewRuntime(th *theme.Theme) *Runtime {
 	mt.Face = giofont.Typeface(th.DefaultFont.Normalize().Family)
 
 	return &Runtime{
-		memory:     make(map[string]any),
-		theme:      th,
-		material:   mt,
-		effects:    make(map[string]*effectSlot),
-		activeFx:   make(map[string]struct{}),
-		hookCounts: make(map[string]int),
-		hookStore:  NewHookStore(),
+		memory:         make(map[string]any),
+		theme:          th,
+		material:       mt,
+		effects:        make(map[string]*effectSlot),
+		activeFx:       make(map[string]struct{}),
+		hookCounts:     make(map[string]int),
+		prevHookCounts: make(map[string]int),
+		hookStore:      NewHookStore(),
 	}
 }
 
@@ -125,8 +126,8 @@ func (r *Runtime) BeginFrame() {
 	if r.hookStore != nil {
 		r.hookStore.BeginFrame()
 	}
-	r.prevHookCounts = r.hookCounts
-	r.hookCounts = make(map[string]int)
+	r.hookCounts, r.prevHookCounts = r.prevHookCounts, r.hookCounts
+	clear(r.hookCounts)
 	clear(r.activeFx)
 	r.pendingFx = r.pendingFx[:0]
 }
