@@ -2,6 +2,7 @@ package app
 
 import (
 	"image"
+	"image/color"
 	"testing"
 
 	gioApp "gioui.org/app"
@@ -72,6 +73,48 @@ func TestWindowHandleStateMutations(t *testing.T) {
 	}
 }
 
+func TestWindowsChromeOptions(t *testing.T) {
+	app := New(nil,
+		WindowsFrame(WindowsFrameStyle{
+			Mode:        WindowsFrameHidden,
+			Shadow:      true,
+			Corner:      WindowsCornerRound,
+			Border:      WindowsFrameBorderColor,
+			BorderColor: color.NRGBA{R: 32, G: 96, B: 180, A: 255},
+		}),
+	)
+
+	if app.Decorated {
+		t.Fatal("hidden Windows frame should start undecorated")
+	}
+	if app.WindowsFrameStyle.Mode != WindowsFrameHidden ||
+		app.WindowsFrameStyle.Corner != WindowsCornerRound ||
+		app.WindowsFrameStyle.Border != WindowsFrameBorderColor {
+		t.Fatalf("unexpected frame style: %#v", app.WindowsFrameStyle)
+	}
+
+	restored := New(nil, Decorated(false), WindowsFrame(WindowsFrameStyle{Mode: WindowsFrameDefault}))
+	if !restored.Decorated {
+		t.Fatal("default Windows frame should restore initial decoration")
+	}
+}
+
+func TestWindowsChromeOptionNormalization(t *testing.T) {
+	app := New(nil,
+		WindowsFrame(WindowsFrameStyle{
+			Mode:   WindowsFrameMode(99),
+			Corner: WindowsCornerPreference(99),
+			Border: WindowsFrameBorderPolicy(99),
+		}),
+	)
+
+	if app.WindowsFrameStyle.Mode != WindowsFrameDefault ||
+		app.WindowsFrameStyle.Corner != WindowsCornerDefault ||
+		app.WindowsFrameStyle.Border != WindowsFrameBorderDefault {
+		t.Fatalf("invalid frame style should normalize to defaults: %#v", app.WindowsFrameStyle)
+	}
+}
+
 func TestWindowMaximizeBlockedByMaxSize(t *testing.T) {
 	entry := testRegisterWindow(t, WindowState{
 		Title:     "Initial",
@@ -121,6 +164,18 @@ func TestWindowSetMaxSizeBlocksFutureMaximize(t *testing.T) {
 	}
 	if state.MaxWidth != 900 || state.MaxHeight != 700 || state.Maximized {
 		t.Fatalf("unexpected constrained state: %#v", state)
+	}
+}
+
+func TestWindowMaximizeAvailabilityRequiresResizableWindow(t *testing.T) {
+	if windowMaximizeAvailable(WindowState{Resizable: false}) {
+		t.Fatal("non-resizable windows should not expose native maximize")
+	}
+	if windowMaximizeAvailable(WindowState{Resizable: true, MaxWidth: 900, MaxHeight: 700}) {
+		t.Fatal("max-size constrained windows should not expose native maximize")
+	}
+	if !windowMaximizeAvailable(WindowState{Resizable: true}) {
+		t.Fatal("resizable unconstrained windows should expose native maximize")
 	}
 }
 
@@ -330,6 +385,12 @@ func TestNativeWindowControlsRequireNativeHandle(t *testing.T) {
 	if handle.SetResizable(false) {
 		t.Fatal("expected SetResizable without native handle to fail")
 	}
+	if handle.SetWindowsFrameStyle(WindowsFrameStyle{Mode: WindowsFrameHidden}) {
+		t.Fatal("expected SetWindowsFrameStyle without native handle to fail")
+	}
+	if handle.StartDragMove() {
+		t.Fatal("expected StartDragMove without native handle to fail")
+	}
 	if !handle.RequestFocus() {
 		t.Fatal("expected RequestFocus to fall back to Gio raise request")
 	}
@@ -511,6 +572,12 @@ func TestWindowInvalidInputsAndClosedState(t *testing.T) {
 	}
 	if handle.Show() {
 		t.Fatal("expected Show without native handle to fail")
+	}
+	if handle.SetWindowsFrameStyle(WindowsFrameStyle{Mode: WindowsFrameHidden}) {
+		t.Fatal("expected SetWindowsFrameStyle without native handle to fail")
+	}
+	if handle.StartDragMove() {
+		t.Fatal("expected StartDragMove without native handle to fail")
 	}
 
 	entry.alive.Store(false)

@@ -18,6 +18,7 @@
 - `docs/guides/system-api-platform-plan.md`: System API macOS/Linux 最小 driver 平台计划。
 - `docs/widgets/drop_target.md`: DropTarget 拖放接收区组件指南。
 - `docs/widgets/drag_source.md`: DragSource 拖放数据源组件指南。
+- `examples/window_chrome_showcase`: Windows chrome 示例，覆盖隐藏 frame、现代自绘标题栏/边框、Windows 圆角/阴影策略和自定义拖动区域；DWM 背景材质和透明/颜色背景暂列后续支持。
 - `examples/system_showcase`: System API 人工验收示例，当前覆盖 File Dialog、MessageBox、Notification、Tray 和 System Events。
 - `examples/system_validation`: System API 命令行验证示例，可探测 PA-F/G 核心能力，并可选择触发真实 notification、Toast shortcut/activator、tray、clipboard、shell 和 system events 验证。
 

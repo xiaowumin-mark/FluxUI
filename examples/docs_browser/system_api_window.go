@@ -192,6 +192,58 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 				})),
 			),
 			ui.VSpacerElement(8),
+			ui.WindowDragAreaElement(
+				ui.ContainerDecorationElement(
+					ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.Symmetric(8, 10)).WithRad(8),
+					ui.TextElement("Drag this strip after hiding the Windows frame.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+				),
+			),
+			ui.VSpacerElement(8),
+			ui.RowElement(
+				ui.ExpandedElement(button("Modern frame", func(ctx *ui.Context) {
+					if !ui.WindowSetWindowsFrameStyle(ctx, ui.WindowsFrameStyle{
+						Mode:   ui.WindowsFrameHidden,
+						Shadow: true,
+						Corner: ui.WindowsCornerRound,
+						Border: ui.WindowsFrameBorderHidden,
+					}) {
+						status.Set("Windows frame update failed.")
+						return
+					}
+					status.Set("Windows frame hidden; drag strip is active.")
+				})),
+				ui.HSpacerElement(8),
+				ui.ExpandedElement(button("Modern border", func(ctx *ui.Context) {
+					if !ui.WindowSetWindowsFrameStyle(ctx, ui.WindowsFrameStyle{
+						Mode:        ui.WindowsFrameHidden,
+						Shadow:      true,
+						Corner:      ui.WindowsCornerRound,
+						Border:      ui.WindowsFrameBorderColor,
+						BorderColor: ui.NRGBA(59, 130, 246, 255),
+					}) {
+						status.Set("Windows frame border update failed.")
+						return
+					}
+					status.Set("Modern border enabled without restoring the native Win32 frame.")
+				})),
+				ui.HSpacerElement(8),
+				ui.ExpandedElement(button("Probe chrome", func(ctx *ui.Context) {
+					status.Set(formatDocsWindowsChromeAvailability(ui.ProbeWindowsChrome()))
+				})),
+			),
+			ui.VSpacerElement(8),
+			ui.RowElement(
+				ui.ExpandedElement(button("Start drag", func(ctx *ui.Context) {
+					if !ui.WindowStartDragMove(ctx) {
+						status.Set("StartDragMove failed; use it from a pointer press or drag strip.")
+						return
+					}
+					status.Set("StartDragMove requested.")
+				})),
+				ui.HSpacerElement(8),
+				ui.ExpandedElement(ui.TextElement("Background material, native transparency, and window background color are deferred.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant))),
+			),
+			ui.VSpacerElement(8),
 			ui.RowElement(
 				ui.ExpandedElement(button(closeGuardLabel(closeGuard.Value()), func(ctx *ui.Context) {
 					if !hasHandle {
@@ -328,6 +380,15 @@ func docsSystemWindowSummary(state ui.WindowState, nativeHandle uintptr, nativeO
 		state.Focused,
 		state.Alive,
 		native,
+	)
+}
+
+func formatDocsWindowsChromeAvailability(value ui.WindowsChromeAvailability) string {
+	return fmt.Sprintf(
+		"Windows chrome supported=%v frame=%v drag=%v",
+		value.Supported,
+		value.FrameStyle,
+		value.DragMove,
 	)
 }
 

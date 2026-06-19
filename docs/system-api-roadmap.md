@@ -50,11 +50,11 @@
 
 ### 已完成的窗口基础设施
 
-- `app.WindowHandle` 已提供 `ID`、`IsAlive`、`NativeHandle`、`Close`、`Show`、`Hide`、`SetHiddenMemoryPolicy`、`Minimize`、`Maximize`、`Restore`、`Fullscreen`、`Raise`、`RequestFocus`、`SetAlwaysOnTop`、`Center`、`SetTitle`、`SetPosition`、`SetSize`、`SetResizable`、`SetDecorated`、`Invalidate`。
+- `app.WindowHandle` 已提供 `ID`、`IsAlive`、`NativeHandle`、`Close`、`Show`、`Hide`、`SetHiddenMemoryPolicy`、`Minimize`、`Maximize`、`Restore`、`Fullscreen`、`Raise`、`RequestFocus`、`SetAlwaysOnTop`、`Center`、`SetTitle`、`SetPosition`、`SetSize`、`SetResizable`、`SetDecorated`、`SetWindowsFrameStyle`、`StartDragMove`、`Invalidate`。
 - `app.RunMulti` 与 `ui.RunElementMulti` 已支持桌面多窗口启动。
 - `ui.WindowElement` 已提供 React-style 多窗口入口。
 - `ui.ListWindows` / `ui.GetWindow` 已能查询当前存活窗口。
-- `ui.CurrentWindowID(ctx)` 与 `WindowClose`、`WindowShow`、`WindowHide`、`WindowSetHiddenMemoryPolicy`、`WindowMinimize`、`WindowMaximize`、`WindowRestore`、`WindowFullscreen`、`WindowRaise`、`WindowRequestFocus`、`WindowSetAlwaysOnTop`、`WindowCenter`、`WindowSetTitle`、`WindowSetPosition`、`WindowSetSize`、`WindowSetResizable`、`WindowSetDecorated`、`WindowInvalidate`、`WindowIsAlive` 已经把当前窗口控制暴露到 UI 层。
+- `ui.CurrentWindowID(ctx)` 与 `WindowClose`、`WindowShow`、`WindowHide`、`WindowSetHiddenMemoryPolicy`、`WindowMinimize`、`WindowMaximize`、`WindowRestore`、`WindowFullscreen`、`WindowRaise`、`WindowRequestFocus`、`WindowSetAlwaysOnTop`、`WindowCenter`、`WindowSetTitle`、`WindowSetPosition`、`WindowSetSize`、`WindowSetResizable`、`WindowSetDecorated`、`WindowSetWindowsFrameStyle`、`WindowStartDragMove`、`WindowInvalidate`、`WindowIsAlive` 已经把当前窗口控制暴露到 UI 层。
 - `internal.WindowController` 已形成当前窗口控制的内部接口，后续可以作为系统 API 与运行时之间的桥。
 
 ### 已完成的应用内反馈能力
@@ -215,6 +215,7 @@ go vet ./...
 - B10 已修正全屏尺寸约束：进入全屏时临时清除 Gio 层 `MinSize` / `MaxSize`，退出全屏或回到普通窗口模式时重新应用应用请求的约束。已通过 `go test ./...` 与 `go vet ./...` 验收。
 - B11 已新增隐藏内存策略：默认 `WindowHiddenMemoryReleaseTransient` 会在隐藏后暂停 FluxUI 渲染、跳过隐藏窗口 redraw invalidation、清空临时 `op.Ops` 并异步触发 Go 内存回收；`WindowHiddenMemoryKeepRenderingState` 可保留隐藏窗口渲染状态。当前不直接释放 Gio 内部 GPU context。
 - B12 已修正最大尺寸限制下的最大化行为：设置完整 `MaxSize(width, height)` 后，`WindowHandle.Maximize()` / `WindowMaximize(ctx)` 返回 `false`，Windows 原生标题栏最大化按钮和系统菜单最大化项同步禁用；全屏仍按 B10 逻辑保留可用。
+- Windows chrome 当前保留隐藏 frame、圆角/边框/阴影策略、`WindowDragAreaElement`、`WindowStartDragMove` 和 `ProbeWindowsChrome`；`WindowDragAreaElement` 已改为每帧解析 Gio `ActionMove` 区域并通过 Windows 原生 `WM_NCHITTEST` / `HTCAPTION` 注册拖动区，避免最大化拖拽时用手动 restore/SetWindowPos 模拟；hidden frame 会去掉 `WS_CAPTION`，避免失焦/重绘时露出旧式 Win32 frame。新增 `examples/window_chrome_showcase`，并已集成到 `examples/window_showcase` 与 docs browser Window API 页；示例保持 hidden frame 并自绘现代标题栏/边框，`WindowsFrameDefault` 仅作为兼容恢复 OS frame 的路径。DWM background material、透明背景和 native 背景颜色因自渲染 UI 与 Windows 11 DWM 材质稳定组合成本较高，已转入后续研究项，近期不继续推进。
 
 任务：
 

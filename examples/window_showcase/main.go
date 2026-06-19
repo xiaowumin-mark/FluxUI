@@ -120,6 +120,7 @@ func mainWindow(ctx *ui.Context) ui.Element {
 					}
 				})),
 			)),
+			ui.PaddingElement(ui.Insets{Top: 12}, windowsChromeControls(state)),
 			ui.PaddingElement(ui.Insets{Top: 16}, ui.TextElement("事件订阅", ui.TextSize(16))),
 			ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement(formatEvents(eventLog.Value()), ui.TextSize(12), ui.TextColor(th.Primary))),
 		),
@@ -151,6 +152,61 @@ func toolWindow(ctx *ui.Context) ui.Element {
 			)),
 		),
 	)
+}
+
+func windowsChromeControls(state ui.WindowState) ui.Element {
+	probe := ui.ProbeWindowsChrome()
+	return ui.ContainerDecorationElement(
+		ui.Bg(ui.NRGBA(245, 247, 250, 255)).WithPad(ui.All(12)).WithRad(8),
+		ui.ColumnElement(
+			ui.TextElement("Windows chrome", ui.TextSize(16)),
+			ui.VSpacerElement(6),
+			ui.TextElement(formatChromeProbe(probe), ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
+			ui.VSpacerElement(8),
+			ui.WindowDragAreaElement(
+				ui.ContainerDecorationElement(
+					ui.Bg(ui.NRGBA(226, 232, 240, 255)).WithPad(ui.Symmetric(8, 10)).WithRad(6),
+					ui.TextElement("Drag this strip to move a hidden-frame window", ui.TextSize(12), ui.TextColor(ui.NRGBA(30, 41, 59, 255))),
+				),
+			),
+			ui.VSpacerElement(8),
+			ui.RowElement(
+				ui.ButtonElement(ui.TextElement("Modern frame"), ui.OnClick(func(ctx *ui.Context) {
+					ui.WindowSetWindowsFrameStyle(ctx, ui.WindowsFrameStyle{
+						Mode:   ui.WindowsFrameHidden,
+						Shadow: true,
+						Corner: ui.WindowsCornerRound,
+						Border: ui.WindowsFrameBorderHidden,
+					})
+				})),
+				ui.HSpacerElement(8),
+				ui.ButtonElement(ui.TextElement("Modern border"), ui.OnClick(func(ctx *ui.Context) {
+					ui.WindowSetWindowsFrameStyle(ctx, ui.WindowsFrameStyle{
+						Mode:        ui.WindowsFrameHidden,
+						Shadow:      true,
+						Corner:      ui.WindowsCornerRound,
+						Border:      ui.WindowsFrameBorderColor,
+						BorderColor: ui.NRGBA(59, 130, 246, 255),
+					})
+				})),
+				ui.HSpacerElement(8),
+				ui.TextElement(formatChromeState(state), ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
+			),
+		),
+	)
+}
+
+func formatChromeProbe(probe ui.WindowsChromeAvailability) string {
+	return fmt.Sprintf(
+		"probe supported=%v frame=%v drag=%v",
+		probe.Supported,
+		probe.FrameStyle,
+		probe.DragMove,
+	)
+}
+
+func formatChromeState(state ui.WindowState) string {
+	return fmt.Sprintf("frame=%d corner=%d border=%d", state.WindowsFrameStyle.Mode, state.WindowsFrameStyle.Corner, state.WindowsFrameStyle.Border)
 }
 
 func formatState(state ui.WindowState) string {

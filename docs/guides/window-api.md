@@ -29,12 +29,16 @@
     "(*WindowHandle).SetPosition(x, y int) bool",
     "(*WindowHandle).SetResizable(resizable bool) bool",
     "(*WindowHandle).SetDecorated(decorated bool) bool",
+    "(*WindowHandle).SetWindowsFrameStyle(style WindowsFrameStyle) bool",
+    "(*WindowHandle).StartDragMove() bool",
     "(*WindowHandle).SetMinSize(width, height int) bool",
     "(*WindowHandle).SetMaxSize(width, height int) bool",
+    "ProbeWindowsChrome() WindowsChromeAvailability",
     "HiddenMemoryPolicy(policy WindowHiddenMemoryPolicy) AppOption",
     "OnCloseRequested(fn func(WindowCloseRequest) bool) AppOption",
     "Decorated(enabled bool) AppOption",
     "Resizable(enabled bool) AppOption",
+    "WindowsFrame(style WindowsFrameStyle) AppOption",
     "MinSize(width, height int) AppOption",
     "MaxSize(width, height int) AppOption",
     "WindowShow(ctx *Context) bool",
@@ -45,8 +49,11 @@
     "WindowSetPosition(ctx *Context, x, y int) bool",
     "WindowSetResizable(ctx *Context, resizable bool) bool",
     "WindowSetDecorated(ctx *Context, decorated bool) bool",
+    "WindowSetWindowsFrameStyle(ctx *Context, style WindowsFrameStyle) bool",
+    "WindowStartDragMove(ctx *Context) bool",
     "WindowSetMinSize(ctx *Context, width, height int) bool",
-    "WindowSetMaxSize(ctx *Context, width, height int) bool"
+    "WindowSetMaxSize(ctx *Context, width, height int) bool",
+    "WindowDragAreaElement(child Element, opts ...WindowDragAreaOption) Element"
   ]
 }
 -->
@@ -129,6 +136,8 @@ ui.FilledButtonElement(
 - `WindowSetSize(ctx, width, height)`
 - `WindowSetResizable(ctx, resizable)`
 - `WindowSetDecorated(ctx, decorated)`
+- `WindowSetWindowsFrameStyle(ctx, style)`
+- `WindowStartDragMove(ctx)`
 - `WindowSetMinSize(ctx, width, height)`
 - `WindowSetMaxSize(ctx, width, height)`
 - `WindowInvalidate(ctx)`
@@ -176,6 +185,8 @@ for _, handle := range ui.ListWindows() {
 - `SetSize(width, height)`
 - `SetResizable(resizable)`
 - `SetDecorated(decorated)`
+- `SetWindowsFrameStyle(style)`
+- `StartDragMove()`
 - `SetMinSize(width, height)`
 - `SetMaxSize(width, height)`
 - `Invalidate()`
@@ -199,6 +210,40 @@ for _, handle := range ui.ListWindows() {
 `SetResizable(resizable)` / `WindowSetResizable(ctx, resizable)` 控制 Windows 系统边框是否允许拖拽调整大小；当前依赖 `HWND`，非 Windows 或 native handle 不可用时返回 `false`。`Resizable(enabled)` 可设置初始意图，Windows native handle 捕获后会同步应用。
 
 `SetDecorated(decorated)` / `WindowSetDecorated(ctx, decorated)` 控制是否显示系统装饰边框。该能力通过 Gio `Decorated` option 接入；`Decorated(enabled)` 可设置窗口初始装饰状态。
+
+## Windows chrome
+
+Windows 专属 chrome API 当前用于做 borderless/custom title bar、隐藏系统 frame、控制 Windows 11 圆角/边框/阴影，以及注册自定义拖动区域。启动时可通过 app option 设置：
+```go
+ui.RunElement(
+    App,
+    ui.WindowsFrame(ui.WindowsFrameStyle{
+        Mode:   ui.WindowsFrameHidden,
+        Shadow: true,
+        Corner: ui.WindowsCornerRound,
+        Border: ui.WindowsFrameBorderHidden,
+    }),
+)
+```
+
+运行时可通过当前窗口 helper 修改：
+```go
+ui.WindowSetWindowsFrameStyle(ctx, ui.WindowsFrameStyle{
+    Mode:   ui.WindowsFrameHidden,
+    Shadow: true,
+    Corner: ui.WindowsCornerRoundSmall,
+    Border: ui.WindowsFrameBorderColor,
+    BorderColor: ui.NRGBA(33, 150, 243, 255),
+})
+```
+
+`WindowDragAreaElement(child)` 会把子组件区域注册为窗口拖动区；在隐藏系统 frame 后，建议把自定义标题栏的非交互区域包进去。Windows 下拖动区通过原生 `WM_NCHITTEST` / `HTCAPTION` 命中测试接入系统标题栏语义，最大化后的拖动还原、拖动继续、双击最大化/还原和 Snap 由系统处理；全屏、最小化、不可调整大小或最大尺寸受限时不会强行最大化。低层入口是 `WindowStartDragMove(ctx)` / `WindowHandle.StartDragMove()`，它需要在指针按下语境附近调用。
+
+`ProbeWindowsChrome()` 返回当前进程可用性快照。非 Windows 平台返回 unsupported；Windows 下当前只报告 frame style 与 drag move 支持状态。完整示例见 `examples/window_chrome_showcase`；`examples/window_showcase` 也包含一个小型控制面板。
+
+Windows app/exe should embed a Windows manifest with common-controls v6 and supportedOS entries when testing default native frame visuals; otherwise Windows may apply legacy compatibility metrics and the restored default frame can look like an old border. Even with the manifest, `WindowsFrameDefault` is still the OS-drawn Win32 non-client title bar, so its exact caption/button style is controlled by Windows and can look older than a custom Windows 11 title bar in some environments. For modern custom chrome, keep `WindowsFrameHidden`, draw the title bar with `WindowDragAreaElement`, and draw visible borders in FluxUI instead of restoring the native Win32 frame. `WindowsFrameDefault` is a compatibility escape hatch back to the system frame, not the recommended modern visual mode. `examples/window_chrome_showcase` includes a package-local `.syso` generated from its manifest.
+
+Windows 11 背景材质（mica / acrylic / tabbed）、native 透明背景和 native 窗口背景颜色暂不作为当前稳定 API。自渲染 UI 要和 DWM 背景材质稳定组合，需要处理渲染后端透明 clear、swapchain、hit-test/穿透和不同显卡驱动差异；近期不继续深入研究，后续会在 renderer-level 方案清晰后再重新设计。
 
 默认隐藏内存策略是 `WindowHiddenMemoryReleaseTransient`：隐藏窗口后 FluxUI 会暂停该窗口的 root layout 和 redraw invalidation，隐藏帧会清空当前 `op.Ops` 并异步触发 Go 内存回收，尽量释放公开层可安全释放的临时渲染内存。显示窗口时会恢复渲染并触发一次重绘。如果应用需要隐藏期间继续保留渲染状态，可以使用 `HiddenMemoryPolicy(WindowHiddenMemoryKeepRenderingState)` 或 `SetHiddenMemoryPolicy(WindowHiddenMemoryKeepRenderingState)`。
 
@@ -288,6 +333,7 @@ type WindowState struct {
     Focused    bool
     Decorated  bool
     Resizable  bool
+    WindowsFrameStyle  WindowsFrameStyle
     Alive      bool
 }
 ```
@@ -310,6 +356,7 @@ type WindowState struct {
 - B12 已修正最大尺寸限制下的最大化行为：设置完整 `MaxSize(width, height)` 后，API 最大化调用返回 false，Windows 原生标题栏最大化按钮和系统菜单最大化项同步禁用；全屏仍保留可用。
 - F+7 第一批已完成：新增 `RequestFocus`、`SetPosition`、`SetResizable`、`SetDecorated`、`Decorated` 和 `Resizable`。Windows 下焦点、位置和可调整大小通过 native HWND 实现；装饰边框通过 Gio option 实现。
 - F+8 已新增系统事件订阅入口：`system.SubscribeSystemEvents` 可订阅 display/theme/settings/power/session/DPI 事件，Windows 通过隐藏消息窗口接收可到达的系统消息；窗口级 `WindowEventScaleChanged` 用于补 per-window DPI/scale 精度。
+- Windows chrome 当前保留隐藏 frame、圆角/边框/阴影策略、拖动区域和能力探测；DWM background material、透明背景和 native 背景颜色已转为后续研究项。完整示例见 `examples/window_chrome_showcase`，`examples/window_showcase` 也已集成基本控制。
 
 ## Native owner
 

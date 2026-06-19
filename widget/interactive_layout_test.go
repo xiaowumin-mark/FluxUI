@@ -7,6 +7,9 @@ import (
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/style"
 
+	"gioui.org/f32"
+	"gioui.org/io/input"
+	"gioui.org/io/system"
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
@@ -56,6 +59,70 @@ func TestDefaultInteractiveWidgetsDoNotAddDecorationPadding(t *testing.T) {
 		t.Fatalf("default slider size = %v, want %v", got, want)
 	}
 
+	rt.EndFrame()
+}
+
+func TestWindowDragAreaPreservesChildSize(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	rt.BeginFrame()
+	ctx := newInteractiveLayoutTestContext(rt)
+	ctx.Gtx.Constraints = gioLayout.Constraints{Max: image.Pt(800, 600)}
+	dims := WindowDragArea(Spacer(180, 32)).Layout(ctx)
+	rt.EndFrame()
+
+	if got, want := dims.Size, image.Pt(180, 32); got != want {
+		t.Fatalf("WindowDragArea size = %v, want %v", got, want)
+	}
+}
+
+func TestWindowDragAreaRegistersMoveAction(t *testing.T) {
+	var ops op.Ops
+	rt := internal.NewRuntime(nil)
+	rt.BeginFrame()
+	gtx := gioLayout.Context{
+		Ops:         &ops,
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: gioLayout.Exact(image.Pt(800, 600)),
+	}
+	ctx := internal.NewContext(gtx, rt)
+	WindowDragArea(Spacer(180, 32)).Layout(ctx)
+	rt.EndFrame()
+
+	var router input.Router
+	router.Frame(&ops)
+	action, ok := router.ActionAt(f32.Pt(90, 16))
+	if !ok {
+		t.Fatal("expected WindowDragArea to register a system action")
+	}
+	if action != system.ActionMove {
+		t.Fatalf("WindowDragArea action = %v, want %v", action, system.ActionMove)
+	}
+	if !rt.WindowDragAreaActive() {
+		t.Fatal("expected WindowDragArea to mark the frame as containing a native drag area")
+	}
+}
+
+func TestWindowDragAreaDisabledDoesNotRegisterNativeDragArea(t *testing.T) {
+	var ops op.Ops
+	rt := internal.NewRuntime(nil)
+	gtx := gioLayout.Context{
+		Ops:         &ops,
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: gioLayout.Exact(image.Pt(800, 600)),
+	}
+	w := WindowDragArea(Spacer(180, 32), WindowDragAreaDisabled(true))
+
+	layoutWindowDragAreaTestFrame(rt, gtx, w)
+
+	if rt.WindowDragAreaActive() {
+		t.Fatal("disabled WindowDragArea should not mark a native drag area")
+	}
+}
+
+func layoutWindowDragAreaTestFrame(rt *internal.Runtime, gtx gioLayout.Context, w Widget) {
+	rt.BeginFrame()
+	ctx := internal.NewContext(gtx, rt)
+	w.Layout(ctx)
 	rt.EndFrame()
 }
 

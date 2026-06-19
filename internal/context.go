@@ -321,6 +321,33 @@ func (c *Context) WindowSetDecorated(decorated bool) bool {
 	return ctrl != nil && ctrl.SetDecorated(decorated)
 }
 
+// WindowSetWindowsFrameStyle 设置 Windows-only 原生 frame 样式。
+func (c *Context) WindowSetWindowsFrameStyle(style any) bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.SetWindowsFrameStyle(style)
+}
+
+// WindowStartDragMove 请求从当前指针按下开始拖动窗口。
+func (c *Context) WindowStartDragMove() bool {
+	if c == nil || c.runtime == nil {
+		return false
+	}
+	ctrl := c.runtime.WindowController()
+	return ctrl != nil && ctrl.StartDragMove()
+}
+
+// RegisterWindowDragArea records that this frame contains a native window move
+// region.
+func (c *Context) RegisterWindowDragArea() {
+	if c == nil || c.runtime == nil {
+		return
+	}
+	c.runtime.RegisterWindowDragArea()
+}
+
 // WindowSetMinSize 更新当前窗口最小尺寸（单位 dp）。
 func (c *Context) WindowSetMinSize(width, height int) bool {
 	if c == nil || c.runtime == nil {

@@ -266,6 +266,12 @@ func DragSourceElement(child Element, opts ...DragSourceOption) Element {
 	}}
 }
 
+func WindowDragAreaElement(child Element, opts ...WindowDragAreaOption) Element {
+	return &singleChildElement{kind: "window-drag-area", child: child, renderFn: func(child Widget) Widget {
+		return widget.WindowDragArea(child, opts...)
+	}}
+}
+
 // CheckboxElement 创建可参与 reconciler 的复选框 Element。
 func CheckboxElement(label string, checked bool, opts ...CheckboxOption) Element {
 	return FromWidget(widget.Checkbox(label, checked, opts...))

@@ -20,3 +20,4 @@ saga.db-wal
 /dist
 /build
 /out
+/.tmp

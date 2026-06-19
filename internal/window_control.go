@@ -26,6 +26,8 @@ type WindowController interface {
 	SetSize(width, height int) bool
 	SetResizable(resizable bool) bool
 	SetDecorated(decorated bool) bool
+	SetWindowsFrameStyle(style any) bool
+	StartDragMove() bool
 	SetMinSize(width, height int) bool
 	SetMaxSize(width, height int) bool
 	Invalidate() bool

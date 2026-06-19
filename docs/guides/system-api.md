@@ -105,9 +105,15 @@
     "WindowHandle.SetPosition(x, y int) bool",
     "WindowHandle.SetResizable(resizable bool) bool",
     "WindowHandle.SetDecorated(decorated bool) bool",
+    "WindowHandle.SetWindowsFrameStyle(style WindowsFrameStyle) bool",
+    "WindowHandle.StartDragMove() bool",
     "WindowHandle.SetCloseRequestedHandler(fn func(WindowCloseRequest) bool) bool",
     "WindowHandle.Show() bool",
     "WindowHandle.Hide() bool",
+    "ui.WindowsFrame(style WindowsFrameStyle) AppOption",
+    "ui.WindowSetWindowsFrameStyle(ctx *Context, style WindowsFrameStyle) bool",
+    "ui.WindowDragAreaElement(child Element, opts ...WindowDragAreaOption) Element",
+    "ui.ProbeWindowsChrome() WindowsChromeAvailability",
     "ui.HiddenMemoryPolicy(policy WindowHiddenMemoryPolicy) AppOption",
     "ui.OpenFileDialog(ctx *ui.Context, opts ...system.FileDialogOption) (system.FileDialogResult, error)",
     "ui.ShowMessageBox(ctx *ui.Context, opts ...system.MessageBoxOption) (system.MessageBoxResult, error)"
@@ -180,6 +186,8 @@ macOS 和 Linux 当前都声明 `CapabilityClipboard`、`CapabilityFileDialog`�
 窗口生命周期和窗口控制由 `app` runtime 承载，并通过 `ui` 层暴露当前窗口 helper。`WindowRaise` / `WindowHandle.Raise()` 是一次性前置请求；需要持续置顶时使用 `WindowSetAlwaysOnTop(ctx, true)` 或 `WindowHandle.SetAlwaysOnTop(true)`，取消时传 `false`。
 
 Windows 下 `SetAlwaysOnTop`、`Show`、`Hide`、`RequestFocus`、`SetPosition` 和 `SetResizable` 使用 Gio 捕获到的 native `HWND` 实现，并异步排队执行，避免在 Gio 帧处理期间同步阻塞窗口线程。`SetDecorated` 使用 Gio `Decorated` option。窗口尚未完成 native view 初始化、窗口已关闭或非 Windows 平台不可用时，native 相关操作返回 `false`。隐藏当前唯一窗口后，应用应保留 `WindowHandle`，通过托盘、计时器、另一个窗口或后台事件调用 `Show()`。
+
+Windows chrome 扩展当前提供 `WindowsFrame` / `WindowSetWindowsFrameStyle`、`WindowDragAreaElement`、`WindowStartDragMove` 和 `ProbeWindowsChrome`。这些能力用于隐藏系统 frame、控制 Windows 11 圆角/边框/阴影，以及通过原生 `WM_NCHITTEST` / `HTCAPTION` 注册自定义可拖动标题栏；它们是 Windows-only。现代视觉建议保持 `WindowsFrameHidden` 并由 FluxUI 自绘标题栏和可见边框；`WindowsFrameDefault` 仅作为恢复 OS 原生 Win32 frame 的兼容路径，不作为现代外观方案。DWM mica/acrylic/tabbed 材质、native 透明背景和 native 背景颜色暂列后续支持，近期不继续投入研究。
 
 默认隐藏内存策略是 `WindowHiddenMemoryReleaseTransient`：隐藏后暂停该窗口的 FluxUI root layout 和 redraw invalidation，清空临时 `op.Ops` 并异步触发 Go 内存回收。`WindowHiddenMemoryKeepRenderingState` 可用于保留隐藏窗口的渲染状态。当前不直接释放 Gio 内部 GPU context；这需要 Gio 公开释放/重建渲染后端的 API。
 

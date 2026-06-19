@@ -56,6 +56,8 @@ type DragSourceEvent = widget.DragSourceEvent
 // DragSourceOption configures a DragSource.
 type DragSourceOption = widget.DragSourceOption
 
+type WindowDragAreaOption = widget.WindowDragAreaOption
+
 // Context 是对外暴露的 frame 上下文。
 type Context = internal.Context
 
@@ -75,6 +77,34 @@ const (
 	WindowHiddenMemoryReleaseTransient   = fluxapp.WindowHiddenMemoryReleaseTransient
 	WindowHiddenMemoryKeepRenderingState = fluxapp.WindowHiddenMemoryKeepRenderingState
 )
+
+type WindowsFrameMode = fluxapp.WindowsFrameMode
+
+const (
+	WindowsFrameDefault = fluxapp.WindowsFrameDefault
+	WindowsFrameHidden  = fluxapp.WindowsFrameHidden
+)
+
+type WindowsCornerPreference = fluxapp.WindowsCornerPreference
+
+const (
+	WindowsCornerDefault    = fluxapp.WindowsCornerDefault
+	WindowsCornerDoNotRound = fluxapp.WindowsCornerDoNotRound
+	WindowsCornerRound      = fluxapp.WindowsCornerRound
+	WindowsCornerRoundSmall = fluxapp.WindowsCornerRoundSmall
+)
+
+type WindowsFrameBorderPolicy = fluxapp.WindowsFrameBorderPolicy
+
+const (
+	WindowsFrameBorderDefault = fluxapp.WindowsFrameBorderDefault
+	WindowsFrameBorderHidden  = fluxapp.WindowsFrameBorderHidden
+	WindowsFrameBorderColor   = fluxapp.WindowsFrameBorderColor
+)
+
+type WindowsFrameStyle = fluxapp.WindowsFrameStyle
+
+type WindowsChromeAvailability = fluxapp.WindowsChromeAvailability
 
 // WindowHandle 是运行中的窗口句柄。
 type WindowHandle = fluxapp.WindowHandle
@@ -292,6 +322,10 @@ func Decorated(enabled bool) AppOption {
 // Resizable 设置窗口是否可被系统边框调整大小。
 func Resizable(enabled bool) AppOption {
 	return fluxapp.Resizable(enabled)
+}
+
+func WindowsFrame(style WindowsFrameStyle) AppOption {
+	return fluxapp.WindowsFrame(style)
 }
 
 // OnCloseRequested 设置窗口关闭请求拦截回调。
@@ -543,6 +577,18 @@ func WindowSetDecorated(ctx *Context, decorated bool) bool {
 	return ctx.WindowSetDecorated(decorated)
 }
 
+func WindowSetWindowsFrameStyle(ctx *Context, style WindowsFrameStyle) bool {
+	return ctx.WindowSetWindowsFrameStyle(style)
+}
+
+func WindowStartDragMove(ctx *Context) bool {
+	return ctx.WindowStartDragMove()
+}
+
+func ProbeWindowsChrome() WindowsChromeAvailability {
+	return fluxapp.ProbeWindowsChrome()
+}
+
 // WindowSetMinSize 更新当前窗口最小尺寸（单位 dp）。
 func WindowSetMinSize(ctx *Context, width, height int) bool {
 	return ctx.WindowSetMinSize(width, height)
@@ -666,6 +712,14 @@ func DropTarget(child Widget, onDrop func(ctx *Context, event DropEvent), opts .
 // DragSource makes the child area draggable and offers transfer data to drop targets.
 func DragSource(child Widget, opts ...DragSourceOption) Widget {
 	return widget.DragSource(child, opts...)
+}
+
+func WindowDragArea(child Widget, opts ...WindowDragAreaOption) Widget {
+	return widget.WindowDragArea(child, opts...)
+}
+
+func WindowDragAreaDisabled(disabled bool) WindowDragAreaOption {
+	return widget.WindowDragAreaDisabled(disabled)
 }
 
 // ContainerDecorationOption 是装饰容器的可选配置项。

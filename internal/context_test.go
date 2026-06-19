@@ -210,6 +210,12 @@ func TestWindowMethodsNilController(t *testing.T) {
 	if ctx.WindowSetDecorated(false) {
 		t.Fatal("expected false")
 	}
+	if ctx.WindowSetWindowsFrameStyle(struct{}{}) {
+		t.Fatal("expected false")
+	}
+	if ctx.WindowStartDragMove() {
+		t.Fatal("expected false")
+	}
 	if ctx.WindowSetMinSize(100, 100) {
 		t.Fatal("expected false")
 	}

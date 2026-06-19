@@ -9,6 +9,9 @@ import (
 	layout "github.com/xiaowumin-mark/FluxUI/layout"
 	style "github.com/xiaowumin-mark/FluxUI/style"
 
+	"gioui.org/io/pointer"
+	"gioui.org/op"
+	"gioui.org/unit"
 	gioWidget "gioui.org/widget"
 )
 
@@ -183,7 +186,7 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			ProgressColor: progressColor,
 			Disabled:      s.config.disabled,
 			Hovered:       clickable != nil && clickable.Hovered(),
-			Pressed:       clickable != nil && clickable.Pressed(),
+			Pressed:       sliderValue.Dragging() || clickable != nil && clickable.Pressed(),
 			Dragged:       sliderValue.Dragging(),
 		})
 	}
@@ -191,15 +194,16 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	target := content
 	if hasAnyDecoration(s.config.decoration) {
 		target = func(targetCtx *internal.Context) image.Point {
-			pressed := clickable != nil && (clickable.Pressed() || sliderValue.Dragging())
-			active := resolveDecorationState(s.config.decoration, clickable != nil && clickable.Hovered(), pressed, s.config.disabled)
-			duration, easing := md3InteractionTiming(clickable != nil && clickable.Hovered(), pressed, false, s.config.disabled)
+			hovered := clickable != nil && clickable.Hovered()
+			pressed := sliderValue.Dragging() || clickable != nil && clickable.Pressed()
+			active := resolveDecorationState(s.config.decoration, hovered, pressed, s.config.disabled)
+			duration, easing := md3InteractionTiming(hovered, pressed, false, s.config.disabled)
 			visual := md3AnimateDecoration(targetCtx, "slider-decoration", stripStateDecoration(active), duration, easing)
 			return layoutDecorationShell(targetCtx.Child(0), visual, content).Size
 		}
 	}
 
-	dims := layoutStateLayerTouchTarget(ctx.Child(0), clickable, s.config.disabled, internal.RippleSpec{
+	dims := layoutSliderStateLayer(ctx.Child(0), clickable, s.config.disabled, internal.RippleSpec{
 		Color:   thumbColor,
 		Radius:  20,
 		Opacity: style.StateLayerPressedOpacity,
@@ -231,6 +235,71 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	return dims
+}
+
+func layoutSliderStateLayer(ctx *internal.Context, clickable *internal.ClickableState, disabled bool, spec internal.RippleSpec, minTargetDp, layerDiameterDp float32, layerCenter func(image.Point) image.Point, stateOpacity func() float32, child func(*internal.Context) image.Point) layout.Dimensions {
+	if child == nil {
+		return layout.Dimensions{}
+	}
+
+	macro := op.Record(ctx.Gtx.Ops)
+	childSize := child(ctx.Child(0))
+	childCall := macro.Stop()
+
+	if disabled || clickable == nil {
+		childCall.Add(ctx.Gtx.Ops)
+		return layout.Dimensions{Size: childSize}
+	}
+
+	minTarget := ctx.Gtx.Dp(unit.Dp(minTargetDp))
+	targetSize := childSize
+	if targetSize.X < minTarget {
+		targetSize.X = minTarget
+	}
+	if targetSize.Y < minTarget {
+		targetSize.Y = minTarget
+	}
+	if max := ctx.Gtx.Constraints.Max; max.X > 0 || max.Y > 0 {
+		if max.X > 0 && targetSize.X > max.X {
+			targetSize.X = max.X
+		}
+		if max.Y > 0 && targetSize.Y > max.Y {
+			targetSize.Y = max.Y
+		}
+	}
+
+	targetOffset := image.Point{
+		X: -(targetSize.X - childSize.X) / 2,
+		Y: -(targetSize.Y - childSize.Y) / 2,
+	}
+	targetMacro := op.Record(ctx.Gtx.Ops)
+	pass := pointer.PassOp{}.Push(ctx.Gtx.Ops)
+	stack := op.Offset(targetOffset).Push(ctx.Gtx.Ops)
+	ctx.LayoutClickArea(clickable, func(*internal.Context) image.Point {
+		return targetSize
+	})
+	stack.Pop()
+	pass.Pop()
+	targetCall := targetMacro.Stop()
+
+	center := image.Point{}
+	if layerCenter != nil {
+		center = layerCenter(childSize)
+	}
+	opacity := float32(0)
+	if stateOpacity != nil {
+		opacity = stateOpacity()
+	}
+	opacity = md3AnimateStateLayerOpacity(ctx, "slider-state-layer", opacity)
+
+	layerMacro := op.Record(ctx.Gtx.Ops)
+	ctx.DrawStateLayerCircle(nil, center, layerDiameterDp, spec, opacity)
+	layerCall := layerMacro.Stop()
+
+	childCall.Add(ctx.Gtx.Ops)
+	targetCall.Add(ctx.Gtx.Ops)
+	layerCall.Add(ctx.Gtx.Ops)
+	return layout.Dimensions{Size: childSize}
 }
 
 func sliderStateFor(ctx *internal.Context) *sliderState {

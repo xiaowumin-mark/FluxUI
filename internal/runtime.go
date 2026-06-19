@@ -25,8 +25,9 @@ type Runtime struct {
 	activeFx   map[string]struct{}
 	pendingFx  []func()
 
-	hookCounts     map[string]int
-	prevHookCounts map[string]int
+	hookCounts           map[string]int
+	prevHookCounts       map[string]int
+	windowDragAreaActive bool
 
 	// hookCounts and prevHookCounts enforce React's "Rules of Hooks":
 	// hooks must always be called in the same count and order every frame.
@@ -130,6 +131,7 @@ func (r *Runtime) BeginFrame() {
 	clear(r.hookCounts)
 	clear(r.activeFx)
 	r.pendingFx = r.pendingFx[:0]
+	r.windowDragAreaActive = false
 }
 
 // EndFrame runs queued effects, cleans up unmounted effects, and validates
@@ -246,6 +248,21 @@ func (r *Runtime) RecordHookCount(path string, count int) {
 		return
 	}
 	r.hookCounts[path] = count
+}
+
+// RegisterWindowDragArea marks the current frame as containing at least one
+// system window move region.
+func (r *Runtime) RegisterWindowDragArea() {
+	if r == nil {
+		return
+	}
+	r.windowDragAreaActive = true
+}
+
+// WindowDragAreaActive reports whether the current frame registered a window
+// move region.
+func (r *Runtime) WindowDragAreaActive() bool {
+	return r != nil && r.windowDragAreaActive
 }
 
 func (r *Runtime) remember(key string, factory func() any) any {

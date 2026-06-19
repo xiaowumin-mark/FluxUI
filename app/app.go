@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/color"
 	"math"
 	"os"
 	"runtime"
@@ -18,6 +19,8 @@ import (
 	widget "github.com/xiaowumin-mark/FluxUI/widget"
 
 	gioApp "gioui.org/app"
+	"gioui.org/f32"
+	gioInput "gioui.org/io/input"
 	gioSystem "gioui.org/io/system"
 	"gioui.org/op"
 	"gioui.org/unit"
@@ -41,6 +44,52 @@ const (
 	// WindowHiddenMemoryKeepRenderingState 保留隐藏窗口的渲染状态，不主动释放临时内存。
 	WindowHiddenMemoryKeepRenderingState
 )
+
+// WindowsFrameMode controls how much native non-client frame Windows should draw.
+type WindowsFrameMode int
+
+const (
+	WindowsFrameDefault WindowsFrameMode = iota
+	WindowsFrameHidden
+)
+
+// WindowsCornerPreference controls the Windows 11 DWM corner preference.
+type WindowsCornerPreference int
+
+const (
+	WindowsCornerDefault WindowsCornerPreference = iota
+	WindowsCornerDoNotRound
+	WindowsCornerRound
+	WindowsCornerRoundSmall
+)
+
+// WindowsFrameBorderPolicy controls the Windows 11 DWM window border.
+type WindowsFrameBorderPolicy int
+
+const (
+	WindowsFrameBorderDefault WindowsFrameBorderPolicy = iota
+	WindowsFrameBorderHidden
+	WindowsFrameBorderColor
+)
+
+// WindowsFrameStyle controls Windows-only native frame adornments.
+type WindowsFrameStyle struct {
+	Mode         WindowsFrameMode
+	Shadow       bool
+	Corner       WindowsCornerPreference
+	Border       WindowsFrameBorderPolicy
+	BorderColor  color.NRGBA
+	CaptionColor color.NRGBA
+	TextColor    color.NRGBA
+}
+
+// WindowsChromeAvailability reports which native Windows chrome features are
+// available for the current process and OS build.
+type WindowsChromeAvailability struct {
+	Supported  bool
+	FrameStyle bool
+	DragMove   bool
+}
 
 // WindowState 是 FluxUI 运行时维护的窗口状态快照。
 //
@@ -70,6 +119,7 @@ type WindowState struct {
 	Focused            bool
 	Decorated          bool
 	Resizable          bool
+	WindowsFrameStyle  WindowsFrameStyle
 	Alive              bool
 }
 
@@ -340,6 +390,7 @@ func (h WindowHandle) SetResizable(resizable bool) bool {
 	entry.updateAndEmit(func(state *WindowState) {
 		state.Resizable = resizable
 	})
+	entry.syncNativeMaximizeAvailability()
 	return true
 }
 
@@ -351,6 +402,48 @@ func (h WindowHandle) SetDecorated(decorated bool) bool {
 			state.Decorated = decorated
 		})
 	})
+}
+
+// SetWindowsFrameStyle applies Windows-only native frame adornments.
+func (h WindowHandle) SetWindowsFrameStyle(style WindowsFrameStyle) bool {
+	entry, ok := h.liveEntry()
+	if !ok {
+		return false
+	}
+	style = normalizeWindowsFrameStyle(style)
+	decorated := style.Mode != WindowsFrameHidden
+	entry.win.Option(gioApp.Decorated(decorated))
+	state := entry.snapshot()
+	if !setNativeWindowFrameStyle(entry.nativeHandleSnapshot(), style, state.Resizable, windowMaximizeAvailable(state)) {
+		return false
+	}
+	entry.updateAndEmit(func(state *WindowState) {
+		state.WindowsFrameStyle = style
+		state.Decorated = decorated
+	})
+	entry.syncNativeCloseHook()
+	entry.syncNativeMaximizeAvailability()
+	entry.syncNativeResizable()
+	entry.win.Invalidate()
+	return true
+}
+
+// StartDragMove starts a native window move operation from the current pointer press.
+func (h WindowHandle) StartDragMove() bool {
+	entry, ok := h.liveEntry()
+	if !ok {
+		return false
+	}
+	state := entry.snapshot()
+	if state.Fullscreen || state.Minimized {
+		return false
+	}
+	return startNativeWindowDragMove(entry.nativeHandleSnapshot())
+}
+
+// ProbeWindowsChrome returns Windows native chrome capability information.
+func ProbeWindowsChrome() WindowsChromeAvailability {
+	return probeNativeWindowsChrome()
 }
 
 // SetMinSize 更新窗口最小尺寸（单位为 dp）。
@@ -510,6 +603,7 @@ type Application struct {
 	HiddenMemoryPolicy WindowHiddenMemoryPolicy
 	Decorated          bool
 	Resizable          bool
+	WindowsFrameStyle  WindowsFrameStyle
 	CloseRequested     func(WindowCloseRequest) bool
 	Theme              *theme.Theme
 	Root               Builder
@@ -530,8 +624,13 @@ func New(root Builder, opts ...Option) *Application {
 		HiddenMemoryPolicy: WindowHiddenMemoryReleaseTransient,
 		Decorated:          true,
 		Resizable:          true,
-		Theme:              theme.Default(),
-		Root:               root,
+		WindowsFrameStyle: WindowsFrameStyle{
+			Mode:   WindowsFrameDefault,
+			Shadow: true,
+			Corner: WindowsCornerDefault,
+		},
+		Theme: theme.Default(),
+		Root:  root,
 	}
 	for _, opt := range opts {
 		opt(app)
@@ -591,6 +690,14 @@ func Decorated(enabled bool) Option {
 func Resizable(enabled bool) Option {
 	return func(app *Application) {
 		app.Resizable = enabled
+	}
+}
+
+// WindowsFrame configures Windows-only native frame adornments.
+func WindowsFrame(style WindowsFrameStyle) Option {
+	return func(app *Application) {
+		app.WindowsFrameStyle = normalizeWindowsFrameStyle(style)
+		app.Decorated = app.WindowsFrameStyle.Mode != WindowsFrameHidden
 	}
 }
 
@@ -735,6 +842,7 @@ func (a *Application) Run() error {
 			HiddenMemoryPolicy: normalizeWindowHiddenMemoryPolicy(a.HiddenMemoryPolicy),
 			Decorated:          a.Decorated,
 			Resizable:          a.Resizable,
+			WindowsFrameStyle:  normalizeWindowsFrameStyle(a.WindowsFrameStyle),
 			Alive:              true,
 		},
 		closeRequested: a.CloseRequested,
@@ -778,6 +886,7 @@ func (a *Application) Run() error {
 		case gioApp.FrameEvent:
 			entry.updateFromFrame(evt.Size, evt.Metric)
 			if entry.renderSuspendedSnapshot() {
+				entry.updateNativeActionRouter(nil)
 				ops.Reset()
 				entry.releaseHiddenMemoryIfRequested()
 				evt.Frame(&ops)
@@ -795,8 +904,14 @@ func (a *Application) Run() error {
 				}
 			}
 			rt.EndFrame()
+			if rt.WindowDragAreaActive() {
+				entry.updateNativeActionRouter(gtx.Ops)
+			} else {
+				entry.updateNativeActionRouter(nil)
+			}
 
 			if entry.renderSuspendedSnapshot() {
+				entry.updateNativeActionRouter(nil)
 				ops.Reset()
 				entry.releaseHiddenMemoryIfRequested()
 			}
@@ -961,6 +1076,15 @@ func (c *windowController) SetDecorated(decorated bool) bool {
 	return c.handle.SetDecorated(decorated)
 }
 
+func (c *windowController) SetWindowsFrameStyle(style any) bool {
+	typed, ok := style.(WindowsFrameStyle)
+	return ok && c.handle.SetWindowsFrameStyle(typed)
+}
+
+func (c *windowController) StartDragMove() bool {
+	return c.handle.StartDragMove()
+}
+
 func (c *windowController) SetMinSize(width, height int) bool {
 	return c.handle.SetMinSize(width, height)
 }
@@ -994,6 +1118,7 @@ type windowEntry struct {
 	nativeCloseHookHandle   uintptr
 	nativeCloseHooked       bool
 	nativeCloseOldProc      uintptr
+	nativeActionRouter      *gioInput.Router
 	state                   WindowState
 	closeRequested          func(WindowCloseRequest) bool
 	events                  []WindowEvent
@@ -1072,8 +1197,38 @@ func (entry *windowEntry) metricSnapshot() unit.Metric {
 	return metric
 }
 
+func (entry *windowEntry) updateNativeActionRouter(ops *op.Ops) {
+	if entry == nil {
+		return
+	}
+	var router *gioInput.Router
+	if ops != nil {
+		router = new(gioInput.Router)
+		router.Frame(ops)
+	}
+	entry.mu.Lock()
+	entry.nativeActionRouter = router
+	entry.mu.Unlock()
+	entry.syncNativeCloseHook()
+}
+
+func (entry *windowEntry) nativeActionMoveAt(x, y int) bool {
+	if entry == nil {
+		return false
+	}
+	entry.mu.RLock()
+	router := entry.nativeActionRouter
+	state := entry.state
+	entry.mu.RUnlock()
+	if router == nil || state.Fullscreen || state.Minimized {
+		return false
+	}
+	action, ok := router.ActionAt(f32.Pt(float32(x), float32(y)))
+	return ok && action == gioSystem.ActionMove
+}
+
 func (entry *windowEntry) maximizeDisabledByConstraints() bool {
-	return hasWindowMaxSize(entry.snapshot())
+	return !windowMaximizeAvailable(entry.snapshot())
 }
 
 func (entry *windowEntry) syncNativeMaximizeAvailability() {
@@ -1083,7 +1238,7 @@ func (entry *windowEntry) syncNativeMaximizeAvailability() {
 		entry.mu.Unlock()
 		return
 	}
-	enabled := !hasWindowMaxSize(entry.state)
+	enabled := windowMaximizeAvailable(entry.state)
 	if enabled && !entry.nativeMaximizeSynced {
 		entry.mu.Unlock()
 		return
@@ -1124,10 +1279,26 @@ func (entry *windowEntry) syncNativeResizable() {
 	setNativeWindowResizable(handle, enabled)
 }
 
+func (entry *windowEntry) syncNativeChrome() {
+	if entry == nil {
+		return
+	}
+	entry.mu.RLock()
+	handle := entry.nativeHandle
+	frame := normalizeWindowsFrameStyle(entry.state.WindowsFrameStyle)
+	resizable := entry.state.Resizable
+	maximizeEnabled := windowMaximizeAvailable(entry.state)
+	entry.mu.RUnlock()
+	if handle == 0 {
+		return
+	}
+	setNativeWindowFrameStyle(handle, frame, resizable, maximizeEnabled)
+}
+
 func (entry *windowEntry) syncNativeCloseHook() {
 	entry.mu.Lock()
 	handle := entry.nativeHandle
-	enabled := entry.closeRequested != nil
+	enabled := entry.closeRequested != nil || entry.state.WindowsFrameStyle.Mode == WindowsFrameHidden || entry.nativeActionRouter != nil
 	hooked := entry.nativeCloseHooked
 	if handle == 0 {
 		entry.mu.Unlock()
@@ -1376,6 +1547,7 @@ func windowEventKinds(before, after WindowState) []WindowEventKind {
 		before.Fullscreen != after.Fullscreen ||
 		before.Decorated != after.Decorated ||
 		before.Resizable != after.Resizable ||
+		before.WindowsFrameStyle != after.WindowsFrameStyle ||
 		before.Visible != after.Visible ||
 		before.AlwaysOnTop != after.AlwaysOnTop ||
 		before.RenderSuspended != after.RenderSuspended ||
@@ -1406,6 +1578,10 @@ func hasWindowMaxSize(state WindowState) bool {
 	return state.MaxWidth > 0 && state.MaxHeight > 0
 }
 
+func windowMaximizeAvailable(state WindowState) bool {
+	return state.Resizable && !hasWindowMaxSize(state)
+}
+
 func applyWindowRenderSuspendedState(state *WindowState) {
 	state.RenderSuspended = !state.Visible && state.HiddenMemoryPolicy == WindowHiddenMemoryReleaseTransient
 }
@@ -1417,6 +1593,46 @@ func validWindowHiddenMemoryPolicy(policy WindowHiddenMemoryPolicy) bool {
 	default:
 		return false
 	}
+}
+
+func validWindowsFrameMode(mode WindowsFrameMode) bool {
+	switch mode {
+	case WindowsFrameDefault, WindowsFrameHidden:
+		return true
+	default:
+		return false
+	}
+}
+
+func validWindowsCornerPreference(corner WindowsCornerPreference) bool {
+	switch corner {
+	case WindowsCornerDefault, WindowsCornerDoNotRound, WindowsCornerRound, WindowsCornerRoundSmall:
+		return true
+	default:
+		return false
+	}
+}
+
+func validWindowsFrameBorderPolicy(policy WindowsFrameBorderPolicy) bool {
+	switch policy {
+	case WindowsFrameBorderDefault, WindowsFrameBorderHidden, WindowsFrameBorderColor:
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeWindowsFrameStyle(style WindowsFrameStyle) WindowsFrameStyle {
+	if !validWindowsFrameMode(style.Mode) {
+		style.Mode = WindowsFrameDefault
+	}
+	if !validWindowsCornerPreference(style.Corner) {
+		style.Corner = WindowsCornerDefault
+	}
+	if !validWindowsFrameBorderPolicy(style.Border) {
+		style.Border = WindowsFrameBorderDefault
+	}
+	return style
 }
 
 func normalizeWindowHiddenMemoryPolicy(policy WindowHiddenMemoryPolicy) WindowHiddenMemoryPolicy {
