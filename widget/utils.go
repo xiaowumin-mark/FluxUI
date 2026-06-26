@@ -730,6 +730,55 @@ func layoutMD3OverlayTransition(ctx *internal.Context, progress float32, offsetD
 	return size
 }
 
+type md3PopupDirection uint8
+
+const (
+	md3PopupDown md3PopupDirection = iota
+	md3PopupUp
+)
+
+type md3PopupPlacement struct {
+	Direction        md3PopupDirection
+	GapPx            int
+	MaxHeightPx      int
+	TransitionOffset float32
+}
+
+func md3PopupVerticalPlacement(ctx *internal.Context, anchorHeightPx, preferredHeightPx, gapPx int) md3PopupPlacement {
+	if gapPx < 0 {
+		gapPx = 0
+	}
+	if preferredHeightPx <= 0 {
+		preferredHeightPx = 1
+	}
+
+	placement := md3PopupPlacement{
+		Direction:        md3PopupDown,
+		GapPx:            gapPx,
+		MaxHeightPx:      preferredHeightPx,
+		TransitionOffset: 4,
+	}
+	if ctx == nil || ctx.Gtx.Constraints.Max.Y <= 0 {
+		return placement
+	}
+
+	spaceBelow := ctx.Gtx.Constraints.Max.Y - anchorHeightPx - gapPx
+	if spaceBelow >= preferredHeightPx {
+		return placement
+	}
+
+	placement.Direction = md3PopupUp
+	placement.TransitionOffset = -4
+	return placement
+}
+
+func md3PopupOffsetY(anchorHeightPx, popupHeightPx int, placement md3PopupPlacement) int {
+	if placement.Direction == md3PopupUp {
+		return -placement.GapPx - popupHeightPx
+	}
+	return anchorHeightPx + placement.GapPx
+}
+
 func lerpNRGBA(from, to color.NRGBA, t float32) color.NRGBA {
 	t = clampFloat32(t, 0, 1)
 	return color.NRGBA{

@@ -493,13 +493,40 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	menuCfg := d.config.menu
+	pxPerDp := float32(ctx.Gtx.Metric.PxPerDp)
+	if pxPerDp <= 0 {
+		pxPerDp = 1
+	}
 	if menuCfg.width <= 0 {
-		pxPerDp := float32(ctx.Gtx.Metric.PxPerDp)
-		if pxPerDp <= 0 {
-			pxPerDp = 1
-		}
 		menuCfg.width = float32(triggerDims.X) / pxPerDp
 	}
+	popupW := ctx.Gtx.Dp(safeDp(menuCfg.width))
+	if popupW <= 0 {
+		popupW = triggerDims.X
+	}
+	if maxW := ctx.Gtx.Constraints.Max.X; maxW > 0 && popupW > maxW {
+		popupW = maxW
+		menuCfg.width = float32(popupW) / pxPerDp
+	}
+	if popupW <= 0 {
+		popupW = 1
+	}
+
+	estimatedHeight := float32(len(d.items))*densityHeight(ctx, 40, 36) + densityMetric(ctx, 12, 8)
+	preferredHeightPx := ctx.Gtx.Dp(safeDp(estimatedHeight))
+	if preferredHeightPx <= 0 {
+		preferredHeightPx = 1
+	}
+	if menuCfg.maxHeight > 0 {
+		maxHeightPx := ctx.Gtx.Dp(safeDp(menuCfg.maxHeight))
+		if maxHeightPx > 0 && preferredHeightPx > maxHeightPx {
+			preferredHeightPx = maxHeightPx
+		}
+	}
+	gapPx := ctx.Gtx.Dp(safeDp(6))
+	placement := md3PopupVerticalPlacement(ctx, triggerDims.Y, preferredHeightPx, gapPx)
+	menuCfg.maxHeight = float32(placement.MaxHeightPx) / pxPerDp
+
 	originalSelect := menuCfg.onSelect
 	menuCfg.onSelect = func(selectCtx *internal.Context, key string) {
 		if originalSelect != nil {
@@ -510,18 +537,22 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 	menu := (&menuWidget{items: d.items, config: menuCfg})
-	popupYOffset := triggerDims.Y + ctx.Gtx.Dp(unit.Dp(6))
+
 	popupMacro := op.Record(ctx.Gtx.Ops)
-	offset := op.Offset(image.Point{Y: popupYOffset}).Push(ctx.Gtx.Ops)
 	popupCtx := *ctx
 	popupCtx.Gtx = ctx.Gtx
 	popupCtx.Gtx.Constraints.Min = image.Point{}
-	_ = layoutMD3OverlayTransition(popupCtx.Child(1), popupProgress, 4, func(transitionCtx *internal.Context) image.Point {
+	popupCtx.Gtx.Constraints.Max = image.Point{X: popupW, Y: placement.MaxHeightPx}
+	popupSize := layoutMD3OverlayTransition(popupCtx.Child(1), popupProgress, placement.TransitionOffset, func(transitionCtx *internal.Context) image.Point {
 		return menu.Layout(transitionCtx.Child(0)).Size
 	})
-	offset.Pop()
 	popupCall := popupMacro.Stop()
-	op.Defer(ctx.Gtx.Ops, popupCall)
+	deferMacro := op.Record(ctx.Gtx.Ops)
+	offset := op.Offset(image.Point{Y: md3PopupOffsetY(triggerDims.Y, popupSize.Y, placement)}).Push(ctx.Gtx.Ops)
+	popupCall.Add(ctx.Gtx.Ops)
+	offset.Pop()
+	deferCall := deferMacro.Stop()
+	op.Defer(ctx.Gtx.Ops, deferCall)
 	return layout.Dimensions{Size: triggerDims}
 }
 

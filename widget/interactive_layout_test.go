@@ -154,3 +154,83 @@ func TestMD3SelectionNavigationAndOverlayDefaultsLayout(t *testing.T) {
 		}
 	}
 }
+
+func TestMD3PopupPlacementFlipsWhenBelowSpaceIsInsufficient(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	rt.BeginFrame()
+	ctx := newInteractiveLayoutTestContext(rt)
+	ctx.Gtx.Constraints = gioLayout.Constraints{Max: image.Pt(200, 90)}
+
+	placement := md3PopupVerticalPlacement(ctx, 48, 80, 6)
+	rt.EndFrame()
+
+	if placement.Direction != md3PopupUp {
+		t.Fatalf("popup direction = %v, want up", placement.Direction)
+	}
+	if placement.TransitionOffset >= 0 {
+		t.Fatalf("popup transition offset = %v, want negative for upward popup", placement.TransitionOffset)
+	}
+	if got, want := md3PopupOffsetY(48, 80, placement), -86; got != want {
+		t.Fatalf("popup y offset = %d, want %d", got, want)
+	}
+}
+
+func TestMD3PopupPlacementStaysDownWhenBelowSpaceFits(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	rt.BeginFrame()
+	ctx := newInteractiveLayoutTestContext(rt)
+	ctx.Gtx.Constraints = gioLayout.Constraints{Max: image.Pt(200, 200)}
+
+	placement := md3PopupVerticalPlacement(ctx, 48, 80, 6)
+	rt.EndFrame()
+
+	if placement.Direction != md3PopupDown {
+		t.Fatalf("popup direction = %v, want down", placement.Direction)
+	}
+	if placement.TransitionOffset <= 0 {
+		t.Fatalf("popup transition offset = %v, want positive for downward popup", placement.TransitionOffset)
+	}
+	if got, want := md3PopupOffsetY(48, 80, placement), 54; got != want {
+		t.Fatalf("popup y offset = %d, want %d", got, want)
+	}
+}
+
+func TestDropdownAndSelectPopupLayoutWithConstrainedSpace(t *testing.T) {
+	items := []MenuItem{
+		{Key: "one", Label: "One"},
+		{Key: "two", Label: "Two"},
+		{Key: "three", Label: "Three"},
+		{Key: "four", Label: "Four"},
+	}
+
+	rt := internal.NewRuntime(nil)
+	ctx := newInteractiveLayoutTestContext(rt)
+	ctx.Gtx.Constraints = gioLayout.Constraints{Max: image.Pt(180, 90)}
+
+	rt.BeginFrame()
+	dropdownDims := DropdownMenu(true, Text("Menu"), items, DropdownMenuMaxHeight(180)).Layout(ctx)
+	rt.EndFrame()
+	if dropdownDims.Size.X <= 0 || dropdownDims.Size.Y <= 0 {
+		t.Fatalf("dropdown constrained layout returned empty size %v", dropdownDims.Size)
+	}
+
+	selectRef := NewSelectRef[string]()
+	selectRef.Open()
+	options := []SelectOptionItem[string]{
+		{Label: "One", Value: "one"},
+		{Label: "Two", Value: "two"},
+		{Label: "Three", Value: "three"},
+		{Label: "Four", Value: "four"},
+	}
+
+	rt = internal.NewRuntime(nil)
+	ctx = newInteractiveLayoutTestContext(rt)
+	ctx.Gtx.Constraints = gioLayout.Constraints{Max: image.Pt(180, 90)}
+
+	rt.BeginFrame()
+	selectDims := Select("one", options, SelectAttachRef(selectRef), SelectMaxHeight[string](180)).Layout(ctx)
+	rt.EndFrame()
+	if selectDims.Size.X <= 0 || selectDims.Size.Y <= 0 {
+		t.Fatalf("select constrained layout returned empty size %v", selectDims.Size)
+	}
+}

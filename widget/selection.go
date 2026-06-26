@@ -563,34 +563,44 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 		maxHPx = 1
 	}
 
-	popupYOffset := toggleDims.Size.Y + ctx.Gtx.Dp(safeDp(6))
-	availableY := ctx.Gtx.Constraints.Max.Y - popupYOffset
-	if availableY <= 0 {
-		availableY = maxHPx
+	rowHeightPx := ctx.Gtx.Dp(safeDp(densityHeight(ctx, 40, 36)))
+	rowSpacingPx := ctx.Gtx.Dp(safeDp(4))
+	panelPad := s.config.decoration.ResolvePad(style.All(6))
+	estimatedHeightPx := ctx.Gtx.Dp(safeDp(panelPad.Top+panelPad.Bottom)) + rowHeightPx*len(items)
+	if len(items) > 1 {
+		estimatedHeightPx += rowSpacingPx * (len(items) - 1)
 	}
-	if availableY > maxHPx {
-		availableY = maxHPx
+	if estimatedHeightPx <= 0 || estimatedHeightPx > maxHPx {
+		estimatedHeightPx = maxHPx
 	}
+	gapPx := ctx.Gtx.Dp(safeDp(6))
+	placement := md3PopupVerticalPlacement(ctx, toggleDims.Size.Y, estimatedHeightPx, gapPx)
 	popupW := toggleDims.Size.X
 	if popupW <= 0 {
 		popupW = ctx.Gtx.Constraints.Max.X
+	}
+	if maxW := ctx.Gtx.Constraints.Max.X; maxW > 0 && popupW > maxW {
+		popupW = maxW
 	}
 	if popupW <= 0 {
 		popupW = 1
 	}
 
 	popupMacro := op.Record(ctx.Gtx.Ops)
-	offset := op.Offset(image.Point{Y: popupYOffset}).Push(ctx.Gtx.Ops)
 	popupCtx := *ctx
 	popupCtx.Gtx = ctx.Gtx
 	popupCtx.Gtx.Constraints.Min = image.Point{}
-	popupCtx.Gtx.Constraints.Max = image.Point{X: popupW, Y: availableY}
-	_ = layoutMD3OverlayTransition(popupCtx.Child(1), popupProgress, 4, func(transitionCtx *internal.Context) image.Point {
+	popupCtx.Gtx.Constraints.Max = image.Point{X: popupW, Y: placement.MaxHeightPx}
+	popupSize := layoutMD3OverlayTransition(popupCtx.Child(1), popupProgress, placement.TransitionOffset, func(transitionCtx *internal.Context) image.Point {
 		return panel.Layout(transitionCtx.Child(0)).Size
 	})
-	offset.Pop()
 	popupCall := popupMacro.Stop()
-	op.Defer(ctx.Gtx.Ops, popupCall)
+	deferMacro := op.Record(ctx.Gtx.Ops)
+	offset := op.Offset(image.Point{Y: md3PopupOffsetY(toggleDims.Size.Y, popupSize.Y, placement)}).Push(ctx.Gtx.Ops)
+	popupCall.Add(ctx.Gtx.Ops)
+	offset.Pop()
+	deferCall := deferMacro.Stop()
+	op.Defer(ctx.Gtx.Ops, deferCall)
 
 	return toggleDims
 }
