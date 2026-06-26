@@ -28,6 +28,9 @@ type Context struct {
 	instance      *ComponentInstance
 	providers     map[ProviderKey]any
 	themeOverride *theme.Theme
+	viewport      image.Rectangle
+	position      image.Point
+	hasViewport   bool
 }
 
 // NewContext 创建 frame 级上下文。
@@ -36,11 +39,15 @@ func NewContext(gtx gioLayout.Context, runtime *Runtime) *Context {
 	if runtime != nil && runtime.Theme() != nil {
 		foreground = runtime.Theme().TextColor
 	}
+	viewport := image.Rectangle{Max: gtx.Constraints.Max}
+	hasViewport := viewport.Dx() > 0 && viewport.Dy() > 0
 	return &Context{
-		Gtx:        gtx,
-		runtime:    runtime,
-		path:       "root",
-		foreground: foreground,
+		Gtx:         gtx,
+		runtime:     runtime,
+		path:        "root",
+		foreground:  foreground,
+		viewport:    viewport,
+		hasViewport: hasViewport,
 	}
 }
 
@@ -135,6 +142,45 @@ func (c *Context) MaxConstraints() image.Point {
 		return image.Point{}
 	}
 	return c.Gtx.Constraints.Max
+}
+
+// Position returns the current layout scope's top-left position in window
+// coordinates when known. It is best-effort for layout primitives that do not
+// expose child placement during measurement.
+func (c *Context) Position() image.Point {
+	if c == nil {
+		return image.Point{}
+	}
+	return c.position
+}
+
+// Viewport returns the visible window viewport used for overlay placement.
+func (c *Context) Viewport() (image.Rectangle, bool) {
+	if c == nil || !c.hasViewport {
+		return image.Rectangle{}, false
+	}
+	return c.viewport, true
+}
+
+// WithPositionOffset returns a context shifted by offset in window coordinates.
+func (c *Context) WithPositionOffset(offset image.Point) *Context {
+	if c == nil {
+		return nil
+	}
+	next := c.sameScope(c.Gtx)
+	next.position = next.position.Add(offset)
+	return next
+}
+
+// WithViewport returns a context constrained to a visible viewport.
+func (c *Context) WithViewport(viewport image.Rectangle) *Context {
+	if c == nil {
+		return nil
+	}
+	next := c.sameScope(c.Gtx)
+	next.viewport = viewport
+	next.hasViewport = viewport.Dx() > 0 && viewport.Dy() > 0
+	return next
 }
 
 // RequestRedraw 请求窗口重绘。

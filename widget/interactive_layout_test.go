@@ -160,6 +160,8 @@ func TestMD3PopupPlacementFlipsWhenBelowSpaceIsInsufficient(t *testing.T) {
 	rt.BeginFrame()
 	ctx := newInteractiveLayoutTestContext(rt)
 	ctx.Gtx.Constraints = gioLayout.Constraints{Max: image.Pt(200, 90)}
+	ctx = ctx.WithViewport(image.Rect(0, 0, 200, 90))
+	ctx = ctx.WithPositionOffset(image.Pt(0, 60))
 
 	placement := md3PopupVerticalPlacement(ctx, 48, 80, 6)
 	rt.EndFrame()
@@ -180,6 +182,7 @@ func TestMD3PopupPlacementStaysDownWhenBelowSpaceFits(t *testing.T) {
 	rt.BeginFrame()
 	ctx := newInteractiveLayoutTestContext(rt)
 	ctx.Gtx.Constraints = gioLayout.Constraints{Max: image.Pt(200, 200)}
+	ctx = ctx.WithViewport(image.Rect(0, 0, 200, 200))
 
 	placement := md3PopupVerticalPlacement(ctx, 48, 80, 6)
 	rt.EndFrame()
@@ -232,5 +235,60 @@ func TestDropdownAndSelectPopupLayoutWithConstrainedSpace(t *testing.T) {
 	rt.EndFrame()
 	if selectDims.Size.X <= 0 || selectDims.Size.Y <= 0 {
 		t.Fatalf("select constrained layout returned empty size %v", selectDims.Size)
+	}
+}
+
+func TestDropdownAndSelectPopupLayoutInsideScrollView(t *testing.T) {
+	items := []MenuItem{
+		{Key: "one", Label: "One"},
+		{Key: "two", Label: "Two"},
+		{Key: "three", Label: "Three"},
+		{Key: "four", Label: "Four"},
+	}
+
+	scrollRef := NewScrollRef()
+	scrollRef.ScrollToOffset(120)
+	rt := internal.NewRuntime(nil)
+	ctx := newInteractiveLayoutTestContext(rt)
+	ctx.Gtx.Constraints = gioLayout.Constraints{Max: image.Pt(220, 120)}
+	rt.BeginFrame()
+	dims := ScrollView(
+		Column(
+			Spacer(1, 180),
+			DropdownMenu(true, Text("Menu"), items, DropdownMenuMaxHeight(180)),
+			Spacer(1, 180),
+		),
+		ScrollAttachRef(scrollRef),
+	).Layout(ctx)
+	rt.EndFrame()
+	if dims.Size.X <= 0 || dims.Size.Y <= 0 {
+		t.Fatalf("scroll dropdown layout returned empty size %v", dims.Size)
+	}
+
+	selectRef := NewSelectRef[string]()
+	selectRef.Open()
+	options := []SelectOptionItem[string]{
+		{Label: "One", Value: "one"},
+		{Label: "Two", Value: "two"},
+		{Label: "Three", Value: "three"},
+		{Label: "Four", Value: "four"},
+	}
+	scrollRef = NewScrollRef()
+	scrollRef.ScrollToOffset(120)
+	rt = internal.NewRuntime(nil)
+	ctx = newInteractiveLayoutTestContext(rt)
+	ctx.Gtx.Constraints = gioLayout.Constraints{Max: image.Pt(220, 120)}
+	rt.BeginFrame()
+	dims = ScrollView(
+		Column(
+			Spacer(1, 180),
+			Select("one", options, SelectAttachRef(selectRef), SelectMaxHeight[string](180)),
+			Spacer(1, 180),
+		),
+		ScrollAttachRef(scrollRef),
+	).Layout(ctx)
+	rt.EndFrame()
+	if dims.Size.X <= 0 || dims.Size.Y <= 0 {
+		t.Fatalf("scroll select layout returned empty size %v", dims.Size)
 	}
 }

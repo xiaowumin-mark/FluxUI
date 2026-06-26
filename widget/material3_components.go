@@ -524,7 +524,7 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 	gapPx := ctx.Gtx.Dp(safeDp(6))
-	placement := md3PopupVerticalPlacement(ctx, triggerDims.Y, preferredHeightPx, gapPx)
+	placement := md3PopupPlacementForAnchor(ctx, triggerDims, image.Point{X: popupW}, preferredHeightPx, gapPx)
 	menuCfg.maxHeight = float32(placement.MaxHeightPx) / pxPerDp
 
 	originalSelect := menuCfg.onSelect
@@ -548,7 +548,10 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	})
 	popupCall := popupMacro.Stop()
 	deferMacro := op.Record(ctx.Gtx.Ops)
-	offset := op.Offset(image.Point{Y: md3PopupOffsetY(triggerDims.Y, popupSize.Y, placement)}).Push(ctx.Gtx.Ops)
+	offset := op.Offset(image.Point{
+		X: placement.OffsetX,
+		Y: md3PopupOffsetY(triggerDims.Y, popupSize.Y, placement),
+	}).Push(ctx.Gtx.Ops)
 	popupCall.Add(ctx.Gtx.Ops)
 	offset.Pop()
 	deferCall := deferMacro.Stop()

@@ -741,10 +741,11 @@ type md3PopupPlacement struct {
 	Direction        md3PopupDirection
 	GapPx            int
 	MaxHeightPx      int
+	OffsetX          int
 	TransitionOffset float32
 }
 
-func md3PopupVerticalPlacement(ctx *internal.Context, anchorHeightPx, preferredHeightPx, gapPx int) md3PopupPlacement {
+func md3PopupPlacementForAnchor(ctx *internal.Context, anchorSize, popupSize image.Point, preferredHeightPx, gapPx int) md3PopupPlacement {
 	if gapPx < 0 {
 		gapPx = 0
 	}
@@ -762,14 +763,48 @@ func md3PopupVerticalPlacement(ctx *internal.Context, anchorHeightPx, preferredH
 		return placement
 	}
 
-	spaceBelow := ctx.Gtx.Constraints.Max.Y - anchorHeightPx - gapPx
-	if spaceBelow >= preferredHeightPx {
-		return placement
+	anchorPos := ctx.Position()
+	viewport, ok := ctx.Viewport()
+	if !ok {
+		viewport = image.Rectangle{Max: ctx.Gtx.Constraints.Max}
 	}
 
-	placement.Direction = md3PopupUp
-	placement.TransitionOffset = -4
+	spaceBelow := viewport.Max.Y - (anchorPos.Y + anchorSize.Y) - gapPx
+	spaceAbove := anchorPos.Y - viewport.Min.Y - gapPx
+	if spaceBelow >= preferredHeightPx || spaceBelow >= spaceAbove {
+		placement.MaxHeightPx = clampPositiveInt(preferredHeightPx, spaceBelow)
+	} else {
+		placement.Direction = md3PopupUp
+		placement.TransitionOffset = -4
+		placement.MaxHeightPx = clampPositiveInt(preferredHeightPx, spaceAbove)
+	}
+
+	popupWidth := popupSize.X
+	if popupWidth <= 0 {
+		popupWidth = anchorSize.X
+	}
+	overflowRight := anchorPos.X + popupWidth - viewport.Max.X
+	if overflowRight > 0 {
+		placement.OffsetX = -overflowRight
+	}
+	if anchorPos.X+placement.OffsetX < viewport.Min.X {
+		placement.OffsetX = viewport.Min.X - anchorPos.X
+	}
 	return placement
+}
+
+func md3PopupVerticalPlacement(ctx *internal.Context, anchorHeightPx, preferredHeightPx, gapPx int) md3PopupPlacement {
+	return md3PopupPlacementForAnchor(ctx, image.Point{Y: anchorHeightPx}, image.Point{}, preferredHeightPx, gapPx)
+}
+
+func clampPositiveInt(value, max int) int {
+	if max <= 0 {
+		return 1
+	}
+	if value <= 0 || value > max {
+		return max
+	}
+	return value
 }
 
 func md3PopupOffsetY(anchorHeightPx, popupHeightPx int, placement md3PopupPlacement) int {

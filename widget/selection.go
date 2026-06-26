@@ -574,7 +574,6 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 		estimatedHeightPx = maxHPx
 	}
 	gapPx := ctx.Gtx.Dp(safeDp(6))
-	placement := md3PopupVerticalPlacement(ctx, toggleDims.Size.Y, estimatedHeightPx, gapPx)
 	popupW := toggleDims.Size.X
 	if popupW <= 0 {
 		popupW = ctx.Gtx.Constraints.Max.X
@@ -585,6 +584,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	if popupW <= 0 {
 		popupW = 1
 	}
+	placement := md3PopupPlacementForAnchor(ctx, toggleDims.Size, image.Point{X: popupW}, estimatedHeightPx, gapPx)
 
 	popupMacro := op.Record(ctx.Gtx.Ops)
 	popupCtx := *ctx
@@ -596,7 +596,10 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	})
 	popupCall := popupMacro.Stop()
 	deferMacro := op.Record(ctx.Gtx.Ops)
-	offset := op.Offset(image.Point{Y: md3PopupOffsetY(toggleDims.Size.Y, popupSize.Y, placement)}).Push(ctx.Gtx.Ops)
+	offset := op.Offset(image.Point{
+		X: placement.OffsetX,
+		Y: md3PopupOffsetY(toggleDims.Size.Y, popupSize.Y, placement),
+	}).Push(ctx.Gtx.Ops)
 	popupCall.Add(ctx.Gtx.Ops)
 	offset.Pop()
 	deferCall := deferMacro.Stop()

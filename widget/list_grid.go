@@ -156,6 +156,15 @@ func (s *scrollWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	dims := state.list.Layout(ctx.Gtx, 1, func(gtx gioLayout.Context, index int) gioLayout.Dimensions {
 		next := *ctx
 		next.Gtx = gtx
+		viewport := image.Rectangle{Min: ctx.Position(), Max: ctx.Position().Add(ctx.Gtx.Constraints.Max)}
+		next = *next.WithViewport(viewport)
+		scrollOffset := image.Point{}
+		if state.list.Axis == gioLayout.Horizontal {
+			scrollOffset.X = -state.list.Position.Offset
+		} else {
+			scrollOffset.Y = -state.list.Position.Offset
+		}
+		next = *next.WithPositionOffset(scrollOffset)
 		childDims := s.child.Layout(next.Child(index))
 		return gioLayout.Dimensions{Size: childDims.Size}
 	})

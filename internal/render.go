@@ -215,7 +215,11 @@ func (c *Context) LayoutInset(insets Insets, child func(*Context) image.Point) i
 		Bottom: unit.Dp(insets.Bottom),
 		Left:   unit.Dp(insets.Left),
 	}.Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
-		next := c.sameScope(gtx)
+		offset := image.Point{
+			X: gtx.Dp(unit.Dp(insets.Left)),
+			Y: gtx.Dp(unit.Dp(insets.Top)),
+		}
+		next := c.sameScope(gtx).WithPositionOffset(offset)
 		return gioLayout.Dimensions{Size: child(next)}
 	})
 	return dims.Size
@@ -1067,11 +1071,19 @@ func DrawCheckMark(gtx gioLayout.Context, size int, col color.NRGBA) {
 // LayoutFlex 执行 Flex 布局。
 func (c *Context) LayoutFlex(axis Axis, children ...FlexChild) image.Point {
 	flexChildren := make([]gioLayout.FlexChild, 0, len(children))
+	rigidOffset := 0
 	for index, child := range children {
 		idx := index
 		layoutChild := func(gtx gioLayout.Context) gioLayout.Dimensions {
 			next := c.childWithGtx(gtx, "flex-"+strconv.Itoa(idx))
-			return gioLayout.Dimensions{Size: child.Layout(next)}
+			if !child.Flexed {
+				next = next.WithPositionOffset(axisMainOffset(axis, rigidOffset))
+			}
+			size := child.Layout(next)
+			if !child.Flexed {
+				rigidOffset += axisMainSize(axis, size)
+			}
+			return gioLayout.Dimensions{Size: size}
 		}
 		if child.Flexed {
 			flexChildren = append(flexChildren, gioLayout.Flexed(child.Weight, layoutChild))
@@ -1155,6 +1167,20 @@ func clampRoundedRadiusPx(size image.Point, rr int) int {
 		return limit
 	}
 	return rr
+}
+
+func axisMainOffset(axis Axis, main int) image.Point {
+	if axis == Vertical {
+		return image.Point{Y: main}
+	}
+	return image.Point{X: main}
+}
+
+func axisMainSize(axis Axis, size image.Point) int {
+	if axis == Vertical {
+		return size.Y
+	}
+	return size.X
 }
 
 // MixNRGBA blends fg over bg by amount in [0, 1].
