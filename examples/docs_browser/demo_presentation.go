@@ -92,6 +92,7 @@ func isDocsDemoKnown(exampleID string) bool {
 		"slider_basic",
 		"image_basic",
 		"icon_basic",
+		"icon_fonts",
 		"card_basic",
 		"radio_group_basic",
 		"select_basic",

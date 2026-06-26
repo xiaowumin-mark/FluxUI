@@ -119,6 +119,7 @@ go run ./examples/theme_custom
 go run ./examples/hooks_lifecycle
 go run ./examples/multi_window
 go run ./examples/vscode_layout
+go run ./examples/icon_fonts
 go run ./examples/docs_browser
 go run ./examples/network_request
 go run ./examples/router

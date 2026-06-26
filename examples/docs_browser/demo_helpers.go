@@ -18,6 +18,7 @@ func shouldCenterDemo(exampleID string) bool {
 		"menu_basic",
 		"image_basic",
 		"icon_basic",
+		"icon_fonts",
 		"icon_button_basic",
 		"floating_action_button_basic",
 		"card_basic",

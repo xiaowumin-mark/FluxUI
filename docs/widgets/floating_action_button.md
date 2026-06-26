@@ -30,16 +30,16 @@ FAB 使用 `PrimaryContainer` / `OnPrimaryContainer`、level 3 elevation 和 MD3
 
 ```go
 ui.RowElement(
-    ui.SmallFloatingActionButtonElement(ui.IconElement("+")),
-    ui.FloatingActionButtonElement(ui.IconElement("+")),
-    ui.LargeFloatingActionButtonElement(ui.IconElement("+")),
-    ui.ExtendedFloatingActionButtonElement(ui.IconElement("+"), ui.TextElement("Create")),
+    ui.SmallFloatingActionButtonElement(ui.IconElement("add")),
+    ui.FloatingActionButtonElement(ui.IconElement("add")),
+    ui.LargeFloatingActionButtonElement(ui.IconElement("add")),
+    ui.ExtendedFloatingActionButtonElement(ui.IconElement("add"), ui.TextElement("Create")),
 )
 ```
 
 ```go
 ui.LargeFloatingActionButtonElement(
-    ui.IconElement("+"),
+    ui.IconElement("add"),
     ui.FloatingActionButtonBackground(ui.NRGBA(37, 99, 235, 255)),
     ui.FloatingActionButtonForeground(ui.NRGBA(255, 255, 255, 255)),
     ui.FloatingActionButtonDecoration(ui.Bg(ui.NRGBA(37, 99, 235, 255)).WithRad(28)),

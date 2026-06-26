@@ -1248,6 +1248,14 @@ func IconColor(col color.NRGBA) IconOption {
 	return widget.IconColor(col)
 }
 
+func IconUseFont(id string) IconOption {
+	return widget.IconUseFont(id)
+}
+
+func IconFontFamily(family string) IconOption {
+	return widget.IconFontFamily(family)
+}
+
 func IconOnClick(fn func(ctx *Context)) IconOption {
 	return widget.IconOnClick(fn)
 }

@@ -6,6 +6,7 @@
 - `docs/material3-roadmap.md`: Material Design 3 长期路线图，记录当前融合进展、组件覆盖矩阵、交互反馈计划和长期验收标准。
 - `docs/system-api-roadmap.md`: System API 长期路线图，规划窗口、文件选择、系统弹窗、系统通知、托盘与多平台占位策略。
 - `docs/guides/material3.md`: 文档浏览器中的 Material Design 3 默认样式指南。
+- `docs/guides/icon-fonts.md`: 内置 MD3 图标字体与自定义图标字体指南。
 - `docs/guides/system-api.md`: 文档浏览器中的 System API 系统能力指南。
 - `docs/guides/window-api.md`: 文档浏览器中的 Window API 窗口能力指南。
 - `docs/guides/file-dialog-api.md`: 文档浏览器中的 File Dialog API 文件选择指南。

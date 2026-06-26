@@ -1698,7 +1698,7 @@ func (s *searchBarWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	leading := s.config.leading
 	if leading == nil {
-		leading = Icon("S", IconSize(18))
+		leading = Icon("search", IconSize(18))
 	}
 
 	inputOpts := append([]InputOption{}, s.config.inputOpts...)

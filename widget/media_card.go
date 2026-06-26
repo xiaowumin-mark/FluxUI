@@ -361,11 +361,13 @@ func toGioImageFit(fit ImageFit) gioWidget.Fit {
 type IconOption func(*iconConfig)
 
 type iconConfig struct {
-	size     float32
-	color    color.NRGBA
-	hasColor bool
-	onClick  func(ctx *internal.Context)
-	ref      *ButtonRef
+	size           float32
+	color          color.NRGBA
+	hasColor       bool
+	iconFontID     string
+	iconFontFamily string
+	onClick        func(ctx *internal.Context)
+	ref            *ButtonRef
 }
 
 type iconWidget struct {
@@ -402,6 +404,20 @@ func IconColor(col color.NRGBA) IconOption {
 	}
 }
 
+// IconUseFont 通过已注册的图标字体 ID 渲染图标。
+func IconUseFont(id string) IconOption {
+	return func(cfg *iconConfig) {
+		cfg.iconFontID = strings.TrimSpace(id)
+	}
+}
+
+// IconFontFamily 直接指定图标字体族名。
+func IconFontFamily(family string) IconOption {
+	return func(cfg *iconConfig) {
+		cfg.iconFontFamily = strings.TrimSpace(family)
+	}
+}
+
 // IconOnClick 设置点击回调。
 func IconOnClick(fn func(ctx *internal.Context)) IconOption {
 	return func(cfg *iconConfig) {
@@ -427,7 +443,13 @@ func (i *iconWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		name = "icon"
 	}
 
-	label := Text(name, TextSize(i.config.size), TextColor(col))
+	textOpts := []TextOption{TextSize(i.config.size), TextColor(col)}
+	if font, ok := i.resolveIconFont(ctx); ok {
+		name = iconLigatureName(name)
+		textOpts = append(textOpts, TextFont(theme.FontFamily(font.Family)))
+	}
+
+	label := Text(name, textOpts...)
 	root := Widget(label)
 	if i.config.onClick != nil || i.config.ref != nil {
 		opts := []ButtonOption{
@@ -447,6 +469,56 @@ func (i *iconWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		)
 	}
 	return root.Layout(ctx.Child(0))
+}
+
+func (i *iconWidget) resolveIconFont(ctx *internal.Context) (theme.IconFont, bool) {
+	if family := strings.TrimSpace(i.config.iconFontFamily); family != "" {
+		return theme.IconFont{ID: family, Family: family}, true
+	}
+	th := ctx.Theme()
+	if id := strings.TrimSpace(i.config.iconFontID); id != "" {
+		return th.ResolveIconFont(id)
+	}
+	return th.DefaultIconFont()
+}
+
+func iconLigatureName(name string) string {
+	switch strings.TrimSpace(name) {
+	case "+":
+		return "add"
+	case "x", "X":
+		return "close"
+	case "<":
+		return "arrow_back"
+	case ">":
+		return "arrow_forward"
+	case "H":
+		return "home"
+	case "S":
+		return "search"
+	case "G":
+		return "settings"
+	case "F":
+		return "favorite"
+	case "O":
+		return "radio_button_unchecked"
+	case "D":
+		return "delete"
+	case "I", "i":
+		return "info"
+	case "A":
+		return "archive"
+	case "M":
+		return "mail"
+	case "N":
+		return "notifications"
+	case "T":
+		return "tune"
+	case "L":
+		return "list"
+	default:
+		return name
+	}
 }
 
 // CardOption 定义卡片配置。

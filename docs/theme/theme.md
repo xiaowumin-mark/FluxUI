@@ -18,6 +18,8 @@
     "UseFont(ctx *Context) FontSpec",
     "WithDefaultFont(spec FontSpec) AppOption",
     "WithFonts(faces ...FontFace) AppOption",
+    "WithIconFonts(fonts ...IconFont) AppOption",
+    "WithDefaultIconFont(id string) AppOption",
     "WithSystemFonts(enabled bool) AppOption",
     "WithDensity(density DensityScale) AppOption",
     "DefaultDensityScale() DensityScale",
@@ -27,8 +29,14 @@
     "FontFamily(family string) FontSpec",
     "ListFontFamilies(faces []FontFace) []string",
     "ParseFontFile(path string) ([]FontFace, error)",
+    "ParseFontBytes(name string, data []byte) ([]FontFace, error)",
     "LoadFontsFromPaths(paths ...string) ([]FontFace, error)",
     "LoadFontsFromDir(dir string) ([]FontFace, error)",
+    "LoadIconFontFromPath(id string, path string, opts ...IconFontOption) (IconFont, error)",
+    "LoadIconFontFromBytes(id string, name string, data []byte, opts ...IconFontOption) (IconFont, error)",
+    "RegisterIconFont(font IconFont)",
+    "RegisteredIconFonts() []IconFont",
+    "DefaultIconFont() (IconFont, bool)",
     "DiscoverSystemFonts() ([]FontFace, error)",
     "DiscoverSystemFontFamilies() ([]string, error)",
     "SystemFontDirs() []string",
@@ -58,6 +66,7 @@ type Theme struct {
     DefaultFont    FontSpec
     UseSystemFonts bool
     Fonts          []FontFace
+    IconFonts      []IconFont
 }
 ```
 
@@ -130,6 +139,8 @@ ui.WithFontElement(
 ```
 
 字体发现辅助函数包括 `DefaultFontSpec`、`ParseFontFile`、`LoadFontsFromPaths`、`DiscoverSystemFonts`、`DiscoverSystemFontFamilies`、`SystemFontDirs` 和 `ListFontFamilies`。
+
+图标字体通过 `IconFonts` 单独管理。导入 `github.com/xiaowumin-mark/FluxUI/icons/md3` 会自动注册内置 Material Symbols Outlined；应用也可以通过 `LoadIconFontFromPath` / `WithIconFonts` 追加自定义图标字体。详见 `docs/guides/icon-fonts.md`。
 
 ## 使用建议
 - 组件样式优先读取 `ctx.Theme()`，避免硬编码黑白色。

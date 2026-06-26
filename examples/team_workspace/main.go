@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/xiaowumin-mark/FluxUI/icons/md3"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
@@ -873,9 +874,9 @@ func App(ctx *ui.Context) ui.Element {
 	bottomNav := ui.BottomNavigationElement(
 		page.Value(),
 		[]ui.ElementNavItem{
-			{Key: pageWorkspace, Label: "工作台", Icon: ui.TextElement("W", ui.TextSize(12))},
-			{Key: pageDelivery, Label: "交付", Icon: ui.TextElement("D", ui.TextSize(12))},
-			{Key: pageSettings, Label: "设置", Icon: ui.TextElement("S", ui.TextSize(12))},
+			{Key: pageWorkspace, Label: "工作台", Icon: ui.IconElement("dashboard", ui.IconSize(18))},
+			{Key: pageDelivery, Label: "交付", Icon: ui.IconElement("local_shipping", ui.IconSize(18))},
+			{Key: pageSettings, Label: "设置", Icon: ui.IconElement("settings", ui.IconSize(18))},
 		},
 		ui.BottomNavAlignmentOf(ui.BottomNavAlignSpaceEvenly),
 		ui.BottomNavOnChange(func(ctx *ui.Context, key string) {

@@ -26,9 +26,9 @@ func docsAppBarDemo(actionCount docsIntState) ui.Element {
 		ui.VSpacerElement(8),
 		ui.AppBarElement(
 			ui.TextElement("Configured AppBar", ui.TextSize(13)),
-			ui.AppBarLeading(ui.Icon("<", ui.IconSize(16))),
+			ui.AppBarLeading(ui.Icon("arrow_back", ui.IconSize(16))),
 			ui.AppBarActions(
-				ui.IconButton(ui.Icon("S"), ui.IconButtonOnClick(func(ctx *ui.Context) {
+				ui.IconButton(ui.Icon("search"), ui.IconButtonOnClick(func(ctx *ui.Context) {
 					actionCount.Set(actionCount.Value() + 1)
 				})),
 			),
@@ -69,9 +69,9 @@ func docsBottomNavigationDemo(value docsStringState) ui.Element {
 				ui.BottomNavigationElement(
 					value.Value(),
 					[]ui.ElementNavItem{
-						{Key: "home", Label: "Home", Icon: ui.TextElement("H", ui.TextSize(12))},
-						{Key: "docs", Label: "Docs", Icon: ui.TextElement("D", ui.TextSize(12))},
-						{Key: "profile", Label: "Profile", Icon: ui.TextElement("P", ui.TextSize(12))},
+						{Key: "home", Label: "Home", Icon: ui.IconElement("home", ui.IconSize(18))},
+						{Key: "docs", Label: "Docs", Icon: ui.IconElement("description", ui.IconSize(18))},
+						{Key: "profile", Label: "Profile", Icon: ui.IconElement("person", ui.IconSize(18))},
 					},
 					ui.BottomNavAlignmentOf(ui.BottomNavAlignSpaceEvenly),
 					ui.BottomNavBackground(ui.NRGBA(248, 250, 252, 255)),
@@ -95,9 +95,9 @@ func docsNavigationRailDemo(value docsStringState) ui.Element {
 			ui.NavigationRailElement(
 				value.Value(),
 				[]ui.ElementNavItem{
-					{Key: "home", Label: "Home", Icon: ui.IconElement("H")},
-					{Key: "search", Label: "Search", Icon: ui.IconElement("S")},
-					{Key: "settings", Label: "Settings", Icon: ui.IconElement("G")},
+					{Key: "home", Label: "Home", Icon: ui.IconElement("home")},
+					{Key: "search", Label: "Search", Icon: ui.IconElement("search")},
+					{Key: "settings", Label: "Settings", Icon: ui.IconElement("settings")},
 				},
 				ui.NavigationRailWidth(96),
 				ui.NavigationRailHeader(ui.Text("Menu", ui.TextSize(12))),
@@ -123,9 +123,9 @@ func docsNavigationDrawerDemo(value docsStringState) ui.Element {
 			ui.NavigationDrawerElement(
 				value.Value(),
 				[]ui.ElementNavItem{
-					{Key: "inbox", Label: "Inbox", Icon: ui.IconElement("I")},
-					{Key: "sent", Label: "Sent", Icon: ui.IconElement("S")},
-					{Key: "drafts", Label: "Drafts", Icon: ui.IconElement("D")},
+					{Key: "inbox", Label: "Inbox", Icon: ui.IconElement("info")},
+					{Key: "sent", Label: "Sent", Icon: ui.IconElement("send")},
+					{Key: "drafts", Label: "Drafts", Icon: ui.IconElement("draft")},
 				},
 				ui.NavigationDrawerWidth(280),
 				ui.NavigationDrawerHeader(ui.Text("Mailbox", ui.TextSize(14))),

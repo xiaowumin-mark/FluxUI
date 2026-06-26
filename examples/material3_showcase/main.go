@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 
+	_ "github.com/xiaowumin-mark/FluxUI/icons/md3"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
@@ -133,38 +134,38 @@ func App(ctx *ui.Context) ui.Element {
 					)),
 					ui.SpacerElement(14, 0),
 					ui.FixedWidthElement(260, ui.ColumnElement(
-						ui.ListItemElementWithSlots(ui.TextElement("Inbox"), ui.TextElement("12 unread messages"), ui.IconElement("I"), ui.TextElement("12"), ui.ListItemSelected(true)),
-						ui.ListItemElementWithSlots(ui.TextElement("Archive"), ui.TextElement("Older conversations"), ui.IconElement("A"), nil),
+						ui.ListItemElementWithSlots(ui.TextElement("Inbox"), ui.TextElement("12 unread messages"), ui.IconElement("info"), ui.TextElement("12"), ui.ListItemSelected(true)),
+						ui.ListItemElementWithSlots(ui.TextElement("Archive"), ui.TextElement("Older conversations"), ui.IconElement("archive"), nil),
 					)),
 				),
 				gap(),
 
 				sectionTitle("Icon Buttons and FABs"),
 				ui.RowElement(
-					padded(ui.IconButtonElement(ui.IconElement("S"), ui.IconButtonSelected(true))),
-					padded(ui.FilledIconButtonElement(ui.IconElement("F"), ui.IconButtonSelected(true))),
-					padded(ui.FilledTonalIconButtonElement(ui.IconElement("T"))),
-					padded(ui.OutlinedIconButtonElement(ui.IconElement("O"))),
+					padded(ui.IconButtonElement(ui.IconElement("search"), ui.IconButtonSelected(true))),
+					padded(ui.FilledIconButtonElement(ui.IconElement("favorite"), ui.IconButtonSelected(true))),
+					padded(ui.FilledTonalIconButtonElement(ui.IconElement("tune"))),
+					padded(ui.OutlinedIconButtonElement(ui.IconElement("radio_button_unchecked"))),
 					ui.SpacerElement(16, 0),
-					padded(ui.SmallFloatingActionButtonElement(ui.IconElement("+"), ui.FloatingActionButtonOnClick(func(ctx *ui.Context) { fabCount.Set(fabCount.Value() + 1) }))),
-					padded(ui.FloatingActionButtonElement(ui.IconElement("+"), ui.FloatingActionButtonOnClick(func(ctx *ui.Context) { fabCount.Set(fabCount.Value() + 1) }))),
-					padded(ui.ExtendedFloatingActionButtonElement(ui.IconElement("+"), ui.TextElement(fmt.Sprintf("Create %d", fabCount.Value())), ui.FloatingActionButtonOnClick(func(ctx *ui.Context) { fabCount.Set(fabCount.Value() + 1) }))),
+					padded(ui.SmallFloatingActionButtonElement(ui.IconElement("add"), ui.FloatingActionButtonOnClick(func(ctx *ui.Context) { fabCount.Set(fabCount.Value() + 1) }))),
+					padded(ui.FloatingActionButtonElement(ui.IconElement("add"), ui.FloatingActionButtonOnClick(func(ctx *ui.Context) { fabCount.Set(fabCount.Value() + 1) }))),
+					padded(ui.ExtendedFloatingActionButtonElement(ui.IconElement("add"), ui.TextElement(fmt.Sprintf("Create %d", fabCount.Value())), ui.FloatingActionButtonOnClick(func(ctx *ui.Context) { fabCount.Set(fabCount.Value() + 1) }))),
 				),
 				gap(),
 
 				sectionTitle("Chips and Badges"),
 				ui.RowElement(
-					padded(ui.AssistChipElement("Assist", ui.ChipLeading(ui.Icon("i", ui.IconSize(16))))),
+					padded(ui.AssistChipElement("Assist", ui.ChipLeading(ui.Icon("info", ui.IconSize(16))))),
 					padded(ui.FilterChipElement(
 						"Filter",
 						ui.ChipSelected(chipSelected.Value()),
 						ui.ChipOnClick(func(ctx *ui.Context) { chipSelected.Set(!chipSelected.Value()) }),
 					)),
-					padded(ui.InputChipElement("Input", ui.ChipTrailing(ui.Icon("x", ui.IconSize(14))))),
+					padded(ui.InputChipElement("Input", ui.ChipTrailing(ui.Icon("close", ui.IconSize(14))))),
 					padded(ui.SuggestionChipElement("Suggestion")),
 					ui.SpacerElement(18, 0),
-					padded(ui.BadgeElement(ui.IconButtonElement(ui.IconElement("M")), "3")),
-					padded(ui.BadgeElement(ui.IconButtonElement(ui.IconElement("N")), "", ui.BadgeVisible(true))),
+					padded(ui.BadgeElement(ui.IconButtonElement(ui.IconElement("mail")), "3")),
+					padded(ui.BadgeElement(ui.IconButtonElement(ui.IconElement("notifications")), "", ui.BadgeVisible(true))),
 				),
 				gap(),
 
@@ -175,7 +176,7 @@ func App(ctx *ui.Context) ui.Element {
 						ui.SearchBarElement(
 							searchValue.Value(),
 							ui.SearchBarPlaceholder("Search components"),
-							ui.SearchBarLeading(ui.Icon("S", ui.IconSize(18))),
+							ui.SearchBarLeading(ui.Icon("search", ui.IconSize(18))),
 							ui.SearchBarOnChange(func(ctx *ui.Context, value string) { searchValue.Set(value) }),
 						),
 					),
@@ -222,9 +223,9 @@ func App(ctx *ui.Context) ui.Element {
 					ui.NavigationRailElement(
 						railValue.Value(),
 						[]ui.ElementNavItem{
-							{Key: "home", Label: "Home", Icon: ui.IconElement("H")},
-							{Key: "search", Label: "Search", Icon: ui.IconElement("S")},
-							{Key: "settings", Label: "Settings", Icon: ui.IconElement("G")},
+							{Key: "home", Label: "Home", Icon: ui.IconElement("home")},
+							{Key: "search", Label: "Search", Icon: ui.IconElement("search")},
+							{Key: "settings", Label: "Settings", Icon: ui.IconElement("settings")},
 						},
 						ui.NavigationRailOnChange(func(ctx *ui.Context, key string) { railValue.Set(key) }),
 					),
@@ -232,9 +233,9 @@ func App(ctx *ui.Context) ui.Element {
 					ui.NavigationDrawerElement(
 						drawerValue.Value(),
 						[]ui.ElementNavItem{
-							{Key: "inbox", Label: "Inbox", Icon: ui.IconElement("I")},
-							{Key: "sent", Label: "Sent", Icon: ui.IconElement("S")},
-							{Key: "drafts", Label: "Drafts", Icon: ui.IconElement("D")},
+							{Key: "inbox", Label: "Inbox", Icon: ui.IconElement("info")},
+							{Key: "sent", Label: "Sent", Icon: ui.IconElement("send")},
+							{Key: "drafts", Label: "Drafts", Icon: ui.IconElement("draft")},
 						},
 						ui.NavigationDrawerWidth(280),
 						ui.NavigationDrawerOnChange(func(ctx *ui.Context, key string) { drawerValue.Set(key) }),

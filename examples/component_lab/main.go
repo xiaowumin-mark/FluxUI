@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/xiaowumin-mark/FluxUI/icons/md3"
 	fluxstate "github.com/xiaowumin-mark/FluxUI/state"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
@@ -379,10 +380,10 @@ func inputSelectionPanel(
 		{Label: "High priority", Value: "high"},
 	}
 	menuItems := []ui.MenuItem{
-		{Key: "copy", Label: "Copy", Leading: ui.Icon("C")},
-		{Key: "share", Label: "Share", Leading: ui.Icon("S")},
-		{Key: "archive", Label: "Archive", Leading: ui.Icon("A")},
-		{Key: "delete", Label: "Delete", Leading: ui.Icon("D"), Disabled: true},
+		{Key: "copy", Label: "Copy", Leading: ui.Icon("content_copy")},
+		{Key: "share", Label: "Share", Leading: ui.Icon("share")},
+		{Key: "archive", Label: "Archive", Leading: ui.Icon("archive")},
+		{Key: "delete", Label: "Delete", Leading: ui.Icon("delete"), Disabled: true},
 	}
 	return ui.ColumnElement(
 		ui.RowElement(
@@ -539,9 +540,9 @@ func mediaCardsPanel(th *ui.Theme, imageClicks *fluxstate.State[int], cardClicks
 				),
 				ui.VSpacerElement(8),
 				ui.RowElement(
-					ui.IconElement("H", ui.IconSize(22), ui.IconColor(th.Colors.Primary), ui.IconOnClick(func(ctx *ui.Context) { imageClicks.Set(imageClicks.Value() + 1) })),
+					ui.IconElement("home", ui.IconSize(22), ui.IconColor(th.Colors.Primary), ui.IconOnClick(func(ctx *ui.Context) { imageClicks.Set(imageClicks.Value() + 1) })),
 					ui.HSpacerElement(12),
-					ui.IconElement("S", ui.IconSize(22), ui.IconColor(th.Colors.Secondary)),
+					ui.IconElement("search", ui.IconSize(22), ui.IconColor(th.Colors.Secondary)),
 					ui.HSpacerElement(12),
 					ui.TextElement(fmt.Sprintf("image/icon clicks=%d", imageClicks.Value()), ui.TextType(th.Types.BodySmall), ui.TextColor(th.Colors.OnSurfaceVariant)),
 				),
@@ -561,33 +562,33 @@ func mediaCardsPanel(th *ui.Theme, imageClicks *fluxstate.State[int], cardClicks
 		ui.RowElement(
 			ui.FixedWidthElement(360, ui.ColumnElement(
 				ui.RowElement(
-					wrap(ui.IconButtonElement(ui.IconElement("S"), ui.IconButtonSelected(iconSelected.Value()), ui.IconButtonOnClick(func(ctx *ui.Context) { iconSelected.Set(!iconSelected.Value()) }))),
-					wrap(ui.FilledIconButtonElement(ui.IconElement("F"), ui.IconButtonSelected(true))),
-					wrap(ui.FilledTonalIconButtonElement(ui.IconElement("T"))),
-					wrap(ui.OutlinedIconButtonElement(ui.IconElement("O"))),
-					wrap(ui.OutlinedIconButtonElement(ui.IconElement("D"), ui.IconButtonDisabled(true))),
+					wrap(ui.IconButtonElement(ui.IconElement("search"), ui.IconButtonSelected(iconSelected.Value()), ui.IconButtonOnClick(func(ctx *ui.Context) { iconSelected.Set(!iconSelected.Value()) }))),
+					wrap(ui.FilledIconButtonElement(ui.IconElement("favorite"), ui.IconButtonSelected(true))),
+					wrap(ui.FilledTonalIconButtonElement(ui.IconElement("tune"))),
+					wrap(ui.OutlinedIconButtonElement(ui.IconElement("radio_button_unchecked"))),
+					wrap(ui.OutlinedIconButtonElement(ui.IconElement("delete"), ui.IconButtonDisabled(true))),
 				),
 				ui.VSpacerElement(12),
 				ui.RowElement(
-					wrap(ui.SmallFloatingActionButtonElement(ui.IconElement("+"), fabClick)),
-					wrap(ui.FloatingActionButtonElement(ui.IconElement("+"), fabClick)),
-					wrap(ui.LargeFloatingActionButtonElement(ui.IconElement("+"), fabClick)),
-					wrap(ui.ExtendedFloatingActionButtonElement(ui.IconElement("+"), ui.TextElement(fmt.Sprintf("Create %d", fabCount.Value())), fabClick)),
+					wrap(ui.SmallFloatingActionButtonElement(ui.IconElement("add"), fabClick)),
+					wrap(ui.FloatingActionButtonElement(ui.IconElement("add"), fabClick)),
+					wrap(ui.LargeFloatingActionButtonElement(ui.IconElement("add"), fabClick)),
+					wrap(ui.ExtendedFloatingActionButtonElement(ui.IconElement("add"), ui.TextElement(fmt.Sprintf("Create %d", fabCount.Value())), fabClick)),
 				),
 			)),
 			ui.HSpacerElement(12),
 			ui.ExpandedElement(ui.ColumnElement(
 				ui.RowElement(
-					wrap(ui.AssistChipElement("Assist", ui.ChipLeading(ui.Icon("i", ui.IconSize(14))))),
+					wrap(ui.AssistChipElement("Assist", ui.ChipLeading(ui.Icon("info", ui.IconSize(14))))),
 					wrap(ui.FilterChipElement("Filter", ui.ChipSelected(chipSelected.Value()), ui.ChipOnClick(func(ctx *ui.Context) { chipSelected.Set(!chipSelected.Value()) }))),
-					wrap(ui.InputChipElement("Input", ui.ChipTrailing(ui.Icon("x", ui.IconSize(14))))),
+					wrap(ui.InputChipElement("Input", ui.ChipTrailing(ui.Icon("close", ui.IconSize(14))))),
 					wrap(ui.SuggestionChipElement("Suggestion")),
 					wrap(ui.AssistChipElement("Disabled", ui.ChipDisabled(true))),
 				),
 				ui.VSpacerElement(10),
 				ui.ChipElementWithSlots(
 					ui.RowElement(
-						ui.IconElement("S", ui.IconSize(14), ui.IconColor(th.Colors.Primary)),
+						ui.IconElement("search", ui.IconSize(14), ui.IconColor(th.Colors.Primary)),
 						ui.HSpacerElement(6),
 						ui.TextElement("Slot chip", ui.TextType(th.Types.LabelMedium), ui.TextColor(th.Colors.Primary)),
 					),
@@ -596,9 +597,9 @@ func mediaCardsPanel(th *ui.Theme, imageClicks *fluxstate.State[int], cardClicks
 				),
 				ui.VSpacerElement(10),
 				ui.RowElement(
-					ui.BadgeElement(ui.IconButtonElement(ui.IconElement("M")), "3", ui.BadgeBackground(th.Colors.Error), ui.BadgeForeground(th.Colors.OnError)),
+					ui.BadgeElement(ui.IconButtonElement(ui.IconElement("mail")), "3", ui.BadgeBackground(th.Colors.Error), ui.BadgeForeground(th.Colors.OnError)),
 					ui.HSpacerElement(24),
-					ui.BadgeElement(ui.IconButtonElement(ui.IconElement("N")), "", ui.BadgeVisible(true), ui.BadgeDecoration(ui.Bg(th.Colors.Primary).WithRad(999))),
+					ui.BadgeElement(ui.IconButtonElement(ui.IconElement("notifications")), "", ui.BadgeVisible(true), ui.BadgeDecoration(ui.Bg(th.Colors.Primary).WithRad(999))),
 					ui.HSpacerElement(24),
 					ui.BadgeElement(ui.TextElement("Hidden"), "0", ui.BadgeVisible(false)),
 				),
@@ -606,8 +607,8 @@ func mediaCardsPanel(th *ui.Theme, imageClicks *fluxstate.State[int], cardClicks
 				ui.SearchBarElement(
 					searchValue.Value(),
 					ui.SearchBarPlaceholder("Search components"),
-					ui.SearchBarLeading(ui.Icon("S", ui.IconSize(18))),
-					ui.SearchBarTrailing(ui.Icon("x", ui.IconSize(16))),
+					ui.SearchBarLeading(ui.Icon("search", ui.IconSize(18))),
+					ui.SearchBarTrailing(ui.Icon("close", ui.IconSize(16))),
 					ui.SearchBarOnChange(func(ctx *ui.Context, value string) { setIfChanged(searchValue, value) }),
 				),
 			)),
@@ -634,14 +635,14 @@ func navigationOverlayPanel(
 	bottomNavRef *ui.Ref[*ui.BottomNavRef],
 ) ui.Element {
 	navItems := []ui.ElementNavItem{
-		{Key: "home", Label: "Home", Icon: ui.IconElement("H")},
-		{Key: "docs", Label: "Docs", Icon: ui.IconElement("D")},
-		{Key: "tools", Label: "Tools", Icon: ui.IconElement("T")},
+		{Key: "home", Label: "Home", Icon: ui.IconElement("home")},
+		{Key: "docs", Label: "Docs", Icon: ui.IconElement("description")},
+		{Key: "tools", Label: "Tools", Icon: ui.IconElement("tune")},
 	}
 	return ui.ColumnElement(
 		ui.AppBarElementWithSlots(
 			ui.TextElement("Component Lab", ui.TextType(th.Types.TitleLarge), ui.TextColor(th.Colors.OnSurface)),
-			ui.IconElement("<", ui.IconSize(18)),
+			ui.IconElement("arrow_back", ui.IconSize(18)),
 			[]ui.Element{
 				ui.TextButtonElement(ui.TextElement("Toast"), ui.OnClick(func(ctx *ui.Context) {
 					toastSerial.Set(toastSerial.Value() + 1)
@@ -658,8 +659,8 @@ func navigationOverlayPanel(
 		ui.VSpacerElement(10),
 		ui.AppBarElement(
 			ui.TextElement("Compact AppBarElement", ui.TextType(th.Types.TitleSmall), ui.TextColor(th.Colors.OnSurface)),
-			ui.AppBarLeading(ui.Icon("<", ui.IconSize(16))),
-			ui.AppBarActions(ui.IconButton(ui.Icon("A"), ui.IconButtonOnClick(func(ctx *ui.Context) {
+			ui.AppBarLeading(ui.Icon("arrow_back", ui.IconSize(16))),
+			ui.AppBarActions(ui.IconButton(ui.Icon("archive"), ui.IconButtonOnClick(func(ctx *ui.Context) {
 				toastSerial.Set(toastSerial.Value() + 1)
 				setIfChanged(toastMessage, "AppBar action")
 			}))),
@@ -727,9 +728,9 @@ func navigationOverlayPanel(
 				ui.NavigationDrawerElement(
 					drawerValue.Value(),
 					[]ui.ElementNavItem{
-						{Key: "inbox", Label: "Inbox", Icon: ui.IconElement("I")},
-						{Key: "sent", Label: "Sent", Icon: ui.IconElement("S")},
-						{Key: "drafts", Label: "Drafts", Icon: ui.IconElement("D")},
+						{Key: "inbox", Label: "Inbox", Icon: ui.IconElement("info")},
+						{Key: "sent", Label: "Sent", Icon: ui.IconElement("send")},
+						{Key: "drafts", Label: "Drafts", Icon: ui.IconElement("draft")},
 					},
 					ui.NavigationDrawerWidth(260),
 					ui.NavigationDrawerHeader(ui.Text("Mailbox", ui.TextType(th.Types.TitleMedium))),
@@ -788,7 +789,7 @@ func progressCollectionPanel(th *ui.Theme, progress *fluxstate.State[float32], s
 					if index%5 == 0 {
 						return ui.ListItemElement(fmt.Sprintf("Simple row %02d", index+1))
 					}
-					return ui.ListItemElementWithSlots(ui.TextElement(fmt.Sprintf("Virtual row %02d", index+1)), ui.TextElement("ListViewElement"), ui.IconElement("L"), nil)
+					return ui.ListItemElementWithSlots(ui.TextElement(fmt.Sprintf("Virtual row %02d", index+1)), ui.TextElement("ListViewElement"), ui.IconElement("list"), nil)
 				}, ui.ListItemSpacing(4), ui.ListOnReachEnd(func(ctx *ui.Context) { listReachCount.Set(listReachCount.Value() + 1) }))),
 				ui.VSpacerElement(8),
 				ui.TextElement(fmt.Sprintf("list reach end=%d", listReachCount.Value()), ui.TextType(th.Types.BodySmall), ui.TextColor(th.Colors.OnSurfaceVariant)),

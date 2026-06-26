@@ -821,31 +821,31 @@ func TestFinalComponentElementsWrapLegacyWidgets(t *testing.T) {
 	if el := ListItemElement("Headline"); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected ListItemElement to wrap a list item widget")
 	}
-	if el := ListItemElementWithSlots(TextElement("Headline"), TextElement("Supporting"), IconElement("I"), TextElement("T")); el == nil || RenderElement(el) == nil {
+	if el := ListItemElementWithSlots(TextElement("Headline"), TextElement("Supporting"), IconElement("info"), TextElement("T")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected ListItemElementWithSlots to wrap a list item widget")
 	}
-	if el := IconButtonElement(IconElement("I")); el == nil || RenderElement(el) == nil {
+	if el := IconButtonElement(IconElement("info")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected IconButtonElement to wrap an icon button widget")
 	}
-	if el := FilledIconButtonElement(IconElement("I")); el == nil || RenderElement(el) == nil {
+	if el := FilledIconButtonElement(IconElement("info")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected FilledIconButtonElement to wrap an icon button widget")
 	}
-	if el := FilledTonalIconButtonElement(IconElement("I")); el == nil || RenderElement(el) == nil {
+	if el := FilledTonalIconButtonElement(IconElement("info")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected FilledTonalIconButtonElement to wrap an icon button widget")
 	}
-	if el := OutlinedIconButtonElement(IconElement("I")); el == nil || RenderElement(el) == nil {
+	if el := OutlinedIconButtonElement(IconElement("info")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected OutlinedIconButtonElement to wrap an icon button widget")
 	}
-	if el := FloatingActionButtonElement(IconElement("+")); el == nil || RenderElement(el) == nil {
+	if el := FloatingActionButtonElement(IconElement("add")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected FloatingActionButtonElement to wrap a FAB widget")
 	}
-	if el := SmallFloatingActionButtonElement(IconElement("+")); el == nil || RenderElement(el) == nil {
+	if el := SmallFloatingActionButtonElement(IconElement("add")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected SmallFloatingActionButtonElement to wrap a FAB widget")
 	}
-	if el := LargeFloatingActionButtonElement(IconElement("+")); el == nil || RenderElement(el) == nil {
+	if el := LargeFloatingActionButtonElement(IconElement("add")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected LargeFloatingActionButtonElement to wrap a FAB widget")
 	}
-	if el := ExtendedFloatingActionButtonElement(IconElement("+"), TextElement("Create")); el == nil || RenderElement(el) == nil {
+	if el := ExtendedFloatingActionButtonElement(IconElement("add"), TextElement("Create")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected ExtendedFloatingActionButtonElement to wrap a FAB widget")
 	}
 	if el := ProgressBarElement(25); el == nil || RenderElement(el) == nil {
@@ -881,7 +881,7 @@ func TestFinalComponentElementsWrapLegacyWidgets(t *testing.T) {
 	if el := TooltipElement("tip", TextElement("hover")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected TooltipElement to wrap a tooltip widget")
 	}
-	if el := BadgeElement(IconButtonElement(IconElement("M")), "3"); el == nil || RenderElement(el) == nil {
+	if el := BadgeElement(IconButtonElement(IconElement("mail")), "3"); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected BadgeElement to wrap a badge widget")
 	}
 	if el := AssistChipElement("Assist"); el == nil || RenderElement(el) == nil {

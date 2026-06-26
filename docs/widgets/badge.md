@@ -30,7 +30,7 @@ Badge 是附着在控件右上角的 Material 3 状态标记。它可以显示�
 
 ```go
 ui.BadgeElement(
-    ui.IconButtonElement(ui.IconElement("M")),
+    ui.IconButtonElement(ui.IconElement("mail")),
     "3",
 )
 ```

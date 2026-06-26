@@ -46,7 +46,7 @@ AppBar 是页面级顶部导航组件，适合放页面标题、返回入口和�
 func Header(ctx *ui.Context) ui.Element {
     return ui.AppBarElementWithSlots(
         ui.TextElement("文档中心"),
-        ui.IconElement("<"),
+        ui.IconElement("arrow_back"),
         []ui.Element{ui.ButtonElement(ui.TextElement("刷新"))},
         ui.AppBarHeight(56),
     )

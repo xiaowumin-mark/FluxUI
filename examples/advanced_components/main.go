@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"time"
 
+	_ "github.com/xiaowumin-mark/FluxUI/icons/md3"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
@@ -40,9 +41,9 @@ func App(ctx *ui.Context) ui.Element {
 	}
 
 	navs := []ui.ElementNavItem{
-		{Key: "home", Label: "首页", Icon: ui.TextElement("H", ui.TextColor(th.TextColor))},
-		{Key: "discover", Label: "发现", Icon: ui.TextElement("D", ui.TextColor(th.TextColor))},
-		{Key: "profile", Label: "我的", Icon: ui.TextElement("P", ui.TextColor(th.TextColor))},
+		{Key: "home", Label: "首页", Icon: ui.IconElement("home", ui.IconColor(th.TextColor))},
+		{Key: "discover", Label: "发现", Icon: ui.IconElement("explore", ui.IconColor(th.TextColor))},
+		{Key: "profile", Label: "我的", Icon: ui.IconElement("person", ui.IconColor(th.TextColor))},
 	}
 
 	header := ui.ContainerDecorationElement(

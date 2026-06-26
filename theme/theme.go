@@ -19,6 +19,7 @@ type Theme struct {
 	DefaultFont    FontSpec
 	UseSystemFonts bool
 	Fonts          []FontFace
+	IconFonts      []IconFont
 }
 
 // Default returns the light theme.

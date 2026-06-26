@@ -53,13 +53,15 @@ BottomNavigation 适用于移动端或工具型应用的一级页面切换。
 `BottomNavigationElement` 已可在 `RunElement` root 下直接使用。React-style 版本使用 `[]ElementNavItem`，因此每个 item 的 icon 可以是 `Element`。
 
 ```go
+import _ "github.com/xiaowumin-mark/FluxUI/icons/md3"
+
 func BottomTabs(ctx *ui.Context) ui.Element {
     active := ui.UseState(ctx, "home")
     return ui.BottomNavigationElement(
         active.Value(),
         []ui.ElementNavItem{
-            {Key: "home", Label: "首页", Icon: ui.TextElement("H")},
-            {Key: "docs", Label: "文档", Icon: ui.TextElement("D")},
+            {Key: "home", Label: "首页", Icon: ui.IconElement("home")},
+            {Key: "docs", Label: "文档", Icon: ui.IconElement("description")},
         },
         ui.BottomNavAlignmentOf(ui.BottomNavAlignSpaceEvenly),
         ui.BottomNavOnChange(func(ctx *ui.Context, key string) { active.Set(key) }),
@@ -77,8 +79,8 @@ active := ui.State[string](ctx)
 ui.BottomNavigation(
     active.Value(),
     []ui.NavItem{
-        {Key: "home", Label: "首页", Icon: ui.Text("H")},
-        {Key: "docs", Label: "文档", Icon: ui.Text("D")},
+        {Key: "home", Label: "首页", Icon: ui.Icon("home")},
+        {Key: "docs", Label: "文档", Icon: ui.Icon("description")},
     },
     ui.BottomNavOnChange(func(ctx *ui.Context, key string) {
         active.Set(key)

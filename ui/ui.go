@@ -167,6 +167,12 @@ type FontSpec = theme.FontSpec
 // FontFace 是公开字体面。
 type FontFace = theme.FontFace
 
+// IconFont 是公开图标字体规格。
+type IconFont = theme.IconFont
+
+// IconFontOption 是图标字体加载配置项。
+type IconFontOption = theme.IconFontOption
+
 // FontStyle 是字体样式枚举。
 type FontStyle = theme.FontStyle
 
@@ -422,9 +428,19 @@ func WithFonts(faces ...FontFace) AppOption {
 	return fluxapp.WithFonts(faces...)
 }
 
+// WithIconFonts 追加全局图标字体集合。
+func WithIconFonts(fonts ...IconFont) AppOption {
+	return fluxapp.WithIconFonts(fonts...)
+}
+
 // WithDefaultFont 设置全局默认字体。
 func WithDefaultFont(spec FontSpec) AppOption {
 	return fluxapp.WithDefaultFont(spec)
+}
+
+// WithDefaultIconFont 设置应用级默认图标字体。
+func WithDefaultIconFont(id string) AppOption {
+	return fluxapp.WithDefaultIconFont(id)
 }
 
 // WithSystemFonts 控制是否启用系统字体回退。
@@ -452,9 +468,49 @@ func ParseFontFile(path string) ([]FontFace, error) {
 	return theme.ParseFontFile(path)
 }
 
+// ParseFontBytes 从内存中的字体数据解析字体面。
+func ParseFontBytes(name string, data []byte) ([]FontFace, error) {
+	return theme.ParseFontBytes(name, data)
+}
+
 // LoadFontsFromPaths 加载多个字体文件。
 func LoadFontsFromPaths(paths ...string) ([]FontFace, error) {
 	return theme.LoadFontsFromPaths(paths...)
+}
+
+// LoadIconFontFromPath 加载图标字体文件。
+func LoadIconFontFromPath(id string, path string, opts ...IconFontOption) (IconFont, error) {
+	return theme.LoadIconFontFromPath(id, path, opts...)
+}
+
+// LoadIconFontFromBytes 从内存中的字体数据加载图标字体。
+func LoadIconFontFromBytes(id string, name string, data []byte, opts ...IconFontOption) (IconFont, error) {
+	return theme.LoadIconFontFromBytes(id, name, data, opts...)
+}
+
+// RegisterIconFont 注册进程级图标字体。
+func RegisterIconFont(font IconFont) {
+	theme.RegisterIconFont(font)
+}
+
+// RegisteredIconFonts 返回进程级注册的图标字体。
+func RegisteredIconFonts() []IconFont {
+	return theme.RegisteredIconFonts()
+}
+
+// DefaultIconFont 返回进程级默认图标字体。
+func DefaultIconFont() (IconFont, bool) {
+	return theme.DefaultIconFont()
+}
+
+// IconFontFamilyName 覆盖图标字体族名。
+func IconFontFamilyName(family string) IconFontOption {
+	return theme.IconFontFamilyName(family)
+}
+
+// IconFontDefault 标记图标字体是否为默认图标字体。
+func IconFontDefault(defaulted bool) IconFontOption {
+	return theme.IconFontDefault(defaulted)
 }
 
 // LoadFontsFromDir 递归加载目录下字体文件。

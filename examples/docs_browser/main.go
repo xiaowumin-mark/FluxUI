@@ -1,6 +1,9 @@
 package main
 
-import ui "github.com/xiaowumin-mark/FluxUI/ui"
+import (
+	_ "github.com/xiaowumin-mark/FluxUI/icons/md3"
+	ui "github.com/xiaowumin-mark/FluxUI/ui"
+)
 
 func main() {
 	if maybeRunDocsBrowserToastActivator() {

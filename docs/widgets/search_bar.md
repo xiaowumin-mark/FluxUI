@@ -35,7 +35,7 @@ SearchBar 是 Material 3 风格的搜索输入控件，带有圆角容器、默�
 ui.SearchBarElement(
     query.Value(),
     ui.SearchBarPlaceholder("搜索"),
-    ui.SearchBarLeading(ui.Icon("S")),
+    ui.SearchBarLeading(ui.Icon("search")),
     ui.SearchBarOnChange(func(ctx *ui.Context, value string) {
         query.Set(value)
     }),

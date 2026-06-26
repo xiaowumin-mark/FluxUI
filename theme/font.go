@@ -91,6 +91,11 @@ func ParseFontFile(path string) ([]FontFace, error) {
 	if err != nil {
 		return nil, err
 	}
+	return ParseFontBytes(path, data)
+}
+
+// ParseFontBytes 从内存中的字体数据解析字体面，支持 ttf/otf/ttc/otc。
+func ParseFontBytes(name string, data []byte) ([]FontFace, error) {
 	rawFaces, err := opentype.ParseCollection(data)
 	if err != nil {
 		return nil, err
@@ -100,7 +105,7 @@ func ParseFontFile(path string) ([]FontFace, error) {
 	copy(copied, data)
 	src := &fontSource{
 		data: copied,
-		path: path,
+		path: name,
 	}
 
 	faces := make([]FontFace, 0, len(rawFaces))

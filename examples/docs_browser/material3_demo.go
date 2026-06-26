@@ -56,7 +56,7 @@ func buildDocsMaterial3Showcase(th *ui.Theme) ui.Element {
 			ui.HSpacerElement(8),
 			ui.AssistChipElement("Assist"),
 			ui.HSpacerElement(8),
-			ui.BadgeElement(ui.IconButtonElement(ui.IconElement("M")), "3"),
+			ui.BadgeElement(ui.IconButtonElement(ui.IconElement("mail")), "3"),
 			ui.HSpacerElement(8),
 			ui.CircularProgressElement(0.72),
 		),

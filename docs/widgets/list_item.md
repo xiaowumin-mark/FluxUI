@@ -28,7 +28,7 @@ ListItem 是用于列表、菜单式设置页和导航内容的基础行组件�
 ui.ListItemElementWithSlots(
     ui.TextElement("Inbox"),
     ui.TextElement("12 unread messages"),
-    ui.IconElement("I"),
+    ui.IconElement("info"),
     ui.TextElement("12"),
     ui.ListItemSelected(true),
     ui.ListItemMinHeight(64),

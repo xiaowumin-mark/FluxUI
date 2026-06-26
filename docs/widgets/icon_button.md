@@ -32,16 +32,16 @@ IconButton 默认是 40dp 圆形 touch target，ripple 和 state layer 被裁剪
 
 ```go
 ui.RowElement(
-    ui.IconButtonElement(ui.IconElement("S")),
-    ui.FilledIconButtonElement(ui.IconElement("E"), ui.IconButtonSelected(true)),
-    ui.FilledTonalIconButtonElement(ui.IconElement("T")),
-    ui.OutlinedIconButtonElement(ui.IconElement("M")),
+    ui.IconButtonElement(ui.IconElement("search")),
+    ui.FilledIconButtonElement(ui.IconElement("edit"), ui.IconButtonSelected(true)),
+    ui.FilledTonalIconButtonElement(ui.IconElement("tune")),
+    ui.OutlinedIconButtonElement(ui.IconElement("mail")),
 )
 ```
 
 ```go
 ui.FilledTonalIconButtonElement(
-    ui.IconElement("T"),
+    ui.IconElement("tune"),
     ui.IconButtonSize(42),
     ui.IconButtonBackground(ui.NRGBA(219, 234, 254, 255)),
     ui.IconButtonForeground(ui.NRGBA(30, 64, 175, 255)),

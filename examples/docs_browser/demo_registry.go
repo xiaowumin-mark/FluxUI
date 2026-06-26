@@ -128,6 +128,8 @@ func buildDocsDemo(ctx *ui.Context, doc *widgetDoc, state docsDemoState) ui.Elem
 		return docsImageDemo()
 	case "icon_basic":
 		return docsIconDemo()
+	case "icon_fonts":
+		return docsIconFontsDemo()
 	case "card_basic":
 		return docsCardDemo(state.ButtonCount)
 	case "radio_group_basic":

@@ -55,7 +55,7 @@ ui.FilterChipElement(
 ```go
 ui.ChipElementWithSlots(
     ui.RowElement(
-        ui.IconElement("S", ui.IconSize(14)),
+        ui.IconElement("search", ui.IconSize(14)),
         ui.HSpacerElement(6),
         ui.TextElement("Styled slots"),
     ),

@@ -28,8 +28,8 @@ NavigationDrawer 默认宽度 360dp，容器使用 `SurfaceContainerLow`。选�
 ui.NavigationDrawerElement(
     active.Value(),
     []ui.ElementNavItem{
-        {Key: "inbox", Label: "Inbox", Icon: ui.IconElement("I")},
-        {Key: "sent", Label: "Sent", Icon: ui.IconElement("S")},
+        {Key: "inbox", Label: "Inbox", Icon: ui.IconElement("info")},
+        {Key: "sent", Label: "Sent", Icon: ui.IconElement("search")},
     },
     ui.NavigationDrawerActiveColor(ui.NRGBA(30, 64, 175, 255)),
     ui.NavigationDrawerInactiveColor(ui.NRGBA(100, 116, 139, 255)),

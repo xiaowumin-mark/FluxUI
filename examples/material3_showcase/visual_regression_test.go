@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/xiaowumin-mark/FluxUI/icons/md3"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/style"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
@@ -366,14 +367,14 @@ func buttonsRegionRoot(ctx *ui.Context) ui.Element {
 		),
 		ui.SpacerElement(0, 18),
 		ui.RowElement(
-			paddedFixture(ui.IconButtonElement(ui.IconElement("S"), ui.IconButtonSelected(true))),
-			paddedFixture(ui.FilledIconButtonElement(ui.IconElement("F"), ui.IconButtonSelected(true))),
-			paddedFixture(ui.FilledTonalIconButtonElement(ui.IconElement("T"))),
-			paddedFixture(ui.OutlinedIconButtonElement(ui.IconElement("O"))),
+			paddedFixture(ui.IconButtonElement(ui.IconElement("search"), ui.IconButtonSelected(true))),
+			paddedFixture(ui.FilledIconButtonElement(ui.IconElement("favorite"), ui.IconButtonSelected(true))),
+			paddedFixture(ui.FilledTonalIconButtonElement(ui.IconElement("tune"))),
+			paddedFixture(ui.OutlinedIconButtonElement(ui.IconElement("radio_button_unchecked"))),
 			ui.SpacerElement(16, 0),
-			paddedFixture(ui.SmallFloatingActionButtonElement(ui.IconElement("+"))),
-			paddedFixture(ui.FloatingActionButtonElement(ui.IconElement("+"))),
-			paddedFixture(ui.ExtendedFloatingActionButtonElement(ui.IconElement("+"), ui.TextElement("Create"))),
+			paddedFixture(ui.SmallFloatingActionButtonElement(ui.IconElement("add"))),
+			paddedFixture(ui.FloatingActionButtonElement(ui.IconElement("add"))),
+			paddedFixture(ui.ExtendedFloatingActionButtonElement(ui.IconElement("add"), ui.TextElement("Create"))),
 		),
 	)
 }
@@ -429,9 +430,9 @@ func selectionRegionRoot(ctx *ui.Context) ui.Element {
 
 func navigationRegionRoot(ctx *ui.Context) ui.Element {
 	navItems := []ui.ElementNavItem{
-		{Key: "home", Label: "Home", Icon: ui.IconElement("H")},
-		{Key: "search", Label: "Search", Icon: ui.IconElement("S")},
-		{Key: "settings", Label: "Settings", Icon: ui.IconElement("G")},
+		{Key: "home", Label: "Home", Icon: ui.IconElement("home")},
+		{Key: "search", Label: "Search", Icon: ui.IconElement("search")},
+		{Key: "settings", Label: "Settings", Icon: ui.IconElement("settings")},
 	}
 	return fixtureShell(ctx, "Navigation",
 		ui.TabsElement("components", []ui.TabItem{
@@ -543,9 +544,9 @@ func selectedStateRoot(ctx *ui.Context) ui.Element {
 		}),
 		ui.SpacerElement(0, 14),
 		ui.BottomNavigationElement("search", []ui.ElementNavItem{
-			{Key: "home", Label: "Home", Icon: ui.IconElement("H")},
-			{Key: "search", Label: "Search", Icon: ui.IconElement("S")},
-			{Key: "settings", Label: "Settings", Icon: ui.IconElement("G")},
+			{Key: "home", Label: "Home", Icon: ui.IconElement("home")},
+			{Key: "search", Label: "Search", Icon: ui.IconElement("search")},
+			{Key: "settings", Label: "Settings", Icon: ui.IconElement("settings")},
 		}),
 		ui.SpacerElement(0, 14),
 		ui.RowElement(

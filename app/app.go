@@ -749,6 +749,29 @@ func WithFonts(faces ...theme.FontFace) Option {
 	}
 }
 
+// WithIconFonts 追加全局图标字体集合。
+func WithIconFonts(fonts ...theme.IconFont) Option {
+	return func(app *Application) {
+		if len(fonts) == 0 {
+			return
+		}
+		if app.Theme == nil {
+			app.Theme = theme.Default()
+		}
+		app.Theme.AddIconFonts(fonts...)
+	}
+}
+
+// WithDefaultIconFont 设置应用级默认图标字体。
+func WithDefaultIconFont(id string) Option {
+	return func(app *Application) {
+		if app.Theme == nil {
+			app.Theme = theme.Default()
+		}
+		app.Theme.SetDefaultIconFont(id)
+	}
+}
+
 // WithDefaultFont 设置全局默认字体。
 func WithDefaultFont(spec theme.FontSpec) Option {
 	return func(app *Application) {

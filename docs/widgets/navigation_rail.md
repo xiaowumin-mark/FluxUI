@@ -28,8 +28,8 @@ NavigationRail 默认宽度 80dp，容器使用 `SurfaceContainer`。选中项�
 ui.NavigationRailElement(
     active.Value(),
     []ui.ElementNavItem{
-        {Key: "home", Label: "Home", Icon: ui.IconElement("H")},
-        {Key: "search", Label: "Search", Icon: ui.IconElement("S")},
+        {Key: "home", Label: "Home", Icon: ui.IconElement("home")},
+        {Key: "search", Label: "Search", Icon: ui.IconElement("search")},
     },
     ui.NavigationRailActiveColor(ui.NRGBA(30, 64, 175, 255)),
     ui.NavigationRailInactiveColor(ui.NRGBA(100, 116, 139, 255)),
