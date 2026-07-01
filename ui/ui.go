@@ -3,6 +3,7 @@ package ui
 import (
 	"image"
 	"image/color"
+	"io"
 	"time"
 
 	anim "github.com/xiaowumin-mark/FluxUI/anim"
@@ -63,6 +64,27 @@ type Context = internal.Context
 
 // AppOption 是应用配置项。
 type AppOption = fluxapp.Option
+
+// PerfDiagnostics controls runtime frame diagnostics.
+type PerfDiagnostics = internal.PerfDiagnostics
+
+// PerfSection identifies a coarse frame cost bucket.
+type PerfSection = internal.PerfSection
+
+// FrameSectionStats contains aggregate data for one frame section.
+type FrameSectionStats = internal.FrameSectionStats
+
+// FrameStats is the coarse performance snapshot for one rendered frame.
+type FrameStats = internal.FrameStats
+
+const (
+	PerfLayout    = internal.PerfLayout
+	PerfDraw      = internal.PerfDraw
+	PerfAnimation = internal.PerfAnimation
+	PerfState     = internal.PerfState
+	PerfText      = internal.PerfText
+	PerfInput     = internal.PerfInput
+)
 
 // WindowSpec 是多窗口启动配置。
 type WindowSpec = fluxapp.WindowSpec
@@ -446,6 +468,31 @@ func WithDefaultIconFont(id string) AppOption {
 // WithSystemFonts 控制是否启用系统字体回退。
 func WithSystemFonts(enabled bool) AppOption {
 	return fluxapp.WithSystemFonts(enabled)
+}
+
+// EnablePerfDiagnostics enables coarse frame timing and redraw reason capture.
+func EnablePerfDiagnostics(enabled bool) AppOption {
+	return fluxapp.EnablePerfDiagnostics(enabled)
+}
+
+// WithPerfDiagnostics sets the full runtime performance diagnostics config.
+func WithPerfDiagnostics(config PerfDiagnostics) AppOption {
+	return fluxapp.WithPerfDiagnostics(config)
+}
+
+// PerfDiagnosticsWriter sets the destination for frame diagnostics logs.
+func PerfDiagnosticsWriter(w io.Writer) AppOption {
+	return fluxapp.PerfDiagnosticsWriter(w)
+}
+
+// LogRedrawReasons controls whether each frame writes redraw reason logs.
+func LogRedrawReasons(enabled bool) AppOption {
+	return fluxapp.LogRedrawReasons(enabled)
+}
+
+// FormatFrameStats formats a compact one-line frame diagnostics record.
+func FormatFrameStats(stats FrameStats) string {
+	return internal.FormatFrameStats(stats)
 }
 
 // FontFamily 创建字体规格。

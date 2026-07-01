@@ -26,7 +26,9 @@ func redrawInvalidator(ctx *internal.Context) func() {
 	if ctx == nil || ctx.Runtime() == nil {
 		return nil
 	}
-	return ctx.Runtime().RequestRedraw
+	return func() {
+		ctx.Runtime().RequestRedrawReason("widget.redraw")
+	}
 }
 
 func clampFloat32(v, min, max float32) float32 {
@@ -478,6 +480,9 @@ func (s *md3AnimatedFloatState) advance(ctx *internal.Context, target float32, d
 	if ctx == nil {
 		return target
 	}
+	if rt := ctx.Runtime(); rt != nil {
+		rt.RecordFrameSection(internal.PerfAnimation, 1)
+	}
 	if easing == nil {
 		easing = style.InteractionLinearEasing
 	}
@@ -490,7 +495,7 @@ func (s *md3AnimatedFloatState) advance(ctx *internal.Context, target float32, d
 		s.current = current
 		s.easing = easing
 		if running {
-			ctx.RequestFrameRedraw()
+			ctx.RequestFrameRedrawReason("animation.running")
 			return current
 		}
 		s.snap(ctx.Now(), target, duration, easing)
@@ -509,7 +514,7 @@ func (s *md3AnimatedFloatState) advance(ctx *internal.Context, target float32, d
 	s.to = target
 	s.duration = duration
 	s.easing = easing
-	ctx.RequestFrameRedraw()
+	ctx.RequestFrameRedrawReason("animation.running")
 	return current
 }
 
@@ -561,6 +566,9 @@ func md3AnimateColor(ctx *internal.Context, namespace string, target color.NRGBA
 	if ctx == nil || duration <= 0 {
 		return target
 	}
+	if rt := ctx.Runtime(); rt != nil {
+		rt.RecordFrameSection(internal.PerfAnimation, 1)
+	}
 	if easing == nil {
 		easing = style.InteractionLinearEasing
 	}
@@ -583,7 +591,7 @@ func md3AnimateColor(ctx *internal.Context, namespace string, target color.NRGBA
 		state.current = current
 		state.easing = easing
 		if running {
-			ctx.RequestFrameRedraw()
+			ctx.RequestFrameRedrawReason("animation.running")
 			return current
 		}
 		state.snap(ctx.Now(), target, duration, easing)
@@ -602,7 +610,7 @@ func md3AnimateColor(ctx *internal.Context, namespace string, target color.NRGBA
 	state.to = target
 	state.duration = duration
 	state.easing = easing
-	ctx.RequestFrameRedraw()
+	ctx.RequestFrameRedrawReason("animation.running")
 	return current
 }
 
@@ -654,6 +662,9 @@ func md3AnimateDecoration(ctx *internal.Context, namespace string, target style.
 	if ctx == nil || duration <= 0 {
 		return target
 	}
+	if rt := ctx.Runtime(); rt != nil {
+		rt.RecordFrameSection(internal.PerfAnimation, 1)
+	}
 	if easing == nil {
 		easing = style.InteractionLinearEasing
 	}
@@ -676,7 +687,7 @@ func md3AnimateDecoration(ctx *internal.Context, namespace string, target style.
 		state.current = current
 		state.easing = easing
 		if running {
-			ctx.RequestFrameRedraw()
+			ctx.RequestFrameRedrawReason("animation.running")
 			return current
 		}
 		state.snap(ctx.Now(), target, duration, easing)
@@ -695,7 +706,7 @@ func md3AnimateDecoration(ctx *internal.Context, namespace string, target style.
 	state.to = target
 	state.duration = duration
 	state.easing = easing
-	ctx.RequestFrameRedraw()
+	ctx.RequestFrameRedrawReason("animation.running")
 	return current
 }
 

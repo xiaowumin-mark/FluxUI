@@ -38,6 +38,7 @@ type Runtime struct {
 	// this means hooks were called conditionally (inside if/for/switch).
 	// These fields are NOT related to click counting or user-event tracking.
 	hookStore *HookStore
+	perf      runtimePerfState
 }
 
 type effectSlot struct {
@@ -101,6 +102,13 @@ func (r *Runtime) SetInvalidator(fn func()) {
 
 // RequestRedraw 请求窗口重绘。可从任意 goroutine 安全调用。
 func (r *Runtime) RequestRedraw() {
+	r.RequestRedrawReason("RequestRedraw")
+}
+
+func (r *Runtime) requestRedraw() {
+	if r == nil {
+		return
+	}
 	r.mu.Lock()
 	fn := r.invalidate
 	r.mu.Unlock()
@@ -127,6 +135,7 @@ func (r *Runtime) BeginFrame() {
 	if r == nil {
 		return
 	}
+	r.beginPerfFrame()
 	if r.hookStore != nil {
 		r.hookStore.BeginFrame()
 	}
@@ -184,6 +193,7 @@ func (r *Runtime) EndFrame() {
 
 	r.sweepInactiveMemory()
 	r.trackingMem = false
+	r.endPerfFrame()
 }
 
 // Dispose releases runtime resources and effect cleanups.

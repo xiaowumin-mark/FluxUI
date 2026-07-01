@@ -177,8 +177,11 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		if p.circular {
 			cycle = style.InteractionLoadingCircularCycle
 		}
+		if rt := ctx.Runtime(); rt != nil {
+			rt.RecordFrameSection(internal.PerfAnimation, 1)
+		}
 		progress = animProgress(ctx, cycle)
-		ctx.RequestFrameRedraw()
+		ctx.RequestFrameRedrawReason("animation.progress")
 	} else {
 		progress = animatedProgress
 	}

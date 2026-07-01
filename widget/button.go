@@ -165,7 +165,7 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		for clickable.Clicked(ctx) {
 			b.config.dispatcher.DispatchClick(ctx)
 		}
-		if changed, hovering := clickable.HoverChanged(); changed {
+		if changed, hovering := clickable.HoverChangedWithContext(ctx); changed {
 			b.config.dispatcher.DispatchHover(ctx, hovering)
 		}
 	}

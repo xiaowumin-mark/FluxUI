@@ -70,7 +70,8 @@ func (h *AsyncHandle[T]) Run(fn func() (T, error)) {
 	h.cell.mu.Unlock()
 
 	if h.runtime != nil {
-		h.runtime.RequestRedraw()
+		h.runtime.RecordFrameSection(internal.PerfState, 1)
+		h.runtime.RequestRedrawReason("async.start")
 	}
 
 	go func() {
@@ -91,7 +92,8 @@ func (h *AsyncHandle[T]) Run(fn func() (T, error)) {
 		h.cell.mu.Unlock()
 
 		if h.runtime != nil {
-			h.runtime.RequestRedraw()
+			h.runtime.RecordFrameSection(internal.PerfState, 1)
+			h.runtime.RequestRedrawReason("async.complete")
 		}
 	}()
 }
@@ -100,6 +102,9 @@ func (h *AsyncHandle[T]) Run(fn func() (T, error)) {
 func (h *AsyncHandle[T]) Status() AsyncStatus {
 	if h == nil || h.cell == nil {
 		return AsyncIdle
+	}
+	if h.runtime != nil {
+		h.runtime.RecordFrameSection(internal.PerfState, 1)
 	}
 	h.cell.mu.Lock()
 	s := h.cell.status
@@ -118,6 +123,9 @@ func (h *AsyncHandle[T]) Data() T {
 		var zero T
 		return zero
 	}
+	if h.runtime != nil {
+		h.runtime.RecordFrameSection(internal.PerfState, 1)
+	}
 	h.cell.mu.Lock()
 	d := h.cell.data
 	h.cell.mu.Unlock()
@@ -128,6 +136,9 @@ func (h *AsyncHandle[T]) Data() T {
 func (h *AsyncHandle[T]) Error() error {
 	if h == nil || h.cell == nil {
 		return nil
+	}
+	if h.runtime != nil {
+		h.runtime.RecordFrameSection(internal.PerfState, 1)
 	}
 	h.cell.mu.Lock()
 	e := h.cell.err
@@ -149,6 +160,7 @@ func (h *AsyncHandle[T]) Reset() {
 	h.cell.mu.Unlock()
 
 	if h.runtime != nil {
-		h.runtime.RequestRedraw()
+		h.runtime.RecordFrameSection(internal.PerfState, 1)
+		h.runtime.RequestRedrawReason("async.reset")
 	}
 }

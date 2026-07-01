@@ -276,6 +276,9 @@ func useLegacyAnimValue[T animNum](ctx *Context, target T, duration time.Duratio
 }
 
 func advanceAnimValueState[T animNum](ctx *Context, state *animValueState[T], target T, duration time.Duration, easing anim.Easing) T {
+	if rt := ctx.Runtime(); rt != nil {
+		rt.RecordFrameSection(internal.PerfAnimation, 1)
+	}
 	if duration <= 0 {
 		state.snap(ctx.Now(), target, duration, easing)
 		return target
@@ -292,7 +295,7 @@ func advanceAnimValueState[T animNum](ctx *Context, state *animValueState[T], ta
 			state.snap(ctx.Now(), target, duration, easing)
 			return target
 		}
-		ctx.RequestFrameRedraw()
+		ctx.RequestFrameRedrawReason("animation.running")
 		return animNumLerp(state.from, state.to, animEasedProgress(easing, p))
 	}
 
@@ -311,7 +314,7 @@ func advanceAnimValueState[T animNum](ctx *Context, state *animValueState[T], ta
 	state.to = target
 	state.duration = duration
 	state.easing = easing
-	ctx.RequestFrameRedraw()
+	ctx.RequestFrameRedrawReason("animation.running")
 	return animNumLerp(state.from, state.to, 0)
 }
 
@@ -394,6 +397,9 @@ func useLegacyAnimDeco(ctx *Context, target Decoration, duration time.Duration, 
 }
 
 func advanceAnimDecoState(ctx *Context, state *animDecoState, target Decoration, duration time.Duration, easing anim.Easing) Decoration {
+	if rt := ctx.Runtime(); rt != nil {
+		rt.RecordFrameSection(internal.PerfAnimation, 1)
+	}
 	if duration <= 0 {
 		state.snap(ctx.Now(), target, duration, easing)
 		return target
@@ -411,7 +417,7 @@ func advanceAnimDecoState(ctx *Context, state *animDecoState, target Decoration,
 			state.snap(ctx.Now(), target, duration, easing)
 			return target
 		}
-		ctx.RequestFrameRedraw()
+		ctx.RequestFrameRedrawReason("animation.running")
 		return anim.LerpDecoration(state.from, state.to, animEasedProgress(easing, p))
 	}
 
@@ -432,6 +438,6 @@ func advanceAnimDecoState(ctx *Context, state *animDecoState, target Decoration,
 	state.to = target
 	state.duration = duration
 	state.easing = easing
-	ctx.RequestFrameRedraw()
+	ctx.RequestFrameRedrawReason("animation.running")
 	return state.from
 }

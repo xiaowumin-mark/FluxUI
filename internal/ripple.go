@@ -38,6 +38,9 @@ func (c *Context) DrawRipple(clickable *ClickableState, size image.Point, spec R
 	if clickable == nil || size.X <= 0 || size.Y <= 0 || spec.Color.A == 0 {
 		return
 	}
+	if done := c.startFrameSection(PerfDraw, 1); done != nil {
+		defer done()
+	}
 	opacity := spec.Opacity
 	if opacity <= 0 {
 		opacity = 0.16
@@ -56,6 +59,9 @@ func (c *Context) DrawRipple(clickable *ClickableState, size image.Point, spec R
 func (c *Context) DrawStateLayerCircle(clickable *ClickableState, center image.Point, diameterDp float32, spec RippleSpec, stateOpacity float32) {
 	if center.X < 0 || center.Y < 0 || spec.Color.A == 0 {
 		return
+	}
+	if done := c.startFrameSection(PerfDraw, 1); done != nil {
+		defer done()
 	}
 	diameter := c.Gtx.Dp(unit.Dp(diameterDp))
 	if diameter <= 0 {
@@ -102,14 +108,17 @@ func (c *Context) DrawStateLayerCircle(clickable *ClickableState, center image.P
 // LayoutRippleArea registers a click target and draws bounded ripple feedback
 // behind the child without changing the child's measured size.
 func (c *Context) LayoutRippleArea(clickable *ClickableState, spec RippleSpec, child func(*Context) image.Point) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	if child == nil {
 		return image.Point{}
 	}
 	if clickable == nil {
 		return child(c.sameScope(c.Gtx))
 	}
+	clickable.BindRuntime(c.Runtime())
 
-	return clickable.raw().Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
+	inputDone := c.startFrameSection(PerfInput, 1)
+	dims := clickable.raw().Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
 		next := c.sameScope(gtx)
 		recorded := op.Record(gtx.Ops)
 		size := child(next)
@@ -117,21 +126,28 @@ func (c *Context) LayoutRippleArea(clickable *ClickableState, spec RippleSpec, c
 		next.DrawRipple(clickable, size, spec)
 		call.Add(gtx.Ops)
 		return gioLayout.Dimensions{Size: size}
-	}).Size
+	})
+	if inputDone != nil {
+		inputDone()
+	}
+	return dims.Size
 }
 
 // LayoutRippleOverlayArea registers a click target and draws bounded ripple
 // feedback above the child. This is useful for surfaces whose child draws an
 // opaque container background before its content.
 func (c *Context) LayoutRippleOverlayArea(clickable *ClickableState, spec RippleSpec, child func(*Context) image.Point) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	if child == nil {
 		return image.Point{}
 	}
 	if clickable == nil {
 		return child(c.sameScope(c.Gtx))
 	}
+	clickable.BindRuntime(c.Runtime())
 
-	return clickable.raw().Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
+	inputDone := c.startFrameSection(PerfInput, 1)
+	dims := clickable.raw().Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
 		next := c.sameScope(gtx)
 		recorded := op.Record(gtx.Ops)
 		size := child(next)
@@ -139,7 +155,11 @@ func (c *Context) LayoutRippleOverlayArea(clickable *ClickableState, spec Ripple
 		call.Add(gtx.Ops)
 		next.DrawRipple(clickable, size, spec)
 		return gioLayout.Dimensions{Size: size}
-	}).Size
+	})
+	if inputDone != nil {
+		inputDone()
+	}
+	return dims.Size
 }
 
 func (c *Context) drawRipplePress(press widget.Press, bounds, center image.Point, col color.NRGBA, opacity float32) {
@@ -148,7 +168,8 @@ func (c *Context) drawRipplePress(press widget.Press, bounds, center image.Point
 		return
 	}
 	if frame.Invalidate {
-		c.RequestFrameRedraw()
+		c.recordFrameSection(PerfAnimation, 1)
+		c.RequestFrameRedrawReason("animation.ripple")
 	}
 	if frame.Diameter <= 0 {
 		return

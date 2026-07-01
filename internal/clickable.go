@@ -3,27 +3,69 @@ package internal
 import gioWidget "gioui.org/widget"
 
 type ClickableState struct {
-	button gioWidget.Clickable
+	button  gioWidget.Clickable
+	runtime *Runtime
 }
 
 func NewClickableState() *ClickableState {
 	return &ClickableState{}
 }
 
+func (c *ClickableState) BindRuntime(rt *Runtime) {
+	if c == nil {
+		return
+	}
+	c.runtime = rt
+}
+
 func (c *ClickableState) Clicked(ctx *Context) bool {
-	return c != nil && ctx != nil && c.button.Clicked(ctx.Gtx)
+	if c == nil || ctx == nil {
+		return false
+	}
+	if ctx.runtime != nil {
+		c.runtime = ctx.runtime
+	}
+	done := c.startInputSection()
+	if done != nil {
+		defer done()
+	}
+	return c.button.Clicked(ctx.Gtx)
 }
 
 func (c *ClickableState) Hovered() bool {
-	return c != nil && c.button.Hovered()
+	if c == nil {
+		return false
+	}
+	done := c.startInputSection()
+	if done != nil {
+		defer done()
+	}
+	return c.button.Hovered()
 }
 
 func (c *ClickableState) Pressed() bool {
-	return c != nil && c.button.Pressed()
+	if c == nil {
+		return false
+	}
+	done := c.startInputSection()
+	if done != nil {
+		defer done()
+	}
+	return c.button.Pressed()
 }
 
 func (c *ClickableState) Focused(ctx *Context) bool {
-	return c != nil && ctx != nil && ctx.Gtx.Focused(&c.button)
+	if c == nil || ctx == nil {
+		return false
+	}
+	if ctx.runtime != nil {
+		c.runtime = ctx.runtime
+	}
+	done := c.startInputSection()
+	if done != nil {
+		defer done()
+	}
+	return ctx.Gtx.Focused(&c.button)
 }
 
 func (c *ClickableState) History() []gioWidget.Press {
@@ -35,4 +77,11 @@ func (c *ClickableState) History() []gioWidget.Press {
 
 func (c *ClickableState) raw() *gioWidget.Clickable {
 	return &c.button
+}
+
+func (c *ClickableState) startInputSection() func() {
+	if c == nil || c.runtime == nil {
+		return nil
+	}
+	return c.runtime.StartFrameSection(PerfInput, 1)
 }

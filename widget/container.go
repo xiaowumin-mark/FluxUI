@@ -162,7 +162,7 @@ func (c *decorationContainerWidget) layoutInteractive(ctx *internal.Context) lay
 		}
 	}
 
-	if changed, hovering := clickable.HoverChanged(); changed {
+	if changed, hovering := clickable.HoverChangedWithContext(ctx); changed {
 		c.wasHovered = hovering
 		if hovering && c.config.onHoverEnter != nil {
 			c.config.onHoverEnter(ctx)

@@ -183,6 +183,9 @@ type SliderSpec struct {
 
 // LayoutText 渲染文本。
 func (c *Context) LayoutText(spec TextSpec) image.Point {
+	if done := c.startFrameSection(PerfText, 1); done != nil {
+		defer done()
+	}
 	size := spec.Size
 	if size <= 0 {
 		size = c.Theme().TextSize
@@ -209,6 +212,7 @@ func (c *Context) LayoutText(spec TextSpec) image.Point {
 
 // LayoutInset 应用内边距。
 func (c *Context) LayoutInset(insets Insets, child func(*Context) image.Point) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	dims := gioLayout.Inset{
 		Top:    unit.Dp(insets.Top),
 		Right:  unit.Dp(insets.Right),
@@ -227,6 +231,7 @@ func (c *Context) LayoutInset(insets Insets, child func(*Context) image.Point) i
 
 // LayoutSurface 绘制带背景的容器。
 func (c *Context) LayoutSurface(spec SurfaceSpec, child func(*Context) image.Point) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	gtx := c.Gtx
 	if spec.Opacity > 0 && spec.Opacity < 1 {
 		defer paint.PushOpacity(gtx.Ops, spec.Opacity).Pop()
@@ -259,6 +264,7 @@ func (c *Context) LayoutSurface(spec SurfaceSpec, child func(*Context) image.Poi
 }
 
 func (c *Context) LayoutSurfaceLooseContent(spec SurfaceSpec, child func(*Context) image.Point) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	gtx := c.Gtx
 	if spec.Opacity > 0 && spec.Opacity < 1 {
 		defer paint.PushOpacity(gtx.Ops, spec.Opacity).Pop()
@@ -303,6 +309,9 @@ func (c *Context) DrawSurfaceShadow(size image.Point, spec SurfaceSpec) {
 }
 
 func (c *Context) drawShadowLayers(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
+	if done := c.startFrameSection(PerfDraw, 1); done != nil {
+		defer done()
+	}
 	n := shadowLayerCount(spec.ShadowBlur)
 	if n <= 0 || size.X <= 0 || size.Y <= 0 {
 		return
@@ -361,6 +370,9 @@ func shadowLayerCount(blur float32) int {
 }
 
 func (c *Context) layoutRoundedSurface(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
+	if done := c.startFrameSection(PerfDraw, 1); done != nil {
+		defer done()
+	}
 	rr := clampRoundedRadiusPx(size, gtx.Dp(unit.Dp(spec.Radius)))
 	rect := image.Rectangle{Max: size}
 	defer clip.UniformRRect(rect, rr).Push(gtx.Ops).Pop()
@@ -404,6 +416,9 @@ func (c *Context) layoutRoundedSurface(gtx gioLayout.Context, size image.Point, 
 }
 
 func (c *Context) layoutCircleSurface(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
+	if done := c.startFrameSection(PerfDraw, 1); done != nil {
+		defer done()
+	}
 	dim := size.X
 	if size.Y < dim {
 		dim = size.Y
@@ -485,6 +500,7 @@ func renderImage(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
 
 // LayoutButton 绘制按钮并注册点击区域。
 func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child func(*Context) image.Point) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	gtx := c.Gtx
 	// 按钮默认不继承父级的最小高度，避免在 Expanded/Stack 场景被意外拉满。
 	gtx.Constraints.Min.Y = 0
@@ -496,6 +512,7 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 	}
 
 	recorded := op.Record(gtx.Ops)
+	inputDone := c.startFrameSection(PerfInput, 1)
 	dims := clickable.raw().Layout(gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
 		semantic.Button.Add(gtx.Ops)
 		dims := gioLayout.Background{}.Layout(gtx,
@@ -526,6 +543,9 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 		)
 		return dims
 	})
+	if inputDone != nil {
+		inputDone()
+	}
 	buttonOps := recorded.Stop()
 
 	if spec.HasShadow && spec.Shadow.Color.A > 0 && spec.Shadow.Blur > 0 {
@@ -565,6 +585,9 @@ func (c *Context) DrawFocusIndicator(size image.Point, spec FocusIndicatorSpec) 
 	if size.X <= 0 || size.Y <= 0 || spec.Color.A == 0 {
 		return
 	}
+	if done := c.startFrameSection(PerfDraw, 1); done != nil {
+		defer done()
+	}
 	width := c.Gtx.Dp(unit.Dp(spec.Width))
 	if width <= 0 {
 		width = c.Gtx.Dp(unit.Dp(2))
@@ -589,6 +612,7 @@ func (c *Context) DrawFocusIndicator(size image.Point, spec FocusIndicatorSpec) 
 
 // LayoutClickArea 注册无样式点击区域，不附带任何视觉反馈。
 func (c *Context) LayoutClickArea(clickable *ClickableState, child func(*Context) image.Point) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	if child == nil {
 		return image.Point{}
 	}
@@ -596,15 +620,23 @@ func (c *Context) LayoutClickArea(clickable *ClickableState, child func(*Context
 		return child(c.sameScope(c.Gtx))
 	}
 
+	inputDone := c.startFrameSection(PerfInput, 1)
 	dims := clickable.raw().Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
 		next := c.sameScope(gtx)
 		return gioLayout.Dimensions{Size: child(next)}
 	})
+	if inputDone != nil {
+		inputDone()
+	}
 	return dims.Size
 }
 
 // LayoutInput 绘制输入框。
 func (c *Context) LayoutInput(editor *widget.Editor, spec InputSpec) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
+	if done := c.startFrameSection(PerfInput, 1); done != nil {
+		defer done()
+	}
 	gtx := c.Gtx
 
 	editor.SingleLine = spec.SingleLine
@@ -698,6 +730,7 @@ func layoutInputEditor(gtx gioLayout.Context, ed material.EditorStyle, singleLin
 
 // LayoutCheckbox 绘制复选框。
 func (c *Context) LayoutCheckbox(clickable *ClickableState, checked bool, spec CheckboxSpec) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	baseCtx := c.Gtx
 	baseCtx.Constraints.Min = image.Point{}
 	if spec.Disabled {
@@ -767,11 +800,17 @@ func (c *Context) LayoutCheckbox(clickable *ClickableState, checked bool, spec C
 	if clickable == nil {
 		return draw(baseCtx).Size
 	}
-	return clickable.raw().Layout(baseCtx, draw).Size
+	inputDone := c.startFrameSection(PerfInput, 1)
+	size := clickable.raw().Layout(baseCtx, draw).Size
+	if inputDone != nil {
+		inputDone()
+	}
+	return size
 }
 
 // LayoutRadio 绘制单选框。
 func (c *Context) LayoutRadio(clickable *ClickableState, checked bool, spec RadioSpec) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	baseCtx := c.Gtx
 	baseCtx.Constraints.Min = image.Point{}
 	if spec.Disabled {
@@ -851,11 +890,17 @@ func (c *Context) LayoutRadio(clickable *ClickableState, checked bool, spec Radi
 	if clickable == nil {
 		return draw(baseCtx).Size
 	}
-	return clickable.raw().Layout(baseCtx, draw).Size
+	inputDone := c.startFrameSection(PerfInput, 1)
+	size := clickable.raw().Layout(baseCtx, draw).Size
+	if inputDone != nil {
+		inputDone()
+	}
+	return size
 }
 
 // LayoutSwitch 绘制开关。
 func (c *Context) LayoutSwitch(clickable *ClickableState, checked bool, spec SwitchSpec) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	baseCtx := c.Gtx
 	if spec.Disabled {
 		baseCtx = baseCtx.Disabled()
@@ -941,11 +986,17 @@ func (c *Context) LayoutSwitch(clickable *ClickableState, checked bool, spec Swi
 	if clickable == nil {
 		return draw(baseCtx).Size
 	}
-	return clickable.raw().Layout(baseCtx, draw).Size
+	inputDone := c.startFrameSection(PerfInput, 1)
+	size := clickable.raw().Layout(baseCtx, draw).Size
+	if inputDone != nil {
+		inputDone()
+	}
+	return size
 }
 
 // LayoutSlider 绘制滑块。
 func (c *Context) LayoutSlider(slider *widget.Float, spec SliderSpec) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	if slider == nil {
 		return image.Point{}
 	}
@@ -976,7 +1027,11 @@ func (c *Context) LayoutSlider(slider *widget.Float, spec SliderSpec) image.Poin
 		interactiveCtx = interactiveCtx.Disabled()
 	}
 	interactiveCtx.Constraints = gioLayout.Exact(image.Point{X: width, Y: interactiveHeight})
+	inputDone := c.startFrameSection(PerfInput, 1)
 	_ = slider.Layout(interactiveCtx, gioLayout.Horizontal, unit.Dp(10))
+	if inputDone != nil {
+		inputDone()
+	}
 	spec.Dragged = spec.Dragged || slider.Dragging()
 
 	progress := slider.Value
@@ -1070,6 +1125,7 @@ func DrawCheckMark(gtx gioLayout.Context, size int, col color.NRGBA) {
 
 // LayoutFlex 执行 Flex 布局。
 func (c *Context) LayoutFlex(axis Axis, children ...FlexChild) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	flexChildren := make([]gioLayout.FlexChild, 0, len(children))
 	rigidOffset := 0
 	for index, child := range children {
@@ -1097,6 +1153,7 @@ func (c *Context) LayoutFlex(axis Axis, children ...FlexChild) image.Point {
 
 // LayoutStack 执行 Stack 布局。
 func (c *Context) LayoutStack(children ...StackChild) image.Point {
+	c.recordFrameSection(PerfLayout, 1)
 	stackChildren := make([]gioLayout.StackChild, 0, len(children))
 	for index, child := range children {
 		idx := index

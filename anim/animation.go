@@ -78,6 +78,9 @@ func (a *Animation) Value(ctx *internal.Context) float32 {
 	if ctx == nil {
 		return a.to
 	}
+	if rt := ctx.Runtime(); rt != nil {
+		rt.RecordFrameSection(internal.PerfAnimation, 1)
+	}
 
 	value := ctx.Memo("animation", func() any {
 		return &track{}
@@ -102,7 +105,7 @@ func (a *Animation) Value(ctx *internal.Context) float32 {
 
 	elapsed := now.Sub(timeline.startedAt)
 	if elapsed < a.duration {
-		ctx.RequestFrameRedraw()
+		ctx.RequestFrameRedrawReason("animation.running")
 	}
 
 	progress := Clamp01(float32(elapsed) / float32(a.duration))

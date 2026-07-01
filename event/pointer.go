@@ -25,6 +25,9 @@ func UseClickable(ctx *internal.Context) *Clickable {
 	if !ok {
 		panic(fmt.Sprintf("github.com/xiaowumin-mark/FluxUI/event: key %q clickable state type mismatch", ctx.TreePath()))
 	}
+	if clickable.handle != nil {
+		clickable.handle.BindRuntime(ctx.Runtime())
+	}
 
 	return clickable
 }
@@ -58,10 +61,25 @@ func (c *Clickable) Focused(ctx *internal.Context) bool {
 }
 
 func (c *Clickable) HoverChanged() (changed bool, hovering bool) {
+	return c.hoverChanged(nil)
+}
+
+func (c *Clickable) HoverChangedWithContext(ctx *internal.Context) (changed bool, hovering bool) {
+	return c.hoverChanged(ctx)
+}
+
+func (c *Clickable) hoverChanged(ctx *internal.Context) (changed bool, hovering bool) {
+	if c == nil {
+		return false, false
+	}
+	wasInitialized := c != nil && c.initialized
 	hovering = c.Hovered()
 	changed = !c.initialized || c.hovered != hovering
 	c.hovered = hovering
 	c.initialized = true
+	if changed && wasInitialized && ctx != nil && ctx.Runtime() != nil {
+		ctx.Runtime().RecordRedrawReason("pointer.hover_changed")
+	}
 	return changed, hovering
 }
 

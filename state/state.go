@@ -105,6 +105,9 @@ func (s *State[T]) Value() T {
 		var zero T
 		return zero
 	}
+	if s.runtime != nil {
+		s.runtime.RecordFrameSection(internal.PerfState, 1)
+	}
 	return s.cell.Value()
 }
 
@@ -113,8 +116,11 @@ func (s *State[T]) Set(v T) {
 	if s == nil || s.cell == nil {
 		return
 	}
+	if s.runtime != nil {
+		s.runtime.RecordFrameSection(internal.PerfState, 1)
+	}
 	s.cell.Set(v)
 	if s.runtime != nil {
-		s.runtime.RequestRedraw()
+		s.runtime.RequestRedrawReason("state.Set")
 	}
 }

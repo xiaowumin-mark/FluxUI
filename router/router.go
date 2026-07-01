@@ -293,7 +293,7 @@ func (s *routerState) navigate(ctx *internal.Context, fullPath string, action na
 		}
 	}
 
-	ctx.RequestFrameRedraw()
+	ctx.RequestFrameRedrawReason("router.navigate")
 }
 
 func normalizePathForGuard(fullPath string) string {
@@ -327,7 +327,10 @@ func (w *routerWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		st.transition.progress = progress
 		st.transition.active = active
 		if active {
-			next.RequestFrameRedraw()
+			if rt := next.Runtime(); rt != nil {
+				rt.RecordFrameSection(internal.PerfAnimation, 1)
+			}
+			next.RequestFrameRedrawReason("animation.router")
 		}
 	}
 
@@ -657,7 +660,7 @@ func Navigate(ctx *internal.Context, path string, opts ...NavigateOption) {
 		action: navPush,
 		opts:   navOpts,
 	}
-	ctx.RequestRedraw()
+	ctx.RequestRedrawReason("router.navigate")
 }
 
 // NavigateReplace 替换当前路径（不增加栈深度）。
@@ -675,7 +678,7 @@ func NavigateReplace(ctx *internal.Context, path string, opts ...NavigateOption)
 		action: navReplace,
 		opts:   navOpts,
 	}
-	ctx.RequestRedraw()
+	ctx.RequestRedrawReason("router.navigate")
 }
 
 // NavigateBack 返回上一页。
@@ -695,7 +698,7 @@ func NavigateBack(ctx *internal.Context, opts ...NavigateOption) {
 		action: navPop,
 		opts:   navOpts,
 	}
-	ctx.RequestRedraw()
+	ctx.RequestRedrawReason("router.navigate")
 }
 
 // UseNavigate 返回绑定当前上下文的导航函数。

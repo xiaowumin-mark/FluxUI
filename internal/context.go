@@ -186,20 +186,30 @@ func (c *Context) WithViewport(viewport image.Rectangle) *Context {
 // RequestRedraw 请求窗口重绘。
 // 该方法只依赖 Runtime，可安全用于事件回调或 goroutine；不要把 Context 长期保存。
 func (c *Context) RequestRedraw() {
+	c.RequestRedrawReason("RequestRedraw")
+}
+
+// RequestRedrawReason requests a window redraw and records a diagnostic reason.
+func (c *Context) RequestRedrawReason(reason string) {
 	if c == nil || c.runtime == nil {
 		return
 	}
-	c.runtime.RequestRedraw()
+	c.runtime.RequestRedrawReason(reason)
 }
 
 // RequestFrameRedraw 请求 frame 驱动的下一帧刷新。
 // 仅在当前 Layout/Render frame 内部使用；跨 goroutine 请使用 RequestRedraw。
 func (c *Context) RequestFrameRedraw() {
+	c.RequestFrameRedrawReason("RequestFrameRedraw")
+}
+
+// RequestFrameRedrawReason requests a frame-driven redraw and records a reason.
+func (c *Context) RequestFrameRedrawReason(reason string) {
 	if c == nil {
 		return
 	}
 	c.Gtx.Execute(op.InvalidateCmd{})
-	c.RequestRedraw()
+	c.RequestRedrawReason(reason)
 }
 
 // WindowID 返回当前窗口 ID。
@@ -418,7 +428,11 @@ func (c *Context) WindowInvalidate() bool {
 		return false
 	}
 	ctrl := c.runtime.WindowController()
-	return ctrl != nil && ctrl.Invalidate()
+	ok := ctrl != nil && ctrl.Invalidate()
+	if ok {
+		c.runtime.RecordRedrawReason("WindowInvalidate")
+	}
+	return ok
 }
 
 // WindowIsAlive 返回当前窗口是否仍然存活。

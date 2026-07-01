@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"io"
 	"math"
 	"os"
 	"runtime"
@@ -606,6 +607,7 @@ type Application struct {
 	WindowsFrameStyle  WindowsFrameStyle
 	CloseRequested     func(WindowCloseRequest) bool
 	Theme              *theme.Theme
+	PerfDiagnostics    internal.PerfDiagnostics
 	Root               Builder
 }
 
@@ -792,6 +794,46 @@ func WithSystemFonts(enabled bool) Option {
 	}
 }
 
+// EnablePerfDiagnostics enables coarse frame timing and redraw reason capture.
+func EnablePerfDiagnostics(enabled bool) Option {
+	return func(app *Application) {
+		app.PerfDiagnostics.Enabled = enabled
+		if enabled {
+			app.PerfDiagnostics.MeasureDurations = true
+		}
+	}
+}
+
+// WithPerfDiagnostics sets the full runtime performance diagnostics config.
+func WithPerfDiagnostics(config internal.PerfDiagnostics) Option {
+	return func(app *Application) {
+		app.PerfDiagnostics = config
+	}
+}
+
+// PerfDiagnosticsWriter sets the destination for frame diagnostics logs.
+func PerfDiagnosticsWriter(w io.Writer) Option {
+	return func(app *Application) {
+		app.PerfDiagnostics.Writer = w
+		if w != nil {
+			app.PerfDiagnostics.Enabled = true
+			app.PerfDiagnostics.MeasureDurations = true
+			app.PerfDiagnostics.LogRedrawReasons = true
+		}
+	}
+}
+
+// LogRedrawReasons controls whether each frame writes redraw reason logs.
+func LogRedrawReasons(enabled bool) Option {
+	return func(app *Application) {
+		app.PerfDiagnostics.LogRedrawReasons = enabled
+		if enabled {
+			app.PerfDiagnostics.Enabled = true
+			app.PerfDiagnostics.MeasureDurations = true
+		}
+	}
+}
+
 // ListWindows 返回当前仍然存活的窗口句柄列表。
 func ListWindows() []WindowHandle {
 	windowRegistryMu.RLock()
@@ -882,6 +924,7 @@ func (a *Application) Run() error {
 	}()
 
 	rt := internal.NewRuntime(th)
+	rt.SetPerfDiagnostics(a.PerfDiagnostics)
 	rt.SetInvalidator(func() {
 		if !entry.renderSuspendedSnapshot() {
 			w.Invalidate()
@@ -903,8 +946,10 @@ func (a *Application) Run() error {
 			})
 			return evt.Err
 		case gioApp.ConfigEvent:
+			rt.RecordRedrawReason("window.event")
 			entry.updateFromConfig(evt.Config)
 		case gioApp.ViewEvent:
+			rt.RecordRedrawReason("window.event")
 			entry.updateNativeHandle(evt)
 		case gioApp.FrameEvent:
 			entry.updateFromFrame(evt.Size, evt.Metric)
@@ -923,7 +968,11 @@ func (a *Application) Run() error {
 
 			if a.Root != nil {
 				if root := a.Root(buildCtx); root != nil {
+					layoutDone := rt.StartFrameSection(internal.PerfLayout, 1)
 					root.Layout(treeCtx.Child(0))
+					if layoutDone != nil {
+						layoutDone()
+					}
 				}
 			}
 			rt.EndFrame()

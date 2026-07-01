@@ -32,7 +32,7 @@ func UseInterval(ctx *internal.Context, interval time.Duration, fn func()) {
 					}
 					fn()
 					if rt != nil {
-						rt.RequestRedraw()
+						rt.RequestRedrawReason("interval.tick")
 					}
 				case <-stop:
 					return

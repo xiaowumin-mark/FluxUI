@@ -171,6 +171,12 @@ func elementRootBuilder(root Component) fluxapp.Builder {
 	}
 }
 
+// ElementRootBuilder creates a stateful Element root renderer for tests and
+// tools that manually drive frames without starting an application window.
+func ElementRootBuilder(root Component) func(ctx *Context) Widget {
+	return elementRootBuilder(root)
+}
+
 // UseState 创建或读取带初始值的状态。
 func UseState[T any](ctx *Context, initial T) *state.State[T] {
 	if hook := ctx.NextHookSlot(internal.HookState); hook != nil {

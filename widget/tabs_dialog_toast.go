@@ -589,7 +589,7 @@ func (t *toastWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				t.config.onClose(ctx)
 			}
 		} else {
-			ctx.RequestFrameRedraw()
+			ctx.RequestFrameRedrawReason("animation.toast")
 		}
 	}
 
