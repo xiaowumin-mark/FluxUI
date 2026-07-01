@@ -4,6 +4,7 @@
 
 - `docs/material3-design-plan.md`: Material Design 3 默认样式规范、FluxUI 当前差距和分阶段实施计划。
 - `docs/material3-roadmap.md`: Material Design 3 长期路线图，记录当前融合进展、组件覆盖矩阵、交互反馈计划和长期验收标准。
+- `docs/performance-optimization-roadmap.md`: 性能优化路线图，规划大型项目、密集组件和高频鼠标交互场景下的性能治理路线。
 - `docs/system-api-roadmap.md`: System API 长期路线图，规划窗口、文件选择、系统弹窗、系统通知、托盘与多平台占位策略。
 - `docs/guides/material3.md`: 文档浏览器中的 Material Design 3 默认样式指南。
 - `docs/guides/icon-fonts.md`: 内置 MD3 图标字体与自定义图标字体指南。

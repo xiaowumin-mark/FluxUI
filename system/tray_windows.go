@@ -38,14 +38,14 @@ const (
 )
 
 var (
-	procCreatePopupMenu       = user32.NewProc("CreatePopupMenu")
-	procAppendMenu            = user32.NewProc("AppendMenuW")
-	procDestroyMenu           = user32.NewProc("DestroyMenu")
-	procTrackPopupMenu        = user32.NewProc("TrackPopupMenu")
-	procGetCursorPos          = user32.NewProc("GetCursorPos")
-	procSetForegroundWindow   = user32.NewProc("SetForegroundWindow")
-	procPostMessage           = user32.NewProc("PostMessageW")
-	procRegisterWindowMessage = user32.NewProc("RegisterWindowMessageW")
+	procCreatePopupMenu          = user32.NewProc("CreatePopupMenu")
+	procAppendMenu               = user32.NewProc("AppendMenuW")
+	procDestroyMenu              = user32.NewProc("DestroyMenu")
+	procTrackPopupMenu           = user32.NewProc("TrackPopupMenu")
+	procGetCursorPos             = user32.NewProc("GetCursorPos")
+	procSetForegroundWindow      = user32.NewProc("SetForegroundWindow")
+	procPostMessage              = user32.NewProc("PostMessageW")
+	procRegisterWindowMessage    = user32.NewProc("RegisterWindowMessageW")
 	procCreateIconFromResourceEx = user32.NewProc("CreateIconFromResourceEx")
 
 	windowsTrayState             = newWindowsTrayState()

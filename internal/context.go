@@ -454,7 +454,23 @@ func (c *Context) Persistent(key string, factory func() any) any {
 	return c.runtime.remember(key, factory)
 }
 
-// Memo 使用稳定 hook key 读取或创建对象。
+// PersistentValue reads a stable object without creating it.
+func (c *Context) PersistentValue(key string) (any, bool) {
+	if c == nil || c.runtime == nil {
+		return nil, false
+	}
+	return c.runtime.memoryValue(key)
+}
+
+// ForgetPersistent releases a stable object before the frame sweep.
+func (c *Context) ForgetPersistent(key string) {
+	if c == nil || c.runtime == nil {
+		return
+	}
+	c.runtime.forgetMemory(key)
+}
+
+// Memo reads or creates a stable object using a hook key in the current scope.
 func (c *Context) Memo(namespace string, factory func() any) any {
 	return c.Persistent(c.NextKey(namespace), factory)
 }

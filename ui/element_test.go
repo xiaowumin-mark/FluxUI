@@ -8,6 +8,7 @@ import (
 
 	anim "github.com/xiaowumin-mark/FluxUI/anim"
 	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/state"
 	widgetpkg "github.com/xiaowumin-mark/FluxUI/widget"
 
@@ -994,6 +995,39 @@ func TestCompositeElementChildrenCanUseHooksAndContext(t *testing.T) {
 	if len(seenState) != 2 || seenState[0] != 1 || seenState[1] != 2 {
 		t.Fatalf("expected nested component state to persist, got %v", seenState)
 	}
+}
+
+func TestThemeProviderElementAppliesThemeDuringWidgetLayout(t *testing.T) {
+	rt := internal.NewRuntime(NewTheme(LightColors()))
+	var ops op.Ops
+	gtx := gioLayout.Context{Ops: &ops}
+	dark := NewTheme(DarkColors())
+	var got color.NRGBA
+
+	root := ThemeProviderElement(dark, FromWidget(themeProbeWidget{color: &got}))
+
+	rt.BeginFrame()
+	w := renderElementWithContext(internal.NewContext(gtx, rt), root)
+	if w == nil {
+		t.Fatal("expected themed widget")
+	}
+	w.Layout(internal.NewContext(gtx, rt))
+	rt.EndFrame()
+
+	if got != dark.Colors.SurfaceContainer {
+		t.Fatalf("theme provider layout color = %#v, want %#v", got, dark.Colors.SurfaceContainer)
+	}
+}
+
+type themeProbeWidget struct {
+	color *color.NRGBA
+}
+
+func (w themeProbeWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	if w.color != nil {
+		*w.color = ctx.Theme().Colors.SurfaceContainer
+	}
+	return layout.Dimensions{}
 }
 
 func TestTabbedAnimatedSectionsKeepIndependentHookSlots(t *testing.T) {

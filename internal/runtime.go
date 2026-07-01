@@ -15,15 +15,17 @@ import (
 
 // Runtime 持有跨 frame 的稳定数据。
 type Runtime struct {
-	mu         sync.Mutex
-	memory     map[string]any
-	theme      *theme.Theme
-	material   *material.Theme
-	invalidate func()
-	windowCtrl WindowController
-	effects    map[string]*effectSlot
-	activeFx   map[string]struct{}
-	pendingFx  []func()
+	mu          sync.Mutex
+	memory      map[string]any
+	activeMem   map[string]struct{}
+	trackingMem bool
+	theme       *theme.Theme
+	material    *material.Theme
+	invalidate  func()
+	windowCtrl  WindowController
+	effects     map[string]*effectSlot
+	activeFx    map[string]struct{}
+	pendingFx   []func()
 
 	hookCounts           map[string]int
 	prevHookCounts       map[string]int
@@ -69,6 +71,7 @@ func NewRuntime(th *theme.Theme) *Runtime {
 
 	return &Runtime{
 		memory:         make(map[string]any),
+		activeMem:      make(map[string]struct{}),
 		theme:          th,
 		material:       mt,
 		effects:        make(map[string]*effectSlot),
@@ -127,6 +130,8 @@ func (r *Runtime) BeginFrame() {
 	if r.hookStore != nil {
 		r.hookStore.BeginFrame()
 	}
+	clear(r.activeMem)
+	r.trackingMem = true
 	r.hookCounts, r.prevHookCounts = r.prevHookCounts, r.hookCounts
 	clear(r.hookCounts)
 	clear(r.activeFx)
@@ -176,6 +181,9 @@ func (r *Runtime) EndFrame() {
 		}
 	}
 	r.pendingFx = r.pendingFx[:0]
+
+	r.sweepInactiveMemory()
+	r.trackingMem = false
 }
 
 // Dispose releases runtime resources and effect cleanups.
@@ -193,6 +201,9 @@ func (r *Runtime) Dispose() {
 		}
 		delete(r.effects, key)
 	}
+	clear(r.memory)
+	clear(r.activeMem)
+	r.trackingMem = false
 	r.pendingFx = nil
 	clear(r.activeFx)
 }
@@ -266,12 +277,45 @@ func (r *Runtime) WindowDragAreaActive() bool {
 }
 
 func (r *Runtime) remember(key string, factory func() any) any {
+	r.markMemoryActive(key)
 	if value, ok := r.memory[key]; ok {
 		return value
 	}
 	value := factory()
 	r.memory[key] = value
 	return value
+}
+
+func (r *Runtime) memoryValue(key string) (any, bool) {
+	r.markMemoryActive(key)
+	value, ok := r.memory[key]
+	return value, ok
+}
+
+func (r *Runtime) forgetMemory(key string) {
+	if r == nil || key == "" {
+		return
+	}
+	delete(r.memory, key)
+	delete(r.activeMem, key)
+}
+
+func (r *Runtime) markMemoryActive(key string) {
+	if r == nil || !r.trackingMem || key == "" {
+		return
+	}
+	r.activeMem[key] = struct{}{}
+}
+
+func (r *Runtime) sweepInactiveMemory() {
+	if r == nil || !r.trackingMem {
+		return
+	}
+	for key := range r.memory {
+		if _, ok := r.activeMem[key]; !ok {
+			delete(r.memory, key)
+		}
+	}
 }
 
 func shouldRunEffect(slot *effectSlot, hasDeps bool, nextDeps []any) bool {

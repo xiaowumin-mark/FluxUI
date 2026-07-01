@@ -258,6 +258,62 @@ func TestRememberCachesValue(t *testing.T) {
 	}
 }
 
+func TestRememberRetainsActiveFrameMemory(t *testing.T) {
+	rt := NewRuntime(nil)
+	callCount := 0
+	factory := func() any {
+		callCount++
+		return callCount
+	}
+
+	rt.BeginFrame()
+	if got := rt.remember("active", factory); got != 1 {
+		t.Fatalf("expected first value 1, got %v", got)
+	}
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	if got := rt.remember("active", factory); got != 1 {
+		t.Fatalf("expected cached active value 1, got %v", got)
+	}
+	rt.EndFrame()
+
+	if callCount != 1 {
+		t.Fatalf("expected factory to run once for active memory, ran %d times", callCount)
+	}
+}
+
+func TestRememberSweepsInactiveFrameMemory(t *testing.T) {
+	rt := NewRuntime(nil)
+
+	rt.BeginFrame()
+	rt.remember("kept", func() any { return 1 })
+	rt.remember("removed", func() any { return 2 })
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	rt.remember("kept", func() any { return 3 })
+	rt.EndFrame()
+
+	if _, ok := rt.memory["kept"]; !ok {
+		t.Fatal("expected active memory key to be retained")
+	}
+	if _, ok := rt.memory["removed"]; ok {
+		t.Fatal("expected inactive memory key to be swept")
+	}
+}
+
+func TestRememberOutsideFrameIsNotSweptByEndFrameWithoutBegin(t *testing.T) {
+	rt := NewRuntime(nil)
+	rt.remember("outside", func() any { return 1 })
+
+	rt.EndFrame()
+
+	if _, ok := rt.memory["outside"]; !ok {
+		t.Fatal("expected memory created outside a tracked frame to remain")
+	}
+}
+
 func TestDepsEqual(t *testing.T) {
 	if !depsEqual(nil, nil) {
 		t.Fatal("nil == nil")

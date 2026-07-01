@@ -320,19 +320,36 @@ func materialAnimatedStateLayerOpacity(ctx *internal.Context, hovered, pressed, 
 }
 
 func md3AnimateStateLayerOpacity(ctx *internal.Context, namespace string, target float32) float32 {
+	if ctx == nil {
+		return target
+	}
 	enterDuration := style.InteractionHoverEnterDuration
 	if target >= style.StateLayerPressedOpacity {
 		enterDuration = style.InteractionPressedEnterDuration
 	}
-	return md3AnimateFloatDirectional(
-		ctx,
-		namespace,
-		target,
-		enterDuration,
-		style.InteractionPressedExitDuration,
-		style.InteractionStandardDecelerateEasing,
-		style.InteractionStandardAccelerateEasing,
-	)
+	key := md3MotionKey(ctx, namespace)
+	if target <= 0 {
+		state, ok := md3ExistingFloatState(ctx, key)
+		if !ok {
+			return 0
+		}
+		progress := state.advance(ctx, 0, style.InteractionPressedExitDuration, style.InteractionStandardAccelerateEasing)
+		if progress <= 0 {
+			if _, running := state.currentAndRunning(ctx.Now()); !running && state.to <= 0 {
+				ctx.ForgetPersistent(key)
+			}
+		}
+		return progress
+	}
+	state := md3FloatStateForKey(ctx, key, 0)
+	current := state.valueAt(ctx.Now())
+	duration := style.InteractionPressedExitDuration
+	easing := style.InteractionStandardAccelerateEasing
+	if target > current {
+		duration = enterDuration
+		easing = style.InteractionStandardDecelerateEasing
+	}
+	return state.advance(ctx, target, duration, easing)
 }
 
 func md3SelectionProgress(ctx *internal.Context, active bool) float32 {
@@ -416,7 +433,11 @@ func md3AnimateFloatDirectional(ctx *internal.Context, namespace string, target 
 }
 
 func md3FloatStateFor(ctx *internal.Context, namespace string, initial float32) *md3AnimatedFloatState {
-	value := ctx.Persistent(md3MotionKey(ctx, namespace), func() any {
+	return md3FloatStateForKey(ctx, md3MotionKey(ctx, namespace), initial)
+}
+
+func md3FloatStateForKey(ctx *internal.Context, key string, initial float32) *md3AnimatedFloatState {
+	value := ctx.Persistent(key, func() any {
 		return &md3AnimatedFloatState{
 			startedAt: ctx.Now(),
 			from:      initial,
@@ -433,6 +454,24 @@ func md3FloatStateFor(ctx *internal.Context, namespace string, initial float32) 
 		state.easing = style.InteractionLinearEasing
 	}
 	return state
+}
+
+func md3ExistingFloatState(ctx *internal.Context, key string) (*md3AnimatedFloatState, bool) {
+	if ctx == nil {
+		return nil, false
+	}
+	value, ok := ctx.PersistentValue(key)
+	if !ok {
+		return nil, false
+	}
+	state, ok := value.(*md3AnimatedFloatState)
+	if !ok {
+		panic("github.com/xiaowumin-mark/FluxUI/widget: md3 animated float state type mismatch")
+	}
+	if state.easing == nil {
+		state.easing = style.InteractionLinearEasing
+	}
+	return state, true
 }
 
 func (s *md3AnimatedFloatState) advance(ctx *internal.Context, target float32, duration time.Duration, easing func(float32) float32) float32 {

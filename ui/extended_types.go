@@ -806,7 +806,7 @@ func (e *themeProviderElement) ChildContext(ctx *Context) *Context {
 }
 
 func (e *themeProviderElement) RenderWithChildren(ctx *Context, children []Widget) Widget {
-	return firstWidget(children)
+	return widget.WithTheme(e.theme, firstWidget(children))
 }
 
 type layoutElement struct {

@@ -631,6 +631,10 @@ type gridViewWidget struct {
 	config  gridConfig
 }
 
+var emptyWidget = layoutWidgetFunc(func(_ *internal.Context) layout.Dimensions {
+	return layout.Dimensions{}
+})
+
 // Grid 创建网格布局。
 func Grid(columns int, children ...Widget) Widget {
 	if columns <= 0 {
@@ -724,9 +728,7 @@ func (g *gridViewWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			for i := startIdx; i < endIdx; i++ {
 				cell := g.builder(rowCtx.Child(i-startIdx), i)
 				if cell == nil {
-					cell = layoutWidgetFunc(func(_ *internal.Context) layout.Dimensions {
-						return layout.Dimensions{}
-					})
+					cell = emptyWidget
 				}
 				if g.config.colGap > 0 && i < endIdx-1 {
 					cell = Padding(style.Insets{Right: g.config.colGap}, cell)
@@ -735,9 +737,7 @@ func (g *gridViewWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			}
 
 			for i := endIdx - startIdx; i < cols; i++ {
-				empty := layoutWidgetFunc(func(_ *internal.Context) layout.Dimensions {
-					return layout.Dimensions{}
-				})
+				empty := emptyWidget
 				if g.config.colGap > 0 && i < cols-1 {
 					rowChildren = append(rowChildren, Padding(style.Insets{Right: g.config.colGap}, empty))
 				} else {
@@ -845,7 +845,7 @@ func buildGrid(columns int, children []Widget, cfg gridConfig) Widget {
 		if end > len(children) {
 			end = len(children)
 		}
-		rowChildren := make([]Widget, 0, columns)
+		rowChildren := make([]Widget, 0, end-i)
 		for j := i; j < end; j++ {
 			cell := children[j]
 			if cfg.colGap > 0 && j < end-1 {

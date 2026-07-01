@@ -10,7 +10,7 @@ visual:
 	go test -tags visual ./examples/material3_showcase -run TestMaterial3ShowcaseScreenshots -count=1
 
 fmt:
-	gofmt -w ./
+	git ls-files '*.go' | xargs gofmt -w
 
 lint:
 	golangci-lint run

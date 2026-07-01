@@ -121,7 +121,7 @@ func ParseFontBytes(name string, data []byte) ([]FontFace, error) {
 
 // LoadFontsFromPaths 加载多个字体文件。
 func LoadFontsFromPaths(paths ...string) ([]FontFace, error) {
-	out := make([]FontFace, 0)
+	out := make([]FontFace, 0, len(paths))
 	for _, path := range paths {
 		p := strings.TrimSpace(path)
 		if p == "" {
