@@ -14,9 +14,16 @@
     "ProgressMin(min float32) ProgressOption",
     "ProgressMax(max float32) ProgressOption",
     "ProgressIndeterminate(indeterminate bool) ProgressOption",
+    "ProgressLoading(loading bool) ProgressOption",
+    "ProgressFourColor(fourColor bool) ProgressOption",
+    "ProgressBuffer(value float32) ProgressOption",
+    "ProgressBufferColor(col color.NRGBA) ProgressOption",
     "ProgressThickness(thickness float32) ProgressOption",
+    "ProgressTrackHeight(height float32) ProgressOption",
+    "ProgressIndicatorHeight(height float32) ProgressOption",
     "ProgressTrackColor(col color.NRGBA) ProgressOption",
     "ProgressFillColor(col color.NRGBA) ProgressOption",
+    "ProgressActiveIndicatorColor(col color.NRGBA) ProgressOption",
     "ProgressDecoration(d Decoration) ProgressOption"
   ]
 }
@@ -30,6 +37,9 @@ ProgressBar 适用于上传、下载、任务执行等线性进度展示。
 ## 使用方法
 - 通过 `ProgressMin/ProgressMax` 指定范围。
 - 通过 `value` 传当前进度值。
+- Material 3 `LinearProgressIndicator` 默认按官方 `0..1` 范围工作；旧 `ProgressBar` 默认保持 `0..100` 兼容。
+- `ProgressBuffer` 可展示缓冲进度，未缓冲区会绘制为点状轨道。
+- `ProgressIndeterminate(true)` / `ProgressLoading(true)` 会启用 loading 动画。
 - 通过 `ProgressTrackColor/ProgressFillColor` 自定义样式。
 
 ## 使用示例
@@ -49,6 +59,11 @@ func UploadProgress(ctx *ui.Context) ui.Element {
             ui.ProgressMin(0),
             ui.ProgressMax(100),
             ui.ProgressFillColor(ui.NRGBA(30, 136, 229, 255)),
+        ),
+        ui.LinearProgressIndicatorElement(
+            0.5,
+            ui.ProgressBuffer(0.8),
+            ui.ProgressFourColor(true),
         ),
     )
 }

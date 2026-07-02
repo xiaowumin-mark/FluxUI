@@ -783,6 +783,9 @@ func TestInteractiveElementsWrapLegacyWidgets(t *testing.T) {
 	if el := ButtonElement(TextElement("go")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected ButtonElement to wrap a legacy button widget")
 	}
+	if el := ButtonElement(TextElement("loading"), ButtonLoading(true), ButtonLoadingIndicator(LoadingIndicator())); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected ButtonElement to support loading indicator")
+	}
 	if el := ClickAreaElement(TextElement("tap"), nil); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected ClickAreaElement to wrap a legacy click area widget")
 	}
@@ -801,8 +804,26 @@ func TestInteractiveElementsWrapLegacyWidgets(t *testing.T) {
 }
 
 func TestFinalComponentElementsWrapLegacyWidgets(t *testing.T) {
-	if el := TextFieldElement("hello"); el == nil || RenderElement(el) == nil {
-		t.Fatal("expected TextFieldElement to wrap a legacy text field widget")
+	if el := TextFieldElement(
+		"hello",
+		InputLabel("Label"),
+		InputSupportingText("Supporting"),
+		InputErrorText("Error"),
+		InputError(false),
+		InputRequired(true),
+		InputNoAsterisk(false),
+		InputPrefixText("$"),
+		InputSuffixText("USD"),
+		InputLeading(Icon("person")),
+		InputTrailing(Icon("mail")),
+		InputLeadingElement(IconElement("person")),
+		InputTrailingElement(IconElement("mail")),
+		InputCounter(true),
+		InputRows(2),
+		InputMinRows(2),
+		InputMaxRows(4),
+	); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected TextFieldElement to support Material text field options")
 	}
 	if el := SliderElement(42); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected SliderElement to wrap a legacy slider widget")
@@ -813,11 +834,58 @@ func TestFinalComponentElementsWrapLegacyWidgets(t *testing.T) {
 	if el := SelectElement("a", []SelectOptionItem[string]{{Label: "A", Value: "a"}}); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected SelectElement to wrap a legacy select widget")
 	}
+	if el := OutlinedSelectElement(
+		"a",
+		[]SelectOptionItem[string]{{Label: "A", Value: "a", Disabled: true, Leading: Icon("info"), Trailing: Icon("check"), TypeaheadText: "alpha"}},
+		SelectLabel[string]("Label"),
+		SelectSupportingText[string]("Supporting"),
+		SelectErrorText[string]("Error"),
+		SelectError[string](false),
+		SelectRequired[string](true),
+		SelectNoAsterisk[string](false),
+		SelectWidth[string](220),
+		SelectXOffset[string](2),
+		SelectYOffset[string](2),
+		SelectQuick[string](true),
+		SelectTypeaheadDelay[string](time.Second),
+		SelectFilled[string](false),
+		SelectLeading[string](Icon("restaurant")),
+		SelectTrailing[string](Icon("arrow_drop_down")),
+		SelectMenuDecoration[string](Bg(NRGBA(255, 255, 255, 255)).WithRad(4)),
+	); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected OutlinedSelectElement to support Material select options")
+	}
+	if el := FilledSelectElement("a", []SelectOptionItem[string]{{Label: "A", Value: "a"}}); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected FilledSelectElement to wrap a filled select widget")
+	}
 	if el := MenuElement([]MenuItem{{Key: "a", Label: "A"}}); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected MenuElement to wrap a menu widget")
 	}
 	if el := DropdownMenuElement(true, TextElement("open"), []MenuItem{{Key: "a", Label: "A"}}); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected DropdownMenuElement to wrap a dropdown menu widget")
+	}
+	if el := DropdownMenuElement(
+		true,
+		TextElement("open"),
+		[]MenuItem{{Key: "parent", Label: "Parent", Children: []MenuItem{{Key: "child", Label: "Child"}}}},
+		DropdownMenuQuick(true),
+		DropdownMenuXOffset(4),
+		DropdownMenuYOffset(2),
+		DropdownMenuAnchorCorner(MenuCornerEndStart),
+		DropdownMenuMenuCorner(MenuCornerStartStart),
+		DropdownMenuDefaultFocusOf(MenuDefaultFocusFirstItem),
+		DropdownMenuPositioningOf(MenuPositioningAbsolute),
+		DropdownMenuTypeaheadDelay(time.Second),
+		DropdownMenuNoHorizontalFlip(false),
+		DropdownMenuNoVerticalFlip(false),
+		DropdownMenuStayOpenOnOutsideClick(false),
+		DropdownMenuStayOpenOnFocusout(false),
+		DropdownMenuSkipRestoreFocus(false),
+		DropdownMenuNoNavigationWrap(false),
+		DropdownMenuHoverOpenDelay(100*time.Millisecond),
+		DropdownMenuHoverCloseDelay(100*time.Millisecond),
+	); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected DropdownMenuElement to wrap an advanced dropdown menu widget")
 	}
 	if el := ListItemElement("Headline"); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected ListItemElement to wrap a list item widget")
@@ -827,6 +895,9 @@ func TestFinalComponentElementsWrapLegacyWidgets(t *testing.T) {
 	}
 	if el := IconButtonElement(IconElement("info")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected IconButtonElement to wrap an icon button widget")
+	}
+	if el := IconButtonElement(IconElement("sync"), IconButtonLoading(true), IconButtonLoadingIndicator(LoadingIndicator())); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected IconButtonElement to support loading indicator")
 	}
 	if el := FilledIconButtonElement(IconElement("info")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected FilledIconButtonElement to wrap an icon button widget")
@@ -852,8 +923,14 @@ func TestFinalComponentElementsWrapLegacyWidgets(t *testing.T) {
 	if el := ProgressBarElement(25); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected ProgressBarElement to wrap a legacy progress bar widget")
 	}
+	if el := LinearProgressIndicatorElement(0.5, ProgressBuffer(0.8), ProgressFourColor(true), ProgressTrackHeight(4), ProgressIndicatorHeight(4), ProgressActiveIndicatorColor(NRGBA(103, 80, 164, 255)), ProgressBufferColor(NRGBA(210, 194, 255, 255)), ProgressLoading(false)); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected LinearProgressIndicatorElement to support Material progress options")
+	}
 	if el := CircularProgressElement(25); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected CircularProgressElement to wrap a legacy circular progress widget")
+	}
+	if el := LoadingIndicatorElement(ProgressFourColor(true)); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected LoadingIndicatorElement to wrap loading progress widget")
 	}
 	if el := ImageElement(ImageSource{Label: "placeholder"}); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected ImageElement to wrap a legacy image widget")
@@ -896,6 +973,18 @@ func TestFinalComponentElementsWrapLegacyWidgets(t *testing.T) {
 	}
 	if el := SuggestionChipElement("Suggestion"); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected SuggestionChipElement to wrap a chip widget")
+	}
+	if el := AssistChipElementWithSlots(TextElement("Assist slot"), ChipElevated(true)); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected AssistChipElementWithSlots to wrap a chip widget")
+	}
+	if el := FilterChipElementWithSlots(TextElement("Filter slot"), ChipSelected(true), ChipRemovable(true)); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected FilterChipElementWithSlots to wrap a chip widget")
+	}
+	if el := InputChipElementWithSlots(TextElement("Input slot"), ChipOnRemove(func(ctx *Context) {})); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected InputChipElementWithSlots to wrap a chip widget")
+	}
+	if el := SuggestionChipElementWithSlots(TextElement("Suggestion slot"), ChipSoftDisabled(true)); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected SuggestionChipElementWithSlots to wrap a chip widget")
 	}
 	if el := ChipElementWithSlots(TextElement("Custom")); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected ChipElementWithSlots to wrap a chip widget")

@@ -58,6 +58,9 @@ type PopupRef = widget.PopupRef
 type MenuItem = widget.MenuItem
 type MenuOption = widget.MenuOption
 type DropdownMenuOption = widget.DropdownMenuOption
+type MenuCorner = widget.MenuCorner
+type MenuDefaultFocus = widget.MenuDefaultFocus
+type MenuPositioning = widget.MenuPositioning
 type ListItemOption = widget.ListItemOption
 type IconButtonOption = widget.IconButtonOption
 type FloatingActionButtonOption = widget.FloatingActionButtonOption
@@ -94,6 +97,27 @@ const (
 	BottomNavAlignCenter      BottomNavAlignment = widget.BottomNavAlignCenter
 	BottomNavAlignEnd         BottomNavAlignment = widget.BottomNavAlignEnd
 	BottomNavAlignSpaceEvenly BottomNavAlignment = widget.BottomNavAlignSpaceEvenly
+)
+
+const (
+	MenuCornerStartStart MenuCorner = widget.MenuCornerStartStart
+	MenuCornerStartEnd   MenuCorner = widget.MenuCornerStartEnd
+	MenuCornerEndStart   MenuCorner = widget.MenuCornerEndStart
+	MenuCornerEndEnd     MenuCorner = widget.MenuCornerEndEnd
+)
+
+const (
+	MenuDefaultFocusNone      MenuDefaultFocus = widget.MenuDefaultFocusNone
+	MenuDefaultFocusListRoot  MenuDefaultFocus = widget.MenuDefaultFocusListRoot
+	MenuDefaultFocusFirstItem MenuDefaultFocus = widget.MenuDefaultFocusFirstItem
+	MenuDefaultFocusLastItem  MenuDefaultFocus = widget.MenuDefaultFocusLastItem
+)
+
+const (
+	MenuPositioningAbsolute MenuPositioning = widget.MenuPositioningAbsolute
+	MenuPositioningFixed    MenuPositioning = widget.MenuPositioningFixed
+	MenuPositioningDocument MenuPositioning = widget.MenuPositioningDocument
+	MenuPositioningPopover  MenuPositioning = widget.MenuPositioningPopover
 )
 
 type SelectOptionItem[T comparable] = widget.SelectOptionItem[T]
@@ -320,6 +344,14 @@ func SelectElement[T comparable](value T, options []SelectOptionItem[T], opts ..
 	return FromWidget(widget.Select(value, options, opts...))
 }
 
+func OutlinedSelectElement[T comparable](value T, options []SelectOptionItem[T], opts ...SelectOption[T]) Element {
+	return FromWidget(widget.OutlinedSelect(value, options, opts...))
+}
+
+func FilledSelectElement[T comparable](value T, options []SelectOptionItem[T], opts ...SelectOption[T]) Element {
+	return FromWidget(widget.FilledSelect(value, options, opts...))
+}
+
 func MenuElement(items []MenuItem, opts ...MenuOption) Element {
 	return FromWidget(widget.Menu(items, opts...))
 }
@@ -426,6 +458,10 @@ func CircularProgressIndicatorElement(value float32, opts ...ProgressOption) Ele
 	return FromWidget(widget.CircularProgressIndicator(value, opts...))
 }
 
+func LoadingIndicatorElement(opts ...ProgressOption) Element {
+	return FromWidget(widget.LoadingIndicator(opts...))
+}
+
 // ImageElement 创建可参与 reconciler 的图片 Element。
 func ImageElement(src ImageSource, opts ...ImageOption) Element {
 	return FromWidget(widget.Image(src, opts...))
@@ -515,6 +551,30 @@ func InputChipElement(label string, opts ...ChipOption) Element {
 
 func SuggestionChipElement(label string, opts ...ChipOption) Element {
 	return FromWidget(widget.SuggestionChip(label, opts...))
+}
+
+func AssistChipElementWithSlots(label Element, opts ...ChipOption) Element {
+	return &singleChildElement{kind: "assist-chip", child: label, renderFn: func(child Widget) Widget {
+		return widget.AssistChipWithSlots(child, opts...)
+	}}
+}
+
+func FilterChipElementWithSlots(label Element, opts ...ChipOption) Element {
+	return &singleChildElement{kind: "filter-chip", child: label, renderFn: func(child Widget) Widget {
+		return widget.FilterChipWithSlots(child, opts...)
+	}}
+}
+
+func InputChipElementWithSlots(label Element, opts ...ChipOption) Element {
+	return &singleChildElement{kind: "input-chip", child: label, renderFn: func(child Widget) Widget {
+		return widget.InputChipWithSlots(child, opts...)
+	}}
+}
+
+func SuggestionChipElementWithSlots(label Element, opts ...ChipOption) Element {
+	return &singleChildElement{kind: "suggestion-chip", child: label, renderFn: func(child Widget) Widget {
+		return widget.SuggestionChipWithSlots(child, opts...)
+	}}
 }
 
 func ChipElementWithSlots(label Element, opts ...ChipOption) Element {
@@ -1407,8 +1467,40 @@ func Select[T comparable](value T, options []SelectOptionItem[T], opts ...Select
 	return widget.Select(value, options, opts...)
 }
 
+func OutlinedSelect[T comparable](value T, options []SelectOptionItem[T], opts ...SelectOption[T]) Widget {
+	return widget.OutlinedSelect(value, options, opts...)
+}
+
+func FilledSelect[T comparable](value T, options []SelectOptionItem[T], opts ...SelectOption[T]) Widget {
+	return widget.FilledSelect(value, options, opts...)
+}
+
 func SelectPlaceholder[T comparable](text string) SelectOption[T] {
 	return widget.SelectPlaceholder[T](text)
+}
+
+func SelectLabel[T comparable](text string) SelectOption[T] {
+	return widget.SelectLabel[T](text)
+}
+
+func SelectSupportingText[T comparable](text string) SelectOption[T] {
+	return widget.SelectSupportingText[T](text)
+}
+
+func SelectErrorText[T comparable](text string) SelectOption[T] {
+	return widget.SelectErrorText[T](text)
+}
+
+func SelectError[T comparable](err bool) SelectOption[T] {
+	return widget.SelectError[T](err)
+}
+
+func SelectRequired[T comparable](required bool) SelectOption[T] {
+	return widget.SelectRequired[T](required)
+}
+
+func SelectNoAsterisk[T comparable](noAsterisk bool) SelectOption[T] {
+	return widget.SelectNoAsterisk[T](noAsterisk)
 }
 
 func SelectDisabled[T comparable](disabled bool) SelectOption[T] {
@@ -1421,6 +1513,38 @@ func SelectSearchable[T comparable](searchable bool) SelectOption[T] {
 
 func SelectMaxHeight[T comparable](height float32) SelectOption[T] {
 	return widget.SelectMaxHeight[T](height)
+}
+
+func SelectWidth[T comparable](width float32) SelectOption[T] {
+	return widget.SelectWidth[T](width)
+}
+
+func SelectXOffset[T comparable](offset float32) SelectOption[T] {
+	return widget.SelectXOffset[T](offset)
+}
+
+func SelectYOffset[T comparable](offset float32) SelectOption[T] {
+	return widget.SelectYOffset[T](offset)
+}
+
+func SelectQuick[T comparable](quick bool) SelectOption[T] {
+	return widget.SelectQuick[T](quick)
+}
+
+func SelectTypeaheadDelay[T comparable](delay time.Duration) SelectOption[T] {
+	return widget.SelectTypeaheadDelay[T](delay)
+}
+
+func SelectFilled[T comparable](filled bool) SelectOption[T] {
+	return widget.SelectFilled[T](filled)
+}
+
+func SelectLeading[T comparable](leading Widget) SelectOption[T] {
+	return widget.SelectLeading[T](leading)
+}
+
+func SelectTrailing[T comparable](trailing Widget) SelectOption[T] {
+	return widget.SelectTrailing[T](trailing)
 }
 
 func SelectOnChange[T comparable](fn func(ctx *Context, value T)) SelectOption[T] {
@@ -1441,6 +1565,10 @@ func SelectAttachRef[T comparable](ref *SelectRef[T]) SelectOption[T] {
 
 func SelectDecoration[T comparable](d Decoration) SelectOption[T] {
 	return widget.SelectDecoration[T](d)
+}
+
+func SelectMenuDecoration[T comparable](d Decoration) SelectOption[T] {
+	return widget.SelectMenuDecoration[T](d)
 }
 
 func Menu(items []MenuItem, opts ...MenuOption) Widget {
@@ -1465,6 +1593,74 @@ func MenuMaxHeight(height float32) MenuOption {
 
 func MenuDecoration(d Decoration) MenuOption {
 	return widget.MenuDecoration(d)
+}
+
+func MenuQuick(quick bool) MenuOption {
+	return widget.MenuQuick(quick)
+}
+
+func MenuHasOverflow(hasOverflow bool) MenuOption {
+	return widget.MenuHasOverflow(hasOverflow)
+}
+
+func MenuXOffset(offset float32) MenuOption {
+	return widget.MenuXOffset(offset)
+}
+
+func MenuYOffset(offset float32) MenuOption {
+	return widget.MenuYOffset(offset)
+}
+
+func MenuAnchorCorner(corner MenuCorner) MenuOption {
+	return widget.MenuAnchorCorner(corner)
+}
+
+func MenuMenuCorner(corner MenuCorner) MenuOption {
+	return widget.MenuMenuCorner(corner)
+}
+
+func MenuDefaultFocusOf(focus MenuDefaultFocus) MenuOption {
+	return widget.MenuDefaultFocusOf(focus)
+}
+
+func MenuPositioningOf(positioning MenuPositioning) MenuOption {
+	return widget.MenuPositioningOf(positioning)
+}
+
+func MenuTypeaheadDelay(delay time.Duration) MenuOption {
+	return widget.MenuTypeaheadDelay(delay)
+}
+
+func MenuNoHorizontalFlip(disabled bool) MenuOption {
+	return widget.MenuNoHorizontalFlip(disabled)
+}
+
+func MenuNoVerticalFlip(disabled bool) MenuOption {
+	return widget.MenuNoVerticalFlip(disabled)
+}
+
+func MenuStayOpenOnOutsideClick(stayOpen bool) MenuOption {
+	return widget.MenuStayOpenOnOutsideClick(stayOpen)
+}
+
+func MenuStayOpenOnFocusout(stayOpen bool) MenuOption {
+	return widget.MenuStayOpenOnFocusout(stayOpen)
+}
+
+func MenuSkipRestoreFocus(skip bool) MenuOption {
+	return widget.MenuSkipRestoreFocus(skip)
+}
+
+func MenuNoNavigationWrap(noWrap bool) MenuOption {
+	return widget.MenuNoNavigationWrap(noWrap)
+}
+
+func MenuHoverOpenDelay(delay time.Duration) MenuOption {
+	return widget.MenuHoverOpenDelay(delay)
+}
+
+func MenuHoverCloseDelay(delay time.Duration) MenuOption {
+	return widget.MenuHoverCloseDelay(delay)
 }
 
 func DropdownMenu(open bool, trigger Widget, items []MenuItem, opts ...DropdownMenuOption) Widget {
@@ -1493,6 +1689,74 @@ func DropdownMenuMaxHeight(height float32) DropdownMenuOption {
 
 func DropdownMenuDecoration(d Decoration) DropdownMenuOption {
 	return widget.DropdownMenuDecoration(d)
+}
+
+func DropdownMenuQuick(quick bool) DropdownMenuOption {
+	return widget.DropdownMenuQuick(quick)
+}
+
+func DropdownMenuHasOverflow(hasOverflow bool) DropdownMenuOption {
+	return widget.DropdownMenuHasOverflow(hasOverflow)
+}
+
+func DropdownMenuXOffset(offset float32) DropdownMenuOption {
+	return widget.DropdownMenuXOffset(offset)
+}
+
+func DropdownMenuYOffset(offset float32) DropdownMenuOption {
+	return widget.DropdownMenuYOffset(offset)
+}
+
+func DropdownMenuAnchorCorner(corner MenuCorner) DropdownMenuOption {
+	return widget.DropdownMenuAnchorCorner(corner)
+}
+
+func DropdownMenuMenuCorner(corner MenuCorner) DropdownMenuOption {
+	return widget.DropdownMenuMenuCorner(corner)
+}
+
+func DropdownMenuDefaultFocusOf(focus MenuDefaultFocus) DropdownMenuOption {
+	return widget.DropdownMenuDefaultFocusOf(focus)
+}
+
+func DropdownMenuPositioningOf(positioning MenuPositioning) DropdownMenuOption {
+	return widget.DropdownMenuPositioningOf(positioning)
+}
+
+func DropdownMenuTypeaheadDelay(delay time.Duration) DropdownMenuOption {
+	return widget.DropdownMenuTypeaheadDelay(delay)
+}
+
+func DropdownMenuNoHorizontalFlip(disabled bool) DropdownMenuOption {
+	return widget.DropdownMenuNoHorizontalFlip(disabled)
+}
+
+func DropdownMenuNoVerticalFlip(disabled bool) DropdownMenuOption {
+	return widget.DropdownMenuNoVerticalFlip(disabled)
+}
+
+func DropdownMenuStayOpenOnOutsideClick(stayOpen bool) DropdownMenuOption {
+	return widget.DropdownMenuStayOpenOnOutsideClick(stayOpen)
+}
+
+func DropdownMenuStayOpenOnFocusout(stayOpen bool) DropdownMenuOption {
+	return widget.DropdownMenuStayOpenOnFocusout(stayOpen)
+}
+
+func DropdownMenuSkipRestoreFocus(skip bool) DropdownMenuOption {
+	return widget.DropdownMenuSkipRestoreFocus(skip)
+}
+
+func DropdownMenuNoNavigationWrap(noWrap bool) DropdownMenuOption {
+	return widget.DropdownMenuNoNavigationWrap(noWrap)
+}
+
+func DropdownMenuHoverOpenDelay(delay time.Duration) DropdownMenuOption {
+	return widget.DropdownMenuHoverOpenDelay(delay)
+}
+
+func DropdownMenuHoverCloseDelay(delay time.Duration) DropdownMenuOption {
+	return widget.DropdownMenuHoverCloseDelay(delay)
 }
 
 func ListItem(headline string, opts ...ListItemOption) Widget {
@@ -1549,6 +1813,14 @@ func IconButtonDisabled(disabled bool) IconButtonOption {
 
 func IconButtonSelected(selected bool) IconButtonOption {
 	return widget.IconButtonSelected(selected)
+}
+
+func IconButtonLoading(loading bool) IconButtonOption {
+	return widget.IconButtonLoading(loading)
+}
+
+func IconButtonLoadingIndicator(indicator Widget) IconButtonOption {
+	return widget.IconButtonLoadingIndicator(indicator)
 }
 
 func IconButtonSize(size float32) IconButtonOption {
@@ -1619,6 +1891,10 @@ func CircularProgressIndicator(value float32, opts ...ProgressOption) Widget {
 	return widget.CircularProgressIndicator(value, opts...)
 }
 
+func LoadingIndicator(opts ...ProgressOption) Widget {
+	return widget.LoadingIndicator(opts...)
+}
+
 func ProgressMin(min float32) ProgressOption {
 	return widget.ProgressMin(min)
 }
@@ -1631,8 +1907,24 @@ func ProgressIndeterminate(indeterminate bool) ProgressOption {
 	return widget.ProgressIndeterminate(indeterminate)
 }
 
+func ProgressLoading(loading bool) ProgressOption {
+	return widget.ProgressLoading(loading)
+}
+
+func ProgressFourColor(fourColor bool) ProgressOption {
+	return widget.ProgressFourColor(fourColor)
+}
+
 func ProgressThickness(thickness float32) ProgressOption {
 	return widget.ProgressThickness(thickness)
+}
+
+func ProgressTrackHeight(height float32) ProgressOption {
+	return widget.ProgressTrackHeight(height)
+}
+
+func ProgressIndicatorHeight(height float32) ProgressOption {
+	return widget.ProgressIndicatorHeight(height)
 }
 
 func ProgressTrackColor(col color.NRGBA) ProgressOption {
@@ -1641,6 +1933,18 @@ func ProgressTrackColor(col color.NRGBA) ProgressOption {
 
 func ProgressFillColor(col color.NRGBA) ProgressOption {
 	return widget.ProgressFillColor(col)
+}
+
+func ProgressActiveIndicatorColor(col color.NRGBA) ProgressOption {
+	return widget.ProgressActiveIndicatorColor(col)
+}
+
+func ProgressBuffer(value float32) ProgressOption {
+	return widget.ProgressBuffer(value)
+}
+
+func ProgressBufferColor(col color.NRGBA) ProgressOption {
+	return widget.ProgressBufferColor(col)
 }
 
 func ProgressSize(size float32) ProgressOption {
@@ -1665,6 +1969,26 @@ func TabsOnChange(fn func(ctx *Context, key string)) TabsOption {
 
 func TabsScrollable(scrollable bool) TabsOption {
 	return widget.TabsScrollable(scrollable)
+}
+
+func TabsPrimary(primary bool) TabsOption {
+	return widget.TabsPrimary(primary)
+}
+
+func TabsSecondary(secondary bool) TabsOption {
+	return widget.TabsSecondary(secondary)
+}
+
+func TabsAutoActivate(autoActivate bool) TabsOption {
+	return widget.TabsAutoActivate(autoActivate)
+}
+
+func TabsInlineIcon(inline bool) TabsOption {
+	return widget.TabsInlineIcon(inline)
+}
+
+func TabsFullWidth(fullWidth bool) TabsOption {
+	return widget.TabsFullWidth(fullWidth)
 }
 
 func TabsIndicatorColor(col color.NRGBA) TabsOption {
@@ -1903,6 +2227,22 @@ func SuggestionChip(label string, opts ...ChipOption) Widget {
 	return widget.SuggestionChip(label, opts...)
 }
 
+func AssistChipWithSlots(label Widget, opts ...ChipOption) Widget {
+	return widget.AssistChipWithSlots(label, opts...)
+}
+
+func FilterChipWithSlots(label Widget, opts ...ChipOption) Widget {
+	return widget.FilterChipWithSlots(label, opts...)
+}
+
+func InputChipWithSlots(label Widget, opts ...ChipOption) Widget {
+	return widget.InputChipWithSlots(label, opts...)
+}
+
+func SuggestionChipWithSlots(label Widget, opts ...ChipOption) Widget {
+	return widget.SuggestionChipWithSlots(label, opts...)
+}
+
 func ChipWithSlots(label Widget, opts ...ChipOption) Widget {
 	return widget.ChipWithSlots(label, opts...)
 }
@@ -1915,8 +2255,24 @@ func ChipDisabled(disabled bool) ChipOption {
 	return widget.ChipDisabled(disabled)
 }
 
+func ChipSoftDisabled(disabled bool) ChipOption {
+	return widget.ChipSoftDisabled(disabled)
+}
+
+func ChipElevated(elevated bool) ChipOption {
+	return widget.ChipElevated(elevated)
+}
+
+func ChipRemovable(removable bool) ChipOption {
+	return widget.ChipRemovable(removable)
+}
+
 func ChipOnClick(fn func(ctx *Context)) ChipOption {
 	return widget.ChipOnClick(fn)
+}
+
+func ChipOnRemove(fn func(ctx *Context)) ChipOption {
+	return widget.ChipOnRemove(fn)
 }
 
 func ChipLeading(leading Widget) ChipOption {

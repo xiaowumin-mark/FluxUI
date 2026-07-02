@@ -17,6 +17,11 @@
     "SwitchTrackColor(color color.NRGBA) SwitchOption",
     "SwitchThumbColor(color color.NRGBA) SwitchOption",
     "SwitchDecoration(d Decoration) SwitchOption",
+    "SwitchIcons(checkedIcon, uncheckedIcon string) SwitchOption",
+    "SwitchCheckedIcon(name string) SwitchOption",
+    "SwitchUncheckedIcon(name string) SwitchOption",
+    "SwitchIconUseFont(id string) SwitchOption",
+    "SwitchIconFontFamily(family string) SwitchOption",
     "NewSwitchRef() *SwitchRef",
     "SwitchAttachRef(ref *SwitchRef) SwitchOption",
     "(*SwitchRef).SetChecked(checked bool)",
@@ -34,13 +39,16 @@ Switch 常用于“立即生效”的开关项，比如通知开关、实验特�
 
 - checked track 使用 `Primary`，thumb 使用 `OnPrimary`。
 - unchecked track 使用 `SurfaceVariant`，thumb 使用 `Outline`。
-- hover/pressed 使用统一 state layer。
+- unchecked track 使用 2dp `Outline`，thumb 默认 16dp；checked thumb 为 24dp，pressed thumb 为 28dp。
+- hover/pressed 使用以 thumb 为中心的 40dp state layer。
+- checked/unchecked 切换使用带轻微回弹的位移动画，pressed/hover 之间 thumb size 会平滑变化。
 - disabled 使用 `OnSurface` 12% / 38%。
 
 ## 使用方法
 - 通过 `checked` 传值。
 - 变化回调用 `SwitchOnChange`。
 - 可单独配置轨道颜色与拇指颜色。
+- 可通过 `SwitchIcons` / `SwitchCheckedIcon` / `SwitchUncheckedIcon` 给拇指增加 Material Symbols 图标。
 - 需要外部主动切换时，使用 `SwitchAttachRef` 与 `SwitchRef` 方法。
 
 ## 使用示例
@@ -71,6 +79,7 @@ func FeatureToggle(ctx *ui.Context) ui.Element {
 enabled := ui.State[bool](ctx)
 ui.Switch(
     enabled.Value(),
+    ui.SwitchIcons("check", "close"),
     ui.SwitchOnChange(func(ctx *ui.Context, checked bool) {
         enabled.Set(checked)
     }),

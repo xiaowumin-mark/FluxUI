@@ -105,3 +105,84 @@ func TestMD3LowCPUStateLayerDisablesHoverKeepsPressed(t *testing.T) {
 	}
 	rt.EndFrame()
 }
+
+func TestMD3SwitchProgressAnimatesFirstToggleAfterIdleFrame(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	base := time.Now()
+	var ops op.Ops
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gioLayout.Context{Ops: &ops, Now: base}, rt)
+	if got := md3SwitchSelectionProgress(ctx, false); got != 0 {
+		t.Fatalf("initial unchecked switch progress = %v, want 0", got)
+	}
+	rt.EndFrame()
+
+	ops.Reset()
+	rt.BeginFrame()
+	ctx = internal.NewContext(gioLayout.Context{Ops: &ops, Now: base.Add(16 * time.Millisecond)}, rt)
+	if got := md3SwitchSelectionProgress(ctx, true); got != 0 {
+		t.Fatalf("first checked switch progress = %v, want animation to start from 0", got)
+	}
+	rt.EndFrame()
+
+	ops.Reset()
+	rt.BeginFrame()
+	ctx = internal.NewContext(gioLayout.Context{Ops: &ops, Now: base.Add(140 * time.Millisecond)}, rt)
+	got := md3SwitchSelectionProgress(ctx, true)
+	if got <= 0 || got >= 1 {
+		t.Fatalf("mid-flight checked switch progress = %v, want between 0 and 1", got)
+	}
+	rt.EndFrame()
+}
+
+func TestMD3SwitchPressedAnimatesFirstPressAfterIdleFrame(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	base := time.Now()
+	var ops op.Ops
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gioLayout.Context{Ops: &ops, Now: base}, rt)
+	if got := md3SwitchPressedProgress(ctx, false); got != 0 {
+		t.Fatalf("initial switch press progress = %v, want 0", got)
+	}
+	rt.EndFrame()
+
+	ops.Reset()
+	rt.BeginFrame()
+	ctx = internal.NewContext(gioLayout.Context{Ops: &ops, Now: base.Add(16 * time.Millisecond)}, rt)
+	if got := md3SwitchPressedProgress(ctx, true); got != 0 {
+		t.Fatalf("first switch press progress = %v, want animation to start from 0", got)
+	}
+	rt.EndFrame()
+}
+
+func TestMD3SwitchRetainedAnimationsIdleWithoutBookkeeping(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	rt.SetPerfDiagnostics(internal.PerfDiagnostics{Enabled: true, MeasureDurations: true})
+	base := time.Now()
+	var ops op.Ops
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gioLayout.Context{Ops: &ops, Now: base}, rt)
+	_ = md3SwitchSelectionProgress(ctx, false)
+	_ = md3SwitchPressedProgress(ctx, false)
+	_ = md3AnimateColorRetained(ctx, "switch-idle-color", style.NRGBA(1, 2, 3, 255), 150*time.Millisecond, style.InteractionStandardEasing)
+	rt.EndFrame()
+
+	ops.Reset()
+	rt.BeginFrame()
+	ctx = internal.NewContext(gioLayout.Context{Ops: &ops, Now: base.Add(16 * time.Millisecond)}, rt)
+	_ = md3SwitchSelectionProgress(ctx, false)
+	_ = md3SwitchPressedProgress(ctx, false)
+	_ = md3AnimateColorRetained(ctx, "switch-idle-color", style.NRGBA(1, 2, 3, 255), 150*time.Millisecond, style.InteractionStandardEasing)
+	rt.EndFrame()
+
+	stats := rt.LastFrameStats()
+	if stats.Animation.Count != 0 {
+		t.Fatalf("idle retained switch animations recorded animation count=%d, want 0", stats.Animation.Count)
+	}
+	if len(stats.Reasons) != 0 {
+		t.Fatalf("idle retained switch animations requested redraw reasons=%v, want none", stats.Reasons)
+	}
+}

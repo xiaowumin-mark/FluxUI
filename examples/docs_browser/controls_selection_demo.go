@@ -183,20 +183,23 @@ func docsSelectDemo(value docsStringState) ui.Element {
 			ref.Current = ui.NewSelectRef[string]()
 		}
 		options := []ui.SelectOptionItem[string]{
-			{Label: "Low priority", Value: "low"},
-			{Label: "Medium priority", Value: "medium"},
-			{Label: "High priority", Value: "high"},
+			{Label: "Apple", Value: "apple", Leading: ui.Icon("nutrition")},
+			{Label: "Apricot", Value: "apricot", Leading: ui.Icon("eco")},
+			{Label: "Tomato", Value: "tomato", Disabled: true},
+			{Label: "Cucumber", Value: "cucumber"},
 		}
 		return ui.FixedWidthElement(
 			480,
 			ui.ColumnElement(
-				ui.SelectElement(
+				ui.OutlinedSelectElement(
 					value.Value(),
 					options,
-					ui.SelectPlaceholder[string]("Choose priority"),
+					ui.SelectLabel[string]("Outlined select"),
+					ui.SelectPlaceholder[string]("Choose fruit"),
+					ui.SelectSupportingText[string]("Material 3 outlined field"),
+					ui.SelectLeading[string](ui.Icon("restaurant")),
 					ui.SelectSearchable[string](true),
 					ui.SelectMaxHeight[string](180),
-					ui.SelectDecoration[string](ui.Bg(ui.NRGBA(248, 250, 252, 255)).WithRad(10)),
 					ui.SelectAttachRef[string](ref.Current),
 					ui.SelectOnOpenChange[string](func(ctx *ui.Context, open bool) {
 						if open {
@@ -209,7 +212,15 @@ func docsSelectDemo(value docsStringState) ui.Element {
 						value.Set(next)
 					}),
 				),
-				ui.VSpacerElement(8),
+				ui.VSpacerElement(12),
+				ui.FilledSelectElement(
+					"apricot",
+					options,
+					ui.SelectLabel[string]("Filled select"),
+					ui.SelectSupportingText[string]("Filled variant with active indicator"),
+					ui.SelectMaxHeight[string](180),
+				),
+				ui.VSpacerElement(12),
 				ui.RowElement(
 					docsDemoControlButton("Open", func(ctx *ui.Context) {
 						openState.Set("open")
@@ -220,15 +231,19 @@ func docsSelectDemo(value docsStringState) ui.Element {
 						ref.Current.Toggle()
 					}),
 					ui.HSpacerElement(8),
-					docsDemoControlButton("Set high", func(ctx *ui.Context) {
-						value.Set("high")
-						ref.Current.SetValue("high")
+					docsDemoControlButton("Set apricot", func(ctx *ui.Context) {
+						value.Set("apricot")
+						ref.Current.SetValue("apricot")
 					}),
 					ui.HSpacerElement(8),
 					ui.TextElement(openState.Value(), ui.TextSize(12)),
 				),
 				ui.VSpacerElement(8),
-				ui.SelectElement("low", options, ui.SelectDisabled[string](true)),
+				ui.RowElement(
+					ui.ExpandedElement(ui.SelectElement("apple", options, ui.SelectDisabled[string](true), ui.SelectLabel[string]("Disabled"))),
+					ui.HSpacerElement(12),
+					ui.ExpandedElement(ui.SelectElement("", options, ui.SelectLabel[string]("Error"), ui.SelectError[string](true), ui.SelectErrorText[string]("Choose a value"), ui.SelectRequired[string](true))),
+				),
 			),
 		)
 	})

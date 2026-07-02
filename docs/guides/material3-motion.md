@@ -61,8 +61,8 @@ FluxUI 使用 Material 3 motion token 作为默认曲线来源。后续组件实
 | Focus exit | 100ms | Standard accelerate | focus ring fade-out、outline color。 |
 | Selected | 150ms | Standard | selected container、label/icon color、check mark opacity。 |
 | Selected indicator | 200ms | Standard | Tabs、NavigationBar、NavigationRail、NavigationDrawer indicator 位置和尺寸。 |
-| Menu enter | 150ms | Emphasized decelerate | opacity + y offset 4dp -> 0，或 scale 0.98 -> 1.00。 |
-| Menu exit | 100ms | Emphasized accelerate | opacity + y offset 0 -> 4dp，或 scale 1.00 -> 0.98。 |
+| Menu enter | 260ms | Emphasized decelerate | Menu、DropdownMenu、Select popup 的高度 reveal / opacity / y offset。 |
+| Menu exit | 180ms | Emphasized accelerate | Menu、DropdownMenu、Select popup 的高度 reveal / opacity / y offset。 |
 | Toast enter | 200ms | Emphasized decelerate | opacity + y offset 8dp -> 0。 |
 | Toast exit | 150ms | Emphasized accelerate | opacity + y offset 0 -> 8dp。 |
 | Loading value | 250ms | Standard | determinate progress 数值变化。 |
@@ -78,7 +78,7 @@ Button、IconButton、Chip、ListItem、MenuItem、Navigation item 等高频交�
 
 Tabs、BottomNavigation、NavigationRail、NavigationDrawer 的 selected indicator 应使用 200ms Standard。颜色切换可以使用 150ms Standard，indicator 位移和尺寸变化允许稍慢，但不能引起父布局重新测量。
 
-Menu、Select popup、DropdownMenu 和 Tooltip 默认使用 opacity + 轻微 y offset。打开方向与实际弹出方向相反时，y offset 的方向应跟随 anchor，避免菜单看起来从错误方向滑入。
+Menu、Select popup、DropdownMenu 默认使用高度 reveal，内容先按完整尺寸布局，再通过 clip mask 展开；Tooltip 继续使用轻微 opacity + y offset。打开方向与实际弹出方向相反时，y offset 的方向应跟随 anchor，避免菜单看起来从错误方向滑入。
 
 Toast 和 Snackbar 的自动关闭时长不属于 motion token；`ToastDuration(...)` 只控制停留时间。出入场动画应在停留计时之外单独处理，action hover/pressed 继续复用 Button/Pressable token。
 

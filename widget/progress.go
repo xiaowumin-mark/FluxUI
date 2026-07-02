@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"math"
 	"time"
 
+	"gioui.org/f32"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
 
-	gioLayout "gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
-	"gioui.org/widget/material"
 )
 
 // ProgressOption 定义进度条配置。
@@ -25,13 +25,20 @@ type progressConfig struct {
 	min           float32
 	max           float32
 	indeterminate bool
+	fourColor     bool
 	thickness     float32
+	trackHeight   float32
+	indicatorH    float32
 	trackColor    color.NRGBA
 	fillColor     color.NRGBA
+	bufferColor   color.NRGBA
 	size          float32
 	showLabel     bool
+	buffer        float32
+	hasBuffer     bool
 	hasTrackColor bool
 	hasFillColor  bool
+	hasBufferCol  bool
 	decoration    style.Decoration
 }
 
@@ -43,45 +50,48 @@ type progressWidget struct {
 
 // ProgressBar 创建线性进度条。
 func ProgressBar(value float32, opts ...ProgressOption) Widget {
-	cfg := progressConfig{
-		min:       0,
-		max:       100,
-		thickness: 8,
-	}
-	for _, opt := range opts {
-		opt(&cfg)
-	}
-	return &progressWidget{
-		value:    value,
-		circular: false,
-		config:   cfg,
-	}
+	return newProgress(value, false, false, opts...)
 }
 
 func LinearProgressIndicator(value float32, opts ...ProgressOption) Widget {
-	return ProgressBar(value, opts...)
+	return newProgress(value, false, true, opts...)
 }
 
-// CircularProgress 创建环形进度（当前实现为文本/颜色简化版）。
+// CircularProgress 创建环形进度。
 func CircularProgress(value float32, opts ...ProgressOption) Widget {
+	return newProgress(value, true, false, opts...)
+}
+
+func CircularProgressIndicator(value float32, opts ...ProgressOption) Widget {
+	return newProgress(value, true, true, opts...)
+}
+
+// LoadingIndicator 创建 Material 3 loading 指示器。
+func LoadingIndicator(opts ...ProgressOption) Widget {
+	options := append([]ProgressOption{ProgressIndeterminate(true), ProgressSize(24), ProgressThickness(4)}, opts...)
+	return newProgress(0, true, true, options...)
+}
+
+func newProgress(value float32, circular bool, materialRange bool, opts ...ProgressOption) Widget {
 	cfg := progressConfig{
 		min:       0,
-		max:       100,
-		thickness: 8,
-		size:      64,
+		max:       1,
+		thickness: 4,
+		size:      48,
+	}
+	if !materialRange {
+		cfg.max = 100
+		cfg.thickness = 8
+		cfg.size = 64
 	}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
 	return &progressWidget{
 		value:    value,
-		circular: true,
+		circular: circular,
 		config:   cfg,
 	}
-}
-
-func CircularProgressIndicator(value float32, opts ...ProgressOption) Widget {
-	return CircularProgress(value, opts...)
 }
 
 // ProgressMin 设置最小值。
@@ -105,10 +115,32 @@ func ProgressIndeterminate(indeterminate bool) ProgressOption {
 	}
 }
 
+func ProgressLoading(loading bool) ProgressOption {
+	return ProgressIndeterminate(loading)
+}
+
+func ProgressFourColor(fourColor bool) ProgressOption {
+	return func(cfg *progressConfig) {
+		cfg.fourColor = fourColor
+	}
+}
+
 // ProgressThickness 设置线宽。
 func ProgressThickness(thickness float32) ProgressOption {
 	return func(cfg *progressConfig) {
 		cfg.thickness = thickness
+	}
+}
+
+func ProgressTrackHeight(height float32) ProgressOption {
+	return func(cfg *progressConfig) {
+		cfg.trackHeight = height
+	}
+}
+
+func ProgressIndicatorHeight(height float32) ProgressOption {
+	return func(cfg *progressConfig) {
+		cfg.indicatorH = height
 	}
 }
 
@@ -125,6 +157,24 @@ func ProgressFillColor(col color.NRGBA) ProgressOption {
 	return func(cfg *progressConfig) {
 		cfg.fillColor = col
 		cfg.hasFillColor = true
+	}
+}
+
+func ProgressActiveIndicatorColor(col color.NRGBA) ProgressOption {
+	return ProgressFillColor(col)
+}
+
+func ProgressBuffer(value float32) ProgressOption {
+	return func(cfg *progressConfig) {
+		cfg.buffer = value
+		cfg.hasBuffer = true
+	}
+}
+
+func ProgressBufferColor(col color.NRGBA) ProgressOption {
+	return func(cfg *progressConfig) {
+		cfg.bufferColor = col
+		cfg.hasBufferCol = true
 	}
 }
 
@@ -169,6 +219,10 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if p.config.hasFillColor {
 		fill = p.config.fillColor
 	}
+	bufferColor := style.StateLayer(track, fill, 0.18)
+	if p.config.hasBufferCol {
+		bufferColor = p.config.bufferColor
+	}
 
 	progress := progressRatio(p.value, p.config.min, p.config.max)
 	animatedProgress := md3AnimateFloat(ctx, "progress-value", progress, style.InteractionLoadingValueDuration, style.InteractionStandardEasing)
@@ -187,7 +241,7 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	layoutProgress := func(progressCtx *internal.Context) layout.Dimensions {
-		return p.layoutProgress(progressCtx, track, fill, progress)
+		return p.layoutProgress(progressCtx, track, fill, bufferColor, progress)
 	}
 
 	if hasDecorationVisual(p.config.decoration) {
@@ -197,104 +251,230 @@ func (p *progressWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	return layoutProgress(ctx.Child(0))
 }
 
-func (p *progressWidget) layoutProgress(ctx *internal.Context, track, fill color.NRGBA, progress float32) layout.Dimensions {
+func (p *progressWidget) layoutProgress(ctx *internal.Context, track, fill, bufferColor color.NRGBA, progress float32) layout.Dimensions {
 	if p.circular {
-		sizePx := ctx.Gtx.Dp(safeDp(p.config.size))
-		if sizePx <= 0 {
-			sizePx = ctx.Gtx.Dp(safeDp(64))
-		}
-		if sizePx < ctx.Gtx.Dp(unit.Dp(24)) {
-			sizePx = ctx.Gtx.Dp(unit.Dp(24))
-		}
-
-		gtx := ctx.Gtx
-		drawCtx := gtx
-		drawCtx.Constraints = gioLayout.Exact(image.Point{X: sizePx, Y: sizePx})
-
-		fillStyle := material.ProgressCircle(ctx.MaterialTheme(), progress)
-		fillStyle.Color = fill
-		_ = fillStyle.Layout(drawCtx)
-
-		if p.config.showLabel {
-			percent := fmt.Sprintf("%.0f%%", progress*100)
-			labelWidget := Text(percent, TextType(ctx.Theme().Types.LabelSmall), TextColor(fill))
-			labelCtx := gtx
-			labelCtx.Constraints.Min = image.Point{}
-			labelCtx.Constraints.Max = image.Point{X: sizePx, Y: sizePx}
-
-			labelMacro := op.Record(gtx.Ops)
-			next := *ctx
-			next.Gtx = labelCtx
-			labelSize := labelWidget.Layout(&next).Size
-			labelCall := labelMacro.Stop()
-
-			labelX := (sizePx - labelSize.X) / 2
-			labelY := (sizePx - labelSize.Y) / 2
-			if labelX < 0 {
-				labelX = 0
-			}
-			if labelY < 0 {
-				labelY = 0
-			}
-			stack := op.Offset(image.Point{X: labelX, Y: labelY}).Push(gtx.Ops)
-			labelCall.Add(gtx.Ops)
-			stack.Pop()
-		}
-
-		return layout.Dimensions{Size: image.Point{X: sizePx, Y: sizePx}}
+		return p.layoutCircularProgress(ctx, track, fill, progress)
 	}
+	return p.layoutLinearProgress(ctx, track, fill, bufferColor, progress)
+}
 
+func (p *progressWidget) layoutCircularProgress(ctx *internal.Context, track, fill color.NRGBA, progress float32) layout.Dimensions {
+	sizePx := ctx.Gtx.Dp(safeDp(p.config.size))
+	if sizePx <= 0 {
+		sizePx = ctx.Gtx.Dp(safeDp(48))
+	}
+	if sizePx < ctx.Gtx.Dp(unit.Dp(24)) {
+		sizePx = ctx.Gtx.Dp(unit.Dp(24))
+	}
 	thickness := ctx.Gtx.Dp(safeDp(p.config.thickness))
 	if thickness < 2 {
 		thickness = 2
+	}
+	size := image.Point{X: sizePx, Y: sizePx}
+	center := f32.Pt(float32(sizePx)/2, float32(sizePx)/2)
+	radius := float32(sizePx-thickness) / 2
+	if radius < 1 {
+		radius = 1
+	}
+	drawArcStroke(ctx, center, radius, thickness, -math.Pi/2, math.Pi*2, track, false)
+
+	if p.config.indeterminate {
+		t := animProgress(ctx, style.InteractionLoadingCircularCycle)
+		fill = progressCycleColor(ctx, fill, p.config.fourColor, t)
+		start := -math.Pi/2 + float64(t)*math.Pi*2
+		sweep := math.Pi*0.35 + math.Pi*0.65*float64(style.InteractionStandardEasing(t))
+		drawArcStroke(ctx, center, radius, thickness, start, sweep, fill, true)
+	} else if progress > 0 {
+		drawArcStroke(ctx, center, radius, thickness, -math.Pi/2, math.Pi*2*float64(progress), fill, true)
+	}
+
+	if p.config.showLabel && !p.config.indeterminate {
+		percent := fmt.Sprintf("%.0f%%", progress*100)
+		labelWidget := Text(percent, TextType(ctx.Theme().Types.LabelSmall), TextColor(fill))
+		labelCtx := ctx.Gtx
+		labelCtx.Constraints.Min = image.Point{}
+		labelCtx.Constraints.Max = size
+
+		labelMacro := op.Record(ctx.Gtx.Ops)
+		next := *ctx
+		next.Gtx = labelCtx
+		labelSize := labelWidget.Layout(&next).Size
+		labelCall := labelMacro.Stop()
+
+		labelX := (sizePx - labelSize.X) / 2
+		labelY := (sizePx - labelSize.Y) / 2
+		if labelX < 0 {
+			labelX = 0
+		}
+		if labelY < 0 {
+			labelY = 0
+		}
+		stack := op.Offset(image.Point{X: labelX, Y: labelY}).Push(ctx.Gtx.Ops)
+		labelCall.Add(ctx.Gtx.Ops)
+		stack.Pop()
+	}
+
+	return layout.Dimensions{Size: size}
+}
+
+func (p *progressWidget) layoutLinearProgress(ctx *internal.Context, track, fill, bufferColor color.NRGBA, progress float32) layout.Dimensions {
+	trackDp := p.config.thickness
+	if p.config.trackHeight > 0 {
+		trackDp = p.config.trackHeight
+	}
+	indicatorDp := p.config.thickness
+	if p.config.indicatorH > 0 {
+		indicatorDp = p.config.indicatorH
+	}
+	trackH := ctx.Gtx.Dp(safeDp(trackDp))
+	indicatorH := ctx.Gtx.Dp(safeDp(indicatorDp))
+	if trackH < 2 {
+		trackH = 2
+	}
+	if indicatorH < 2 {
+		indicatorH = 2
+	}
+	height := trackH
+	if indicatorH > height {
+		height = indicatorH
 	}
 
 	size := ctx.LayoutInset(internal.Insets{}, func(contentCtx *internal.Context) image.Point {
 		maxW := contentCtx.Gtx.Constraints.Max.X
 		if maxW <= 0 {
-			maxW = contentCtx.Gtx.Dp(safeDp(180))
+			maxW = contentCtx.Gtx.Dp(safeDp(240))
 		}
 		if maxW < 1 {
 			maxW = 1
 		}
-		total := image.Point{X: maxW, Y: thickness}
-		total = contentCtx.Gtx.Constraints.Constrain(total)
+		total := contentCtx.Gtx.Constraints.Constrain(image.Point{X: maxW, Y: height})
 		if total.X <= 0 || total.Y <= 0 {
 			return image.Point{}
 		}
+		trackRect := centeredRect(total.X, trackH, total.Y)
+		indicatorRect := centeredRect(total.X, indicatorH, total.Y)
 
-		trackRadius := total.Y / 2
-		if maxTrackRadius := total.X / 2; maxTrackRadius < trackRadius {
-			trackRadius = maxTrackRadius
+		buffer := float32(0)
+		if p.config.hasBuffer {
+			buffer = progressRatio(p.config.buffer, p.config.min, p.config.max)
 		}
-		if trackRadius < 0 {
-			trackRadius = 0
+		if buffer < progress {
+			buffer = progress
 		}
-		paint.FillShape(contentCtx.Gtx.Ops, track, clip.UniformRRect(image.Rectangle{Max: total}, trackRadius).Op(contentCtx.Gtx.Ops))
+		if p.config.hasBuffer && buffer < 1 {
+			fillLinearSegment(contentCtx, trackRect, buffer, 1, track, true)
+			fillLinearSegment(contentCtx, trackRect, 0, buffer, bufferColor, false)
+		} else {
+			paint.FillShape(contentCtx.Gtx.Ops, track, clip.UniformRRect(trackRect, trackRect.Dy()/2).Op(contentCtx.Gtx.Ops))
+		}
 
-		fillW := int(float32(total.X) * progress)
-		if fillW < 0 {
-			fillW = 0
-		}
-		if fillW > total.X {
-			fillW = total.X
-		}
-		if fillW > 0 {
-			fillRect := image.Rectangle{Max: image.Point{X: fillW, Y: total.Y}}
-			fillRadius := total.Y / 2
-			if maxFillRadius := fillW / 2; maxFillRadius < fillRadius {
-				fillRadius = maxFillRadius
+		if p.config.indeterminate {
+			t := animProgress(contentCtx, style.InteractionLoadingLinearCycle)
+			fill = progressCycleColor(contentCtx, fill, p.config.fourColor, t)
+			start1 := float32(math.Mod(float64(t*1.35), 1.35)) - 0.35
+			end1 := start1 + 0.42
+			start2 := float32(math.Mod(float64(t*1.35+0.55), 1.35)) - 0.35
+			end2 := start2 + 0.28
+			fillLinearSegment(contentCtx, indicatorRect, start1, end1, fill, false)
+			fillLinearSegment(contentCtx, indicatorRect, start2, end2, fill, false)
+		} else {
+			if p.config.fourColor {
+				fill = progressCycleColor(contentCtx, fill, true, progress)
 			}
-			if fillRadius < 0 {
-				fillRadius = 0
-			}
-			paint.FillShape(contentCtx.Gtx.Ops, fill, clip.UniformRRect(fillRect, fillRadius).Op(contentCtx.Gtx.Ops))
+			fillLinearSegment(contentCtx, indicatorRect, 0, progress, fill, false)
 		}
 
 		return total
 	})
 
 	return layout.Dimensions{Size: size}
+}
+
+func centeredRect(width, height, outerHeight int) image.Rectangle {
+	top := (outerHeight - height) / 2
+	if top < 0 {
+		top = 0
+	}
+	return image.Rect(0, top, width, top+height)
+}
+
+func fillLinearSegment(ctx *internal.Context, base image.Rectangle, start, end float32, col color.NRGBA, dotted bool) {
+	start = clampFloat32(start, 0, 1)
+	end = clampFloat32(end, 0, 1)
+	if end <= start || base.Dx() <= 0 || base.Dy() <= 0 || col.A == 0 {
+		return
+	}
+	x0 := base.Min.X + int(float32(base.Dx())*start)
+	x1 := base.Min.X + int(float32(base.Dx())*end)
+	if x1 <= x0 {
+		return
+	}
+	if dotted {
+		dot := base.Dy()
+		gap := dot
+		for x := x0; x < x1; x += dot + gap {
+			rect := image.Rect(x, base.Min.Y, minInt(x+dot, x1), base.Max.Y)
+			paint.FillShape(ctx.Gtx.Ops, col, clip.Ellipse(rect).Op(ctx.Gtx.Ops))
+		}
+		return
+	}
+	rect := image.Rect(x0, base.Min.Y, x1, base.Max.Y)
+	paint.FillShape(ctx.Gtx.Ops, col, clip.UniformRRect(rect, base.Dy()/2).Op(ctx.Gtx.Ops))
+}
+
+func drawArcStroke(ctx *internal.Context, center f32.Point, radius float32, width int, start, sweep float64, col color.NRGBA, roundCaps bool) {
+	if radius <= 0 || width <= 0 || col.A == 0 || math.Abs(sweep) < 0.001 {
+		return
+	}
+	steps := int(math.Ceil(math.Abs(sweep) / (math.Pi / 24)))
+	if steps < 4 {
+		steps = 4
+	}
+	if steps > 96 {
+		steps = 96
+	}
+	var path clip.Path
+	path.Begin(ctx.Gtx.Ops)
+	for i := 0; i <= steps; i++ {
+		a := start + sweep*float64(i)/float64(steps)
+		pt := f32.Pt(center.X+float32(math.Cos(a))*radius, center.Y+float32(math.Sin(a))*radius)
+		if i == 0 {
+			path.MoveTo(pt)
+		} else {
+			path.LineTo(pt)
+		}
+	}
+	stroke := clip.Stroke{Path: path.End(), Width: float32(width)}.Op().Push(ctx.Gtx.Ops)
+	paint.ColorOp{Color: col}.Add(ctx.Gtx.Ops)
+	paint.PaintOp{}.Add(ctx.Gtx.Ops)
+	stroke.Pop()
+	if roundCaps {
+		r := width / 2
+		drawArcCap(ctx, center, radius, start, r, col)
+		drawArcCap(ctx, center, radius, start+sweep, r, col)
+	}
+}
+
+func drawArcCap(ctx *internal.Context, center f32.Point, radius float32, angle float64, r int, col color.NRGBA) {
+	if r <= 0 {
+		return
+	}
+	x := int(center.X + float32(math.Cos(angle))*radius)
+	y := int(center.Y + float32(math.Sin(angle))*radius)
+	paint.FillShape(ctx.Gtx.Ops, col, clip.Ellipse(image.Rect(x-r, y-r, x+r, y+r)).Op(ctx.Gtx.Ops))
+}
+
+func progressCycleColor(ctx *internal.Context, fallback color.NRGBA, fourColor bool, t float32) color.NRGBA {
+	if !fourColor {
+		return fallback
+	}
+	cs := ctx.Theme().Colors
+	colors := [4]color.NRGBA{cs.Primary, cs.Secondary, cs.Tertiary, cs.Error}
+	idx := int(clampFloat32(t, 0, 0.999) * 4)
+	if idx < 0 || idx >= len(colors) {
+		return fallback
+	}
+	return colors[idx]
 }
 
 func progressRatio(value, min, max float32) float32 {
@@ -310,4 +490,11 @@ func animProgress(ctx *internal.Context, cycle time.Duration) float32 {
 	}
 	ms := float32(ctx.Now().UnixNano()%int64(cycle)) / float32(cycle)
 	return ms
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

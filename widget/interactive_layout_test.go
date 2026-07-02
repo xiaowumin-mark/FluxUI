@@ -206,6 +206,39 @@ func TestDefaultInteractiveWidgetsDoNotAddDecorationPadding(t *testing.T) {
 	rt.EndFrame()
 }
 
+func TestSwitchWithIconsPreservesDefaultSize(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	rt.BeginFrame()
+	ctx := newInteractiveLayoutTestContext(rt)
+	got := Switch(true,
+		SwitchIcons("check", "close"),
+		SwitchIconFontFamily("Material Symbols Outlined"),
+	).Layout(ctx).Size
+	rt.EndFrame()
+
+	if want := image.Pt(52, 32); got != want {
+		t.Fatalf("switch with icons size = %v, want %v", got, want)
+	}
+}
+
+func TestSwitchThumbCenterTracksAnimatedProgress(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	rt.BeginFrame()
+	ctx := newInteractiveLayoutTestContext(rt)
+	size := image.Pt(52, 32)
+
+	off := switchThumbCenter(ctx, size, 0)
+	on := switchThumbCenter(ctx, size, 1)
+	rt.EndFrame()
+
+	if off.X >= on.X {
+		t.Fatalf("switch thumb center off=%v on=%v, want left-to-right motion", off, on)
+	}
+	if off != image.Pt(16, 16) || on != image.Pt(36, 16) {
+		t.Fatalf("switch thumb centers off=%v on=%v, want (16,16) and (36,16)", off, on)
+	}
+}
+
 func TestWindowDragAreaPreservesChildSize(t *testing.T) {
 	rt := internal.NewRuntime(nil)
 	rt.BeginFrame()
@@ -339,6 +372,32 @@ func TestMD3PopupPlacementStaysDownWhenBelowSpaceFits(t *testing.T) {
 	}
 	if got, want := md3PopupOffsetY(48, 80, placement), 54; got != want {
 		t.Fatalf("popup y offset = %d, want %d", got, want)
+	}
+}
+
+func TestMD3PopupMeasuredPlacementFlipsInsideViewport(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	rt.BeginFrame()
+	ctx := newInteractiveLayoutTestContext(rt)
+	ctx.Gtx.Constraints = gioLayout.Constraints{Max: image.Pt(240, 160)}
+	ctx = ctx.WithViewport(image.Rect(0, 0, 240, 160))
+	ctx = ctx.WithPositionOffset(image.Pt(0, 70))
+
+	placement := md3PopupPlacementForAnchor(ctx, image.Pt(120, 40), image.Pt(120, 70), 40, 4)
+	if placement.Direction != md3PopupDown {
+		t.Fatalf("initial popup direction = %v, want down", placement.Direction)
+	}
+	placement = md3PopupPlacementForMeasuredPopup(ctx, image.Pt(120, 40), image.Pt(120, 90), placement, 0)
+	rt.EndFrame()
+
+	if placement.Direction != md3PopupUp {
+		t.Fatalf("measured popup direction = %v, want up", placement.Direction)
+	}
+	if placement.TransitionOffset >= 0 {
+		t.Fatalf("measured popup transition offset = %v, want negative for upward popup", placement.TransitionOffset)
+	}
+	if got, want := placement.MaxHeightPx, 40; got != want {
+		t.Fatalf("measured popup max height = %d, want %d", got, want)
 	}
 }
 

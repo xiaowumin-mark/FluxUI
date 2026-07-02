@@ -31,13 +31,15 @@ func App(ctx *ui.Context) ui.Element {
 	switched := ui.UseState(ctx, true)
 	sliderValue := ui.UseState(ctx, float32(56))
 	radioValue := ui.UseState(ctx, "stable")
-	selectValue := ui.UseState(ctx, "medium")
+	selectValue := ui.UseState(ctx, "apple")
 	menuOpen := ui.UseState(ctx, false)
 	menuValue := ui.UseState(ctx, "copy")
 	tabValue := ui.UseState(ctx, "overview")
+	tabScrollValue := ui.UseState(ctx, "keyboard-0")
 	iconSelected := ui.UseState(ctx, true)
 	fabCount := ui.UseState(ctx, 0)
 	searchValue := ui.UseState(ctx, "")
+	inputChipVisible := ui.UseState(ctx, true)
 	bottomNavValue := ui.UseState(ctx, "home")
 	railValue := ui.UseState(ctx, "home")
 	drawerValue := ui.UseState(ctx, "inbox")
@@ -80,23 +82,35 @@ func App(ctx *ui.Context) ui.Element {
 
 	return ui.ThemeProviderElement(appTheme, ui.ComponentElement(func(ctx *ui.Context) ui.Element {
 		th := ui.UseTheme(ctx)
+		sections := ui.ListViewElement(componentLabSectionCount, func(ctx *ui.Context, index int) ui.Element {
+			switch index {
+			case 0:
+				return labHeader(th)
+			case 1:
+				return themeControls(th, dark, compact, palette)
+			case 2:
+				return section("Layout and style primitives", "Row, Column, Stack, Center, Padding, Spacer, Divider, Container, Decoration, sizing, font and nested theme coverage.", layoutStylePanel(th, decoClicks, decoHovering))
+			case 3:
+				return section("Buttons and generic interaction", "Button variants, Pressable, ClickArea compatibility and command refs.", buttonsPanel(th, buttonCount, hovered, pressed, buttonRef, pressableRef, pressCount))
+			case 4:
+				return section("Text input and selection", "Controlled fields, checkbox, switch, slider, radio, select, menu and dropdown states.", inputSelectionPanel(th, textValue, passwordValue, focusState, checked, switched, sliderValue, radioValue, selectValue, menuOpen, menuValue, inputRef, checkboxRef, switchRef, sliderRef, radioRef, selectRef))
+			case 5:
+				return section("Cards, media and chips", "Image, icon, card variants, icon buttons, FABs, badges, chips and search bar.", mediaCardsPanel(th, imageClicks, buttonCount, iconSelected, fabCount, chipSelected, inputChipVisible, searchValue))
+			case 6:
+				return section("Navigation and overlays", "AppBar, tabs, bottom navigation, rail, drawer, dialog, popup, toast, snackbar and tooltip.", navigationOverlayPanel(th, tabValue, tabScrollValue, bottomNavValue, railValue, drawerValue, dialogOpen, popupOpen, toastMessage, toastSerial, snackbarMessage, snackbarSerial, snackbarActions, tabsRef, dialogRef, popupRef, bottomNavRef))
+			case 7:
+				return section("Progress, scroll, list and grid", "Determinate indicators, ScrollView refs, ListView, Grid and GridView with reach-end callbacks.", progressCollectionPanel(th, sliderValue, scrollLog, listReachCount, gridReachCount, scrollRef))
+			case 8:
+				return section("Drag, drop and router", "DragSource, DropTarget and RouterElement remain in the same visual test surface.", dragDropRouterPanel(th, dropActive, dropLog, routerAllowSettings, routerUserID, routerLog))
+			case 9:
+				return ui.VSpacerElement(24)
+			default:
+				return nil
+			}
+		}, ui.ListVirtualized(true))
 		page := ui.ContainerDecorationElement(
 			ui.Bg(th.Colors.Surface).WithPad(ui.All(18)),
-			ui.ScrollViewElement(
-				ui.ColumnElement(
-					labHeader(th),
-					themeControls(th, dark, compact, palette),
-					section("Layout and style primitives", "Row, Column, Stack, Center, Padding, Spacer, Divider, Container, Decoration, sizing, font and nested theme coverage.", layoutStylePanel(th, decoClicks, decoHovering)),
-					section("Buttons and generic interaction", "Button variants, Pressable, ClickArea compatibility and command refs.", buttonsPanel(th, buttonCount, hovered, pressed, buttonRef, pressableRef, pressCount)),
-					section("Text input and selection", "Controlled fields, checkbox, switch, slider, radio, select, menu and dropdown states.", inputSelectionPanel(th, textValue, passwordValue, focusState, checked, switched, sliderValue, radioValue, selectValue, menuOpen, menuValue, inputRef, checkboxRef, switchRef, sliderRef, radioRef, selectRef)),
-					section("Cards, media and chips", "Image, icon, card variants, icon buttons, FABs, badges, chips and search bar.", mediaCardsPanel(th, imageClicks, buttonCount, iconSelected, fabCount, chipSelected, searchValue)),
-					section("Navigation and overlays", "AppBar, tabs, bottom navigation, rail, drawer, dialog, popup, toast, snackbar and tooltip.", navigationOverlayPanel(th, tabValue, bottomNavValue, railValue, drawerValue, dialogOpen, popupOpen, toastMessage, toastSerial, snackbarMessage, snackbarSerial, snackbarActions, tabsRef, dialogRef, popupRef, bottomNavRef)),
-					section("Progress, scroll, list and grid", "Determinate indicators, ScrollView refs, ListView, Grid and GridView with reach-end callbacks.", progressCollectionPanel(th, sliderValue, scrollLog, listReachCount, gridReachCount, scrollRef)),
-					section("Drag, drop and router", "DragSource, DropTarget and RouterElement remain in the same visual test surface.", dragDropRouterPanel(th, dropActive, dropLog, routerAllowSettings, routerUserID, routerLog)),
-					ui.VSpacerElement(24),
-				),
-				ui.ScrollBarVisible(true),
-			),
+			sections,
 		)
 
 		return ui.StackElement(
@@ -108,6 +122,8 @@ func App(ctx *ui.Context) ui.Element {
 		)
 	}))
 }
+
+const componentLabSectionCount = 10
 
 func componentLabTheme(key string, dark bool, compact bool) *ui.Theme {
 	var seed ui.ColorScheme
@@ -375,14 +391,24 @@ func inputSelectionPanel(
 	selectRef *ui.Ref[*ui.SelectRef[string]],
 ) ui.Element {
 	options := []ui.SelectOptionItem[string]{
-		{Label: "Low priority", Value: "low"},
-		{Label: "Medium priority", Value: "medium"},
-		{Label: "High priority", Value: "high"},
+		{Label: "Apple", Value: "apple", Leading: ui.Icon("nutrition")},
+		{Label: "Apricot", Value: "apricot", Leading: ui.Icon("eco")},
+		{Label: "Tomato", Value: "tomato", Disabled: true},
+		{Label: "Cucumber", Value: "cucumber"},
 	}
 	menuItems := []ui.MenuItem{
 		{Key: "copy", Label: "Copy", Leading: ui.Icon("content_copy")},
 		{Key: "share", Label: "Share", Leading: ui.Icon("share")},
-		{Key: "archive", Label: "Archive", Leading: ui.Icon("archive")},
+		{Key: "archive", Label: "Archive", Leading: ui.Icon("archive"), Children: []ui.MenuItem{
+			{Key: "archive-today", Label: "Today"},
+			{Key: "archive-week", Label: "This week"},
+			{Key: "archive-custom", Label: "Custom date", Leading: ui.Icon("calendar_month")},
+		}},
+		{Divider: true},
+		{Key: "settings", Label: "Settings", Leading: ui.Icon("settings"), Children: []ui.MenuItem{
+			{Key: "profile", Label: "Profile"},
+			{Key: "shortcuts", Label: "Keyboard shortcuts"},
+		}},
 		{Key: "delete", Label: "Delete", Leading: ui.Icon("delete"), Disabled: true},
 	}
 	return ui.ColumnElement(
@@ -390,9 +416,14 @@ func inputSelectionPanel(
 			ui.ExpandedElement(ui.ColumnElement(
 				ui.OutlinedTextFieldElement(
 					textValue.Value(),
-					ui.InputPlaceholder("Outlined text"),
+					ui.InputLabel("Username"),
+					ui.InputPlaceholder("name@example.com"),
 					ui.InputSingleLine(true),
 					ui.InputMaxLen(40),
+					ui.InputCounter(true),
+					ui.InputLeading(ui.Icon("person")),
+					ui.InputTrailing(ui.Icon("mail")),
+					ui.InputSupportingText("Outlined field with floating label and counter"),
 					ui.InputAttachRef(inputRef.Current),
 					ui.InputOnFocus(func(ctx *ui.Context, focused bool) {
 						next := "blurred"
@@ -406,13 +437,35 @@ func inputSelectionPanel(
 				ui.VSpacerElement(8),
 				ui.FilledTextFieldElement(
 					passwordValue.Value(),
-					ui.InputPlaceholder("Password"),
+					ui.InputLabel("Password"),
+					ui.InputPlaceholder("Enter password"),
 					ui.InputPassword(true),
 					ui.InputSingleLine(true),
+					ui.InputLeading(ui.Icon("lock")),
+					ui.InputTrailing(ui.Icon("visibility")),
+					ui.InputSupportingText("Filled field keeps the active indicator"),
 					ui.InputOnChange(func(ctx *ui.Context, value string) { setIfChanged(passwordValue, value) }),
 				),
 				ui.VSpacerElement(8),
-				ui.TextFieldElement("disabled field", ui.InputDisabled(true)),
+				ui.OutlinedTextFieldElement(
+					"too long",
+					ui.InputLabel("Title"),
+					ui.InputMaxLen(10),
+					ui.InputCounter(true),
+					ui.InputError(true),
+					ui.InputErrorText("Use 10 characters or less"),
+					ui.InputRequired(true),
+				),
+				ui.VSpacerElement(8),
+				ui.FilledTextFieldElement("disabled field", ui.InputLabel("Disabled"), ui.InputDisabled(true), ui.InputLeading(ui.Icon("block"))),
+				ui.VSpacerElement(8),
+				ui.OutlinedTextFieldElement(
+					"Multiline supporting text",
+					ui.InputLabel("Notes"),
+					ui.InputSingleLine(false),
+					ui.InputRows(3),
+					ui.InputSupportingText("Textarea mode uses the same Material field chrome"),
+				),
 			)),
 			ui.HSpacerElement(12),
 			ui.FixedWidthElement(360, ui.ColumnElement(
@@ -445,6 +498,12 @@ func inputSelectionPanel(
 					ui.TextElement("Switch", ui.TextType(th.Types.BodyMedium), ui.TextColor(th.Colors.OnSurface)),
 					ui.HSpacerElement(8),
 					ui.SwitchElement(switched.Value(), ui.SwitchAttachRef(switchRef.Current), ui.SwitchOnChange(func(ctx *ui.Context, value bool) { setIfChanged(switched, value) })),
+				),
+				ui.VSpacerElement(6),
+				ui.RowElement(
+					ui.TextElement("Icon switch", ui.TextType(th.Types.BodyMedium), ui.TextColor(th.Colors.OnSurface)),
+					ui.HSpacerElement(8),
+					ui.SwitchElement(switched.Value(), ui.SwitchIcons("check", "close"), ui.SwitchOnChange(func(ctx *ui.Context, value bool) { setIfChanged(switched, value) })),
 				),
 				ui.VSpacerElement(8),
 				ui.RowElement(
@@ -494,16 +553,34 @@ func inputSelectionPanel(
 				ui.SelectElement(
 					selectValue.Value(),
 					options,
+					ui.SelectLabel[string]("Outlined select"),
+					ui.SelectPlaceholder[string]("Choose fruit"),
+					ui.SelectSupportingText[string]("height reveal menu, virtualized options"),
+					ui.SelectLeading[string](ui.Icon("restaurant")),
 					ui.SelectAttachRef[string](selectRef.Current),
 					ui.SelectOnChange[string](func(ctx *ui.Context, value string) { setIfChanged(selectValue, value) }),
+				),
+				ui.VSpacerElement(10),
+				ui.FilledSelectElement(
+					"apricot",
+					options,
+					ui.SelectLabel[string]("Filled select"),
+					ui.SelectSupportingText[string]("filled container + active indicator"),
+					ui.SelectMaxHeight[string](180),
+				),
+				ui.VSpacerElement(10),
+				ui.RowElement(
+					ui.ExpandedElement(ui.SelectElement("apple", options, ui.SelectDisabled[string](true), ui.SelectLabel[string]("Disabled"))),
+					ui.HSpacerElement(10),
+					ui.ExpandedElement(ui.SelectElement("", options, ui.SelectLabel[string]("Error"), ui.SelectError[string](true), ui.SelectErrorText[string]("Choose a value"), ui.SelectRequired[string](true))),
 				),
 				ui.VSpacerElement(10),
 				ui.RowElement(
 					ui.ButtonElement(ui.TextElement("SelectRef.Open"), ui.OnClick(func(ctx *ui.Context) { selectRef.Current.Open() })),
 					ui.HSpacerElement(8),
-					ui.ButtonElement(ui.TextElement("SelectRef -> high"), ui.OnClick(func(ctx *ui.Context) {
-						setIfChanged(selectValue, "high")
-						selectRef.Current.SetValue("high")
+					ui.ButtonElement(ui.TextElement("SelectRef -> apricot"), ui.OnClick(func(ctx *ui.Context) {
+						setIfChanged(selectValue, "apricot")
+						selectRef.Current.SetValue("apricot")
 					})),
 				),
 				ui.VSpacerElement(10),
@@ -513,6 +590,10 @@ func inputSelectionPanel(
 						ui.ContainerDecorationElement(ui.Bg(th.Colors.Surface).WithPad(ui.Symmetric(9, 12)).WithRad(8).WithBorder(ui.Border{Width: 1, Color: th.Colors.Outline}), ui.TextElement("Dropdown", ui.TextColor(th.Colors.OnSurface))),
 						menuItems,
 						ui.DropdownMenuSelectedKey(menuValue.Value()),
+						ui.DropdownMenuWidth(220),
+						ui.DropdownMenuMaxHeight(260),
+						ui.DropdownMenuXOffset(4),
+						ui.DropdownMenuDefaultFocusOf(ui.MenuDefaultFocusFirstItem),
 						ui.DropdownMenuOnOpenChange(func(ctx *ui.Context, open bool) { setIfChanged(menuOpen, open) }),
 						ui.DropdownMenuOnSelect(func(ctx *ui.Context, key string) {
 							setIfChanged(menuValue, key)
@@ -520,16 +601,25 @@ func inputSelectionPanel(
 						}),
 					)),
 					ui.HSpacerElement(10),
-					ui.FixedWidthElement(180, ui.MenuElement(menuItems, ui.MenuSelectedKey(menuValue.Value()), ui.MenuOnSelect(func(ctx *ui.Context, key string) { setIfChanged(menuValue, key) }))),
+					ui.FixedWidthElement(220, ui.MenuElement(menuItems, ui.MenuSelectedKey(menuValue.Value()), ui.MenuMaxHeight(260), ui.MenuOnSelect(func(ctx *ui.Context, key string) { setIfChanged(menuValue, key) }))),
 				),
 			)),
 		),
 	)
 }
 
-func mediaCardsPanel(th *ui.Theme, imageClicks *fluxstate.State[int], cardClicks *fluxstate.State[int], iconSelected *fluxstate.State[bool], fabCount *fluxstate.State[int], chipSelected *fluxstate.State[bool], searchValue *fluxstate.State[string]) ui.Element {
+func mediaCardsPanel(th *ui.Theme, imageClicks *fluxstate.State[int], cardClicks *fluxstate.State[int], iconSelected *fluxstate.State[bool], fabCount *fluxstate.State[int], chipSelected *fluxstate.State[bool], inputChipVisible *fluxstate.State[bool], searchValue *fluxstate.State[string]) ui.Element {
 	src := ui.ImageSource{Path: "examples/assets/sample.png", Label: "sample.png"}
 	fabClick := ui.FloatingActionButtonOnClick(func(ctx *ui.Context) { fabCount.Set(fabCount.Value() + 1) })
+	inputChip := ui.InputChipElement(
+		"Input chip",
+		ui.ChipOnRemove(func(ctx *ui.Context) { setIfChanged(inputChipVisible, false) }),
+	)
+	if !inputChipVisible.Value() {
+		inputChip = ui.SuggestionChipElement("Restore input chip", ui.ChipOnClick(func(ctx *ui.Context) {
+			setIfChanged(inputChipVisible, true)
+		}))
+	}
 	return ui.ColumnElement(
 		ui.RowElement(
 			ui.FixedWidthElement(360, ui.ColumnElement(
@@ -578,23 +668,33 @@ func mediaCardsPanel(th *ui.Theme, imageClicks *fluxstate.State[int], cardClicks
 			)),
 			ui.HSpacerElement(12),
 			ui.ExpandedElement(ui.ColumnElement(
-				ui.RowElement(
-					wrap(ui.AssistChipElement("Assist", ui.ChipLeading(ui.Icon("info", ui.IconSize(14))))),
-					wrap(ui.FilterChipElement("Filter", ui.ChipSelected(chipSelected.Value()), ui.ChipOnClick(func(ctx *ui.Context) { chipSelected.Set(!chipSelected.Value()) }))),
-					wrap(ui.InputChipElement("Input", ui.ChipTrailing(ui.Icon("close", ui.IconSize(14))))),
-					wrap(ui.SuggestionChipElement("Suggestion")),
-					wrap(ui.AssistChipElement("Disabled", ui.ChipDisabled(true))),
+				chipGroup(th, "Assist chips",
+					wrap(ui.AssistChipElement("Assist chip")),
+					wrap(ui.AssistChipElement("Assist chip with icon", ui.ChipLeading(ui.Icon("info", ui.IconSize(18))))),
+					wrap(ui.AssistChipElement("Elevated assist", ui.ChipElevated(true), ui.ChipLeading(ui.Icon("open_in_new", ui.IconSize(18))))),
+					wrap(ui.AssistChipElement("Soft-disabled assist", ui.ChipSoftDisabled(true))),
 				),
 				ui.VSpacerElement(10),
-				ui.ChipElementWithSlots(
-					ui.RowElement(
-						ui.IconElement("search", ui.IconSize(14), ui.IconColor(th.Colors.Primary)),
-						ui.HSpacerElement(6),
-						ui.TextElement("Slot chip", ui.TextType(th.Types.LabelMedium), ui.TextColor(th.Colors.Primary)),
-					),
-					ui.ChipBackground(th.Colors.PrimaryContainer),
-					ui.ChipForeground(th.Colors.OnPrimaryContainer),
+				chipGroup(th, "Filter chips",
+					wrap(ui.FilterChipElement("Filter chip", ui.ChipSelected(chipSelected.Value()), ui.ChipOnClick(func(ctx *ui.Context) { chipSelected.Set(!chipSelected.Value()) }))),
+					wrap(ui.FilterChipElement("Filter chip with icon", ui.ChipLeading(ui.Icon("label", ui.IconSize(18))))),
+					wrap(ui.FilterChipElement("Removable filter chip", ui.ChipRemovable(true), ui.ChipOnRemove(func(ctx *ui.Context) { chipSelected.Set(false) }))),
+					wrap(ui.FilterChipElement("Soft-disabled filter chip", ui.ChipSoftDisabled(true), ui.ChipRemovable(true))),
 				),
+				ui.VSpacerElement(10),
+				chipGroup(th, "Input chips",
+					wrap(inputChip),
+					wrap(ui.InputChipElement("Soft-disabled input chip", ui.ChipSoftDisabled(true))),
+				),
+				ui.VSpacerElement(10),
+				chipGroup(th, "Suggestion chips",
+					wrap(ui.SuggestionChipElement("Suggestion chip")),
+					wrap(ui.SuggestionChipElement("Suggestion chip with icon", ui.ChipLeading(ui.Icon("auto_awesome", ui.IconSize(18))))),
+					wrap(ui.SuggestionChipElement("Elevated suggestion", ui.ChipElevated(true))),
+					wrap(ui.SuggestionChipElement("Soft-disabled suggestion", ui.ChipSoftDisabled(true))),
+				),
+				ui.VSpacerElement(10),
+				ui.ChipElementWithSlots(ui.TextElement("Custom colored chip", ui.TextType(th.Types.LabelMedium)), ui.ChipBackground(th.Colors.PrimaryContainer), ui.ChipForeground(th.Colors.OnPrimaryContainer)),
 				ui.VSpacerElement(10),
 				ui.RowElement(
 					ui.BadgeElement(ui.IconButtonElement(ui.IconElement("mail")), "3", ui.BadgeBackground(th.Colors.Error), ui.BadgeForeground(th.Colors.OnError)),
@@ -616,9 +716,18 @@ func mediaCardsPanel(th *ui.Theme, imageClicks *fluxstate.State[int], cardClicks
 	)
 }
 
+func chipGroup(th *ui.Theme, title string, chips ...ui.Element) ui.Element {
+	return ui.ColumnElement(
+		ui.TextElement(title, ui.TextType(th.Types.TitleSmall), ui.TextColor(th.Colors.OnSurface)),
+		ui.VSpacerElement(6),
+		ui.RowElement(chips...),
+	)
+}
+
 func navigationOverlayPanel(
 	th *ui.Theme,
 	tabValue *fluxstate.State[string],
+	tabScrollValue *fluxstate.State[string],
 	bottomNavValue *fluxstate.State[string],
 	railValue *fluxstate.State[string],
 	drawerValue *fluxstate.State[string],
@@ -638,6 +747,23 @@ func navigationOverlayPanel(
 		{Key: "home", Label: "Home", Icon: ui.IconElement("home")},
 		{Key: "docs", Label: "Docs", Icon: ui.IconElement("description")},
 		{Key: "tools", Label: "Tools", Icon: ui.IconElement("tune")},
+	}
+	tabScrollItems := make([]ui.TabItem, 0, 15)
+	tabScrollBase := []ui.TabItem{
+		{Key: "keyboard", Label: "Keyboard", Icon: ui.Icon("keyboard")},
+		{Key: "guitar", Label: "Guitar", Icon: ui.Icon("tune")},
+		{Key: "drums", Label: "Drums", Icon: ui.Icon("graphic_eq")},
+		{Key: "bass", Label: "Bass", Icon: ui.Icon("speaker")},
+		{Key: "saxophone", Label: "Saxophone", Icon: ui.Icon("nightlife")},
+	}
+	for group := 0; group < 3; group++ {
+		for _, item := range tabScrollBase {
+			tabScrollItems = append(tabScrollItems, ui.TabItem{
+				Key:   fmt.Sprintf("%s-%d", item.Key, group),
+				Label: item.Label,
+				Icon:  item.Icon,
+			})
+		}
 	}
 	return ui.ColumnElement(
 		ui.AppBarElementWithSlots(
@@ -668,11 +794,55 @@ func navigationOverlayPanel(
 			ui.AppBarBackground(th.Colors.SurfaceContainerHigh),
 		),
 		ui.VSpacerElement(10),
+		ui.TextElement("Primary full width tabs", ui.TextType(th.Types.LabelLarge), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		ui.TabsElement(
 			tabValue.Value(),
-			[]ui.TabItem{{Key: "overview", Label: "Overview"}, {Key: "components", Label: "Components"}, {Key: "tokens", Label: "Tokens"}, {Key: "events", Label: "Events"}},
+			[]ui.TabItem{
+				{Key: "overview", Label: "Keyboard", Icon: ui.Icon("keyboard")},
+				{Key: "components", Label: "Guitar", Icon: ui.Icon("tune")},
+				{Key: "tokens", Label: "Drums", Icon: ui.Icon("graphic_eq")},
+				{Key: "events", Label: "Bass", Icon: ui.Icon("speaker")},
+			},
+			ui.TabsFullWidth(true),
 			ui.TabsAttachRef(tabsRef.Current),
+			ui.TabsOnChange(func(ctx *ui.Context, key string) { setIfChanged(tabValue, key) }),
+		),
+		ui.VSpacerElement(10),
+		ui.TextElement("Scrolling tabs", ui.TextType(th.Types.LabelLarge), ui.TextColor(th.Colors.OnSurfaceVariant)),
+		ui.TabsElement(
+			tabScrollValue.Value(),
+			tabScrollItems,
 			ui.TabsScrollable(true),
+			ui.TabsOnChange(func(ctx *ui.Context, key string) { setIfChanged(tabScrollValue, key) }),
+		),
+		ui.VSpacerElement(10),
+		ui.TextElement("Secondary full width tabs", ui.TextType(th.Types.LabelLarge), ui.TextColor(th.Colors.OnSurfaceVariant)),
+		ui.TabsElement(
+			tabValue.Value(),
+			[]ui.TabItem{
+				{Key: "overview", Label: "Travel", Icon: ui.Icon("flight")},
+				{Key: "components", Label: "Hotel", Icon: ui.Icon("hotel")},
+				{Key: "tokens", Label: "Food", Icon: ui.Icon("restaurant")},
+				{Key: "events", Label: "Disabled", Icon: ui.Icon("block"), Disabled: true},
+			},
+			ui.TabsSecondary(true),
+			ui.TabsInlineIcon(true),
+			ui.TabsFullWidth(true),
+			ui.TabsOnChange(func(ctx *ui.Context, key string) { setIfChanged(tabValue, key) }),
+		),
+		ui.VSpacerElement(10),
+		ui.TextElement("Custom indicator tabs", ui.TextType(th.Types.LabelLarge), ui.TextColor(th.Colors.OnSurfaceVariant)),
+		ui.TabsElement(
+			tabValue.Value(),
+			[]ui.TabItem{
+				{Key: "overview", Label: "Travel", Icon: ui.Icon("flight")},
+				{Key: "components", Label: "Hotel", Icon: ui.Icon("hotel")},
+				{Key: "tokens", Label: "Activities", Icon: ui.Icon("hiking")},
+				{Key: "events", Label: "Food", Icon: ui.Icon("restaurant")},
+			},
+			ui.TabsFullWidth(true),
+			ui.TabsIndicatorColor(ui.NRGBA(174, 45, 120, 255)),
+			ui.TabsActiveTextColor(ui.NRGBA(174, 45, 120, 255)),
 			ui.TabsOnChange(func(ctx *ui.Context, key string) { setIfChanged(tabValue, key) }),
 		),
 		ui.VSpacerElement(10),
@@ -746,17 +916,26 @@ func navigationOverlayPanel(
 }
 
 func progressCollectionPanel(th *ui.Theme, progress *fluxstate.State[float32], scrollLog *fluxstate.State[string], listReachCount *fluxstate.State[int], gridReachCount *fluxstate.State[int], scrollRef *ui.Ref[*ui.ScrollRef]) ui.Element {
+	materialProgress := progress.Value() / 100
 	return ui.ColumnElement(
 		ui.RowElement(
 			ui.FixedWidthElement(280, ui.ColumnElement(
 				ui.ProgressBarElement(progress.Value(), ui.ProgressMin(0), ui.ProgressMax(100), ui.ProgressLabelVisible(true)),
 				ui.VSpacerElement(10),
-				ui.LinearProgressIndicatorElement(progress.Value(), ui.ProgressMin(0), ui.ProgressMax(100)),
+				ui.LinearProgressIndicatorElement(materialProgress, ui.ProgressBuffer(0.82), ui.ProgressTrackHeight(4), ui.ProgressIndicatorHeight(4)),
 				ui.VSpacerElement(10),
 				ui.RowElement(
 					ui.CircularProgressElement(progress.Value(), ui.ProgressSize(58), ui.ProgressLabelVisible(true)),
 					ui.HSpacerElement(18),
-					ui.CircularProgressIndicatorElement(progress.Value(), ui.ProgressSize(58), ui.ProgressLabelVisible(true)),
+					ui.CircularProgressIndicatorElement(materialProgress, ui.ProgressSize(58), ui.ProgressLabelVisible(true)),
+				),
+				ui.VSpacerElement(10),
+				ui.LinearProgressIndicatorElement(0, ui.ProgressIndeterminate(true), ui.ProgressFourColor(true)),
+				ui.VSpacerElement(10),
+				ui.RowElement(
+					ui.FilledTonalButtonElement(ui.TextElement("Loading"), ui.ButtonLoading(true)),
+					ui.HSpacerElement(12),
+					ui.IconButtonElement(ui.IconElement("sync"), ui.IconButtonLoading(true), ui.IconButtonForeground(th.Primary)),
 				),
 			)),
 			ui.HSpacerElement(16),

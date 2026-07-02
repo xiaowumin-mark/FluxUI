@@ -227,6 +227,42 @@ func interactionStateSpecs(themeCase visualTheme) []visualCaptureSpec {
 			Events:   steadyFrames(2),
 		},
 		{
+			Name:     fmt.Sprintf("state-%s-switch-unchecked-pressed", themeCase.Name),
+			Category: "interaction-state",
+			Theme:    themeCase,
+			Viewport: visualViewport{Name: "state-switch-unchecked-pressed", Width: 260, Height: 160},
+			Root:     switchStateRoot(false),
+			Events: []visualFrameEvents{
+				{},
+				{Before: []gioEvent.Event{pointerMove(50, 92), pointerPress(50, 92, 16*time.Millisecond)}},
+				{},
+				{},
+				{},
+				{},
+				{},
+				{},
+				{},
+			},
+		},
+		{
+			Name:     fmt.Sprintf("state-%s-switch-checked-pressed", themeCase.Name),
+			Category: "interaction-state",
+			Theme:    themeCase,
+			Viewport: visualViewport{Name: "state-switch-checked-pressed", Width: 260, Height: 160},
+			Root:     switchStateRoot(true),
+			Events: []visualFrameEvents{
+				{},
+				{Before: []gioEvent.Event{pointerMove(50, 92), pointerPress(50, 92, 16*time.Millisecond)}},
+				{},
+				{},
+				{},
+				{},
+				{},
+				{},
+				{},
+			},
+		},
+		{
 			Name:     fmt.Sprintf("state-%s-expanded", themeCase.Name),
 			Category: "interaction-state",
 			Theme:    themeCase,
@@ -387,11 +423,11 @@ func inputsCardsRegionRoot(ctx *ui.Context) ui.Element {
 			ui.SpacerElement(14, 0),
 			ui.FixedWidthElement(240, ui.FilledTextFieldElement("Filled value", ui.InputPlaceholder("Filled"))),
 			ui.SpacerElement(14, 0),
-			ui.FixedWidthElement(220, ui.SelectElement("medium", []ui.SelectOptionItem[string]{
-				{Label: "Low priority", Value: "low"},
-				{Label: "Medium priority", Value: "medium"},
-				{Label: "High priority", Value: "high"},
-			})),
+			ui.FixedWidthElement(220, ui.SelectElement("apple", []ui.SelectOptionItem[string]{
+				{Label: "Apple", Value: "apple"},
+				{Label: "Apricot", Value: "apricot"},
+				{Label: "Tomato", Value: "tomato", Disabled: true},
+			}, ui.SelectLabel[string]("Fruit"))),
 		),
 		ui.SpacerElement(0, 18),
 		ui.RowElement(
@@ -481,22 +517,26 @@ func overlayRegionRoot(ctx *ui.Context) ui.Element {
 func chipsProgressRegionRoot(ctx *ui.Context) ui.Element {
 	return fixtureShell(ctx, "Chips, Search, Progress",
 		ui.RowElement(
-			paddedFixture(ui.AssistChipElement("Assist")),
+			paddedFixture(ui.AssistChipElement("Assist", ui.ChipLeading(ui.Icon("info", ui.IconSize(18))))),
+			paddedFixture(ui.AssistChipElement("Elevated", ui.ChipElevated(true))),
 			paddedFixture(ui.FilterChipElement("Filter", ui.ChipSelected(true))),
-			paddedFixture(ui.InputChipElement("Input")),
-			paddedFixture(ui.SuggestionChipElement("Suggestion")),
+			paddedFixture(ui.FilterChipElement("Removable", ui.ChipRemovable(true))),
+			paddedFixture(ui.InputChipElement("Input", ui.ChipOnRemove(func(ctx *ui.Context) {}))),
+			paddedFixture(ui.SuggestionChipElement("Soft disabled", ui.ChipSoftDisabled(true))),
 		),
 		ui.SpacerElement(0, 18),
 		ui.RowElement(
 			ui.FixedWidthElement(340, ui.SearchBarElement("material", ui.SearchBarPlaceholder("Search components"))),
 			ui.SpacerElement(24, 0),
 			ui.FixedWidthElement(260, ui.ColumnElement(
-				ui.LinearProgressIndicatorElement(0.62),
+				ui.LinearProgressIndicatorElement(0.62, ui.ProgressBuffer(0.84)),
 				ui.SpacerElement(0, 18),
-				ui.LinearProgressIndicatorElement(0.28),
+				ui.LinearProgressIndicatorElement(0, ui.ProgressIndeterminate(true), ui.ProgressFourColor(true)),
 			)),
 			ui.SpacerElement(24, 0),
 			ui.CircularProgressIndicatorElement(0.72, ui.ProgressSize(72), ui.ProgressLabelVisible(true)),
+			ui.SpacerElement(24, 0),
+			ui.FilledTonalButtonElement(ui.TextElement("Loading"), ui.ButtonLoading(true)),
 		),
 	)
 }
@@ -556,6 +596,14 @@ func selectedStateRoot(ctx *ui.Context) ui.Element {
 	)
 }
 
+func switchStateRoot(checked bool) ui.Component {
+	return func(ctx *ui.Context) ui.Element {
+		return stateShell(ctx, "Switch state",
+			ui.SwitchElement(checked),
+		)
+	}
+}
+
 func expandedStateRoot(ctx *ui.Context) ui.Element {
 	th := ui.UseTheme(ctx)
 	return stateShell(ctx, "Expanded state",
@@ -567,18 +615,23 @@ func expandedStateRoot(ctx *ui.Context) ui.Element {
 					ui.TextElement("Open menu", ui.TextColor(th.Colors.OnSurface)),
 				),
 				[]ui.MenuItem{
-					{Key: "copy", Label: "Copy"},
-					{Key: "share", Label: "Share"},
-					{Key: "archive", Label: "Archive"},
+					{Key: "copy", Label: "Copy", Leading: ui.Icon("content_copy")},
+					{Key: "share", Label: "Share", Leading: ui.Icon("share")},
+					{Key: "archive", Label: "Archive", Leading: ui.Icon("archive"), Children: []ui.MenuItem{
+						{Key: "archive-today", Label: "Today"},
+						{Key: "archive-week", Label: "This week"},
+					}},
 				},
 				ui.DropdownMenuSelectedKey("share"),
+				ui.DropdownMenuWidth(220),
+				ui.DropdownMenuMaxHeight(220),
 			)),
 			ui.SpacerElement(24, 0),
-			ui.FixedWidthElement(280, ui.SelectElement("medium", []ui.SelectOptionItem[string]{
-				{Label: "Low priority", Value: "low"},
-				{Label: "Medium priority", Value: "medium"},
-				{Label: "High priority", Value: "high"},
-			})),
+			ui.FixedWidthElement(280, ui.FilledSelectElement("apricot", []ui.SelectOptionItem[string]{
+				{Label: "Apple", Value: "apple"},
+				{Label: "Apricot", Value: "apricot"},
+				{Label: "Tomato", Value: "tomato", Disabled: true},
+			}, ui.SelectLabel[string]("Filled select"))),
 		),
 	)
 }

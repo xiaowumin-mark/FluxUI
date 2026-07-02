@@ -3,6 +3,7 @@ package widget
 import (
 	"image"
 	"image/color"
+	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
@@ -258,22 +259,74 @@ func middleRow(children ...Widget) Widget {
 
 // MenuItem describes a Material 3 menu row.
 type MenuItem struct {
-	Key      string
-	Label    string
-	Leading  Widget
-	Trailing Widget
-	Disabled bool
-	Selected bool
+	Key           string
+	Label         string
+	Leading       Widget
+	Trailing      Widget
+	Disabled      bool
+	Selected      bool
+	Divider       bool
+	Children      []MenuItem
+	Type          string
+	Href          string
+	Target        string
+	KeepOpen      bool
+	TypeaheadText string
 }
+
+type MenuCorner int
+
+const (
+	MenuCornerStartStart MenuCorner = iota
+	MenuCornerStartEnd
+	MenuCornerEndStart
+	MenuCornerEndEnd
+)
+
+type MenuDefaultFocus int
+
+const (
+	MenuDefaultFocusNone MenuDefaultFocus = iota
+	MenuDefaultFocusListRoot
+	MenuDefaultFocusFirstItem
+	MenuDefaultFocusLastItem
+)
+
+type MenuPositioning int
+
+const (
+	MenuPositioningAbsolute MenuPositioning = iota
+	MenuPositioningFixed
+	MenuPositioningDocument
+	MenuPositioningPopover
+)
 
 type MenuOption func(*menuConfig)
 
 type menuConfig struct {
-	selectedKey string
-	onSelect    func(ctx *internal.Context, key string)
-	width       float32
-	maxHeight   float32
-	decoration  style.Decoration
+	selectedKey            string
+	onSelect               func(ctx *internal.Context, key string)
+	width                  float32
+	maxHeight              float32
+	decoration             style.Decoration
+	quick                  bool
+	hasOverflow            bool
+	xOffset                float32
+	yOffset                float32
+	anchorCorner           MenuCorner
+	menuCorner             MenuCorner
+	defaultFocus           MenuDefaultFocus
+	positioning            MenuPositioning
+	level                  int
+	typeaheadDelay         time.Duration
+	noHorizontalFlip       bool
+	noVerticalFlip         bool
+	stayOpenOnOutsideClick bool
+	stayOpenOnFocusout     bool
+	skipRestoreFocus       bool
+	noNavigationWrap       bool
+	hoverOpenDelay         time.Duration
+	hoverCloseDelay        time.Duration
 }
 
 type menuWidget struct {
@@ -281,8 +334,12 @@ type menuWidget struct {
 	config menuConfig
 }
 
+type menuRuntimeState struct {
+	activeSubmenu string
+}
+
 func Menu(items []MenuItem, opts ...MenuOption) Widget {
-	cfg := menuConfig{maxHeight: 280}
+	cfg := menuConfig{maxHeight: 280, anchorCorner: MenuCornerEndStart, menuCorner: MenuCornerStartStart}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
@@ -309,7 +366,76 @@ func MenuDecoration(d style.Decoration) MenuOption {
 	return func(cfg *menuConfig) { cfg.decoration = d }
 }
 
+func MenuQuick(quick bool) MenuOption {
+	return func(cfg *menuConfig) { cfg.quick = quick }
+}
+
+func MenuHasOverflow(hasOverflow bool) MenuOption {
+	return func(cfg *menuConfig) { cfg.hasOverflow = hasOverflow }
+}
+
+func MenuXOffset(offset float32) MenuOption {
+	return func(cfg *menuConfig) { cfg.xOffset = offset }
+}
+
+func MenuYOffset(offset float32) MenuOption {
+	return func(cfg *menuConfig) { cfg.yOffset = offset }
+}
+
+func MenuAnchorCorner(corner MenuCorner) MenuOption {
+	return func(cfg *menuConfig) { cfg.anchorCorner = corner }
+}
+
+func MenuMenuCorner(corner MenuCorner) MenuOption {
+	return func(cfg *menuConfig) { cfg.menuCorner = corner }
+}
+
+func MenuDefaultFocusOf(focus MenuDefaultFocus) MenuOption {
+	return func(cfg *menuConfig) { cfg.defaultFocus = focus }
+}
+
+func MenuPositioningOf(positioning MenuPositioning) MenuOption {
+	return func(cfg *menuConfig) { cfg.positioning = positioning }
+}
+
+func MenuTypeaheadDelay(delay time.Duration) MenuOption {
+	return func(cfg *menuConfig) { cfg.typeaheadDelay = delay }
+}
+
+func MenuNoHorizontalFlip(disabled bool) MenuOption {
+	return func(cfg *menuConfig) { cfg.noHorizontalFlip = disabled }
+}
+
+func MenuNoVerticalFlip(disabled bool) MenuOption {
+	return func(cfg *menuConfig) { cfg.noVerticalFlip = disabled }
+}
+
+func MenuStayOpenOnOutsideClick(stayOpen bool) MenuOption {
+	return func(cfg *menuConfig) { cfg.stayOpenOnOutsideClick = stayOpen }
+}
+
+func MenuStayOpenOnFocusout(stayOpen bool) MenuOption {
+	return func(cfg *menuConfig) { cfg.stayOpenOnFocusout = stayOpen }
+}
+
+func MenuSkipRestoreFocus(skip bool) MenuOption {
+	return func(cfg *menuConfig) { cfg.skipRestoreFocus = skip }
+}
+
+func MenuNoNavigationWrap(noWrap bool) MenuOption {
+	return func(cfg *menuConfig) { cfg.noNavigationWrap = noWrap }
+}
+
+func MenuHoverOpenDelay(delay time.Duration) MenuOption {
+	return func(cfg *menuConfig) { cfg.hoverOpenDelay = delay }
+}
+
+func MenuHoverCloseDelay(delay time.Duration) MenuOption {
+	return func(cfg *menuConfig) { cfg.hoverCloseDelay = delay }
+}
+
 func (m *menuWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	state := menuRuntimeStateFor(ctx)
 	showSelection := m.config.selectedKey != ""
 	for idx := range m.items {
 		if m.items[idx].Selected {
@@ -320,12 +446,15 @@ func (m *menuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	rowAt := func(rowCtx *internal.Context, index int) Widget {
 		item := m.items[index]
+		if item.Divider {
+			return Padding(style.Insets{Top: 4, Bottom: 4}, Divider(DividerColor(rowCtx.Theme().Colors.OutlineVariant)))
+		}
 		selected := item.Selected || (m.config.selectedKey != "" && item.Key == m.config.selectedKey)
-		return m.menuRow(item, selected, showSelection)
+		return m.menuRow(item, selected, showSelection, state)
 	}
 
 	var body Widget
-	estimatedHeight := float32(len(m.items))*densityHeight(ctx, 40, 36) + densityMetric(ctx, 12, 8)
+	estimatedHeight := float32(len(m.items))*densityHeight(ctx, 48, 40) + densityMetric(ctx, 16, 12)
 	if m.config.maxHeight > 0 && estimatedHeight > m.config.maxHeight {
 		body = FixedHeight(m.config.maxHeight, ListView(len(m.items), rowAt, ListVirtualized(true)))
 	} else {
@@ -359,10 +488,29 @@ func (m *menuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	return root.Layout(ctx.Child(0))
 }
 
-func (m *menuWidget) menuRow(item MenuItem, selected bool, showSelection bool) Widget {
+func menuRuntimeStateFor(ctx *internal.Context) *menuRuntimeState {
+	value := ctx.Memo("menu-state", func() any {
+		return &menuRuntimeState{}
+	})
+	state, ok := value.(*menuRuntimeState)
+	if !ok {
+		panic("github.com/xiaowumin-mark/FluxUI/widget: menu state type mismatch")
+	}
+	return state
+}
+
+func menuItemStateKey(item MenuItem) string {
+	if item.Key != "" {
+		return item.Key
+	}
+	return item.Label
+}
+
+func (m *menuWidget) menuRow(item MenuItem, selected bool, showSelection bool, state *menuRuntimeState) Widget {
 	return layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
 		clickable := event.UseClickable(rowCtx)
-		if !item.Disabled {
+		hasSubmenu := len(item.Children) > 0
+		if !item.Disabled && !hasSubmenu {
 			for clickable.Clicked(rowCtx) {
 				if m.config.onSelect != nil {
 					m.config.onSelect(rowCtx, item.Key)
@@ -381,6 +529,9 @@ func (m *menuWidget) menuRow(item MenuItem, selected bool, showSelection bool) W
 
 		selectionProgress := md3SelectionProgress(rowCtx, selected)
 		trailing := item.Trailing
+		if trailing == nil && hasSubmenu {
+			trailing = Icon("chevron_right", IconSize(18))
+		}
 		if trailing == nil && showSelection {
 			trailing = selectCheckMarkProgress(selectionProgress, cs.Primary)
 		}
@@ -397,15 +548,63 @@ func (m *menuWidget) menuRow(item MenuItem, selected bool, showSelection bool) W
 			rowChildren = append(rowChildren, Padding(style.Insets{Left: 12}, FixedWidth(24, Center(withForeground(fg, trailing)))))
 		}
 		content := middleRow(rowChildren...)
-		return md3ActionSurface(rowCtx, clickable, md3ActionSurfaceSpec{
+		snapshot := clickable.Snapshot(rowCtx, true)
+		itemStateKey := menuItemStateKey(item)
+		if !item.Disabled && hasSubmenu && (snapshot.Hovered || snapshot.Focused || snapshot.Pressed) && state != nil {
+			state.activeSubmenu = itemStateKey
+		}
+		if !item.Disabled && !hasSubmenu && snapshot.Hovered && state != nil {
+			state.activeSubmenu = ""
+		}
+		dims := md3ActionSurface(rowCtx, clickable, md3ActionSurfaceSpec{
 			Background: bg,
 			Foreground: fg,
 			Radius:     rowCtx.Theme().Shapes.ExtraSmall,
-			Padding:    densityInsets(rowCtx, style.Symmetric(6, 12), style.Symmetric(4, 12)),
-			MinHeight:  densityHeight(rowCtx, 40, 36),
+			Padding:    densityInsets(rowCtx, style.Symmetric(8, 12), style.Symmetric(6, 12)),
+			MinHeight:  densityHeight(rowCtx, 48, 40),
 			FillWidth:  true,
 			Disabled:   item.Disabled,
 		}, content)
+		if hasSubmenu && !item.Disabled && state != nil {
+			openSubmenu := state.activeSubmenu == itemStateKey
+			progress, visible := md3OverlayProgress(
+				rowCtx.Scope("submenu"),
+				"menu-submenu",
+				openSubmenu,
+				style.InteractionMenuEnterDuration,
+				style.InteractionMenuExitDuration,
+				style.InteractionEmphasizedDecelerateEasing,
+				style.InteractionEmphasizedAccelerateEasing,
+			)
+			if visible {
+				childCfg := m.config
+				childCfg.level++
+				childCfg.width = 0
+				if childCfg.maxHeight <= 0 {
+					childCfg.maxHeight = 280
+				}
+				submenu := &menuWidget{items: item.Children, config: childCfg}
+				macro := op.Record(rowCtx.Gtx.Ops)
+				subCtx := *rowCtx
+				subCtx.Gtx = rowCtx.Gtx
+				subCtx.Gtx.Constraints.Min = image.Point{}
+				if subCtx.Gtx.Constraints.Max.X <= 0 {
+					subCtx.Gtx.Constraints.Max.X = dims.Size.X
+				}
+				subSize := layoutMD3RevealTransition(subCtx.Child(2), progress, false, func(revealCtx *internal.Context) image.Point {
+					return submenu.Layout(revealCtx.Child(0)).Size
+				})
+				call := macro.Stop()
+				deferMacro := op.Record(rowCtx.Gtx.Ops)
+				offset := op.Offset(image.Point{X: dims.Size.X + rowCtx.Gtx.Dp(safeDp(4))}).Push(rowCtx.Gtx.Ops)
+				call.Add(rowCtx.Gtx.Ops)
+				offset.Pop()
+				deferCall := deferMacro.Stop()
+				_ = subSize
+				op.Defer(rowCtx.Gtx.Ops, deferCall)
+			}
+		}
+		return dims
 	})
 }
 
@@ -423,8 +622,12 @@ type dropdownMenuWidget struct {
 	config  dropdownMenuConfig
 }
 
+type dropdownMenuRuntimeState struct {
+	outsideTag any
+}
+
 func DropdownMenu(open bool, trigger Widget, items []MenuItem, opts ...DropdownMenuOption) Widget {
-	cfg := dropdownMenuConfig{menu: menuConfig{maxHeight: 280}}
+	cfg := dropdownMenuConfig{menu: menuConfig{maxHeight: 280, anchorCorner: MenuCornerEndStart, menuCorner: MenuCornerStartStart}}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
@@ -460,7 +663,94 @@ func DropdownMenuDecoration(d style.Decoration) DropdownMenuOption {
 	return func(cfg *dropdownMenuConfig) { cfg.menu.decoration = d }
 }
 
+func DropdownMenuQuick(quick bool) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.quick = quick }
+}
+
+func DropdownMenuHasOverflow(hasOverflow bool) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.hasOverflow = hasOverflow }
+}
+
+func DropdownMenuXOffset(offset float32) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.xOffset = offset }
+}
+
+func DropdownMenuYOffset(offset float32) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.yOffset = offset }
+}
+
+func DropdownMenuAnchorCorner(corner MenuCorner) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.anchorCorner = corner }
+}
+
+func DropdownMenuMenuCorner(corner MenuCorner) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.menuCorner = corner }
+}
+
+func DropdownMenuDefaultFocusOf(focus MenuDefaultFocus) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.defaultFocus = focus }
+}
+
+func DropdownMenuPositioningOf(positioning MenuPositioning) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.positioning = positioning }
+}
+
+func DropdownMenuTypeaheadDelay(delay time.Duration) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.typeaheadDelay = delay }
+}
+
+func DropdownMenuNoHorizontalFlip(disabled bool) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.noHorizontalFlip = disabled }
+}
+
+func DropdownMenuNoVerticalFlip(disabled bool) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.noVerticalFlip = disabled }
+}
+
+func DropdownMenuStayOpenOnOutsideClick(stayOpen bool) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.stayOpenOnOutsideClick = stayOpen }
+}
+
+func DropdownMenuStayOpenOnFocusout(stayOpen bool) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.stayOpenOnFocusout = stayOpen }
+}
+
+func DropdownMenuSkipRestoreFocus(skip bool) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.skipRestoreFocus = skip }
+}
+
+func DropdownMenuNoNavigationWrap(noWrap bool) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.noNavigationWrap = noWrap }
+}
+
+func DropdownMenuHoverOpenDelay(delay time.Duration) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.hoverOpenDelay = delay }
+}
+
+func DropdownMenuHoverCloseDelay(delay time.Duration) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.menu.hoverCloseDelay = delay }
+}
+
+func isEndAlignedMenu(anchorCorner, menuCorner MenuCorner) bool {
+	anchorEnd := anchorCorner == MenuCornerStartEnd || anchorCorner == MenuCornerEndEnd
+	menuEnd := menuCorner == MenuCornerStartEnd || menuCorner == MenuCornerEndEnd
+	return anchorEnd && menuEnd
+}
+
+func menuItemKeepOpen(items []MenuItem, key string) bool {
+	for _, item := range items {
+		if item.Key == key {
+			return item.KeepOpen
+		}
+		if len(item.Children) > 0 && menuItemKeepOpen(item.Children, key) {
+			return true
+		}
+	}
+	return false
+}
+
 func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	state := dropdownMenuRuntimeStateFor(ctx)
 	trigger := d.trigger
 	if trigger == nil {
 		trigger = Text("Menu")
@@ -485,15 +775,13 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		Radius: ctx.Theme().Shapes.ExtraSmall,
 	}, clickable.Focused(ctx), false)
 
-	popupProgress, popupVisible := md3OverlayProgress(
-		ctx,
-		"dropdown-menu-popup",
-		open && len(d.items) > 0,
-		style.InteractionMenuEnterDuration,
-		style.InteractionMenuExitDuration,
-		style.InteractionEmphasizedDecelerateEasing,
-		style.InteractionEmphasizedAccelerateEasing,
-	)
+	enterDuration := style.InteractionMenuEnterDuration
+	exitDuration := style.InteractionMenuExitDuration
+	if d.config.menu.quick {
+		enterDuration = 0
+		exitDuration = 0
+	}
+	popupProgress, popupVisible := md3OverlayProgress(ctx, "dropdown-menu-popup", open && len(d.items) > 0, enterDuration, exitDuration, style.InteractionEmphasizedDecelerateEasing, style.InteractionEmphasizedAccelerateEasing)
 	if !popupVisible {
 		return layout.Dimensions{Size: triggerDims}
 	}
@@ -518,7 +806,7 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		popupW = 1
 	}
 
-	estimatedHeight := float32(len(d.items))*densityHeight(ctx, 40, 36) + densityMetric(ctx, 12, 8)
+	estimatedHeight := float32(len(d.items))*densityHeight(ctx, 48, 40) + densityMetric(ctx, 16, 12)
 	preferredHeightPx := ctx.Gtx.Dp(safeDp(estimatedHeight))
 	if preferredHeightPx <= 0 {
 		preferredHeightPx = 1
@@ -529,7 +817,7 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			preferredHeightPx = maxHeightPx
 		}
 	}
-	gapPx := ctx.Gtx.Dp(safeDp(6))
+	gapPx := ctx.Gtx.Dp(safeDp(4))
 	placement := md3PopupPlacementForAnchor(ctx, triggerDims, image.Point{X: popupW}, preferredHeightPx, gapPx)
 	menuCfg.maxHeight = float32(placement.MaxHeightPx) / pxPerDp
 
@@ -538,31 +826,67 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		if originalSelect != nil {
 			originalSelect(selectCtx, key)
 		}
+		if menuItemKeepOpen(d.items, key) {
+			return
+		}
 		if d.config.onOpenChange != nil {
 			d.config.onOpenChange(selectCtx, false)
 		}
 	}
 	menu := (&menuWidget{items: d.items, config: menuCfg})
 
-	popupMacro := op.Record(ctx.Gtx.Ops)
-	popupCtx := *ctx
-	popupCtx.Gtx = ctx.Gtx
-	popupCtx.Gtx.Constraints.Min = image.Point{}
-	popupCtx.Gtx.Constraints.Max = image.Point{X: popupW, Y: placement.MaxHeightPx}
-	popupSize := layoutMD3OverlayTransition(popupCtx.Child(1), popupProgress, placement.TransitionOffset, func(transitionCtx *internal.Context) image.Point {
-		return menu.Layout(transitionCtx.Child(0)).Size
-	})
-	popupCall := popupMacro.Stop()
+	recordPopup := func(p md3PopupPlacement) (image.Point, op.CallOp) {
+		popupMacro := op.Record(ctx.Gtx.Ops)
+		popupCtx := *ctx
+		popupCtx.Gtx = ctx.Gtx
+		popupCtx.Gtx.Constraints.Min = image.Point{}
+		popupCtx.Gtx.Constraints.Max = image.Point{X: popupW, Y: p.MaxHeightPx}
+		popupSize := layoutMD3RevealTransition(popupCtx.Child(1), popupProgress, p.Direction == md3PopupUp, func(transitionCtx *internal.Context) image.Point {
+			return menu.Layout(transitionCtx.Child(0)).Size
+		})
+		return popupSize, popupMacro.Stop()
+	}
+	popupSize, _ := recordPopup(placement)
+	placement = md3PopupPlacementForMeasuredPopup(ctx, triggerDims, popupSize, placement, ctx.Gtx.Dp(safeDp(menuCfg.yOffset)))
+	popupSize, popupCall := recordPopup(placement)
 	deferMacro := op.Record(ctx.Gtx.Ops)
+	offsetX := placement.OffsetX + ctx.Gtx.Dp(safeDp(menuCfg.xOffset))
+	if isEndAlignedMenu(menuCfg.anchorCorner, menuCfg.menuCorner) {
+		offsetX += triggerDims.X - popupSize.X
+	}
+	offsetY := md3PopupOffsetY(triggerDims.Y, popupSize.Y, placement) + ctx.Gtx.Dp(safeDp(menuCfg.yOffset))
+	if open && d.config.onOpenChange != nil && !menuCfg.stayOpenOnOutsideClick {
+		origin := ctx.Position()
+		triggerRect := image.Rectangle{Min: origin, Max: origin.Add(triggerDims)}
+		popupOrigin := origin.Add(image.Point{X: offsetX, Y: offsetY})
+		popupRect := image.Rectangle{Min: popupOrigin, Max: popupOrigin.Add(popupSize)}
+		md3DismissOnOutsidePress(ctx, state.outsideTag, []image.Rectangle{triggerRect, popupRect}, func(dismissCtx *internal.Context) {
+			d.config.onOpenChange(dismissCtx, false)
+		})
+	}
 	offset := op.Offset(image.Point{
-		X: placement.OffsetX,
-		Y: md3PopupOffsetY(triggerDims.Y, popupSize.Y, placement),
+		X: offsetX,
+		Y: offsetY,
 	}).Push(ctx.Gtx.Ops)
 	popupCall.Add(ctx.Gtx.Ops)
 	offset.Pop()
 	deferCall := deferMacro.Stop()
 	op.Defer(ctx.Gtx.Ops, deferCall)
 	return layout.Dimensions{Size: triggerDims}
+}
+
+func dropdownMenuRuntimeStateFor(ctx *internal.Context) *dropdownMenuRuntimeState {
+	value := ctx.Memo("dropdown-menu-state", func() any {
+		return &dropdownMenuRuntimeState{outsideTag: new(int)}
+	})
+	state, ok := value.(*dropdownMenuRuntimeState)
+	if !ok {
+		panic("github.com/xiaowumin-mark/FluxUI/widget: dropdown menu state type mismatch")
+	}
+	if state.outsideTag == nil {
+		state.outsideTag = new(int)
+	}
+	return state
 }
 
 type ListItemOption func(*listItemConfig)
@@ -711,12 +1035,14 @@ type iconButtonConfig struct {
 	variant       iconButtonVariant
 	disabled      bool
 	selected      bool
+	loading       bool
 	size          float32
 	onClick       func(ctx *internal.Context)
 	background    color.NRGBA
 	hasBackground bool
 	foreground    color.NRGBA
 	hasForeground bool
+	loadingIcon   Widget
 	decoration    style.Decoration
 }
 
@@ -761,6 +1087,14 @@ func IconButtonSelected(selected bool) IconButtonOption {
 	return func(cfg *iconButtonConfig) { cfg.selected = selected }
 }
 
+func IconButtonLoading(loading bool) IconButtonOption {
+	return func(cfg *iconButtonConfig) { cfg.loading = loading }
+}
+
+func IconButtonLoadingIndicator(indicator Widget) IconButtonOption {
+	return func(cfg *iconButtonConfig) { cfg.loadingIcon = indicator }
+}
+
 func IconButtonSize(size float32) IconButtonOption {
 	return func(cfg *iconButtonConfig) { cfg.size = size }
 }
@@ -785,7 +1119,7 @@ func IconButtonDecoration(d style.Decoration) IconButtonOption {
 
 func (i *iconButtonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
-	if !i.config.disabled {
+	if !i.config.disabled && !i.config.loading {
 		for clickable.Clicked(ctx) {
 			if i.config.onClick != nil {
 				i.config.onClick(ctx)
@@ -836,6 +1170,12 @@ func (i *iconButtonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 	radius := i.config.decoration.ResolveRad(ctx.Theme().Shapes.Full)
 	child := i.child
+	if i.config.loading {
+		child = i.config.loadingIcon
+		if child == nil {
+			child = LoadingIndicator(ProgressSize(20), ProgressThickness(3), ProgressFillColor(fg), ProgressTrackColor(color.NRGBA{}))
+		}
+	}
 	if child == nil {
 		child = Icon("icon", IconSize(20))
 	}
@@ -1522,7 +1862,11 @@ type chipConfig struct {
 	variant       chipVariant
 	selected      bool
 	disabled      bool
+	softDisabled  bool
+	elevated      bool
+	removable     bool
 	onClick       func(ctx *internal.Context)
+	onRemove      func(ctx *internal.Context)
 	leading       Widget
 	trailing      Widget
 	background    color.NRGBA
@@ -1553,6 +1897,22 @@ func SuggestionChip(label string, opts ...ChipOption) Widget {
 	return newChip(chipVariantSuggestion, Text(label), opts...)
 }
 
+func AssistChipWithSlots(label Widget, opts ...ChipOption) Widget {
+	return newChip(chipVariantAssist, label, opts...)
+}
+
+func FilterChipWithSlots(label Widget, opts ...ChipOption) Widget {
+	return newChip(chipVariantFilter, label, opts...)
+}
+
+func InputChipWithSlots(label Widget, opts ...ChipOption) Widget {
+	return newChip(chipVariantInput, label, opts...)
+}
+
+func SuggestionChipWithSlots(label Widget, opts ...ChipOption) Widget {
+	return newChip(chipVariantSuggestion, label, opts...)
+}
+
 func ChipWithSlots(label Widget, opts ...ChipOption) Widget {
 	return newChip(chipVariantAssist, label, opts...)
 }
@@ -1573,8 +1933,27 @@ func ChipDisabled(disabled bool) ChipOption {
 	return func(cfg *chipConfig) { cfg.disabled = disabled }
 }
 
+func ChipSoftDisabled(disabled bool) ChipOption {
+	return func(cfg *chipConfig) { cfg.softDisabled = disabled }
+}
+
+func ChipElevated(elevated bool) ChipOption {
+	return func(cfg *chipConfig) { cfg.elevated = elevated }
+}
+
+func ChipRemovable(removable bool) ChipOption {
+	return func(cfg *chipConfig) { cfg.removable = removable }
+}
+
 func ChipOnClick(fn func(ctx *internal.Context)) ChipOption {
 	return func(cfg *chipConfig) { cfg.onClick = fn }
+}
+
+func ChipOnRemove(fn func(ctx *internal.Context)) ChipOption {
+	return func(cfg *chipConfig) {
+		cfg.onRemove = fn
+		cfg.removable = fn != nil
+	}
 }
 
 func ChipLeading(leading Widget) ChipOption {
@@ -1605,35 +1984,73 @@ func ChipDecoration(d style.Decoration) ChipOption {
 
 func (c *chipWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
-	if !c.config.disabled {
+	disabled := c.config.disabled || c.config.softDisabled
+	if !disabled {
 		for clickable.Clicked(ctx) {
 			if c.config.onClick != nil {
 				c.config.onClick(ctx)
+			} else if c.config.onRemove != nil {
+				c.config.onRemove(ctx)
 			}
+		}
+	} else if c.config.softDisabled {
+		for clickable.Clicked(ctx) {
 		}
 	}
 
 	cs := ctx.Theme().Colors
-	bg := color.NRGBA{}
+	bg := cs.Surface
 	fg := cs.OnSurfaceVariant
 	border := style.Border{Width: 1, Color: cs.Outline}
-	if c.config.variant == chipVariantInput {
-		bg = cs.SurfaceContainerLow
-		border = style.Border{Width: 1, Color: cs.OutlineVariant}
-	}
+	shadow := style.BoxShadow{}
+	selected := c.config.selected
+	outlined := true
+
 	if c.config.selected {
 		bg = cs.SecondaryContainer
 		fg = cs.OnSecondaryContainer
 		border = style.Border{}
+		outlined = false
+	}
+	if c.config.elevated {
+		if !selected {
+			bg = cs.SurfaceContainerLow
+		}
+		border = style.Border{}
+		outlined = false
+		if !disabled {
+			shadow = style.ElevationShadow(cs, 1)
+		}
+	}
+	if c.config.variant == chipVariantInput && !selected && !c.config.elevated {
+		bg = cs.Surface
 	}
 	if c.config.hasBackground {
 		bg = c.config.background
+		outlined = false
 	}
 	if c.config.hasForeground {
 		fg = c.config.foreground
 	}
 	if c.config.decoration.Border != nil {
 		border = *c.config.decoration.Border
+		outlined = border.Width > 0
+	}
+	if c.config.decoration.Shadow != nil {
+		shadow = *c.config.decoration.Shadow
+	}
+	if disabled {
+		fg = style.DisabledContent(cs.OnSurface)
+		if selected || c.config.elevated || c.config.hasBackground {
+			bg = style.DisabledContainer(cs.OnSurface)
+			border = style.Border{}
+			outlined = false
+		} else {
+			bg = color.NRGBA{}
+			border = style.Border{Width: 1, Color: style.DisabledContent(cs.OnSurface)}
+			outlined = true
+		}
+		shadow = style.BoxShadow{}
 	}
 	fg = md3AnimateColor(ctx, "chip-fg", fg, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 
@@ -1646,27 +2063,60 @@ func (c *chipWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if leading == nil && c.config.variant == chipVariantFilter && (c.config.selected || selectionProgress > 0.001) {
 		leading = selectCheckMarkProgress(selectionProgress, fg)
 	}
+	trailing := c.config.trailing
+	removable := c.config.removable || c.config.onRemove != nil || c.config.variant == chipVariantInput
+	if trailing == nil && removable {
+		trailing = Icon("close", IconSize(18))
+	}
 
 	rowChildren := make([]Widget, 0, 5)
+	startPad := float32(12)
+	endPad := float32(12)
 	if leading != nil {
+		startPad = 8
 		rowChildren = append(rowChildren,
 			FixedWidth(18, Center(withForeground(fg, leading))),
 			Padding(style.Insets{Left: 8}, Spacer(0, 0)),
 		)
 	}
 	rowChildren = append(rowChildren, withTextStyle(ctx.Theme().Types.LabelLarge, withForeground(fg, label)))
-	if c.config.trailing != nil {
+	if trailing != nil {
+		endPad = 8
+		trailingChild := FixedWidth(18, Center(withForeground(fg, trailing)))
+		if c.config.onRemove != nil && !disabled {
+			removeClickable := event.UseClickable(ctx.Scope("remove"))
+			for removeClickable.Clicked(ctx) {
+				c.config.onRemove(ctx)
+			}
+			removeIcon := trailingChild
+			trailingChild = layoutWidgetFunc(func(removeCtx *internal.Context) layout.Dimensions {
+				return md3ActionSurface(removeCtx, removeClickable, md3ActionSurfaceSpec{
+					Background:     color.NRGBA{},
+					Foreground:     fg,
+					Radius:         9,
+					Padding:        style.Insets{},
+					MinWidth:       18,
+					MinHeight:      18,
+					SnapBackground: true,
+				}, removeIcon)
+			})
+		}
 		rowChildren = append(rowChildren,
-			Padding(style.Insets{Left: 8}, FixedWidth(18, Center(withForeground(fg, c.config.trailing)))),
+			Padding(style.Insets{Left: 8}, trailingChild),
 		)
+	}
+	padding := c.config.decoration.ResolvePad(style.Insets{Top: 6, Bottom: 6, Left: startPad, Right: endPad})
+	if outlined && !disabled && bg == cs.Surface {
+		bg = color.NRGBA{}
 	}
 
 	return md3ActionSurface(ctx, clickable, md3ActionSurfaceSpec{
 		Background: bg,
 		Foreground: fg,
-		Radius:     c.config.decoration.ResolveRad(ctx.Theme().Shapes.Small),
-		Padding:    c.config.decoration.ResolvePad(style.Symmetric(6, 12)),
+		Radius:     c.config.decoration.ResolveRad(8),
+		Padding:    padding,
 		Border:     border,
+		Shadow:     shadow,
 		MinHeight:  32,
 		Disabled:   c.config.disabled,
 	}, middleRow(rowChildren...))

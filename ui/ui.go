@@ -1015,6 +1015,14 @@ func ButtonAttachRef(ref *ButtonRef) ButtonOption {
 	return widget.ButtonAttachRef(ref)
 }
 
+func ButtonLoading(loading bool) ButtonOption {
+	return widget.ButtonLoading(loading)
+}
+
+func ButtonLoadingIndicator(indicator Widget) ButtonOption {
+	return widget.ButtonLoadingIndicator(indicator)
+}
+
 func DropTargetTypes(types ...string) DropTargetOption {
 	return widget.DropTargetTypes(types...)
 }
@@ -1282,6 +1290,70 @@ func InputPlaceholder(text string) InputOption {
 	return widget.InputPlaceholder(text)
 }
 
+func InputLabel(text string) InputOption {
+	return widget.InputLabel(text)
+}
+
+func InputSupportingText(text string) InputOption {
+	return widget.InputSupportingText(text)
+}
+
+func InputErrorText(text string) InputOption {
+	return widget.InputErrorText(text)
+}
+
+func InputError(error bool) InputOption {
+	return widget.InputError(error)
+}
+
+func InputRequired(required bool) InputOption {
+	return widget.InputRequired(required)
+}
+
+func InputNoAsterisk(noAsterisk bool) InputOption {
+	return widget.InputNoAsterisk(noAsterisk)
+}
+
+func InputPrefixText(text string) InputOption {
+	return widget.InputPrefixText(text)
+}
+
+func InputSuffixText(text string) InputOption {
+	return widget.InputSuffixText(text)
+}
+
+func InputLeading(leading Widget) InputOption {
+	return widget.InputLeading(leading)
+}
+
+func InputTrailing(trailing Widget) InputOption {
+	return widget.InputTrailing(trailing)
+}
+
+func InputLeadingElement(leading Element) InputOption {
+	return widget.InputLeading(renderElement(leading))
+}
+
+func InputTrailingElement(trailing Element) InputOption {
+	return widget.InputTrailing(renderElement(trailing))
+}
+
+func InputCounter(visible bool) InputOption {
+	return widget.InputCounter(visible)
+}
+
+func InputRows(rows int) InputOption {
+	return widget.InputRows(rows)
+}
+
+func InputMinRows(rows int) InputOption {
+	return widget.InputMinRows(rows)
+}
+
+func InputMaxRows(rows int) InputOption {
+	return widget.InputMaxRows(rows)
+}
+
 // InputPadding 设置输入框内边距。
 func InputPadding(insets Insets) InputOption {
 	return widget.InputPadding(insets)
@@ -1431,6 +1503,31 @@ func SwitchThumbColor(color color.NRGBA) SwitchOption {
 // SwitchDecoration 通过 Decoration 统一设置开关外层装饰和交互态。
 func SwitchDecoration(d Decoration) SwitchOption {
 	return widget.SwitchDecoration(d)
+}
+
+// SwitchIcons 设置选中和未选中状态的拇指图标。
+func SwitchIcons(checkedIcon, uncheckedIcon string) SwitchOption {
+	return widget.SwitchIcons(checkedIcon, uncheckedIcon)
+}
+
+// SwitchCheckedIcon 设置选中状态的拇指图标。
+func SwitchCheckedIcon(name string) SwitchOption {
+	return widget.SwitchCheckedIcon(name)
+}
+
+// SwitchUncheckedIcon 设置未选中状态的拇指图标。
+func SwitchUncheckedIcon(name string) SwitchOption {
+	return widget.SwitchUncheckedIcon(name)
+}
+
+// SwitchIconUseFont 通过已注册图标字体 ID 渲染 Switch 图标。
+func SwitchIconUseFont(id string) SwitchOption {
+	return widget.SwitchIconUseFont(id)
+}
+
+// SwitchIconFontFamily 直接指定 Switch 图标字体族。
+func SwitchIconFontFamily(family string) SwitchOption {
+	return widget.SwitchIconFontFamily(family)
 }
 
 // SwitchOnChange 绑定开关变化事件。

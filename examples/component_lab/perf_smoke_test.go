@@ -78,6 +78,50 @@ func TestPerfScenario(t *testing.T) {
 	t.Log(internal.FormatFrameStats(stats))
 }
 
+func TestComponentLabAppVirtualizesTopLevelSections(t *testing.T) {
+	runtime := internal.NewRuntime(ui.NewTheme(ui.LightColors()))
+	defer runtime.Dispose()
+	runtime.SetPerfDiagnostics(internal.PerfDiagnostics{
+		Enabled:          true,
+		MeasureDurations: true,
+		LogRedrawReasons: true,
+		Writer:           io.Discard,
+	})
+
+	root := ui.ElementRootBuilder(App)
+	viewport := image.Pt(1180, 360)
+	var ops op.Ops
+	var router input.Router
+
+	gtx := gioLayout.Context{
+		Constraints: gioLayout.Exact(viewport),
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Now:         time.Date(2026, 7, 1, 9, 0, 0, 0, time.UTC),
+		Source:      router.Source(),
+		Ops:         &ops,
+	}
+
+	runtime.BeginFrame()
+	ctx := runtime.Frame(gtx)
+	if widget := root(ctx.Scope("build")); widget != nil {
+		widget.Layout(ctx.Scope("tree"))
+	}
+	runtime.EndFrame()
+	router.Frame(&ops)
+
+	stats := runtime.LastFrameStats()
+	if stats.Virtualization.TotalItems < componentLabSectionCount {
+		t.Fatalf("expected component lab top-level virtualization stats, got %s", internal.FormatFrameStats(stats))
+	}
+	if stats.Virtualization.VisibleItems >= stats.Virtualization.TotalItems {
+		t.Fatalf("expected component lab to cull offscreen sections, got %s", internal.FormatFrameStats(stats))
+	}
+	if stats.Virtualization.CulledItems == 0 {
+		t.Fatalf("expected component lab to cull offscreen sections, got %s", internal.FormatFrameStats(stats))
+	}
+	t.Log(internal.FormatFrameStats(stats))
+}
+
 func componentLabPerfScenario(ctx *ui.Context) ui.Element {
 	th := ui.UseTheme(ctx)
 

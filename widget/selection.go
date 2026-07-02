@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"time"
 
 	event "github.com/xiaowumin-mark/FluxUI/event"
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
@@ -233,22 +234,48 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 // SelectOptionItem 下拉选项。
 type SelectOptionItem[T comparable] struct {
-	Label string
-	Value T
+	Label         string
+	Value         T
+	Disabled      bool
+	Leading       Widget
+	Trailing      Widget
+	TypeaheadText string
 }
 
 // SelectOption 定义下拉配置。
 type SelectOption[T comparable] func(*selectConfig[T])
 
+type selectVariant int
+
+const (
+	selectVariantOutlined selectVariant = iota
+	selectVariantFilled
+)
+
 type selectConfig[T comparable] struct {
-	placeholder string
-	disabled    bool
-	searchable  bool
-	maxHeight   float32
-	onChange    func(ctx *internal.Context, value T)
-	onOpen      func(ctx *internal.Context, opened bool)
-	ref         *SelectRef[T]
-	decoration  style.Decoration
+	variant        selectVariant
+	placeholder    string
+	label          string
+	supportingText string
+	errorText      string
+	error          bool
+	required       bool
+	noAsterisk     bool
+	disabled       bool
+	searchable     bool
+	quick          bool
+	maxHeight      float32
+	width          float32
+	xOffset        float32
+	yOffset        float32
+	typeaheadDelay time.Duration
+	onChange       func(ctx *internal.Context, value T)
+	onOpen         func(ctx *internal.Context, opened bool)
+	ref            *SelectRef[T]
+	leading        Widget
+	trailing       Widget
+	decoration     style.Decoration
+	menuDecoration style.Decoration
 }
 
 type selectWidget[T comparable] struct {
@@ -258,14 +285,28 @@ type selectWidget[T comparable] struct {
 }
 
 type selectState struct {
-	opened bool
+	opened     bool
+	outsideTag any
 }
 
 // Select 创建下拉选择组件。
 func Select[T comparable](value T, options []SelectOptionItem[T], opts ...SelectOption[T]) Widget {
+	return newSelect(value, options, selectVariantOutlined, opts...)
+}
+
+func OutlinedSelect[T comparable](value T, options []SelectOptionItem[T], opts ...SelectOption[T]) Widget {
+	return newSelect(value, options, selectVariantOutlined, opts...)
+}
+
+func FilledSelect[T comparable](value T, options []SelectOptionItem[T], opts ...SelectOption[T]) Widget {
+	return newSelect(value, options, selectVariantFilled, opts...)
+}
+
+func newSelect[T comparable](value T, options []SelectOptionItem[T], variant selectVariant, opts ...SelectOption[T]) Widget {
 	cfg := selectConfig[T]{
 		placeholder: "请选择",
 		maxHeight:   240,
+		variant:     variant,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -281,6 +322,42 @@ func Select[T comparable](value T, options []SelectOptionItem[T], opts ...Select
 func SelectPlaceholder[T comparable](text string) SelectOption[T] {
 	return func(cfg *selectConfig[T]) {
 		cfg.placeholder = text
+	}
+}
+
+func SelectLabel[T comparable](text string) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.label = text
+	}
+}
+
+func SelectSupportingText[T comparable](text string) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.supportingText = text
+	}
+}
+
+func SelectErrorText[T comparable](text string) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.errorText = text
+	}
+}
+
+func SelectError[T comparable](error bool) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.error = error
+	}
+}
+
+func SelectRequired[T comparable](required bool) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.required = required
+	}
+}
+
+func SelectNoAsterisk[T comparable](noAsterisk bool) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.noAsterisk = noAsterisk
 	}
 }
 
@@ -302,6 +379,58 @@ func SelectSearchable[T comparable](searchable bool) SelectOption[T] {
 func SelectMaxHeight[T comparable](height float32) SelectOption[T] {
 	return func(cfg *selectConfig[T]) {
 		cfg.maxHeight = height
+	}
+}
+
+func SelectWidth[T comparable](width float32) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.width = width
+	}
+}
+
+func SelectXOffset[T comparable](offset float32) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.xOffset = offset
+	}
+}
+
+func SelectYOffset[T comparable](offset float32) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.yOffset = offset
+	}
+}
+
+func SelectQuick[T comparable](quick bool) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.quick = quick
+	}
+}
+
+func SelectTypeaheadDelay[T comparable](delay time.Duration) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.typeaheadDelay = delay
+	}
+}
+
+func SelectFilled[T comparable](filled bool) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		if filled {
+			cfg.variant = selectVariantFilled
+		} else {
+			cfg.variant = selectVariantOutlined
+		}
+	}
+}
+
+func SelectLeading[T comparable](leading Widget) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.leading = leading
+	}
+}
+
+func SelectTrailing[T comparable](trailing Widget) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.trailing = trailing
 	}
 }
 
@@ -330,6 +459,12 @@ func SelectAttachRef[T comparable](ref *SelectRef[T]) SelectOption[T] {
 func SelectDecoration[T comparable](d style.Decoration) SelectOption[T] {
 	return func(cfg *selectConfig[T]) {
 		cfg.decoration = d
+	}
+}
+
+func SelectMenuDecoration[T comparable](d style.Decoration) SelectOption[T] {
+	return func(cfg *selectConfig[T]) {
+		cfg.menuDecoration = d
 	}
 }
 
@@ -375,78 +510,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	label, currentIndex := s.resolveCurrentLabel(currentValue)
-
-	toggle := layoutWidgetFunc(func(triggerCtx *internal.Context) layout.Dimensions {
-		clickable := event.UseClickable(triggerCtx)
-		if !s.config.disabled {
-			for clickable.Clicked(triggerCtx) {
-				state.opened = !state.opened
-				if s.config.onOpen != nil {
-					s.config.onOpen(triggerCtx, state.opened)
-				}
-			}
-		}
-
-		cs := triggerCtx.Theme().Colors
-		textColor := cs.OnSurface
-		if currentIndex < 0 {
-			textColor = cs.OnSurfaceVariant
-		}
-		arrowColor := cs.OnSurfaceVariant
-		border := style.Border{Width: 1, Color: cs.Outline}
-		if state.opened || clickable.Focused(triggerCtx) {
-			border = style.Border{Width: 2, Color: cs.Primary}
-		}
-		if s.config.disabled {
-			textColor = style.DisabledContent(cs.OnSurface)
-			arrowColor = style.DisabledContent(cs.OnSurface)
-			border = style.Border{Width: 1, Color: style.DisabledContent(cs.OnSurface)}
-		}
-		duration, easing := md3InteractionTiming(triggerCtx, clickable.Hovered(), clickable.Pressed(), state.opened || clickable.Focused(triggerCtx), s.config.disabled)
-		textColor = md3AnimateColor(triggerCtx, "select-text", textColor, duration, easing)
-		arrowColor = md3AnimateColor(triggerCtx, "select-arrow-color", arrowColor, duration, easing)
-		arrowProgress := md3AnimateFloatDirectional(
-			triggerCtx,
-			"select-arrow-progress",
-			boolProgress(state.opened),
-			style.InteractionMenuEnterDuration,
-			style.InteractionMenuExitDuration,
-			style.InteractionEmphasizedDecelerateEasing,
-			style.InteractionEmphasizedAccelerateEasing,
-		)
-
-		content := layoutWidgetFunc(func(contentCtx *internal.Context) layout.Dimensions {
-			dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(contentCtx.Gtx,
-				gioLayout.Flexed(1, func(gtx gioLayout.Context) gioLayout.Dimensions {
-					next := *contentCtx
-					next.Gtx = gtx
-					dims := Text(label, TextType(triggerCtx.Theme().Types.BodyLarge), TextColor(textColor)).Layout(next.Child(0))
-					return gioLayout.Dimensions{Size: dims.Size}
-				}),
-				gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
-					next := *contentCtx
-					next.Gtx = gtx
-					next.Gtx.Constraints.Min = image.Point{}
-					dims := Padding(style.Insets{Left: 8}, selectArrowProgress(arrowProgress, arrowColor)).Layout(next.Child(1))
-					return gioLayout.Dimensions{Size: dims.Size}
-				}),
-			)
-			return layout.Dimensions{Size: dims.Size}
-		})
-		bg := s.config.decoration.ResolveBg(cs.Surface)
-		return md3ActionSurface(triggerCtx, clickable, md3ActionSurfaceSpec{
-			Background: bg,
-			Foreground: textColor,
-			Radius:     s.config.decoration.ResolveRad(triggerCtx.Theme().Shapes.ExtraSmall),
-			Padding:    s.config.decoration.ResolvePad(densityInsets(triggerCtx, style.Insets{Top: 8, Right: 12, Bottom: 8, Left: 16}, style.Insets{Top: 4, Right: 12, Bottom: 4, Left: 16})),
-			Border:     border,
-			MinHeight:  densityHeight(triggerCtx, 56, 48),
-			FillWidth:  true,
-			Disabled:   s.config.disabled,
-		}, content)
-	})
-
-	toggleDims := toggle.Layout(ctx.Child(0))
+	toggleDims := s.layoutSelectField(ctx.Child(0), label, currentIndex >= 0, state)
 	popupProgress, popupVisible := md3OverlayProgress(
 		ctx,
 		"select-popup",
@@ -469,7 +533,8 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 		isActive := index == currentIndex
 		var row Widget = layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
 			clickable := event.UseClickable(rowCtx)
-			if !s.config.disabled {
+			disabled := s.config.disabled || item.Disabled
+			if !disabled {
 				for clickable.Clicked(rowCtx) {
 					currentValue = item.Value
 					if s.config.onChange != nil {
@@ -487,34 +552,58 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			cs := rowCtx.Theme().Colors
 			bg := color.NRGBA{}
 			if isActive {
-				bg = style.StateLayer(color.NRGBA{}, cs.Primary, style.StateLayerFocusOpacity)
+				bg = cs.SecondaryContainer
 			}
-			if opacity := materialAnimatedStateLayerOpacity(rowCtx, clickable.Hovered(), clickable.Pressed(), s.config.disabled); opacity > 0 {
+			if opacity := materialAnimatedStateLayerOpacity(rowCtx, clickable.Hovered(), clickable.Pressed(), disabled); opacity > 0 {
 				bg = style.StateLayer(bg, cs.Primary, opacity)
 			}
-			duration, easing := md3InteractionTiming(rowCtx, clickable.Hovered(), clickable.Pressed(), clickable.Focused(rowCtx), s.config.disabled)
+			duration, easing := md3InteractionTiming(rowCtx, clickable.Hovered(), clickable.Pressed(), clickable.Focused(rowCtx), disabled)
 			bg = md3AnimateColor(rowCtx, "select-row-bg", bg, duration, easing)
+			fg := cs.OnSurface
+			if isActive {
+				fg = cs.OnSecondaryContainer
+			}
+			if disabled {
+				fg = style.DisabledContent(cs.OnSurface)
+			}
+			fg = md3AnimateColor(rowCtx, "select-row-fg", fg, duration, easing)
 			itemRow := layoutWidgetFunc(func(contentCtx *internal.Context) layout.Dimensions {
-				dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(contentCtx.Gtx,
-					gioLayout.Flexed(1, func(gtx gioLayout.Context) gioLayout.Dimensions {
-						next := *contentCtx
-						next.Gtx = gtx
-						dims := Text(itemLabel, TextColor(cs.OnSurface), TextType(rowCtx.Theme().Types.BodyMedium)).Layout(next.Child(0))
-						return gioLayout.Dimensions{Size: dims.Size}
-					}),
-					gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+				children := make([]gioLayout.FlexChild, 0, 5)
+				if item.Leading != nil {
+					children = append(children, gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
 						next := *contentCtx
 						next.Gtx = gtx
 						next.Gtx.Constraints.Min = image.Point{}
-						progress := md3SelectionProgress(rowCtx, isActive)
-						dims := Padding(style.Insets{Left: 12}, selectCheckMarkProgress(progress, cs.Primary)).Layout(next.Child(1))
+						dims := FixedWidth(24, Center(withForeground(fg, item.Leading))).Layout(next.Child(0))
 						return gioLayout.Dimensions{Size: dims.Size}
-					}),
-				)
+					}), gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+						return gioLayout.Dimensions{Size: image.Point{X: contentCtx.Gtx.Dp(safeDp(12))}}
+					}))
+				}
+				children = append(children, gioLayout.Flexed(1, func(gtx gioLayout.Context) gioLayout.Dimensions {
+					next := *contentCtx
+					next.Gtx = gtx
+					dims := Text(itemLabel, TextColor(fg), TextType(rowCtx.Theme().Types.BodyLarge)).Layout(next.Child(1))
+					return gioLayout.Dimensions{Size: dims.Size}
+				}))
+				trailing := item.Trailing
+				if trailing == nil && isActive {
+					trailing = selectCheckMarkProgress(md3SelectionProgress(rowCtx, isActive), cs.Primary)
+				}
+				if trailing != nil {
+					children = append(children, gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+						next := *contentCtx
+						next.Gtx = gtx
+						next.Gtx.Constraints.Min = image.Point{}
+						dims := Padding(style.Insets{Left: 12}, FixedWidth(24, Center(withForeground(fg, trailing)))).Layout(next.Child(2))
+						return gioLayout.Dimensions{Size: dims.Size}
+					}))
+				}
+				dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(contentCtx.Gtx, children...)
 				return layout.Dimensions{Size: dims.Size}
 			})
 			itemContent := ContainerDecoration(
-				style.Decoration{}.WithBg(bg).WithPad(densityInsets(rowCtx, style.Symmetric(8, 12), style.Symmetric(6, 12))).WithRad(rowCtx.Theme().Shapes.ExtraSmall),
+				style.Decoration{}.WithBg(bg).WithPad(densityInsets(rowCtx, style.Symmetric(12, 16), style.Symmetric(8, 12))).WithRad(0),
 				itemRow,
 			)
 			size := rowCtx.LayoutRippleArea(clickable.Handle(), internal.RippleSpec{
@@ -527,7 +616,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			md3DrawFocusIndicator(rowCtx, size, internal.FocusIndicatorSpec{
 				Color:  cs.Primary,
 				Radius: rowCtx.Theme().Shapes.ExtraSmall,
-			}, clickable.Focused(rowCtx), s.config.disabled)
+			}, clickable.Focused(rowCtx), disabled)
 			return layout.Dimensions{Size: size}
 		})
 		row = expandWidth(row)
@@ -539,15 +628,15 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 		func(ctx *internal.Context, index int) Widget {
 			return optionRow(ctx, index)
 		},
-		ListItemSpacing(4),
+		ListItemSpacing(0),
 		ListVirtualized(true),
 	)
 	panel := expandWidth(
 		ContainerDecoration(
 			style.Decoration{}.
-				WithBg(s.config.decoration.ResolveBg(ctx.Theme().Colors.SurfaceContainer)).
-				WithPad(s.config.decoration.ResolvePad(style.All(6))).
-				WithRad(s.config.decoration.ResolveRad(ctx.Theme().Shapes.ExtraSmall)).
+				WithBg(s.config.menuDecoration.ResolveBg(ctx.Theme().Colors.SurfaceContainer)).
+				WithPad(s.config.menuDecoration.ResolvePad(style.Insets{})).
+				WithRad(s.config.menuDecoration.ResolveRad(ctx.Theme().Shapes.ExtraSmall)).
 				WithShadow(style.ElevationShadow(ctx.Theme().Colors, 2)),
 			list,
 		),
@@ -562,9 +651,9 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 		maxHPx = 1
 	}
 
-	rowHeightPx := ctx.Gtx.Dp(safeDp(densityHeight(ctx, 40, 36)))
-	rowSpacingPx := ctx.Gtx.Dp(safeDp(4))
-	panelPad := s.config.decoration.ResolvePad(style.All(6))
+	rowHeightPx := ctx.Gtx.Dp(safeDp(densityHeight(ctx, 48, 40)))
+	rowSpacingPx := 0
+	panelPad := s.config.menuDecoration.ResolvePad(style.Insets{})
 	estimatedHeightPx := ctx.Gtx.Dp(safeDp(panelPad.Top+panelPad.Bottom)) + rowHeightPx*len(s.options)
 	if len(s.options) > 1 {
 		estimatedHeightPx += rowSpacingPx * (len(s.options) - 1)
@@ -572,8 +661,11 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	if estimatedHeightPx <= 0 || estimatedHeightPx > maxHPx {
 		estimatedHeightPx = maxHPx
 	}
-	gapPx := ctx.Gtx.Dp(safeDp(6))
+	gapPx := ctx.Gtx.Dp(safeDp(0))
 	popupW := toggleDims.Size.X
+	if s.config.width > 0 {
+		popupW = ctx.Gtx.Dp(safeDp(s.config.width))
+	}
 	if popupW <= 0 {
 		popupW = ctx.Gtx.Constraints.Max.X
 	}
@@ -585,26 +677,276 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 	placement := md3PopupPlacementForAnchor(ctx, toggleDims.Size, image.Point{X: popupW}, estimatedHeightPx, gapPx)
 
-	popupMacro := op.Record(ctx.Gtx.Ops)
-	popupCtx := *ctx
-	popupCtx.Gtx = ctx.Gtx
-	popupCtx.Gtx.Constraints.Min = image.Point{}
-	popupCtx.Gtx.Constraints.Max = image.Point{X: popupW, Y: placement.MaxHeightPx}
-	popupSize := layoutMD3OverlayTransition(popupCtx.Child(1), popupProgress, placement.TransitionOffset, func(transitionCtx *internal.Context) image.Point {
-		return panel.Layout(transitionCtx.Child(0)).Size
-	})
-	popupCall := popupMacro.Stop()
+	recordPopup := func(p md3PopupPlacement) (image.Point, op.CallOp) {
+		popupMacro := op.Record(ctx.Gtx.Ops)
+		popupCtx := *ctx
+		popupCtx.Gtx = ctx.Gtx
+		popupCtx.Gtx.Constraints.Min = image.Point{}
+		popupCtx.Gtx.Constraints.Max = image.Point{X: popupW, Y: p.MaxHeightPx}
+		popupSize := layoutMD3RevealTransition(popupCtx.Child(1), popupProgress, p.Direction == md3PopupUp, func(transitionCtx *internal.Context) image.Point {
+			return panel.Layout(transitionCtx.Child(0)).Size
+		})
+		return popupSize, popupMacro.Stop()
+	}
+	popupSize, _ := recordPopup(placement)
+	placement = md3PopupPlacementForMeasuredPopup(ctx, toggleDims.Size, popupSize, placement, ctx.Gtx.Dp(safeDp(s.config.yOffset)))
+	popupSize, popupCall := recordPopup(placement)
 	deferMacro := op.Record(ctx.Gtx.Ops)
-	offset := op.Offset(image.Point{
-		X: placement.OffsetX,
-		Y: md3PopupOffsetY(toggleDims.Size.Y, popupSize.Y, placement),
-	}).Push(ctx.Gtx.Ops)
+	offsetPoint := image.Point{
+		X: placement.OffsetX + ctx.Gtx.Dp(safeDp(s.config.xOffset)),
+		Y: md3PopupOffsetY(toggleDims.Size.Y, popupSize.Y, placement) + ctx.Gtx.Dp(safeDp(s.config.yOffset)),
+	}
+	if state.opened {
+		origin := ctx.Position()
+		fieldRect := image.Rectangle{Min: origin, Max: origin.Add(toggleDims.Size)}
+		popupOrigin := origin.Add(offsetPoint)
+		popupRect := image.Rectangle{Min: popupOrigin, Max: popupOrigin.Add(popupSize)}
+		md3DismissOnOutsidePress(ctx, state.outsideTag, []image.Rectangle{fieldRect, popupRect}, func(dismissCtx *internal.Context) {
+			if state.opened {
+				state.opened = false
+				if s.config.onOpen != nil {
+					s.config.onOpen(dismissCtx, false)
+				}
+			}
+		})
+	}
+	offset := op.Offset(offsetPoint).Push(ctx.Gtx.Ops)
 	popupCall.Add(ctx.Gtx.Ops)
 	offset.Pop()
 	deferCall := deferMacro.Stop()
 	op.Defer(ctx.Gtx.Ops, deferCall)
 
 	return toggleDims
+}
+
+func (s *selectWidget[T]) layoutSelectField(ctx *internal.Context, valueLabel string, hasValue bool, state *selectState) layout.Dimensions {
+	clickable := event.UseClickable(ctx)
+	if !s.config.disabled {
+		for clickable.Clicked(ctx) {
+			state.opened = !state.opened
+			if s.config.onOpen != nil {
+				s.config.onOpen(ctx, state.opened)
+			}
+		}
+	}
+
+	cs := ctx.Theme().Colors
+	focused := state.opened || clickable.Focused(ctx)
+	errored := s.config.error
+	textColor := cs.OnSurface
+	supportColor := cs.OnSurfaceVariant
+	labelColor := cs.OnSurfaceVariant
+	arrowColor := cs.OnSurfaceVariant
+	outlineColor := cs.Outline
+	indicatorColor := cs.OnSurfaceVariant
+	if focused {
+		labelColor = cs.Primary
+		outlineColor = cs.Primary
+		indicatorColor = cs.Primary
+		arrowColor = cs.Primary
+	}
+	if errored {
+		labelColor = cs.Error
+		outlineColor = cs.Error
+		indicatorColor = cs.Error
+		supportColor = cs.Error
+	}
+	if !hasValue {
+		textColor = cs.OnSurfaceVariant
+	}
+	if s.config.disabled {
+		textColor = style.DisabledContent(cs.OnSurface)
+		supportColor = style.DisabledContent(cs.OnSurface)
+		labelColor = style.DisabledContent(cs.OnSurface)
+		arrowColor = style.DisabledContent(cs.OnSurface)
+		outlineColor = style.DisabledContent(cs.OnSurface)
+		indicatorColor = style.DisabledContent(cs.OnSurface)
+	}
+
+	duration, easing := md3InteractionTiming(ctx, clickable.Hovered(), clickable.Pressed(), focused, s.config.disabled)
+	textColor = md3AnimateColor(ctx, "select-text", textColor, duration, easing)
+	labelColor = md3AnimateColor(ctx, "select-label", labelColor, duration, easing)
+	arrowColor = md3AnimateColor(ctx, "select-arrow-color", arrowColor, duration, easing)
+	outlineColor = md3AnimateColor(ctx, "select-outline", outlineColor, duration, easing)
+	indicatorColor = md3AnimateColor(ctx, "select-indicator", indicatorColor, duration, easing)
+	arrowProgress := md3AnimateFloatDirectional(
+		ctx,
+		"select-arrow-progress",
+		boolProgress(state.opened),
+		style.InteractionMenuEnterDuration,
+		style.InteractionMenuExitDuration,
+		style.InteractionEmphasizedDecelerateEasing,
+		style.InteractionEmphasizedAccelerateEasing,
+	)
+
+	fieldLabel := selectRequiredLabel(s.config.label, s.config.required, s.config.noAsterisk)
+	displayText := valueLabel
+	if !hasValue && s.config.label != "" {
+		displayText = s.config.placeholder
+	}
+	if displayText == "" {
+		displayText = s.config.placeholder
+	}
+	content := layoutWidgetFunc(func(contentCtx *internal.Context) layout.Dimensions {
+		availableW := contentCtx.Gtx.Constraints.Max.X
+		if availableW <= 0 {
+			availableW = contentCtx.Gtx.Dp(safeDp(240))
+		}
+		gapPx := contentCtx.Gtx.Dp(safeDp(12))
+		leadingW := 0
+		var leadingCall op.CallOp
+		if s.config.leading != nil {
+			macro := op.Record(contentCtx.Gtx.Ops)
+			next := *contentCtx
+			next.Gtx.Constraints.Min = image.Point{}
+			next.Gtx.Constraints.Max.X = minInt(24+gapPx, availableW)
+			leadingSize := FixedWidth(24, Center(withForeground(labelColor, s.config.leading))).Layout(next.Child(0)).Size
+			leadingCall = macro.Stop()
+			leadingW = leadingSize.X + gapPx
+		}
+		trailing := s.config.trailing
+		if trailing == nil {
+			trailing = selectArrowProgress(arrowProgress, arrowColor)
+		}
+		trailingMacro := op.Record(contentCtx.Gtx.Ops)
+		trailingCtx := *contentCtx
+		trailingCtx.Gtx.Constraints.Min = image.Point{}
+		trailingSize := FixedWidth(24, Center(withForeground(arrowColor, trailing))).Layout(trailingCtx.Child(2)).Size
+		trailingCall := trailingMacro.Stop()
+		trailingW := trailingSize.X
+		if trailingW > 0 {
+			trailingW += contentCtx.Gtx.Dp(safeDp(8))
+		}
+
+		bodyMaxW := availableW - leadingW - trailingW
+		if bodyMaxW < 1 {
+			bodyMaxW = 1
+		}
+		bodyMacro := op.Record(contentCtx.Gtx.Ops)
+		bodyCtx := *contentCtx
+		bodyCtx.Gtx.Constraints.Min = image.Point{}
+		bodyCtx.Gtx.Constraints.Max.X = bodyMaxW
+		var body Widget
+		valueText := Text(displayText, TextType(ctx.Theme().Types.BodyLarge), TextColor(textColor))
+		if fieldLabel != "" {
+			body = Column(
+				Text(fieldLabel, TextType(ctx.Theme().Types.LabelMedium), TextColor(labelColor)),
+				Padding(style.Insets{Top: 2}, valueText),
+			)
+		} else {
+			body = valueText
+		}
+		bodySize := body.Layout(bodyCtx.Child(1)).Size
+		bodyCall := bodyMacro.Stop()
+
+		height := bodySize.Y
+		if leadingW > 0 && height < contentCtx.Gtx.Dp(safeDp(24)) {
+			height = contentCtx.Gtx.Dp(safeDp(24))
+		}
+		if height < trailingSize.Y {
+			height = trailingSize.Y
+		}
+		if height < 1 {
+			height = 1
+		}
+		if leadingW > 0 {
+			stack := op.Offset(image.Point{Y: (height - contentCtx.Gtx.Dp(safeDp(24))) / 2}).Push(contentCtx.Gtx.Ops)
+			leadingCall.Add(contentCtx.Gtx.Ops)
+			stack.Pop()
+		}
+		bodyY := (height - bodySize.Y) / 2
+		if bodyY < 0 {
+			bodyY = 0
+		}
+		bodyStack := op.Offset(image.Point{X: leadingW, Y: bodyY}).Push(contentCtx.Gtx.Ops)
+		bodyCall.Add(contentCtx.Gtx.Ops)
+		bodyStack.Pop()
+		trailingX := availableW - trailingSize.X
+		if trailingX < leadingW+bodySize.X {
+			trailingX = leadingW + bodySize.X
+		}
+		trailingY := (height - trailingSize.Y) / 2
+		if trailingY < 0 {
+			trailingY = 0
+		}
+		trailingStack := op.Offset(image.Point{X: trailingX, Y: trailingY}).Push(contentCtx.Gtx.Ops)
+		trailingCall.Add(contentCtx.Gtx.Ops)
+		trailingStack.Pop()
+		return layout.Dimensions{Size: image.Point{X: availableW, Y: height}}
+	})
+
+	bg := cs.Surface
+	border := style.Border{Width: 1, Color: outlineColor}
+	radius := ctx.Theme().Shapes.ExtraSmall
+	if s.config.variant == selectVariantFilled {
+		bg = cs.SurfaceContainerHighest
+		border = style.Border{}
+		radius = ctx.Theme().Shapes.ExtraSmall
+	}
+	if s.config.disabled && s.config.variant == selectVariantFilled {
+		bg = style.DisabledContainer(cs.OnSurface)
+	}
+	bg = s.config.decoration.ResolveBg(bg)
+	padding := s.config.decoration.ResolvePad(densityInsets(ctx, style.Insets{Top: 8, Right: 12, Bottom: 8, Left: 16}, style.Insets{Top: 5, Right: 12, Bottom: 5, Left: 12}))
+	border.Width = md3AnimateFloat(ctx, "select-outline-width", selectBorderWidth(s.config.variant, focused, s.config.disabled), duration, easing)
+
+	field := layoutWidgetFunc(func(fieldCtx *internal.Context) layout.Dimensions {
+		dims := md3ActionSurface(fieldCtx, clickable, md3ActionSurfaceSpec{
+			Background: bg,
+			Foreground: textColor,
+			Radius:     s.config.decoration.ResolveRad(radius),
+			Padding:    padding,
+			Border:     border,
+			MinHeight:  densityHeight(fieldCtx, 56, 48),
+			FillWidth:  true,
+			Disabled:   s.config.disabled,
+		}, content)
+		if s.config.variant == selectVariantFilled {
+			thickness := fieldCtx.Gtx.Dp(safeDp(1))
+			if focused {
+				thickness = fieldCtx.Gtx.Dp(safeDp(2))
+			}
+			if thickness < 1 {
+				thickness = 1
+			}
+			rect := image.Rect(0, dims.Size.Y-thickness, dims.Size.X, dims.Size.Y)
+			paint.FillShape(fieldCtx.Gtx.Ops, indicatorColor, clip.Rect(rect).Op())
+		}
+		return dims
+	})
+
+	var root Widget = field
+	supporting := s.config.supportingText
+	if errored && s.config.errorText != "" {
+		supporting = s.config.errorText
+	}
+	if supporting != "" {
+		root = Column(
+			field,
+			Padding(style.Insets{Top: 4, Left: 16, Right: 16}, Text(supporting, TextType(ctx.Theme().Types.BodySmall), TextColor(supportColor))),
+		)
+	}
+	if s.config.width > 0 {
+		root = FixedWidth(s.config.width, root)
+	}
+	return root.Layout(ctx.Child(0))
+}
+
+func selectBorderWidth(variant selectVariant, focused bool, disabled bool) float32 {
+	if variant == selectVariantFilled {
+		return 0
+	}
+	if focused && !disabled {
+		return 2
+	}
+	return 1
+}
+
+func selectRequiredLabel(label string, required bool, noAsterisk bool) string {
+	if label == "" || !required || noAsterisk {
+		return label
+	}
+	return label + " *"
 }
 
 func (s *selectWidget[T]) resolveCurrentLabel(value T) (string, int) {
@@ -625,11 +967,14 @@ func (s *selectWidget[T]) resolveCurrentLabel(value T) (string, int) {
 
 func selectStateFor(ctx *internal.Context) *selectState {
 	value := ctx.Memo("select", func() any {
-		return &selectState{}
+		return &selectState{outsideTag: new(int)}
 	})
 	state, ok := value.(*selectState)
 	if !ok {
 		panic("github.com/xiaowumin-mark/FluxUIwidget: select state type mismatch")
+	}
+	if state.outsideTag == nil {
+		state.outsideTag = new(int)
 	}
 	return state
 }

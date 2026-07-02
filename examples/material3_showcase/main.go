@@ -15,7 +15,7 @@ func main() {
 func App(ctx *ui.Context) ui.Element {
 	th := ui.UseTheme(ctx)
 	dark := ui.NewTheme(ui.DarkColors())
-	selectValue := ui.UseState(ctx, "medium")
+	selectValue := ui.UseState(ctx, "apple")
 	menuOpen := ui.UseState(ctx, false)
 	menuValue := ui.UseState(ctx, "copy")
 	fabCount := ui.UseState(ctx, 0)
@@ -107,12 +107,19 @@ func App(ctx *ui.Context) ui.Element {
 					ui.FixedWidthElement(230, ui.SelectElement(
 						selectValue.Value(),
 						[]ui.SelectOptionItem[string]{
-							{Label: "Low priority", Value: "low"},
-							{Label: "Medium priority", Value: "medium"},
-							{Label: "High priority", Value: "high"},
+							{Label: "Apple", Value: "apple", Leading: ui.Icon("nutrition")},
+							{Label: "Apricot", Value: "apricot", Leading: ui.Icon("eco")},
+							{Label: "Tomato", Value: "tomato", Disabled: true},
 						},
+						ui.SelectLabel[string]("Fruit"),
+						ui.SelectPlaceholder[string]("Choose fruit"),
 						ui.SelectOnChange[string](func(ctx *ui.Context, value string) { selectValue.Set(value) }),
 					)),
+					ui.SpacerElement(14, 0),
+					ui.FixedWidthElement(230, ui.FilledSelectElement("apricot", []ui.SelectOptionItem[string]{
+						{Label: "Apple", Value: "apple"},
+						{Label: "Apricot", Value: "apricot"},
+					}, ui.SelectLabel[string]("Filled"))),
 					ui.SpacerElement(14, 0),
 					ui.FixedWidthElement(230, ui.DropdownMenuElement(
 						menuOpen.Value(),
@@ -121,11 +128,16 @@ func App(ctx *ui.Context) ui.Element {
 							ui.TextElement("Menu", ui.TextColor(th.Colors.OnSurface)),
 						),
 						[]ui.MenuItem{
-							{Key: "copy", Label: "Copy"},
-							{Key: "share", Label: "Share"},
-							{Key: "archive", Label: "Archive"},
+							{Key: "copy", Label: "Copy", Leading: ui.Icon("content_copy")},
+							{Key: "share", Label: "Share", Leading: ui.Icon("share")},
+							{Key: "archive", Label: "Archive", Leading: ui.Icon("archive"), Children: []ui.MenuItem{
+								{Key: "archive-today", Label: "Today"},
+								{Key: "archive-week", Label: "This week"},
+							}},
 						},
 						ui.DropdownMenuSelectedKey(menuValue.Value()),
+						ui.DropdownMenuWidth(220),
+						ui.DropdownMenuMaxHeight(220),
 						ui.DropdownMenuOnOpenChange(func(ctx *ui.Context, open bool) { menuOpen.Set(open) }),
 						ui.DropdownMenuOnSelect(func(ctx *ui.Context, key string) {
 							menuValue.Set(key)
@@ -156,12 +168,14 @@ func App(ctx *ui.Context) ui.Element {
 				sectionTitle("Chips and Badges"),
 				ui.RowElement(
 					padded(ui.AssistChipElement("Assist", ui.ChipLeading(ui.Icon("info", ui.IconSize(16))))),
+					padded(ui.AssistChipElement("Elevated", ui.ChipElevated(true))),
 					padded(ui.FilterChipElement(
 						"Filter",
 						ui.ChipSelected(chipSelected.Value()),
 						ui.ChipOnClick(func(ctx *ui.Context) { chipSelected.Set(!chipSelected.Value()) }),
 					)),
-					padded(ui.InputChipElement("Input", ui.ChipTrailing(ui.Icon("close", ui.IconSize(14))))),
+					padded(ui.FilterChipElement("Removable", ui.ChipRemovable(true))),
+					padded(ui.InputChipElement("Input", ui.ChipOnRemove(func(ctx *ui.Context) {}))),
 					padded(ui.SuggestionChipElement("Suggestion")),
 					ui.SpacerElement(18, 0),
 					padded(ui.BadgeElement(ui.IconButtonElement(ui.IconElement("mail")), "3")),
@@ -190,11 +204,14 @@ func App(ctx *ui.Context) ui.Element {
 								ui.SliderMax(100),
 								ui.SliderOnChange(func(ctx *ui.Context, value float32) { progressValue.Set(value) }),
 							),
-							ui.PaddingElement(ui.Insets{Top: 10}, ui.LinearProgressIndicatorElement(progressValue.Value())),
+							ui.PaddingElement(ui.Insets{Top: 10}, ui.LinearProgressIndicatorElement(progressValue.Value()/100, ui.ProgressBuffer(0.8))),
+							ui.PaddingElement(ui.Insets{Top: 10}, ui.LinearProgressIndicatorElement(0, ui.ProgressIndeterminate(true), ui.ProgressFourColor(true))),
 						),
 					),
 					ui.SpacerElement(18, 0),
-					ui.CircularProgressIndicatorElement(progressValue.Value(), ui.ProgressSize(72), ui.ProgressLabelVisible(true)),
+					ui.CircularProgressIndicatorElement(progressValue.Value()/100, ui.ProgressSize(72), ui.ProgressLabelVisible(true)),
+					ui.SpacerElement(18, 0),
+					ui.FilledTonalButtonElement(ui.TextElement("Loading"), ui.ButtonLoading(true)),
 				),
 				gap(),
 

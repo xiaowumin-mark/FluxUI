@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
@@ -17,7 +18,9 @@ func App(ctx *ui.Context) ui.Element {
 	username := ui.UseState(ctx, "")
 	email := ui.UseState(ctx, "")
 	password := ui.UseState(ctx, "")
+	notes := ui.UseState(ctx, "FluxUI TextField")
 	isSubscribed := ui.UseState(ctx, false)
+	emailError := email.Value() != "" && !strings.Contains(email.Value(), "@")
 
 	return ui.ContainerDecorationElement(
 		ui.Bg(th.Surface).WithPad(ui.All(20)),
@@ -27,21 +30,16 @@ func App(ctx *ui.Context) ui.Element {
 				ui.TextElement("TextField 示例", ui.TextSize(24), ui.TextAlign(ui.AlignCenter)),
 			),
 			ui.PaddingElement(
-				ui.All(8),
-				ui.TextElement("用户名", ui.TextSize(14), ui.TextColor(th.TextColor)),
-			),
-			ui.PaddingElement(
 				ui.All(4),
-				ui.TextFieldElement(
+				ui.OutlinedTextFieldElement(
 					username.Value(),
-					ui.InputPlaceholder("请输入用户名"),
-					ui.InputPadding(ui.All(12)),
-					ui.InputRadius(8),
-					ui.InputBorder(th.SurfaceMuted),
-					ui.InputBorderFocus(th.Primary),
-					ui.InputBackground(ui.NRGBA(255, 255, 255, 255)),
-					ui.InputForeground(th.TextColor),
-					ui.InputTextSize(16),
+					ui.InputLabel("Username"),
+					ui.InputPlaceholder("name@example.com"),
+					ui.InputLeading(ui.Icon("person")),
+					ui.InputTrailing(ui.Icon("badge")),
+					ui.InputSupportingText("Outlined TextField with floating label."),
+					ui.InputMaxLen(24),
+					ui.InputCounter(true),
 					ui.InputOnChange(func(ctx *ui.Context, value string) {
 						username.Set(value)
 					}),
@@ -52,21 +50,15 @@ func App(ctx *ui.Context) ui.Element {
 				ui.TextElement("当前输入: "+username.Value(), ui.TextSize(12), ui.TextColor(th.SurfaceMuted)),
 			),
 			ui.PaddingElement(
-				ui.All(8),
-				ui.TextElement("邮箱", ui.TextSize(14), ui.TextColor(th.TextColor)),
-			),
-			ui.PaddingElement(
 				ui.All(4),
-				ui.TextFieldElement(
+				ui.FilledTextFieldElement(
 					email.Value(),
-					ui.InputPlaceholder("请输入邮箱"),
-					ui.InputPadding(ui.All(12)),
-					ui.InputRadius(8),
-					ui.InputBorder(th.SurfaceMuted),
-					ui.InputBorderFocus(th.Primary),
-					ui.InputBackground(ui.NRGBA(255, 255, 255, 255)),
-					ui.InputForeground(th.TextColor),
-					ui.InputTextSize(16),
+					ui.InputLabel("Email"),
+					ui.InputPlaceholder("user@example.com"),
+					ui.InputLeading(ui.Icon("mail")),
+					ui.InputError(emailError),
+					ui.InputErrorText("Email must contain @"),
+					ui.InputSupportingText("Filled TextField with validation."),
 					ui.InputOnChange(func(ctx *ui.Context, value string) {
 						email.Set(value)
 					}),
@@ -77,21 +69,12 @@ func App(ctx *ui.Context) ui.Element {
 				ui.TextElement("当前输入: "+email.Value(), ui.TextSize(12), ui.TextColor(th.SurfaceMuted)),
 			),
 			ui.PaddingElement(
-				ui.All(8),
-				ui.TextElement("密码", ui.TextSize(14), ui.TextColor(th.TextColor)),
-			),
-			ui.PaddingElement(
 				ui.All(4),
-				ui.TextFieldElement(
+				ui.OutlinedTextFieldElement(
 					password.Value(),
-					ui.InputPlaceholder("请输入密码"),
-					ui.InputPadding(ui.All(12)),
-					ui.InputRadius(8),
-					ui.InputBorder(th.SurfaceMuted),
-					ui.InputBorderFocus(th.Primary),
-					ui.InputBackground(ui.NRGBA(255, 255, 255, 255)),
-					ui.InputForeground(th.TextColor),
-					ui.InputTextSize(16),
+					ui.InputLabel("Password"),
+					ui.InputLeading(ui.Icon("lock")),
+					ui.InputTrailing(ui.Icon("visibility")),
 					ui.InputPassword(true),
 					ui.InputOnChange(func(ctx *ui.Context, value string) {
 						password.Set(value)
@@ -101,6 +84,19 @@ func App(ctx *ui.Context) ui.Element {
 			ui.PaddingElement(
 				ui.All(4),
 				ui.TextElement("当前输入: "+fmt.Sprintf("%s%d", "***", len(password.Value())), ui.TextSize(12), ui.TextColor(th.SurfaceMuted)),
+			),
+			ui.PaddingElement(
+				ui.All(4),
+				ui.OutlinedTextFieldElement(
+					notes.Value(),
+					ui.InputLabel("Notes"),
+					ui.InputSingleLine(false),
+					ui.InputRows(4),
+					ui.InputSupportingText("Textarea mode keeps the same MD3 styling."),
+					ui.InputOnChange(func(ctx *ui.Context, value string) {
+						notes.Set(value)
+					}),
+				),
 			),
 			ui.PaddingElement(
 				ui.All(8),

@@ -10,15 +10,19 @@ import (
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
 
+	"gioui.org/f32"
 	gioLayout "gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 )
 
 // TabItem 标签项。
 type TabItem struct {
-	Key   string
-	Label string
+	Key      string
+	Label    string
+	Icon     Widget
+	Disabled bool
 }
 
 // TabsOption 标签配置。
@@ -27,6 +31,10 @@ type TabsOption func(*tabsConfig)
 type tabsConfig struct {
 	onChange        func(ctx *internal.Context, key string)
 	scrollable      bool
+	secondary       bool
+	autoActivate    bool
+	inlineIcon      bool
+	fullWidth       bool
 	indicatorColor  color.NRGBA
 	hasIndicator    bool
 	textColor       color.NRGBA
@@ -43,6 +51,41 @@ type tabsWidget struct {
 	items  []TabItem
 	config tabsConfig
 }
+
+type tabsRuntimeState struct {
+	activeIndex       int
+	previousIndex     int
+	initialized       bool
+	lastIndicatorRect []tabsIndicatorRect
+	lastActiveKey     string
+}
+
+type tabsIndicatorRect struct {
+	X      int
+	Width  int
+	Height int
+	Radius int
+}
+
+type tabsRowWidget struct {
+	children          []Widget
+	activeIndex       int
+	indicatorColor    color.NRGBA
+	secondary         bool
+	scrollable        bool
+	fullWidth         bool
+	state             *tabsRuntimeState
+	indicatorProgress float32
+}
+
+type tabsTabSurfaceWidget struct {
+	child      Widget
+	decoration style.Decoration
+	minWidth   float32
+	minHeight  float32
+}
+
+const tabsIndicatorDuration = 250 * time.Millisecond
 
 // Tabs 创建标签栏。
 func Tabs(active string, items []TabItem, opts ...TabsOption) Widget {
@@ -66,6 +109,36 @@ func TabsOnChange(fn func(ctx *internal.Context, key string)) TabsOption {
 func TabsScrollable(scrollable bool) TabsOption {
 	return func(cfg *tabsConfig) {
 		cfg.scrollable = scrollable
+	}
+}
+
+func TabsSecondary(secondary bool) TabsOption {
+	return func(cfg *tabsConfig) {
+		cfg.secondary = secondary
+	}
+}
+
+func TabsPrimary(primary bool) TabsOption {
+	return func(cfg *tabsConfig) {
+		cfg.secondary = !primary
+	}
+}
+
+func TabsAutoActivate(autoActivate bool) TabsOption {
+	return func(cfg *tabsConfig) {
+		cfg.autoActivate = autoActivate
+	}
+}
+
+func TabsInlineIcon(inline bool) TabsOption {
+	return func(cfg *tabsConfig) {
+		cfg.inlineIcon = inline
+	}
+}
+
+func TabsFullWidth(fullWidth bool) TabsOption {
+	return func(cfg *tabsConfig) {
+		cfg.fullWidth = fullWidth
 	}
 }
 
@@ -140,56 +213,51 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		indicator = t.config.indicatorColor
 	}
 
+	activeIndex := t.activeIndex(activeKey)
+	state := tabsRuntimeStateFor(ctx)
+	if !state.initialized {
+		state.initialized = true
+		state.activeIndex = activeIndex
+		state.previousIndex = activeIndex
+	} else if activeIndex >= 0 && activeIndex != state.activeIndex {
+		state.previousIndex = state.activeIndex
+		state.activeIndex = activeIndex
+		md3FloatStateFor(ctx, "tabs-indicator-transform", 0).snap(ctx.Now(), 0, tabsIndicatorDuration, style.InteractionEmphasizedEasing)
+	}
+	indicatorProgress := md3FloatStateFor(ctx, "tabs-indicator-transform", 1).advance(ctx, 1, tabsIndicatorDuration, style.InteractionEmphasizedEasing)
+
 	children := make([]Widget, 0, len(t.items))
 	for idx := range t.items {
 		item := t.items[idx]
 		active := item.Key == activeKey
 
-		tabStates := withDefaultStates(t.config.tabDecoration,
-			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, indicator, style.StateLayerHoverOpacity)),
-			style.Decoration{}.WithBg(style.StateLayer(color.NRGBA{}, indicator, style.StateLayerPressedOpacity)),
-			style.Decoration{}.WithBg(style.DisabledContainer(cs.OnSurface)),
-		)
 		tab := layoutWidgetFunc(func(tabCtx *internal.Context) layout.Dimensions {
 			clickable := event.UseClickable(tabCtx)
-			for clickable.Clicked(tabCtx) {
+			disabled := item.Disabled
+			for !disabled && clickable.Clicked(tabCtx) {
 				activeKey = item.Key
 				if t.config.onChange != nil {
 					t.config.onChange(tabCtx, item.Key)
 				}
 			}
+			snapshot := clickable.Snapshot(tabCtx, !disabled)
 			txtColor := normalText
-			indicatorBar := color.NRGBA{A: 0}
-			tabBg := color.NRGBA{}
 			if active {
 				txtColor = activeText
-				indicatorBar = indicator
-				tabBg = withAlpha(indicator, 20)
 			}
-			duration, easing := md3InteractionTiming(tabCtx, clickable.Hovered(), clickable.Pressed(), clickable.Focused(tabCtx), false)
+			if disabled {
+				txtColor = style.DisabledContent(cs.OnSurface)
+			}
+			duration, easing := md3InteractionTiming(tabCtx, snapshot.Hovered, snapshot.Pressed, snapshot.Focused, disabled)
 			txtColor = md3AnimateColor(tabCtx, "tab-text", txtColor, style.InteractionSelectedDuration, style.InteractionStandardEasing)
-			indicatorBar = md3AnimateColor(tabCtx, "tab-indicator", indicatorBar, style.InteractionSelectedIndicatorDuration, style.InteractionStandardEasing)
+			stateOpacity := materialAnimatedStateLayerOpacity(tabCtx, snapshot.Hovered, snapshot.Pressed, disabled)
+			stateColor := indicator
+			if !active {
+				stateColor = cs.OnSurface
+			}
+			tabBg := style.StateLayer(color.NRGBA{}, stateColor, stateOpacity)
 			tabBg = md3AnimateColor(tabCtx, "tab-bg", tabBg, duration, easing)
-			activeDecoration := resolveDecorationState(tabStates, clickable.Hovered(), clickable.Pressed(), false)
-			tabDecoration := componentDecoration(activeDecoration, tabBg, style.Symmetric(8, 10), 8)
-			tabDecoration = md3AnimateDecoration(tabCtx, "tab-decoration", tabDecoration, duration, easing)
-			tabContent := ContainerDecoration(
-				tabDecoration,
-				Column(
-					Text(item.Label, TextColor(txtColor), TextType(tabCtx.Theme().Types.LabelLarge)),
-					Padding(
-						style.Insets{Top: 4},
-						ContainerDecoration(
-							style.Decoration{}.WithBg(indicatorBar).WithRad(2),
-							(&fixedSizeWidget{
-								width:  22,
-								height: 3,
-								child:  Spacer(0, 0),
-							}),
-						),
-					),
-				),
-			)
+			tabContent := t.layoutMaterialTabContent(item, txtColor, tabBg)
 			size := tabCtx.LayoutRippleArea(clickable.Handle(), internal.RippleSpec{
 				Color:   txtColor,
 				Radius:  8,
@@ -200,13 +268,31 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			md3DrawFocusIndicator(tabCtx, size, internal.FocusIndicatorSpec{
 				Color:  indicator,
 				Radius: 8,
-			}, clickable.Focused(tabCtx), false)
+			}, snapshot.Focused, disabled)
 			return layout.Dimensions{Size: size}
 		})
-		children = append(children, Padding(style.Insets{Right: 6}, tab))
+		children = append(children, tab)
 	}
 
-	row := Row(children...)
+	tabRow := &tabsRowWidget{
+		children:          children,
+		activeIndex:       activeIndex,
+		indicatorColor:    indicator,
+		secondary:         t.config.secondary,
+		scrollable:        t.config.scrollable,
+		fullWidth:         t.config.fullWidth,
+		state:             state,
+		indicatorProgress: indicatorProgress,
+	}
+	var row Widget = layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
+		dims := tabRow.Layout(rowCtx.Child(0))
+		line := rowCtx.Gtx.Dp(safeDp(1))
+		if line < 1 {
+			line = 1
+		}
+		paint.FillShape(rowCtx.Gtx.Ops, cs.OutlineVariant, clip.Rect(image.Rect(0, dims.Size.Y-line, dims.Size.X, dims.Size.Y)).Op())
+		return dims
+	})
 	if hasDecorationVisual(t.config.decoration) {
 		row = ContainerDecoration(t.config.decoration, row)
 	}
@@ -215,9 +301,411 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			row,
 			ScrollHorizontal(true),
 			ScrollVertical(false),
+			ScrollBarVisible(false),
 		).Layout(ctx.Child(0))
 	}
 	return row.Layout(ctx.Child(0))
+}
+
+func (r *tabsRowWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	if len(r.children) == 0 {
+		return layout.Dimensions{}
+	}
+
+	availableW := ctx.Gtx.Constraints.Max.X
+	if availableW < 0 {
+		availableW = 0
+	}
+	equalWidth := r.fullWidth || !r.scrollable
+	tabRects := make([]image.Rectangle, len(r.children))
+	indicatorRects := make([]tabsIndicatorRect, len(r.children))
+
+	x := 0
+	maxH := 0
+	for idx, child := range r.children {
+		if child == nil {
+			continue
+		}
+		childCtx := *ctx
+		childCtx.Gtx.Constraints.Min.X = 0
+		if equalWidth && availableW > 0 {
+			w := availableW / len(r.children)
+			if idx == len(r.children)-1 {
+				w = availableW - x
+			}
+			if w < 0 {
+				w = 0
+			}
+			childCtx.Gtx.Constraints.Min.X = w
+			childCtx.Gtx.Constraints.Max.X = w
+		}
+		childOffset := op.Offset(image.Point{X: x}).Push(ctx.Gtx.Ops)
+		next := *ctx
+		next.Gtx = childCtx.Gtx
+		next = *next.WithPositionOffset(image.Point{X: x})
+		dims := child.Layout(next.Child(idx))
+		childOffset.Pop()
+
+		w := dims.Size.X
+		if equalWidth && availableW > 0 {
+			w = childCtx.Gtx.Constraints.Max.X
+		}
+		tabRects[idx] = image.Rect(x, 0, x+w, dims.Size.Y)
+		indicatorRects[idx] = r.indicatorRectFor(ctx, tabRects[idx])
+		x += w
+		if dims.Size.Y > maxH {
+			maxH = dims.Size.Y
+		}
+	}
+
+	if equalWidth && availableW > x {
+		x = availableW
+	}
+	if maxH <= 0 {
+		return layout.Dimensions{}
+	}
+
+	r.drawIndicator(ctx, maxH, indicatorRects)
+	r.rememberIndicatorRects(indicatorRects)
+	return layout.Dimensions{Size: image.Point{X: x, Y: maxH}}
+}
+
+func (r *tabsRowWidget) indicatorRectFor(ctx *internal.Context, tab image.Rectangle) tabsIndicatorRect {
+	h := ctx.Gtx.Dp(safeDp(3))
+	w := ctx.Gtx.Dp(safeDp(24))
+	radius := ctx.Gtx.Dp(safeDp(3))
+	if r.secondary {
+		h = ctx.Gtx.Dp(safeDp(2))
+		w = tab.Dx()
+		radius = 0
+	}
+	if h < 1 {
+		h = 1
+	}
+	if w < 1 {
+		w = 1
+	}
+	x := tab.Min.X + (tab.Dx()-w)/2
+	if r.secondary {
+		x = tab.Min.X
+	}
+	return tabsIndicatorRect{X: x, Width: w, Height: h, Radius: radius}
+}
+
+func (r *tabsRowWidget) drawIndicator(ctx *internal.Context, rowHeight int, rects []tabsIndicatorRect) {
+	if r.activeIndex < 0 || r.activeIndex >= len(rects) {
+		return
+	}
+	to := rects[r.activeIndex]
+	from := to
+	if r.state != nil && r.state.previousIndex >= 0 && r.state.previousIndex < len(rects) && r.state.previousIndex != r.activeIndex {
+		if r.state.previousIndex < len(r.state.lastIndicatorRect) {
+			from = r.state.lastIndicatorRect[r.state.previousIndex]
+		} else {
+			from = rects[r.state.previousIndex]
+		}
+	}
+
+	x, w := animatedTabIndicatorBounds(from, to, r.indicatorProgress)
+	if w < 1 {
+		w = 1
+	}
+	y := rowHeight - to.Height
+	if y < 0 {
+		y = 0
+	}
+	paint.FillShape(ctx.Gtx.Ops, r.indicatorColor, clip.UniformRRect(image.Rect(x, y, x+w, y+to.Height), to.Radius).Op(ctx.Gtx.Ops))
+}
+
+func (r *tabsRowWidget) rememberIndicatorRects(rects []tabsIndicatorRect) {
+	if r.state == nil {
+		return
+	}
+	if cap(r.state.lastIndicatorRect) < len(rects) {
+		r.state.lastIndicatorRect = make([]tabsIndicatorRect, len(rects))
+	} else {
+		r.state.lastIndicatorRect = r.state.lastIndicatorRect[:len(rects)]
+	}
+	copy(r.state.lastIndicatorRect, rects)
+}
+
+func animatedTabIndicatorBounds(from, to tabsIndicatorRect, progress float32) (x, width int) {
+	p := clampFloat32(progress, 0, 1)
+	fromL := float32(from.X)
+	fromR := float32(from.X + from.Width)
+	toL := float32(to.X)
+	toR := float32(to.X + to.Width)
+	if p >= 1 || (fromL == toL && fromR == toR) {
+		return to.X, to.Width
+	}
+
+	leftP := p
+	rightP := p
+	if toL > fromL {
+		leftP = tabsIndicatorTailProgress(p)
+		rightP = tabsIndicatorLeadProgress(p)
+	} else if toL < fromL {
+		leftP = tabsIndicatorLeadProgress(p)
+		rightP = tabsIndicatorTailProgress(p)
+	}
+	left := fromL + (toL-fromL)*leftP
+	right := fromR + (toR-fromR)*rightP
+	if right < left {
+		left, right = right, left
+	}
+	return int(left + 0.5), int(right - left + 0.5)
+}
+
+func tabsIndicatorLeadProgress(p float32) float32 {
+	p = clampFloat32(p, 0, 1)
+	return 1 - (1-p)*(1-p)*(1-p)
+}
+
+func tabsIndicatorTailProgress(p float32) float32 {
+	p = clampFloat32(p, 0, 1)
+	return p * p * (3 - 2*p)
+}
+
+func tabsRuntimeStateFor(ctx *internal.Context) *tabsRuntimeState {
+	value := ctx.Memo("tabs-state", func() any {
+		return &tabsRuntimeState{activeIndex: -1, previousIndex: -1}
+	})
+	state, ok := value.(*tabsRuntimeState)
+	if !ok {
+		panic("github.com/xiaowumin-mark/FluxUI/widget: tabs state type mismatch")
+	}
+	return state
+}
+
+func (t *tabsWidget) activeIndex(key string) int {
+	for idx, item := range t.items {
+		if item.Key == key {
+			return idx
+		}
+	}
+	if len(t.items) > 0 {
+		return 0
+	}
+	return -1
+}
+
+func (t *tabsWidget) layoutMaterialTabContent(item TabItem, txtColor color.NRGBA, tabBg color.NRGBA) Widget {
+	return layoutWidgetFunc(func(tabCtx *internal.Context) layout.Dimensions {
+		minW := t.materialTabMinWidth(item)
+		minH := float32(48)
+		if !t.config.secondary && item.Icon != nil && item.Label != "" && !t.config.inlineIcon {
+			minH = 64
+		}
+		if t.config.secondary {
+			minH = 48
+		}
+		deco := style.Decoration{}.
+			WithBg(t.config.tabDecoration.ResolveBg(tabBg)).
+			WithPad(t.config.tabDecoration.ResolvePad(style.Insets{Left: 16, Right: 16})).
+			WithRad(t.config.tabDecoration.ResolveRad(0))
+		if t.config.tabDecoration.Border != nil {
+			deco = deco.WithBorder(*t.config.tabDecoration.Border)
+		}
+		return (&tabsTabSurfaceWidget{
+			child:      t.tabLabelContent(tabCtx, item, txtColor),
+			decoration: deco,
+			minWidth:   minW,
+			minHeight:  minH,
+		}).Layout(tabCtx.Child(0))
+	})
+}
+
+func (t *tabsWidget) materialTabMinWidth(item TabItem) float32 {
+	minW := float32(90)
+	if !t.config.scrollable || t.config.fullWidth {
+		return minW
+	}
+	contentW := float32(0)
+	if item.Icon != nil {
+		contentW += 24
+	}
+	if item.Label != "" {
+		labelW := float32(runeCount(item.Label))*8 + 2
+		if t.config.secondary || t.config.inlineIcon {
+			if item.Icon != nil {
+				contentW += 8
+			}
+			contentW += labelW
+		} else if labelW > contentW {
+			contentW = labelW
+		}
+	}
+	need := contentW + 32
+	if need > minW {
+		minW = need
+	}
+	return minW
+}
+
+func runeCount(s string) int {
+	n := 0
+	for range s {
+		n++
+	}
+	return n
+}
+
+func (t *tabsWidget) tabLabelContent(ctx *internal.Context, item TabItem, txtColor color.NRGBA) Widget {
+	label := Text(item.Label, TextColor(txtColor), TextType(ctx.Theme().Types.LabelLarge))
+	if item.Icon == nil {
+		return label
+	}
+	icon := FixedWidth(24, Center(withForeground(txtColor, item.Icon)))
+	if item.Label == "" {
+		return icon
+	}
+	if t.config.secondary || t.config.inlineIcon {
+		return tabsInlineContent(icon, label)
+	}
+	return tabsStackedContent(icon, label)
+}
+
+func (t *tabsTabSurfaceWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	if t == nil {
+		return layout.Dimensions{}
+	}
+	gtx := ctx.Gtx
+	size := image.Point{
+		X: gtx.Dp(safeDp(t.minWidth)),
+		Y: gtx.Dp(safeDp(t.minHeight)),
+	}
+	if size.X < gtx.Constraints.Min.X {
+		size.X = gtx.Constraints.Min.X
+	}
+	if size.Y < gtx.Constraints.Min.Y {
+		size.Y = gtx.Constraints.Min.Y
+	}
+	size = clampPointToConstraints(size, gtx.Constraints.Min, gtx.Constraints.Max)
+
+	bg := t.decoration.ResolveBg(color.NRGBA{})
+	radius := gtx.Dp(safeDp(t.decoration.ResolveRad(0)))
+	if bg.A > 0 {
+		paint.FillShape(gtx.Ops, bg, clip.UniformRRect(image.Rectangle{Max: size}, clampRRectRadiusPx(size, radius)).Op(gtx.Ops))
+	}
+	border := t.decoration.ResolveBorder(style.Border{})
+	drawTabsSurfaceBorder(gtx, size, radius, border)
+
+	if t.child == nil {
+		return layout.Dimensions{Size: size}
+	}
+	pad := t.decoration.ResolvePad(style.Insets{})
+	left := gtx.Dp(safeDp(pad.Left))
+	top := gtx.Dp(safeDp(pad.Top))
+	right := gtx.Dp(safeDp(pad.Right))
+	bottom := gtx.Dp(safeDp(pad.Bottom))
+	contentSize := image.Point{X: size.X - left - right, Y: size.Y - top - bottom}
+	if contentSize.X < 0 {
+		contentSize.X = 0
+	}
+	if contentSize.Y < 0 {
+		contentSize.Y = 0
+	}
+
+	offset := op.Offset(image.Point{X: left, Y: top}).Push(gtx.Ops)
+	contentGtx := gtx
+	contentGtx.Constraints = gioLayout.Exact(contentSize)
+	next := *ctx
+	next.Gtx = contentGtx
+	gioLayout.Center.Layout(contentGtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
+		centered := next
+		centered.Gtx = gtx
+		dims := t.child.Layout(centered.Child(0))
+		return gioLayout.Dimensions{Size: dims.Size}
+	})
+	offset.Pop()
+
+	return layout.Dimensions{Size: size}
+}
+
+func drawTabsSurfaceBorder(gtx gioLayout.Context, size image.Point, radius int, border style.Border) {
+	if size.X <= 0 || size.Y <= 0 || border.IsZero() {
+		return
+	}
+	width := float32(gtx.Dp(safeDp(border.Width)))
+	if width <= 0 {
+		width = 1
+	}
+	inset := width / 2
+	minX := inset
+	minY := inset
+	maxX := float32(size.X) - inset
+	maxY := float32(size.Y) - inset
+	if maxX <= minX || maxY <= minY {
+		return
+	}
+	var path clip.Path
+	path.Begin(gtx.Ops)
+	rr := float32(clampRRectRadiusPx(size, radius))
+	if rr <= 0 {
+		path.MoveTo(f32.Pt(minX, minY))
+		path.LineTo(f32.Pt(maxX, minY))
+		path.LineTo(f32.Pt(maxX, maxY))
+		path.LineTo(f32.Pt(minX, maxY))
+		path.Close()
+	} else {
+		path.MoveTo(f32.Pt(minX+rr, minY))
+		path.LineTo(f32.Pt(maxX-rr, minY))
+		path.CubeTo(f32.Pt(maxX, minY), f32.Pt(maxX, minY), f32.Pt(maxX, minY+rr))
+		path.LineTo(f32.Pt(maxX, maxY-rr))
+		path.CubeTo(f32.Pt(maxX, maxY), f32.Pt(maxX, maxY), f32.Pt(maxX-rr, maxY))
+		path.LineTo(f32.Pt(minX+rr, maxY))
+		path.CubeTo(f32.Pt(minX, maxY), f32.Pt(minX, maxY), f32.Pt(minX, maxY-rr))
+		path.LineTo(f32.Pt(minX, minY+rr))
+		path.CubeTo(f32.Pt(minX, minY), f32.Pt(minX, minY), f32.Pt(minX+rr, minY))
+		path.Close()
+	}
+	paint.FillShape(gtx.Ops, border.Color, clip.Stroke{Path: path.End(), Width: width}.Op())
+}
+
+func tabsInlineContent(icon, label Widget) Widget {
+	return layoutWidgetFunc(func(ctx *internal.Context) layout.Dimensions {
+		dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(ctx.Gtx,
+			gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+				next := *ctx
+				next.Gtx = gtx
+				dims := icon.Layout(next.Child(0))
+				return gioLayout.Dimensions{Size: dims.Size}
+			}),
+			gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+				return gioLayout.Spacer{Width: safeDp(8)}.Layout(gtx)
+			}),
+			gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+				next := *ctx
+				next.Gtx = gtx
+				dims := label.Layout(next.Child(1))
+				return gioLayout.Dimensions{Size: dims.Size}
+			}),
+		)
+		return layout.Dimensions{Size: dims.Size}
+	})
+}
+
+func tabsStackedContent(icon, label Widget) Widget {
+	return layoutWidgetFunc(func(ctx *internal.Context) layout.Dimensions {
+		dims := gioLayout.Flex{Axis: gioLayout.Vertical, Alignment: gioLayout.Middle}.Layout(ctx.Gtx,
+			gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+				next := *ctx
+				next.Gtx = gtx
+				dims := icon.Layout(next.Child(0))
+				return gioLayout.Dimensions{Size: dims.Size}
+			}),
+			gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+				return gioLayout.Spacer{Height: safeDp(2)}.Layout(gtx)
+			}),
+			gioLayout.Rigid(func(gtx gioLayout.Context) gioLayout.Dimensions {
+				next := *ctx
+				next.Gtx = gtx
+				dims := label.Layout(next.Child(1))
+				return gioLayout.Dimensions{Size: dims.Size}
+			}),
+		)
+		return layout.Dimensions{Size: dims.Size}
+	})
 }
 
 // DialogOption 对话框配置。

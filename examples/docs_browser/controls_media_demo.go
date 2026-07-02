@@ -196,38 +196,62 @@ func docsBadgeDemo() ui.Element {
 
 func docsChipDemo(selected docsBoolState) ui.Element {
 	return ui.ColumnElement(
+		ui.TextElement("Assist chips", ui.TextSize(13)),
+		ui.VSpacerElement(6),
 		ui.RowElement(
 			ui.PaddingElement(
 				ui.Insets{Right: 8},
-				ui.AssistChipElement("Assist", ui.ChipLeading(ui.Icon("info", ui.IconSize(16)))),
+				ui.AssistChipElement("Assist chip"),
 			),
 			ui.PaddingElement(
 				ui.Insets{Right: 8},
+				ui.AssistChipElement("Assist chip with icon", ui.ChipLeading(ui.Icon("info", ui.IconSize(18)))),
+			),
+			ui.PaddingElement(
+				ui.Insets{Right: 8},
+				ui.AssistChipElement("Elevated assist", ui.ChipElevated(true), ui.ChipLeading(ui.Icon("open_in_new", ui.IconSize(18)))),
+			),
+			ui.AssistChipElement("Soft-disabled assist", ui.ChipSoftDisabled(true)),
+		),
+		ui.VSpacerElement(10),
+		ui.TextElement("Filter chips", ui.TextSize(13)),
+		ui.VSpacerElement(6),
+		ui.RowElement(
+			ui.PaddingElement(
+				ui.Insets{Right: 8},
 				ui.FilterChipElement(
-					"Filter",
+					"Filter chip",
 					ui.ChipSelected(selected.Value()),
 					ui.ChipOnClick(func(ctx *ui.Context) {
 						selected.Set(!selected.Value())
 					}),
 				),
 			),
-			ui.PaddingElement(
-				ui.Insets{Right: 8},
-				ui.InputChipElement("Input", ui.ChipTrailing(ui.Icon("close", ui.IconSize(14)))),
-			),
-			ui.PaddingElement(
-				ui.Insets{Right: 8},
-				ui.SuggestionChipElement("Suggestion"),
-			),
-			ui.AssistChipElement("Disabled", ui.ChipDisabled(true)),
+			ui.PaddingElement(ui.Insets{Right: 8}, ui.FilterChipElement("Filter chip with icon", ui.ChipLeading(ui.Icon("label", ui.IconSize(18))))),
+			ui.PaddingElement(ui.Insets{Right: 8}, ui.FilterChipElement("Removable filter chip", ui.ChipRemovable(true))),
+			ui.FilterChipElement("Soft-disabled filter chip", ui.ChipSoftDisabled(true), ui.ChipRemovable(true)),
+		),
+		ui.VSpacerElement(10),
+		ui.TextElement("Input chips", ui.TextSize(13)),
+		ui.VSpacerElement(6),
+		ui.RowElement(
+			ui.PaddingElement(ui.Insets{Right: 8}, ui.InputChipElement("Input chip", ui.ChipOnRemove(func(ctx *ui.Context) {}))),
+			ui.InputChipElement("Soft-disabled input chip", ui.ChipSoftDisabled(true)),
+		),
+		ui.VSpacerElement(10),
+		ui.TextElement("Suggestion chips", ui.TextSize(13)),
+		ui.VSpacerElement(6),
+		ui.RowElement(
+			ui.PaddingElement(ui.Insets{Right: 8}, ui.SuggestionChipElement("Suggestion chip")),
+			ui.PaddingElement(ui.Insets{Right: 8}, ui.SuggestionChipElement("Suggestion chip with icon", ui.ChipLeading(ui.Icon("auto_awesome", ui.IconSize(18))))),
+			ui.PaddingElement(ui.Insets{Right: 8}, ui.SuggestionChipElement("Elevated suggestion", ui.ChipElevated(true))),
+			ui.SuggestionChipElement("Soft-disabled suggestion", ui.ChipSoftDisabled(true)),
 		),
 		ui.VSpacerElement(8),
-		ui.ChipElementWithSlots(
-			ui.RowElement(
-				ui.IconElement("search", ui.IconSize(14), ui.IconColor(ui.NRGBA(30, 64, 175, 255))),
-				ui.HSpacerElement(6),
-				ui.TextElement("Styled slots", ui.TextSize(12), ui.TextColor(ui.NRGBA(30, 64, 175, 255))),
-			),
+		ui.FilterChipElementWithSlots(
+			ui.TextElement("Styled slot filter", ui.TextSize(12), ui.TextColor(ui.NRGBA(30, 64, 175, 255))),
+			ui.ChipLeading(ui.Icon("search", ui.IconSize(18))),
+			ui.ChipSelected(true),
 			ui.ChipBackground(ui.NRGBA(219, 234, 254, 255)),
 			ui.ChipForeground(ui.NRGBA(30, 64, 175, 255)),
 			ui.ChipDecoration(ui.Bg(ui.NRGBA(219, 234, 254, 255)).WithRad(999).WithBorder(ui.Border{Width: 1, Color: ui.NRGBA(147, 197, 253, 255)})),

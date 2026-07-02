@@ -155,6 +155,34 @@ func TestLayoutStaticSubtreeCacheSkipsChildAcrossFrames(t *testing.T) {
 	}
 }
 
+func TestSwitchThumbRectMatchesMaterialGeometry(t *testing.T) {
+	var ops op.Ops
+	gtx := gioLayout.Context{
+		Ops:    &ops,
+		Metric: unit.Metric{PxPerDp: 1, PxPerSp: 1},
+	}
+
+	cases := []struct {
+		name             string
+		selectedProgress float32
+		positionProgress float32
+		pressedProgress  float32
+		want             image.Rectangle
+	}{
+		{name: "unchecked", want: image.Rect(8, 8, 24, 24)},
+		{name: "unchecked pressed", pressedProgress: 1, want: image.Rect(2, 2, 30, 30)},
+		{name: "checked", selectedProgress: 1, positionProgress: 1, want: image.Rect(24, 4, 48, 28)},
+		{name: "checked pressed", selectedProgress: 1, positionProgress: 1, pressedProgress: 1, want: image.Rect(22, 2, 50, 30)},
+	}
+
+	for _, tc := range cases {
+		got := switchThumbRect(gtx, 52, 32, tc.selectedProgress, tc.positionProgress, tc.pressedProgress, false)
+		if got != tc.want {
+			t.Fatalf("%s switch thumb rect = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
 func layoutRenderCacheTestFrame(rt *Runtime, size image.Point, layout func(*Context)) FrameStats {
 	var ops op.Ops
 	gtx := gioLayout.Context{

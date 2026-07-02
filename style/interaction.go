@@ -18,8 +18,8 @@ const (
 	InteractionSelectedDuration          = 150 * time.Millisecond
 	InteractionSelectedIndicatorDuration = 200 * time.Millisecond
 
-	InteractionMenuEnterDuration = 150 * time.Millisecond
-	InteractionMenuExitDuration  = 100 * time.Millisecond
+	InteractionMenuEnterDuration = 260 * time.Millisecond
+	InteractionMenuExitDuration  = 180 * time.Millisecond
 	InteractionMenuDuration      = InteractionMenuEnterDuration
 
 	InteractionToastEnterDuration = 200 * time.Millisecond

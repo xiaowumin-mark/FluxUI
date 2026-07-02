@@ -59,6 +59,7 @@ func docsCircularProgressDemo(value docsFloat32State, th *ui.Theme) ui.Element {
 }
 
 func docsProgressIndicatorsDemo(value docsFloat32State, th *ui.Theme) ui.Element {
+	materialValue := value.Value() / 100
 	return ui.FixedWidthElement(
 		380,
 		ui.ColumnElement(
@@ -73,28 +74,38 @@ func docsProgressIndicatorsDemo(value docsFloat32State, th *ui.Theme) ui.Element
 			ui.PaddingElement(
 				ui.Insets{Top: 12},
 				ui.LinearProgressIndicatorElement(
-					value.Value(),
-					ui.ProgressMin(0),
-					ui.ProgressMax(100),
-					ui.ProgressTrackColor(ui.NRGBA(226, 232, 240, 255)),
+					materialValue,
+					ui.ProgressBuffer(0.8),
+					ui.ProgressTrackHeight(4),
+					ui.ProgressIndicatorHeight(4),
 					ui.ProgressFillColor(th.Primary),
 					ui.ProgressDecoration(ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(6)).WithRad(8)),
 				),
 			),
 			ui.PaddingElement(
+				ui.Insets{Top: 12},
+				ui.LinearProgressIndicatorElement(0, ui.ProgressIndeterminate(true), ui.ProgressFourColor(true)),
+			),
+			ui.PaddingElement(
 				ui.Insets{Top: 16},
-				ui.CircularProgressIndicatorElement(
-					value.Value(),
-					ui.ProgressMin(0),
-					ui.ProgressMax(100),
-					ui.ProgressSize(72),
-					ui.ProgressFillColor(th.Primary),
-					ui.ProgressLabelVisible(true),
+				ui.RowElement(
+					ui.CircularProgressIndicatorElement(
+						materialValue,
+						ui.ProgressSize(72),
+						ui.ProgressFillColor(th.Primary),
+						ui.ProgressLabelVisible(true),
+					),
+					ui.HSpacerElement(18),
+					ui.LoadingIndicatorElement(ui.ProgressFourColor(true), ui.ProgressSize(48)),
 				),
 			),
 			ui.PaddingElement(
 				ui.Insets{Top: 16},
-				ui.LinearProgressIndicatorElement(0, ui.ProgressIndeterminate(true), ui.ProgressFillColor(th.Colors.Tertiary)),
+				ui.RowElement(
+					ui.FilledTonalButtonElement(ui.TextElement("Loading"), ui.ButtonLoading(true)),
+					ui.HSpacerElement(12),
+					ui.IconButtonElement(ui.IconElement("sync"), ui.IconButtonLoading(true), ui.IconButtonForeground(th.Primary)),
+				),
 			),
 		),
 	)

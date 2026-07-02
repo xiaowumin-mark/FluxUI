@@ -158,16 +158,21 @@ type RadioSpec struct {
 
 // SwitchSpec 描述开关样式。
 type SwitchSpec struct {
-	Width            float32
-	Height           float32
-	TrackColor       color.NRGBA
-	TrackBorderColor color.NRGBA
-	TrackBorderWidth float32
-	ThumbColor       color.NRGBA
-	CheckedProgress  float32
-	Disabled         bool
-	Hovered          bool
-	Pressed          bool
+	Width               float32
+	Height              float32
+	TrackColor          color.NRGBA
+	TrackBorderColor    color.NRGBA
+	TrackBorderWidth    float32
+	ThumbColor          color.NRGBA
+	CheckedProgress     float32
+	PositionProgress    float32
+	PressedProgress     float32
+	ThumbIcon           string
+	ThumbIconFontFamily string
+	ThumbIconColor      color.NRGBA
+	Disabled            bool
+	Hovered             bool
+	Pressed             bool
 }
 
 // SliderSpec 描述滑块样式。
@@ -1021,39 +1026,15 @@ func (c *Context) LayoutSwitch(clickable *ClickableState, checked bool, spec Swi
 			progress = 1
 		}
 
-		offThumbSize := gtx.Dp(unit.Dp(16))
-		onThumbSize := gtx.Dp(unit.Dp(24))
-		pressedThumbSize := gtx.Dp(unit.Dp(28))
-		if offThumbSize <= 0 {
-			offThumbSize = height / 2
+		positionProgress := spec.PositionProgress
+		if positionProgress == 0 && checked {
+			positionProgress = progress
 		}
-		if onThumbSize <= 0 {
-			onThumbSize = height - 8
-		}
-		thumbSize := offThumbSize + int(float32(onThumbSize-offThumbSize)*progress+0.5)
-		if spec.Pressed && pressedThumbSize > thumbSize {
-			thumbSize = pressedThumbSize
-		}
-		maxThumb := height - 4
-		if thumbSize > maxThumb {
-			thumbSize = maxThumb
-		}
-		if thumbSize < 2 {
-			thumbSize = 2
-		}
-		thumbStart := gtx.Dp(unit.Dp(4))
-		thumbEnd := width - thumbStart - thumbSize
-		if thumbEnd < thumbStart {
-			thumbEnd = thumbStart
-		}
-		thumbOffset := thumbStart + int(float32(thumbEnd-thumbStart)*progress+0.5)
-		thumbTop := (height - thumbSize) / 2
-		thumbRect := image.Rectangle{
-			Min: image.Point{X: thumbOffset, Y: thumbTop},
-			Max: image.Point{X: thumbOffset + thumbSize, Y: thumbTop + thumbSize},
-		}
+		thumbRect := switchThumbRect(gtx, width, height, progress, positionProgress, spec.PressedProgress, spec.ThumbIcon != "")
+		thumbSize := thumbRect.Dx()
 		thumbRR := thumbSize / 2
 		paint.FillShape(gtx.Ops, thumbColor, clip.UniformRRect(thumbRect, thumbRR).Op(gtx.Ops))
+		c.drawSwitchThumbIcon(gtx, thumbRect, spec)
 
 		return gioLayout.Dimensions{Size: image.Point{X: width, Y: height}}
 	}
@@ -1067,6 +1048,102 @@ func (c *Context) LayoutSwitch(clickable *ClickableState, checked bool, spec Swi
 		inputDone()
 	}
 	return size
+}
+
+func switchThumbRect(gtx gioLayout.Context, width, height int, sizeProgress, positionProgress, pressedProgress float32, hasIcon bool) image.Rectangle {
+	if sizeProgress < 0 {
+		sizeProgress = 0
+	}
+	if sizeProgress > 1 {
+		sizeProgress = 1
+	}
+	positionProgress = clampSwitchProgress(positionProgress)
+	if pressedProgress < 0 {
+		pressedProgress = 0
+	}
+	if pressedProgress > 1 {
+		pressedProgress = 1
+	}
+	offThumbSize := gtx.Dp(unit.Dp(16))
+	if hasIcon {
+		offThumbSize = gtx.Dp(unit.Dp(24))
+	}
+	onThumbSize := gtx.Dp(unit.Dp(24))
+	pressedThumbSize := gtx.Dp(unit.Dp(28))
+	if offThumbSize <= 0 {
+		offThumbSize = height / 2
+	}
+	if onThumbSize <= 0 {
+		onThumbSize = height - 8
+	}
+	baseThumbSize := offThumbSize + int(float32(onThumbSize-offThumbSize)*sizeProgress+0.5)
+	thumbSize := baseThumbSize
+	if pressedThumbSize > baseThumbSize {
+		thumbSize = baseThumbSize + int(float32(pressedThumbSize-baseThumbSize)*pressedProgress+0.5)
+	}
+	maxThumb := height - gtx.Dp(unit.Dp(4))
+	if thumbSize > maxThumb {
+		thumbSize = maxThumb
+	}
+	if thumbSize < 2 {
+		thumbSize = 2
+	}
+
+	centerStart := gtx.Dp(unit.Dp(16))
+	centerEnd := width - centerStart
+	if centerEnd < centerStart {
+		centerEnd = centerStart
+	}
+	centerX := centerStart + int(float32(centerEnd-centerStart)*positionProgress+0.5)
+	thumbOffset := centerX - thumbSize/2
+	minOffset := gtx.Dp(unit.Dp(2))
+	maxOffset := width - thumbSize - minOffset
+	if maxOffset < minOffset {
+		maxOffset = minOffset
+	}
+	if thumbOffset < minOffset {
+		thumbOffset = minOffset
+	}
+	if thumbOffset > maxOffset {
+		thumbOffset = maxOffset
+	}
+
+	thumbTop := (height - thumbSize) / 2
+	return image.Rectangle{
+		Min: image.Point{X: thumbOffset, Y: thumbTop},
+		Max: image.Point{X: thumbOffset + thumbSize, Y: thumbTop + thumbSize},
+	}
+}
+
+func clampSwitchProgress(v float32) float32 {
+	if v < -0.15 {
+		return -0.15
+	}
+	if v > 1.15 {
+		return 1.15
+	}
+	return v
+}
+
+func (c *Context) drawSwitchThumbIcon(gtx gioLayout.Context, thumbRect image.Rectangle, spec SwitchSpec) {
+	if spec.ThumbIcon == "" || spec.ThumbIconFontFamily == "" || spec.ThumbIconColor.A == 0 || thumbRect.Dx() < 18 || thumbRect.Dy() < 18 {
+		return
+	}
+	if done := c.startFrameSection(PerfText, 1); done != nil {
+		defer done()
+	}
+	label := material.Label(c.MaterialTheme(), unit.Sp(16), spec.ThumbIcon)
+	label.Font = gioFont.Font{Typeface: gioFont.Typeface(spec.ThumbIconFontFamily)}
+	label.Color = spec.ThumbIconColor
+	label.Alignment = gioText.Middle
+
+	iconCtx := gtx
+	iconCtx.Constraints = gioLayout.Exact(thumbRect.Size())
+	stack := op.Offset(thumbRect.Min).Push(gtx.Ops)
+	gioLayout.Center.Layout(iconCtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
+		return label.Layout(gtx)
+	})
+	stack.Pop()
 }
 
 // LayoutSlider 绘制滑块。

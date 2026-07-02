@@ -86,18 +86,15 @@ func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 					ui.ExpandedElement(
 						ui.OutlinedTextFieldElement(
 							inputValue.Value(),
-							ui.InputPlaceholder("Outlined"),
+							ui.InputLabel("Username"),
+							ui.InputPlaceholder("name@example.com"),
 							ui.InputSingleLine(true),
 							ui.InputMaxLen(32),
-							ui.InputPadding(ui.Symmetric(8, 12)),
-							ui.InputRadius(10),
-							ui.InputBorder(ui.NRGBA(148, 163, 184, 255)),
-							ui.InputBorderFocus(ui.NRGBA(37, 99, 235, 255)),
-							ui.InputBackground(ui.NRGBA(255, 255, 255, 255)),
-							ui.InputForeground(ui.NRGBA(15, 23, 42, 255)),
-							ui.InputTextSize(13),
+							ui.InputCounter(true),
+							ui.InputLeading(ui.Icon("person")),
+							ui.InputTrailing(ui.Icon("mail")),
+							ui.InputSupportingText("Floating label, icons and counter"),
 							ui.InputFontFamily("Segoe UI"),
-							ui.InputDecoration(ui.Focused(ui.BorderDeco(2, ui.NRGBA(37, 99, 235, 255)))),
 							ui.InputAttachRef(ref.Current),
 							ui.InputOnFocus(func(ctx *ui.Context, focused bool) {
 								if focused {
@@ -115,7 +112,9 @@ func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 					ui.ExpandedElement(
 						ui.FilledTextFieldElement(
 							inputValue.Value(),
-							ui.InputPlaceholder("Filled"),
+							ui.InputLabel("Filled"),
+							ui.InputPrefixText("$"),
+							ui.InputSuffixText("USD"),
 							ui.InputSingleLine(true),
 							ui.InputMaxLen(32),
 							ui.InputOnChange(func(ctx *ui.Context, value string) {
@@ -156,16 +155,43 @@ func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 					ui.ExpandedElement(
 						ui.TextFieldElement(
 							"secret",
-							ui.InputPlaceholder("Password"),
+							ui.InputLabel("Password"),
 							ui.InputPassword(true),
 							ui.InputSingleLine(true),
+							ui.InputLeading(ui.Icon("lock")),
+							ui.InputTrailing(ui.Icon("visibility")),
 						),
 					),
 					ui.HSpacerElement(10),
 					ui.ExpandedElement(
 						ui.TextFieldElement(
 							"disabled",
+							ui.InputLabel("Disabled"),
 							ui.InputDisabled(true),
+						),
+					),
+				),
+				ui.VSpacerElement(10),
+				ui.RowElement(
+					ui.ExpandedElement(
+						ui.OutlinedTextFieldElement(
+							"Draft",
+							ui.InputLabel("Title"),
+							ui.InputMaxLen(10),
+							ui.InputCounter(true),
+							ui.InputError(true),
+							ui.InputErrorText("Use 10 characters or less"),
+							ui.InputRequired(true),
+						),
+					),
+					ui.HSpacerElement(10),
+					ui.ExpandedElement(
+						ui.OutlinedTextFieldElement(
+							"Multiline value",
+							ui.InputLabel("Notes"),
+							ui.InputSingleLine(false),
+							ui.InputRows(3),
+							ui.InputSupportingText("Textarea field"),
 						),
 					),
 				),

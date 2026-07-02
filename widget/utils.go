@@ -11,7 +11,10 @@ import (
 	"github.com/xiaowumin-mark/FluxUI/style"
 	"github.com/xiaowumin-mark/FluxUI/theme"
 
+	gioEvent "gioui.org/io/event"
+	"gioui.org/io/pointer"
 	"gioui.org/op"
+	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 )
@@ -40,6 +43,49 @@ func clampFloat32(v, min, max float32) float32 {
 		return max
 	}
 	return v
+}
+
+func md3DismissOnOutsidePress(ctx *internal.Context, tag any, protected []image.Rectangle, onDismiss func(*internal.Context)) {
+	if ctx == nil || tag == nil || onDismiss == nil {
+		return
+	}
+	viewport, ok := ctx.Viewport()
+	if !ok || viewport.Dx() <= 0 || viewport.Dy() <= 0 {
+		viewport = image.Rectangle{Max: ctx.Gtx.Constraints.Max}
+	}
+	if viewport.Dx() <= 0 || viewport.Dy() <= 0 {
+		return
+	}
+	position := ctx.Position()
+	pass := pointer.PassOp{}.Push(ctx.Gtx.Ops)
+	offset := op.Offset(image.Pt(-position.X, -position.Y)).Push(ctx.Gtx.Ops)
+	clipStack := clip.Rect(viewport).Push(ctx.Gtx.Ops)
+	gioEvent.Op(ctx.Gtx.Ops, tag)
+	clipStack.Pop()
+	offset.Pop()
+	pass.Pop()
+
+	for {
+		ev, ok := ctx.Gtx.Event(pointer.Filter{Target: tag, Kinds: pointer.Press})
+		if !ok {
+			break
+		}
+		pe, ok := ev.(pointer.Event)
+		if !ok {
+			continue
+		}
+		point := image.Pt(int(pe.Position.X+0.5), int(pe.Position.Y+0.5))
+		inside := false
+		for _, rect := range protected {
+			if point.In(rect) {
+				inside = true
+				break
+			}
+		}
+		if !inside {
+			onDismiss(ctx)
+		}
+	}
 }
 
 func clampPointToConstraints(size image.Point, min, max image.Point) image.Point {
@@ -376,6 +422,96 @@ func md3SelectionProgress(ctx *internal.Context, active bool) float32 {
 	return md3AnimateFloat(ctx, "md3-selection-progress", target, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 }
 
+func md3SwitchSelectionProgress(ctx *internal.Context, active bool) float32 {
+	target := float32(0)
+	if active {
+		target = 1
+	}
+	return md3AnimateFloatDirectionalRetained(
+		ctx,
+		"md3-switch-position",
+		target,
+		250*time.Millisecond,
+		250*time.Millisecond,
+		md3SwitchBackEasing,
+		md3SwitchBackEasing,
+	)
+}
+
+func md3SwitchPressedProgress(ctx *internal.Context, pressed bool) float32 {
+	target := float32(0)
+	if pressed {
+		target = 1
+	}
+	return md3AnimateFloatDirectionalRetained(
+		ctx,
+		"md3-switch-press",
+		target,
+		100*time.Millisecond,
+		250*time.Millisecond,
+		style.InteractionLinearEasing,
+		style.InteractionStandardEasing,
+	)
+}
+
+func md3SwitchBackEasing(v float32) float32 {
+	v = clampFloat32(v, 0, 1)
+	base := style.InteractionEmphasizedDecelerateEasing(v)
+	overshoot := float32(0.10) * 4 * v * (1 - v) * v
+	if v > 0.82 {
+		return base + overshoot
+	}
+	return base
+}
+
+func switchThumbCenter(ctx *internal.Context, size image.Point, progress float32) image.Point {
+	if ctx == nil {
+		return image.Pt(size.X/2, size.Y/2)
+	}
+	start := ctx.Gtx.Dp(safeDp(16))
+	end := size.X - start
+	if end < start {
+		end = start
+	}
+	progress = clampFloat32(progress, -0.15, 1.15)
+	x := start + int(float32(end-start)*progress+0.5)
+	return image.Pt(x, size.Y/2)
+}
+
+func md3AnimateFloatDirectionalRetained(ctx *internal.Context, namespace string, target float32, enterDuration, exitDuration time.Duration, enterEasing, exitEasing func(float32) float32) float32 {
+	if ctx == nil {
+		return target
+	}
+	key := md3MotionKey(ctx, namespace)
+	state := md3FloatStateForKey(ctx, key, target)
+	now := ctx.Now()
+	current, running := state.currentAndRunning(now)
+	duration := exitDuration
+	easing := exitEasing
+	if target > current {
+		duration = enterDuration
+		easing = enterEasing
+	}
+	if state.to == target {
+		state.current = current
+		state.easing = easing
+		if running {
+			if rt := ctx.Runtime(); rt != nil {
+				rt.RecordFrameSection(internal.PerfAnimation, 1)
+			}
+			ctx.RequestFrameRedrawReason("animation.running")
+			return current
+		}
+		state.snap(now, target, duration, easing)
+		return target
+	}
+	if current == target {
+		state.snap(now, target, duration, easing)
+		return target
+	}
+	return state.advance(ctx, target, duration, easing)
+}
+
 func md3FocusProgress(ctx *internal.Context, focused, disabled bool) float32 {
 	target := float32(0)
 	if focused && !disabled {
@@ -651,6 +787,65 @@ func md3AnimateColorIfActive(ctx *internal.Context, namespace string, target col
 	return md3AdvanceColorState(ctx, key, state, target, duration, easing)
 }
 
+func md3AnimateColorRetained(ctx *internal.Context, namespace string, target color.NRGBA, duration time.Duration, easing func(float32) float32) color.NRGBA {
+	if ctx == nil || duration <= 0 {
+		return target
+	}
+	if easing == nil {
+		easing = style.InteractionLinearEasing
+	}
+	key := md3MotionKey(ctx, namespace)
+	state := md3ColorStateForKeyRetained(ctx, key, target, duration, easing)
+	now := ctx.Now()
+	if state.to == target && state.duration == duration {
+		current, running := state.currentAndRunning(now)
+		state.current = current
+		state.easing = easing
+		if running {
+			if rt := ctx.Runtime(); rt != nil {
+				rt.RecordFrameSection(internal.PerfAnimation, 1)
+			}
+			ctx.RequestFrameRedrawReason("animation.running")
+			return current
+		}
+		state.snap(now, target, duration, easing)
+		return target
+	}
+	current := state.valueAt(now)
+	if current == target {
+		state.snap(now, target, duration, easing)
+		return target
+	}
+	if rt := ctx.Runtime(); rt != nil {
+		rt.RecordFrameSection(internal.PerfAnimation, 1)
+	}
+	return md3AdvanceColorState(ctx, key, state, target, duration, easing)
+}
+
+func md3ColorStateForKeyRetained(ctx *internal.Context, key internal.MemoryKey, target color.NRGBA, duration time.Duration, easing func(float32) float32) *md3AnimatedColorState {
+	if easing == nil {
+		easing = style.InteractionLinearEasing
+	}
+	value := ctx.PersistentKey(key, func() any {
+		return &md3AnimatedColorState{
+			startedAt: ctx.Now(),
+			from:      target,
+			current:   target,
+			to:        target,
+			duration:  duration,
+			easing:    easing,
+		}
+	})
+	state, ok := value.(*md3AnimatedColorState)
+	if !ok {
+		panic("github.com/xiaowumin-mark/FluxUI/widget: md3 animated color state type mismatch")
+	}
+	if state.easing == nil {
+		state.easing = style.InteractionLinearEasing
+	}
+	return state
+}
+
 func md3ColorStateForKey(ctx *internal.Context, key internal.MemoryKey, target color.NRGBA, duration time.Duration, easing func(float32) float32) *md3AnimatedColorState {
 	if rt := ctx.Runtime(); rt != nil {
 		rt.RecordFrameSection(internal.PerfAnimation, 1)
@@ -912,6 +1107,43 @@ func layoutMD3OverlayTransition(ctx *internal.Context, progress float32, offsetD
 	return size
 }
 
+func layoutMD3RevealTransition(ctx *internal.Context, progress float32, revealFromBottom bool, child func(*internal.Context) image.Point) image.Point {
+	if child == nil || progress <= 0 {
+		return image.Point{}
+	}
+	progress = clampFloat32(progress, 0, 1)
+	recorded := op.Record(ctx.Gtx.Ops)
+	size := child(ctx.Child(0))
+	call := recorded.Stop()
+	if size.X <= 0 || size.Y <= 0 {
+		return size
+	}
+	if progress >= 0.999 {
+		call.Add(ctx.Gtx.Ops)
+		return size
+	}
+	revealHeight := int(float32(size.Y)*progress + 0.5)
+	if revealHeight < 1 {
+		revealHeight = 1
+	}
+	if revealHeight > size.Y {
+		revealHeight = size.Y
+	}
+	clipRect := image.Rectangle{Max: image.Point{X: size.X, Y: revealHeight}}
+	offsetY := 0
+	if revealFromBottom {
+		offsetY = size.Y - revealHeight
+		clipRect = image.Rectangle{Min: image.Point{Y: offsetY}, Max: size}
+	}
+	if progress < 1 {
+		defer paint.PushOpacity(ctx.Gtx.Ops, progress).Pop()
+	}
+	stack := clip.Rect(clipRect).Push(ctx.Gtx.Ops)
+	call.Add(ctx.Gtx.Ops)
+	stack.Pop()
+	return size
+}
+
 type md3PopupDirection uint8
 
 const (
@@ -973,6 +1205,67 @@ func md3PopupPlacementForAnchor(ctx *internal.Context, anchorSize, popupSize ima
 		placement.OffsetX = viewport.Min.X - anchorPos.X
 	}
 	return placement
+}
+
+func md3PopupPlacementForMeasuredPopup(ctx *internal.Context, anchorSize, popupSize image.Point, placement md3PopupPlacement, extraYOffsetPx int) md3PopupPlacement {
+	if ctx == nil || popupSize.Y <= 0 {
+		return placement
+	}
+	viewport, ok := ctx.Viewport()
+	if !ok || viewport.Dx() <= 0 || viewport.Dy() <= 0 {
+		viewport = image.Rectangle{Max: ctx.Gtx.Constraints.Max}
+	}
+	if viewport.Dx() <= 0 || viewport.Dy() <= 0 {
+		return placement
+	}
+	anchorPos := ctx.Position()
+	down := image.Rect(
+		anchorPos.X+placement.OffsetX,
+		anchorPos.Y+anchorSize.Y+placement.GapPx+extraYOffsetPx,
+		anchorPos.X+placement.OffsetX+popupSize.X,
+		anchorPos.Y+anchorSize.Y+placement.GapPx+extraYOffsetPx+popupSize.Y,
+	)
+	up := image.Rect(
+		anchorPos.X+placement.OffsetX,
+		anchorPos.Y-placement.GapPx-popupSize.Y+extraYOffsetPx,
+		anchorPos.X+placement.OffsetX+popupSize.X,
+		anchorPos.Y-placement.GapPx+extraYOffsetPx,
+	)
+	downOverflow := rectViewportOverflow(down, viewport)
+	upOverflow := rectViewportOverflow(up, viewport)
+	spaceBelow := viewport.Max.Y - (anchorPos.Y + anchorSize.Y) - placement.GapPx - extraYOffsetPx
+	spaceAbove := anchorPos.Y - viewport.Min.Y - placement.GapPx + extraYOffsetPx
+	next := placement
+	if placement.Direction == md3PopupDown && downOverflow > 0 && upOverflow < downOverflow {
+		next.Direction = md3PopupUp
+		next.TransitionOffset = -4
+	} else if placement.Direction == md3PopupUp && upOverflow > 0 && downOverflow < upOverflow {
+		next.Direction = md3PopupDown
+		next.TransitionOffset = 4
+	}
+	if next.Direction == md3PopupUp {
+		next.MaxHeightPx = clampPositiveInt(placement.MaxHeightPx, spaceAbove)
+	} else {
+		next.MaxHeightPx = clampPositiveInt(placement.MaxHeightPx, spaceBelow)
+	}
+	return next
+}
+
+func rectViewportOverflow(rect, viewport image.Rectangle) int {
+	overflow := 0
+	if rect.Min.X < viewport.Min.X {
+		overflow += viewport.Min.X - rect.Min.X
+	}
+	if rect.Max.X > viewport.Max.X {
+		overflow += rect.Max.X - viewport.Max.X
+	}
+	if rect.Min.Y < viewport.Min.Y {
+		overflow += viewport.Min.Y - rect.Min.Y
+	}
+	if rect.Max.Y > viewport.Max.Y {
+		overflow += rect.Max.Y - viewport.Max.Y
+	}
+	return overflow
 }
 
 func md3PopupVerticalPlacement(ctx *internal.Context, anchorHeightPx, preferredHeightPx, gapPx int) md3PopupPlacement {

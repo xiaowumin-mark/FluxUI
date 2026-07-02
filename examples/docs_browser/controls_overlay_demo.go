@@ -9,9 +9,14 @@ import (
 
 func docsMenuDemo(menuOpen docsBoolState, menuValue docsStringState, th *ui.Theme) ui.Element {
 	items := []ui.MenuItem{
-		{Key: "copy", Label: "Copy"},
-		{Key: "share", Label: "Share"},
-		{Key: "archive", Label: "Archive"},
+		{Key: "copy", Label: "Copy", Leading: ui.Icon("content_copy")},
+		{Key: "share", Label: "Share", Leading: ui.Icon("share")},
+		{Key: "archive", Label: "Archive", Leading: ui.Icon("archive"), Children: []ui.MenuItem{
+			{Key: "archive-today", Label: "Today"},
+			{Key: "archive-week", Label: "This week"},
+			{Key: "archive-custom", Label: "Custom date", Leading: ui.Icon("calendar_month")},
+		}},
+		{Divider: true},
 		{Key: "delete", Label: "Delete", Disabled: true},
 	}
 	return ui.FixedWidthElement(
@@ -27,7 +32,14 @@ func docsMenuDemo(menuOpen docsBoolState, menuValue docsStringState, th *ui.Them
 					items,
 					ui.DropdownMenuSelectedKey(menuValue.Value()),
 					ui.DropdownMenuWidth(220),
-					ui.DropdownMenuMaxHeight(180),
+					ui.DropdownMenuMaxHeight(240),
+					ui.DropdownMenuXOffset(4),
+					ui.DropdownMenuYOffset(2),
+					ui.DropdownMenuAnchorCorner(ui.MenuCornerEndStart),
+					ui.DropdownMenuMenuCorner(ui.MenuCornerStartStart),
+					ui.DropdownMenuDefaultFocusOf(ui.MenuDefaultFocusFirstItem),
+					ui.DropdownMenuTypeaheadDelay(500*time.Millisecond),
+					ui.DropdownMenuNoNavigationWrap(false),
 					ui.DropdownMenuDecoration(ui.Bg(th.Colors.SurfaceContainer).WithRad(10).WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant})),
 					ui.DropdownMenuOnOpenChange(func(ctx *ui.Context, open bool) {
 						menuOpen.Set(open)
@@ -45,6 +57,7 @@ func docsMenuDemo(menuOpen docsBoolState, menuValue docsStringState, th *ui.Them
 					ui.MenuSelectedKey(menuValue.Value()),
 					ui.MenuWidth(190),
 					ui.MenuMaxHeight(160),
+					ui.MenuQuick(true),
 					ui.MenuDecoration(ui.Bg(th.Colors.SurfaceContainerLow).WithRad(10)),
 					ui.MenuOnSelect(func(ctx *ui.Context, key string) {
 						menuValue.Set(key)
@@ -61,25 +74,70 @@ func docsTabsDemo(value docsStringState) ui.Element {
 		if ref.Current == nil {
 			ref.Current = ui.NewTabsRef()
 		}
+		scrollingActive := ui.UseState(ctx, "scroll-keyboard-0")
 		items := []ui.TabItem{
-			{Key: "overview", Label: "Overview"},
-			{Key: "api", Label: "API"},
-			{Key: "example", Label: "Example"},
-			{Key: "notes", Label: "Notes"},
+			{Key: "overview", Label: "Keyboard", Icon: ui.Icon("keyboard")},
+			{Key: "api", Label: "Guitar", Icon: ui.Icon("tune")},
+			{Key: "example", Label: "Drums", Icon: ui.Icon("graphic_eq")},
+			{Key: "notes", Label: "Bass", Icon: ui.Icon("speaker")},
+			{Key: "saxophone", Label: "Saxophone", Icon: ui.Icon("nightlife"), Disabled: true},
+		}
+		scrollingBase := []ui.TabItem{
+			{Key: "keyboard", Label: "Keyboard", Icon: ui.Icon("keyboard")},
+			{Key: "guitar", Label: "Guitar", Icon: ui.Icon("tune")},
+			{Key: "drums", Label: "Drums", Icon: ui.Icon("graphic_eq")},
+			{Key: "bass", Label: "Bass", Icon: ui.Icon("speaker")},
+			{Key: "saxophone", Label: "Saxophone", Icon: ui.Icon("nightlife")},
+		}
+		scrollingItems := make([]ui.TabItem, 0, len(scrollingBase)*3)
+		for i := 0; i < 3; i++ {
+			for _, item := range scrollingBase {
+				scrollingItems = append(scrollingItems, ui.TabItem{
+					Key:   fmt.Sprintf("scroll-%s-%d", item.Key, i),
+					Label: item.Label,
+					Icon:  item.Icon,
+				})
+			}
 		}
 		return ui.FixedWidthElement(
 			520,
 			ui.ColumnElement(
+				ui.TextElement("Primary full width", ui.TextSize(13)),
 				ui.TabsElement(
 					value.Value(),
 					items,
+					ui.TabsFullWidth(true),
+					ui.TabsAttachRef(ref.Current),
+					ui.TabsOnChange(func(ctx *ui.Context, key string) {
+						value.Set(key)
+					}),
+				),
+				ui.VSpacerElement(10),
+				ui.TextElement("Scrolling tabs", ui.TextSize(13)),
+				ui.TabsElement(
+					scrollingActive.Value(),
+					scrollingItems,
 					ui.TabsScrollable(true),
+					ui.TabsOnChange(func(ctx *ui.Context, key string) {
+						scrollingActive.Set(key)
+					}),
+				),
+				ui.VSpacerElement(10),
+				ui.TextElement("Secondary full width", ui.TextSize(13)),
+				ui.TabsElement(
+					value.Value(),
+					[]ui.TabItem{
+						{Key: "overview", Label: "Travel", Icon: ui.Icon("flight")},
+						{Key: "api", Label: "Hotel", Icon: ui.Icon("hotel")},
+						{Key: "example", Label: "Activities", Icon: ui.Icon("hiking")},
+						{Key: "notes", Label: "Food", Icon: ui.Icon("restaurant")},
+					},
+					ui.TabsSecondary(true),
+					ui.TabsInlineIcon(true),
+					ui.TabsFullWidth(true),
 					ui.TabsIndicatorColor(ui.NRGBA(37, 99, 235, 255)),
 					ui.TabsTextColor(ui.NRGBA(71, 85, 105, 255)),
 					ui.TabsActiveTextColor(ui.NRGBA(30, 64, 175, 255)),
-					ui.TabsDecoration(ui.Bg(ui.NRGBA(248, 250, 252, 255)).WithRad(10)),
-					ui.TabsTabDecoration(ui.HoverBg(ui.NRGBA(239, 246, 255, 255))),
-					ui.TabsAttachRef(ref.Current),
 					ui.TabsOnChange(func(ctx *ui.Context, key string) {
 						value.Set(key)
 					}),

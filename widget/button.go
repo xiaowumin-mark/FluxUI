@@ -38,6 +38,8 @@ type buttonConfig struct {
 	hasForeground bool
 	ref           *ButtonRef
 	decoration    style.Decoration
+	loading       bool
+	loadingIcon   Widget
 }
 
 type buttonWidget struct {
@@ -150,19 +152,33 @@ func ButtonAttachRef(ref *ButtonRef) ButtonOption {
 	}
 }
 
+// ButtonLoading 显示按钮内 loading indicator，并暂时禁用点击分发。
+func ButtonLoading(loading bool) ButtonOption {
+	return func(cfg *buttonConfig) {
+		cfg.loading = loading
+	}
+}
+
+// ButtonLoadingIndicator 设置 loading 状态下显示的指示器。
+func ButtonLoadingIndicator(indicator Widget) ButtonOption {
+	return func(cfg *buttonConfig) {
+		cfg.loadingIcon = indicator
+	}
+}
+
 func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
 	if b.config.ref != nil {
 		b.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		commands := b.config.ref.drainCommands()
-		if !b.config.disabled {
+		if !b.config.disabled && !b.config.loading {
 			for range commands {
 				b.config.dispatcher.DispatchClick(ctx)
 			}
 		}
 	}
 	interaction := event.InteractionSnapshot{}
-	if !b.config.disabled {
+	if !b.config.disabled && !b.config.loading {
 		for clickable.Clicked(ctx) {
 			b.config.dispatcher.DispatchClick(ctx)
 		}
@@ -253,10 +269,18 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		FocusOpacity: focusOpacity,
 		Disabled:     b.config.disabled,
 	}, func(childCtx *internal.Context) image.Point {
-		if b.child == nil {
+		child := b.child
+		if b.config.loading {
+			indicator := b.config.loadingIcon
+			if indicator == nil {
+				indicator = LoadingIndicator(ProgressSize(18), ProgressThickness(3), ProgressFillColor(foreground), ProgressTrackColor(color.NRGBA{}))
+			}
+			child = Row(indicator, Padding(style.Insets{Left: 8}, child))
+		}
+		if child == nil {
 			return image.Point{}
 		}
-		return b.child.Layout(childCtx.Child(0)).Size
+		return child.Layout(childCtx.Child(0)).Size
 	})
 
 	return layout.Dimensions{Size: size}

@@ -81,7 +81,7 @@ func (r *Runtime) endInteractionFrame() {
 	r.interact.mu.Unlock()
 
 	if hoverChanged > 0 {
-		r.RecordRedrawReason(string(InteractionHoverChanged))
+		r.RequestRedrawReason(string(InteractionHoverChanged))
 	}
 }
 
@@ -138,10 +138,10 @@ func (r *Runtime) ObserveInteractionSnapshot(target PathID, previous, current Cl
 	r.interact.mu.Unlock()
 
 	if initialized && previous.Pressed != current.Pressed {
-		r.RecordRedrawReason(string(InteractionPressedChanged))
+		r.RequestRedrawReason(string(InteractionPressedChanged))
 	}
 	if initialized && previous.Focused != current.Focused {
-		r.RecordRedrawReason(string(InteractionFocusChanged))
+		r.RequestRedrawReason(string(InteractionFocusChanged))
 	}
 	return stats
 }
