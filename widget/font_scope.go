@@ -16,6 +16,11 @@ type themeScopeWidget struct {
 	child Widget
 }
 
+type interactionQualityScopeWidget struct {
+	quality theme.InteractionQuality
+	child   Widget
+}
+
 // WithFont 在当前子树范围内设置默认字体。
 func WithFont(font theme.FontSpec, child Widget) Widget {
 	return &fontScopeWidget{
@@ -35,6 +40,13 @@ func WithTheme(th *theme.Theme, child Widget) Widget {
 	}
 }
 
+func WithInteractionQuality(quality theme.InteractionQuality, child Widget) Widget {
+	return &interactionQualityScopeWidget{
+		quality: theme.NormalizeInteractionQuality(quality),
+		child:   child,
+	}
+}
+
 func (w *fontScopeWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if w.child == nil {
 		return layout.Dimensions{}
@@ -48,5 +60,13 @@ func (w *themeScopeWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 	next := ctx.WithTheme(w.theme)
+	return w.child.Layout(next)
+}
+
+func (w *interactionQualityScopeWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	if w.child == nil {
+		return layout.Dimensions{}
+	}
+	next := ctx.WithInteractionQuality(w.quality)
 	return w.child.Layout(next)
 }

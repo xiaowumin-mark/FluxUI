@@ -44,16 +44,20 @@ func TestPerfScenario(t *testing.T) {
 
 	var ops op.Ops
 	var router input.Router
+	moveSeq := 0
 	for frame := 0; frame < 36; frame++ {
 		if frame > 0 {
+			runtime.QueuePointerMoveF32(f32.Pt(42+float32((frame%5)*180), 96+float32((frame%12)*48)))
+		}
+		if pos, ok := runtime.CoalescedPointerMove(); ok {
+			moveSeq++
 			router.Queue(pointer.Event{
 				Kind:      pointer.Move,
 				Source:    pointer.Mouse,
 				PointerID: 1,
-				Time:      time.Duration(frame) * 16 * time.Millisecond,
-				Position:  f32.Pt(42+float32((frame%5)*180), 96+float32((frame%12)*48)),
+				Time:      time.Duration(moveSeq) * 16 * time.Millisecond,
+				Position:  f32.Pt(float32(pos.X), float32(pos.Y)),
 			})
-			runtime.RecordRedrawReason("pointer.move")
 		}
 
 		ops.Reset()
@@ -91,16 +95,25 @@ func assertDocsPerfStats(t *testing.T, stats internal.FrameStats) {
 	if stats.Layout.Count == 0 {
 		t.Fatalf("expected layout stats, got %s", internal.FormatFrameStats(stats))
 	}
-	if stats.Layout.Duration == 0 {
-		t.Fatalf("expected layout duration, got %s", internal.FormatFrameStats(stats))
-	}
-	if stats.Text.Count == 0 {
-		t.Fatalf("expected text stats, got %s", internal.FormatFrameStats(stats))
+	if stats.Text.Count == 0 && stats.Cache.TextHits == 0 {
+		t.Fatalf("expected text layout or text cache stats, got %s", internal.FormatFrameStats(stats))
 	}
 	if stats.Input.Count == 0 {
 		t.Fatalf("expected input stats, got %s", internal.FormatFrameStats(stats))
 	}
 	if len(stats.Reasons) == 0 {
 		t.Fatalf("expected redraw reasons, got %s", internal.FormatFrameStats(stats))
+	}
+	if stats.Virtualization.TotalItems == 0 || stats.Virtualization.VisibleItems == 0 {
+		t.Fatalf("expected virtualized docs browser stats, got %s", internal.FormatFrameStats(stats))
+	}
+	if stats.Virtualization.VisibleItems >= stats.Virtualization.TotalItems {
+		t.Fatalf("expected docs browser to build only visible list items, got %s", internal.FormatFrameStats(stats))
+	}
+	if stats.Virtualization.CulledItems == 0 {
+		t.Fatalf("expected docs browser to cull offscreen list items, got %s", internal.FormatFrameStats(stats))
+	}
+	if stats.Cache.TextHits == 0 {
+		t.Fatalf("expected docs browser smoke to hit text cache, got %s", internal.FormatFrameStats(stats))
 	}
 }

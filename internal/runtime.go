@@ -16,19 +16,21 @@ import (
 // Runtime 持有跨 frame 的稳定数据。
 type Runtime struct {
 	mu          sync.Mutex
-	memory      map[string]any
-	activeMem   map[string]struct{}
+	memory      map[MemoryKey]any
+	activeMem   map[MemoryKey]struct{}
 	trackingMem bool
 	theme       *theme.Theme
 	material    *material.Theme
 	invalidate  func()
 	windowCtrl  WindowController
-	effects     map[string]*effectSlot
-	activeFx    map[string]struct{}
+	effects     map[MemoryKey]*effectSlot
+	activeFx    map[MemoryKey]struct{}
 	pendingFx   []func()
 
 	hookCounts           map[string]int
 	prevHookCounts       map[string]int
+	hookCountIDs         map[PathID]int
+	prevHookCountIDs     map[PathID]int
 	windowDragAreaActive bool
 
 	// hookCounts and prevHookCounts enforce React's "Rules of Hooks":
@@ -37,8 +39,13 @@ type Runtime struct {
 	// EndFrame panics if any path rendered a different number of hooks —
 	// this means hooks were called conditionally (inside if/for/switch).
 	// These fields are NOT related to click counting or user-event tracking.
-	hookStore *HookStore
-	perf      runtimePerfState
+	hookStore  *HookStore
+	perf       runtimePerfState
+	interact   runtimeInteractionState
+	render     runtimeRenderCache
+	pathIDs    map[pathLookupKey]PathID
+	pathDebug  map[PathID]*pathDebugEntry
+	nextPathID PathID
 }
 
 type effectSlot struct {
@@ -71,15 +78,19 @@ func NewRuntime(th *theme.Theme) *Runtime {
 	mt.Face = giofont.Typeface(th.DefaultFont.Normalize().Family)
 
 	return &Runtime{
-		memory:         make(map[string]any),
-		activeMem:      make(map[string]struct{}),
-		theme:          th,
-		material:       mt,
-		effects:        make(map[string]*effectSlot),
-		activeFx:       make(map[string]struct{}),
-		hookCounts:     make(map[string]int),
-		prevHookCounts: make(map[string]int),
-		hookStore:      NewHookStore(),
+		memory:           make(map[MemoryKey]any),
+		activeMem:        make(map[MemoryKey]struct{}),
+		theme:            th,
+		material:         mt,
+		effects:          make(map[MemoryKey]*effectSlot),
+		activeFx:         make(map[MemoryKey]struct{}),
+		hookCounts:       make(map[string]int),
+		prevHookCounts:   make(map[string]int),
+		hookCountIDs:     make(map[PathID]int),
+		prevHookCountIDs: make(map[PathID]int),
+		hookStore:        NewHookStore(),
+		pathDebug:        map[PathID]*pathDebugEntry{rootPathID: &pathDebugEntry{readable: "root"}},
+		nextPathID:       rootPathID + 1,
 	}
 }
 
@@ -135,7 +146,9 @@ func (r *Runtime) BeginFrame() {
 	if r == nil {
 		return
 	}
+	r.beginInteractionFrame()
 	r.beginPerfFrame()
+	r.beginRenderCacheFrame()
 	if r.hookStore != nil {
 		r.hookStore.BeginFrame()
 	}
@@ -143,6 +156,8 @@ func (r *Runtime) BeginFrame() {
 	r.trackingMem = true
 	r.hookCounts, r.prevHookCounts = r.prevHookCounts, r.hookCounts
 	clear(r.hookCounts)
+	r.hookCountIDs, r.prevHookCountIDs = r.prevHookCountIDs, r.hookCountIDs
+	clear(r.hookCountIDs)
 	clear(r.activeFx)
 	r.pendingFx = r.pendingFx[:0]
 	r.windowDragAreaActive = false
@@ -172,6 +187,18 @@ func (r *Runtime) EndFrame() {
 			))
 		}
 	}
+	for pathID, count := range r.hookCountIDs {
+		if prev, ok := r.prevHookCountIDs[pathID]; ok && prev != count {
+			path := r.DebugPath(pathID)
+			panic(fmt.Sprintf(
+				"FluxUI: path %q 本帧渲染了 %d 个 hook，但上一帧为 %d -- "+
+					"hooks 不得在条件语句(if/for/switch)中调用，调用数量和顺序必须每帧一致。\n"+
+					"       path %q rendered %d hooks this frame but %d last frame -- "+
+					"hooks must not be called inside if/for/switch or any conditional block",
+				path, count, prev, path, count, prev,
+			))
+		}
+	}
 
 	for key, slot := range r.effects {
 		if _, ok := r.activeFx[key]; ok {
@@ -192,7 +219,9 @@ func (r *Runtime) EndFrame() {
 	r.pendingFx = r.pendingFx[:0]
 
 	r.sweepInactiveMemory()
+	r.endRenderCacheFrame()
 	r.trackingMem = false
+	r.endInteractionFrame()
 	r.endPerfFrame()
 }
 
@@ -213,6 +242,7 @@ func (r *Runtime) Dispose() {
 	}
 	clear(r.memory)
 	clear(r.activeMem)
+	r.disposeRenderCache()
 	r.trackingMem = false
 	r.pendingFx = nil
 	clear(r.activeFx)
@@ -230,7 +260,11 @@ func (r *Runtime) HookStore() *HookStore {
 // hasDeps=false means "run every frame".
 // hasDeps=true means "run on mount and whenever deps change".
 func (r *Runtime) UseEffect(key string, hasDeps bool, deps []any, setup EffectSetup) {
-	if r == nil || key == "" || setup == nil {
+	r.UseEffectKey(memoryKeyString(key), hasDeps, deps, setup)
+}
+
+func (r *Runtime) UseEffectKey(key MemoryKey, hasDeps bool, deps []any, setup EffectSetup) {
+	if r == nil || !key.valid() || setup == nil {
 		return
 	}
 	slot, ok := r.effects[key]
@@ -271,6 +305,13 @@ func (r *Runtime) RecordHookCount(path string, count int) {
 	r.hookCounts[path] = count
 }
 
+func (r *Runtime) RecordHookCountID(path PathID, count int) {
+	if r == nil {
+		return
+	}
+	r.hookCountIDs[normalizePathID(path)] = count
+}
+
 // RegisterWindowDragArea marks the current frame as containing at least one
 // system window move region.
 func (r *Runtime) RegisterWindowDragArea() {
@@ -287,6 +328,24 @@ func (r *Runtime) WindowDragAreaActive() bool {
 }
 
 func (r *Runtime) remember(key string, factory func() any) any {
+	return r.rememberKey(memoryKeyString(key), factory)
+}
+
+func (r *Runtime) memoryValue(key string) (any, bool) {
+	return r.memoryValueKey(memoryKeyString(key))
+}
+
+func (r *Runtime) forgetMemory(key string) {
+	r.forgetMemoryKey(memoryKeyString(key))
+}
+
+func (r *Runtime) rememberKey(key MemoryKey, factory func() any) any {
+	if r == nil || !key.valid() {
+		if factory == nil {
+			return nil
+		}
+		return factory()
+	}
 	r.markMemoryActive(key)
 	if value, ok := r.memory[key]; ok {
 		return value
@@ -296,22 +355,27 @@ func (r *Runtime) remember(key string, factory func() any) any {
 	return value
 }
 
-func (r *Runtime) memoryValue(key string) (any, bool) {
-	r.markMemoryActive(key)
+func (r *Runtime) memoryValueKey(key MemoryKey) (any, bool) {
+	if r == nil || !key.valid() {
+		return nil, false
+	}
 	value, ok := r.memory[key]
+	if ok {
+		r.markMemoryActive(key)
+	}
 	return value, ok
 }
 
-func (r *Runtime) forgetMemory(key string) {
-	if r == nil || key == "" {
+func (r *Runtime) forgetMemoryKey(key MemoryKey) {
+	if r == nil || !key.valid() {
 		return
 	}
 	delete(r.memory, key)
 	delete(r.activeMem, key)
 }
 
-func (r *Runtime) markMemoryActive(key string) {
-	if r == nil || !r.trackingMem || key == "" {
+func (r *Runtime) markMemoryActive(key MemoryKey) {
+	if r == nil || !r.trackingMem || !key.valid() {
 		return
 	}
 	r.activeMem[key] = struct{}{}

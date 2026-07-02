@@ -2,13 +2,16 @@ package widget
 
 import (
 	"image"
+	"image/color"
 	"testing"
+	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/style"
 
 	"gioui.org/f32"
 	"gioui.org/io/input"
+	"gioui.org/io/pointer"
 	"gioui.org/io/system"
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"
@@ -23,6 +26,147 @@ func newInteractiveLayoutTestContext(rt *internal.Runtime) *internal.Context {
 		Constraints: gioLayout.Exact(image.Pt(800, 600)),
 	}
 	return internal.NewContext(gtx, rt)
+}
+
+type interactionFrameHarness struct {
+	rt     *internal.Runtime
+	ops    op.Ops
+	router input.Router
+	now    time.Time
+	size   image.Point
+	moves  int
+}
+
+func newInteractionFrameHarness(size image.Point) *interactionFrameHarness {
+	return &interactionFrameHarness{
+		rt:   internal.NewRuntime(nil),
+		now:  time.Unix(0, 0),
+		size: size,
+	}
+}
+
+func (h *interactionFrameHarness) layout(w Widget) internal.InteractionFrameStats {
+	h.ops.Reset()
+	if pos, ok := h.rt.CoalescedPointerMove(); ok {
+		h.moves++
+		h.router.Queue(pointer.Event{
+			Kind:      pointer.Move,
+			Source:    pointer.Mouse,
+			PointerID: 1,
+			Time:      time.Duration(h.moves) * time.Millisecond,
+			Position:  f32.Pt(float32(pos.X), float32(pos.Y)),
+		})
+	}
+	gtx := gioLayout.Context{
+		Ops:         &h.ops,
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Now:         h.now,
+		Constraints: gioLayout.Exact(h.size),
+		Source:      h.router.Source(),
+	}
+	h.rt.BeginFrame()
+	w.Layout(internal.NewContext(gtx, h.rt))
+	h.rt.EndFrame()
+	h.router.Frame(&h.ops)
+	h.now = h.now.Add(16 * time.Millisecond)
+	return h.rt.LastInteractionStats()
+}
+
+func (h *interactionFrameHarness) move(x, y int) {
+	h.rt.QueuePointerMove(image.Pt(x, y))
+}
+
+func TestHoverCallbacksAreChangeOnlyForSameTargetMoves(t *testing.T) {
+	hoverCalls := 0
+	hovering := false
+	w := Button(Text("Hover"), OnHover(func(_ *internal.Context, value bool) {
+		hoverCalls++
+		hovering = value
+	}))
+	h := newInteractionFrameHarness(image.Pt(240, 120))
+
+	h.layout(w)
+	h.move(20, 20)
+	stats := h.layout(w)
+	if hoverCalls != 1 || !hovering {
+		t.Fatalf("first hover move calls=%d hovering=%t, want one enter", hoverCalls, hovering)
+	}
+	if stats.HoverChanged != 1 {
+		t.Fatalf("first hover target changes = %d, want 1", stats.HoverChanged)
+	}
+
+	h.move(30, 22)
+	stats = h.layout(w)
+	if hoverCalls != 1 {
+		t.Fatalf("same target move calls=%d, want unchanged", hoverCalls)
+	}
+	if stats.HoverChanged != 0 {
+		t.Fatalf("same target hover changes = %d, want 0", stats.HoverChanged)
+	}
+}
+
+func TestBlankAreaMovesDoNotTriggerHoverTarget(t *testing.T) {
+	hoverCalls := 0
+	w := Button(Text("Hover"), OnHover(func(_ *internal.Context, _ bool) {
+		hoverCalls++
+	}))
+	h := newInteractionFrameHarness(image.Pt(240, 120))
+
+	h.layout(w)
+	h.move(220, 100)
+	stats := h.layout(w)
+	if hoverCalls != 0 {
+		t.Fatalf("blank area hover calls=%d, want 0", hoverCalls)
+	}
+	if stats.HoverChanged != 0 || stats.HoverTarget != "" {
+		t.Fatalf("blank area stats=%+v, want no hover target change", stats)
+	}
+}
+
+func TestPointerMoveCoalescingUsesLatestPosition(t *testing.T) {
+	hoverCalls := 0
+	w := Button(Text("Hover"), OnHover(func(_ *internal.Context, _ bool) {
+		hoverCalls++
+	}))
+	h := newInteractionFrameHarness(image.Pt(240, 120))
+
+	h.layout(w)
+	h.move(20, 20)
+	h.move(220, 100)
+	stats := h.layout(w)
+	if hoverCalls != 0 {
+		t.Fatalf("coalesced final blank move hover calls=%d, want 0", hoverCalls)
+	}
+	if stats.PointerMoves != 1 {
+		t.Fatalf("coalesced pointer moves=%d, want 1", stats.PointerMoves)
+	}
+	if stats.HoverChanged != 0 || stats.HoverTarget != "" {
+		t.Fatalf("coalesced stats=%+v, want latest blank target", stats)
+	}
+}
+
+func TestContainerDecorationOnHoverIsChangeOnly(t *testing.T) {
+	hoverCalls := 0
+	w := ContainerDecoration(
+		style.Decoration{}.
+			WithBg(color.NRGBA{R: 20, G: 30, B: 40, A: 255}).
+			WithHover(style.Decoration{}.WithBg(color.NRGBA{R: 40, G: 50, B: 60, A: 255})).
+			WithPad(style.All(8)),
+		Text("Hover"),
+		ContainerDecorationOnHover(func(_ *internal.Context, _ bool) {
+			hoverCalls++
+		}),
+	)
+	h := newInteractionFrameHarness(image.Pt(240, 120))
+
+	h.layout(w)
+	h.move(20, 20)
+	h.layout(w)
+	h.move(30, 22)
+	h.layout(w)
+	if hoverCalls != 1 {
+		t.Fatalf("container hover calls=%d, want one change-only callback", hoverCalls)
+	}
 }
 
 func TestSliderAndSwitchCanReusePathWithoutHookCountPanic(t *testing.T) {

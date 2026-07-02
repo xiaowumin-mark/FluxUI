@@ -20,7 +20,7 @@ func docsLeftPanel(
 	onlineLoading bool,
 	loadErr error,
 ) ui.Element {
-	leftMenuItems := docsLeftMenuItems(filteredDocs, currentDoc, selectedDocID, th)
+	leftMenuList := docsLeftMenuList(filteredDocs, currentDoc, selectedDocID, th)
 
 	sourceLabel := map[string]string{
 		"online": "online",
@@ -86,10 +86,7 @@ func docsLeftPanel(
 				ui.PaddingElement(
 					ui.Insets{Top: 10},
 					ui.ExpandedElement(
-						ui.ScrollViewElement(
-							ui.ColumnElement(leftMenuItems...),
-							ui.ScrollVertical(true),
-						),
+						leftMenuList,
 					),
 				),
 				docsLoadStatusMessage(onlineLoading, loadErr, th),
@@ -98,40 +95,43 @@ func docsLeftPanel(
 	)
 }
 
-func docsLeftMenuItems(
+func docsLeftMenuList(
 	filteredDocs []widgetDoc,
 	currentDoc *widgetDoc,
 	selectedDocID docsStringState,
 	th *ui.Theme,
-) []ui.Element {
+) ui.Element {
 	menuEntries := buildMenuEntries(filteredDocs)
-	leftMenuItems := make([]ui.Element, 0, len(menuEntries)+1)
-	for idx := range menuEntries {
-		entry := menuEntries[idx]
-		if entry.IsCategory {
-			leftMenuItems = append(leftMenuItems,
-				ui.PaddingElement(
+	if len(menuEntries) == 0 {
+		return ui.SpacerElement(0, 0)
+	}
+	return ui.ListViewElement(
+		len(menuEntries),
+		func(ctx *ui.Context, index int) ui.Element {
+			if index < 0 || index >= len(menuEntries) {
+				return ui.SpacerElement(0, 0)
+			}
+			entry := menuEntries[index]
+			if entry.IsCategory {
+				return ui.PaddingElement(
 					ui.Insets{Top: 10, Bottom: 4},
 					ui.TextElement(entry.Category, ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
-				),
-			)
-			continue
-		}
-		doc := entry.Doc
-		if doc == nil {
-			continue
-		}
+				)
+			}
+			doc := entry.Doc
+			if doc == nil {
+				return ui.SpacerElement(0, 0)
+			}
 
-		selected := currentDoc != nil && doc.Meta.ID == currentDoc.Meta.ID
-		bg := ui.NRGBA(0, 0, 0, 0)
-		textColor := th.Colors.OnSurface
-		if selected {
-			bg = th.Colors.SecondaryContainer
-			textColor = th.Colors.OnSecondaryContainer
-		}
+			selected := currentDoc != nil && doc.Meta.ID == currentDoc.Meta.ID
+			bg := ui.NRGBA(0, 0, 0, 0)
+			textColor := th.Colors.OnSurface
+			if selected {
+				bg = th.Colors.SecondaryContainer
+				textColor = th.Colors.OnSecondaryContainer
+			}
 
-		leftMenuItems = append(leftMenuItems,
-			ui.PaddingElement(
+			return ui.PaddingElement(
 				ui.Insets{Bottom: 6},
 				ui.FillWidthElement(
 					ui.ButtonElement(
@@ -152,10 +152,10 @@ func docsLeftMenuItems(
 						}),
 					),
 				),
-			),
-		)
-	}
-	return leftMenuItems
+			)
+		},
+		ui.ListVirtualized(true),
+	)
 }
 
 func docsLoadStatusMessage(onlineLoading bool, loadErr error, th *ui.Theme) ui.Element {

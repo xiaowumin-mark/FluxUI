@@ -27,9 +27,10 @@ type asyncSlot[T any] struct {
 
 // AsyncHandle 是异步操作的句柄，提供 Run/Loading/Data/Error/Status/Reset 方法。
 type AsyncHandle[T any] struct {
-	key     string
-	cell    *asyncSlot[T]
-	runtime *internal.Runtime
+	key       string
+	memoryKey internal.MemoryKey
+	cell      *asyncSlot[T]
+	runtime   *internal.Runtime
 }
 
 // UseAsync 创建或读取当前作用域下的异步状态。
@@ -37,20 +38,20 @@ func UseAsync[T any](ctx *internal.Context) *AsyncHandle[T] {
 	if ctx == nil {
 		return &AsyncHandle[T]{}
 	}
-	key := ctx.NextKey("async")
-	value := ctx.Persistent(key, func() any {
+	key := ctx.NextMemoryKey("async")
+	value := ctx.PersistentKey(key, func() any {
 		return &asyncSlot[T]{}
 	})
 
 	cell, ok := value.(*asyncSlot[T])
 	if !ok {
-		panic(fmt.Sprintf("FluxUI/state: key %q 的异步状态类型发生变化", key))
+		panic(fmt.Sprintf("FluxUI/state: key %q 的异步状态类型发生变化", ctx.DebugMemoryKey(key)))
 	}
 
 	return &AsyncHandle[T]{
-		key:     key,
-		cell:    cell,
-		runtime: ctx.Runtime(),
+		memoryKey: key,
+		cell:      cell,
+		runtime:   ctx.Runtime(),
 	}
 }
 

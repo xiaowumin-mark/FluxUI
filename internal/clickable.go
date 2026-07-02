@@ -7,6 +7,12 @@ type ClickableState struct {
 	runtime *Runtime
 }
 
+type ClickableSnapshot struct {
+	Hovered bool
+	Pressed bool
+	Focused bool
+}
+
 func NewClickableState() *ClickableState {
 	return &ClickableState{}
 }
@@ -66,6 +72,27 @@ func (c *ClickableState) Focused(ctx *Context) bool {
 		defer done()
 	}
 	return ctx.Gtx.Focused(&c.button)
+}
+
+func (c *ClickableState) Snapshot(ctx *Context, includeFocus bool) ClickableSnapshot {
+	if c == nil {
+		return ClickableSnapshot{}
+	}
+	if ctx != nil && ctx.runtime != nil {
+		c.runtime = ctx.runtime
+	}
+	done := c.startInputSection()
+	if done != nil {
+		defer done()
+	}
+	snapshot := ClickableSnapshot{
+		Hovered: c.button.Hovered(),
+		Pressed: c.button.Pressed(),
+	}
+	if includeFocus && ctx != nil {
+		snapshot.Focused = ctx.Gtx.Focused(&c.button)
+	}
+	return snapshot
 }
 
 func (c *ClickableState) History() []gioWidget.Press {

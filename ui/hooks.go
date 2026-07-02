@@ -116,8 +116,8 @@ func useHookMemo[T any](ctx *Context, hook *internal.HookSlot, deps []any, facto
 }
 
 func useLegacyMemo[T any](ctx *Context, deps []any, factory func() T) T {
-	key := ctx.NextKey("memo")
-	value := ctx.Persistent(key, func() any {
+	key := ctx.NextMemoryKey("memo")
+	value := ctx.PersistentKey(key, func() any {
 		return &memoSlot[T]{}
 	})
 	slot, ok := value.(*memoSlot[T])
@@ -147,8 +147,8 @@ func useHookRef[T any](ctx *Context, hook *internal.HookSlot, initial T) *Ref[T]
 }
 
 func useLegacyRef[T any](ctx *Context, initial T) *Ref[T] {
-	key := ctx.NextKey("ref")
-	value := ctx.Persistent(key, func() any {
+	key := ctx.NextMemoryKey("ref")
+	value := ctx.PersistentKey(key, func() any {
 		return &Ref[T]{Current: initial}
 	})
 	ref, ok := value.(*Ref[T])
@@ -264,8 +264,8 @@ func (state *animValueState[T]) snap(now time.Time, target T, duration time.Dura
 }
 
 func useLegacyAnimValue[T animNum](ctx *Context, target T, duration time.Duration, easing anim.Easing) T {
-	key := ctx.NextKey("anim_value")
-	value := ctx.Persistent(key, func() any {
+	key := ctx.NextMemoryKey("anim_value")
+	value := ctx.PersistentKey(key, func() any {
 		return &animValueState[T]{startedAt: ctx.Now(), from: target, to: target, duration: duration, easing: easing}
 	})
 	state, ok := value.(*animValueState[T])
@@ -378,8 +378,8 @@ func (state *animDecoState) snap(now time.Time, target Decoration, duration time
 }
 
 func useLegacyAnimDeco(ctx *Context, target Decoration, duration time.Duration, easing anim.Easing) Decoration {
-	key := ctx.NextKey("anim_deco")
-	value := ctx.Persistent(key, func() any {
+	key := ctx.NextMemoryKey("anim_deco")
+	value := ctx.PersistentKey(key, func() any {
 		return &animDecoState{
 			startedAt: ctx.Now(),
 			from:      target,

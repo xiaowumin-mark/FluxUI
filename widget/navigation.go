@@ -282,7 +282,7 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				}
 			}
 			bg := tabBg
-			duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), clickable.Focused(tabCtx), false)
+			duration, easing := md3InteractionTiming(tabCtx, clickable.Hovered(), clickable.Pressed(), clickable.Focused(tabCtx), false)
 			if opacity := materialAnimatedStateLayerOpacity(tabCtx, clickable.Hovered(), clickable.Pressed(), false); opacity > 0 {
 				bg = style.StateLayer(bg, col, opacity)
 			}

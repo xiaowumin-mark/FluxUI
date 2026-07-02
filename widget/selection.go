@@ -161,7 +161,7 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			if !r.config.disabled && clickable.Hovered() {
 				itemLabelColor = style.StateLayer(itemLabelColor, mainColor, style.StateLayerHoverOpacity)
 			}
-			duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), false, r.config.disabled)
+			duration, easing := md3InteractionTiming(rowCtx, clickable.Hovered(), clickable.Pressed(), false, r.config.disabled)
 			itemLabelColor = md3AnimateColor(rowCtx, "radio-label", itemLabelColor, duration, easing)
 
 			content := func(contentCtx *internal.Context) image.Point {
@@ -214,7 +214,7 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				controlSize := selectionControlSizePx(rowCtx, r.config.size, 20)
 				return image.Pt(controlSize/2, size.Y/2)
 			}, func() float32 {
-				return materialStateLayerOpacity(clickable.Hovered(), clickable.Pressed())
+				return materialStateLayerOpacity(rowCtx, clickable.Hovered(), clickable.Pressed())
 			}, target)
 		})
 
@@ -402,7 +402,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			arrowColor = style.DisabledContent(cs.OnSurface)
 			border = style.Border{Width: 1, Color: style.DisabledContent(cs.OnSurface)}
 		}
-		duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), state.opened || clickable.Focused(triggerCtx), s.config.disabled)
+		duration, easing := md3InteractionTiming(triggerCtx, clickable.Hovered(), clickable.Pressed(), state.opened || clickable.Focused(triggerCtx), s.config.disabled)
 		textColor = md3AnimateColor(triggerCtx, "select-text", textColor, duration, easing)
 		arrowColor = md3AnimateColor(triggerCtx, "select-arrow-color", arrowColor, duration, easing)
 		arrowProgress := md3AnimateFloatDirectional(
@@ -460,14 +460,13 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 		return toggleDims
 	}
 
-	items := make([]Widget, 0, len(s.options))
-	for idx := range s.options {
-		item := s.options[idx]
+	optionRow := func(_ *internal.Context, index int) Widget {
+		item := s.options[index]
 		itemLabel := item.Label
 		if itemLabel == "" {
 			itemLabel = fmt.Sprintf("%v", item.Value)
 		}
-		isActive := idx == currentIndex
+		isActive := index == currentIndex
 		var row Widget = layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
 			clickable := event.UseClickable(rowCtx)
 			if !s.config.disabled {
@@ -493,7 +492,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			if opacity := materialAnimatedStateLayerOpacity(rowCtx, clickable.Hovered(), clickable.Pressed(), s.config.disabled); opacity > 0 {
 				bg = style.StateLayer(bg, cs.Primary, opacity)
 			}
-			duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), clickable.Focused(rowCtx), s.config.disabled)
+			duration, easing := md3InteractionTiming(rowCtx, clickable.Hovered(), clickable.Pressed(), clickable.Focused(rowCtx), s.config.disabled)
 			bg = md3AnimateColor(rowCtx, "select-row-bg", bg, duration, easing)
 			itemRow := layoutWidgetFunc(func(contentCtx *internal.Context) layout.Dimensions {
 				dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(contentCtx.Gtx,
@@ -532,13 +531,13 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			return layout.Dimensions{Size: size}
 		})
 		row = expandWidth(row)
-		items = append(items, row)
+		return row
 	}
 
 	list := ListView(
-		len(items),
+		len(s.options),
 		func(ctx *internal.Context, index int) Widget {
-			return items[index]
+			return optionRow(ctx, index)
 		},
 		ListItemSpacing(4),
 		ListVirtualized(true),
@@ -566,9 +565,9 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	rowHeightPx := ctx.Gtx.Dp(safeDp(densityHeight(ctx, 40, 36)))
 	rowSpacingPx := ctx.Gtx.Dp(safeDp(4))
 	panelPad := s.config.decoration.ResolvePad(style.All(6))
-	estimatedHeightPx := ctx.Gtx.Dp(safeDp(panelPad.Top+panelPad.Bottom)) + rowHeightPx*len(items)
-	if len(items) > 1 {
-		estimatedHeightPx += rowSpacingPx * (len(items) - 1)
+	estimatedHeightPx := ctx.Gtx.Dp(safeDp(panelPad.Top+panelPad.Bottom)) + rowHeightPx*len(s.options)
+	if len(s.options) > 1 {
+		estimatedHeightPx += rowSpacingPx * (len(s.options) - 1)
 	}
 	if estimatedHeightPx <= 0 || estimatedHeightPx > maxHPx {
 		estimatedHeightPx = maxHPx

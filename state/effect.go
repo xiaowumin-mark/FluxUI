@@ -14,8 +14,8 @@ func UseEffect(ctx *internal.Context, effect Effect) {
 	if rt == nil {
 		return
 	}
-	key := ctx.NextKey("effect")
-	rt.UseEffect(key, false, nil, internal.EffectSetup(effect))
+	key := ctx.NextMemoryKey("effect")
+	rt.UseEffectKey(key, false, nil, internal.EffectSetup(effect))
 }
 
 // UseEffectWithDeps 在首次渲染和依赖变化时执行副作用。
@@ -27,8 +27,8 @@ func UseEffectWithDeps(ctx *internal.Context, deps []any, effect Effect) {
 	if rt == nil {
 		return
 	}
-	key := ctx.NextKey("effect")
-	rt.UseEffect(key, true, deps, internal.EffectSetup(effect))
+	key := ctx.NextMemoryKey("effect")
+	rt.UseEffectKey(key, true, deps, internal.EffectSetup(effect))
 }
 
 // UseMount 仅在组件挂载时执行一次，卸载时执行 cleanup（如果存在）。

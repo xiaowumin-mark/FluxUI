@@ -8,9 +8,10 @@ import (
 
 // State 是稳定绑定到组件上下文的泛型状态。
 type State[T any] struct {
-	key     string
-	cell    stateCell[T]
-	runtime *internal.Runtime
+	key       string
+	memoryKey internal.MemoryKey
+	cell      stateCell[T]
+	runtime   *internal.Runtime
 }
 
 type stateCell[T any] interface {
@@ -33,7 +34,7 @@ func useWithInitial[T any](ctx *internal.Context, hasInitial bool, initial T) *S
 		return &State[T]{}
 	}
 	key := nextKey(ctx)
-	value := ctx.Persistent(key, func() any {
+	value := ctx.PersistentKey(key, func() any {
 		return &slot[T]{
 			value:       initial,
 			initialized: hasInitial,
@@ -42,7 +43,7 @@ func useWithInitial[T any](ctx *internal.Context, hasInitial bool, initial T) *S
 
 	cell, ok := value.(*slot[T])
 	if !ok {
-		panic(fmt.Sprintf("github.com/xiaowumin-mark/FluxUIstate: key %q 的状态类型发生变化", key))
+		panic(fmt.Sprintf("github.com/xiaowumin-mark/FluxUIstate: key %q 的状态类型发生变化", ctx.DebugMemoryKey(key)))
 	}
 	if hasInitial {
 		cell.mu.Lock()
@@ -54,9 +55,9 @@ func useWithInitial[T any](ctx *internal.Context, hasInitial bool, initial T) *S
 	}
 
 	return &State[T]{
-		key:     key,
-		cell:    cell,
-		runtime: ctx.Runtime(),
+		memoryKey: key,
+		cell:      cell,
+		runtime:   ctx.Runtime(),
 	}
 }
 
@@ -95,6 +96,9 @@ func FromHookSlot[T any](ctx *internal.Context, key string, hook *internal.HookS
 func (s *State[T]) Key() string {
 	if s == nil {
 		return ""
+	}
+	if s.key == "" && s.runtime != nil {
+		return s.runtime.DebugMemoryKey(s.memoryKey)
 	}
 	return s.key
 }

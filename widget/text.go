@@ -146,7 +146,6 @@ func (t *textWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if t.config.hasWeight {
 		font.Weight = t.config.font.Weight
 	}
-	font = font.Normalize()
 
 	return layout.Dimensions{
 		Size: ctx.LayoutText(internal.TextSpec{
@@ -156,6 +155,7 @@ func (t *textWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			Color:      color,
 			Alignment:  toInternalAlignment(t.config.align),
 			Font:       font,
+			FontReady:  true,
 		}),
 	}
 }

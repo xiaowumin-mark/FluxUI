@@ -161,11 +161,13 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			}
 		}
 	}
+	interaction := event.InteractionSnapshot{}
 	if !b.config.disabled {
 		for clickable.Clicked(ctx) {
 			b.config.dispatcher.DispatchClick(ctx)
 		}
-		if changed, hovering := clickable.HoverChangedWithContext(ctx); changed {
+		interaction = clickable.Snapshot(ctx, true)
+		if changed, hovering := clickable.HoverChangedWithSnapshot(ctx, interaction.Hovered); changed {
 			b.config.dispatcher.DispatchHover(ctx, hovering)
 		}
 	}
@@ -173,7 +175,10 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	th := ctx.Theme()
 	cs := th.Colors
 	spec := resolveButtonDefaults(b.config.variant, th)
-	activeDecoration := resolveDecorationState(b.config.decoration, clickable.Hovered(), clickable.Pressed(), b.config.disabled)
+	hovered := interaction.Hovered
+	pressed := interaction.Pressed
+	focused := interaction.Focused
+	activeDecoration := resolveDecorationState(b.config.decoration, hovered, pressed, b.config.disabled)
 
 	backgroundDefault := spec.background
 	if b.config.hasBackground {
@@ -185,10 +190,7 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		foreground = b.config.foreground
 	}
 
-	hovered := clickable.Hovered()
-	pressed := clickable.Pressed()
-	focused := clickable.Focused(ctx)
-	duration, easing := md3InteractionTiming(hovered, pressed, focused, b.config.disabled)
+	duration, easing := md3InteractionTiming(ctx, hovered, pressed, focused, b.config.disabled)
 	if !b.config.disabled && (hovered || pressed) {
 		opacity := style.StateLayerHoverOpacity
 		if pressed {
@@ -209,8 +211,11 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			foreground = style.DisabledContent(cs.OnSurface)
 		}
 	}
-	background = md3AnimateColor(ctx, "button-background", background, duration, easing)
-	foreground = md3AnimateColor(ctx, "button-foreground", foreground, duration, easing)
+	animateInteractionColors := !b.config.disabled && (hovered || pressed || focused)
+	if !b.config.disabled {
+		background = md3AnimateColorIfActive(ctx, "button-background", background, animateInteractionColors, duration, easing)
+		foreground = md3AnimateColorIfActive(ctx, "button-foreground", foreground, animateInteractionColors, duration, easing)
+	}
 	radiusDefault := spec.radius
 	if b.config.hasRadius {
 		radiusDefault = b.config.radius
@@ -221,8 +226,14 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		paddingDefault = b.config.padding
 	}
 	padding := activeDecoration.ResolvePad(paddingDefault)
-	borderColor := md3AnimateColor(ctx, "button-border-color", spec.border.Color, duration, easing)
-	borderWidth := md3AnimateFloat(ctx, "button-border-width", spec.border.Width, duration, easing)
+	borderColor := spec.border.Color
+	borderWidth := spec.border.Width
+	focusOpacity := float32(0)
+	if !b.config.disabled {
+		borderColor = md3AnimateColorIfActive(ctx, "button-border-color", borderColor, animateInteractionColors, duration, easing)
+		borderWidth = md3AnimateFloat(ctx, "button-border-width", borderWidth, duration, easing)
+		focusOpacity = md3FocusProgress(ctx, focused, false)
+	}
 
 	size := ctx.LayoutButton(clickable.Handle(), internal.ButtonSpec{
 		Background:  background,
@@ -239,7 +250,7 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			Blur:    spec.shadow.Blur,
 			Color:   spec.shadow.Color,
 		},
-		FocusOpacity: md3FocusProgress(ctx, focused, b.config.disabled),
+		FocusOpacity: focusOpacity,
 		Disabled:     b.config.disabled,
 	}, func(childCtx *internal.Context) image.Point {
 		if b.child == nil {

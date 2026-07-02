@@ -5,6 +5,7 @@ import (
 	"time"
 
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	theme "github.com/xiaowumin-mark/FluxUI/theme"
 	widget "github.com/xiaowumin-mark/FluxUI/widget"
 )
 
@@ -154,6 +155,15 @@ func Spacer(width, height float32) Widget {
 // TextElement 创建可参与 reconciler 的静态文本 Element。
 func TextElement(content string, opts ...TextOption) Element {
 	return FromWidget(widget.Text(content, opts...))
+}
+
+func StaticElement(child Element, deps ...any) Element {
+	if child == nil {
+		return nil
+	}
+	return &singleChildElement{kind: "static", child: child, renderFn: func(child Widget) Widget {
+		return widget.Static(child, deps...)
+	}}
 }
 
 // SpacerElement 创建可参与 reconciler 的静态空白 Element。
@@ -768,6 +778,11 @@ type themeProviderElement struct {
 	child Element
 }
 
+type interactionQualityProviderElement struct {
+	quality InteractionQuality
+	child   Element
+}
+
 // ThemeProviderElement 为子树提供局部主题。子树的 Widget 通过 UseTheme 读取到该主题，
 // 而非运行时全局主题。可用于实现局部深色模式等场景。
 func ThemeProviderElement(th *Theme, child Element) Element {
@@ -807,6 +822,46 @@ func (e *themeProviderElement) ChildContext(ctx *Context) *Context {
 
 func (e *themeProviderElement) RenderWithChildren(ctx *Context, children []Widget) Widget {
 	return widget.WithTheme(e.theme, firstWidget(children))
+}
+
+func InteractionQualityProviderElement(quality InteractionQuality, child Element) Element {
+	if child == nil {
+		return nil
+	}
+	return &interactionQualityProviderElement{
+		quality: theme.NormalizeInteractionQuality(quality),
+		child:   child,
+	}
+}
+
+func (e *interactionQualityProviderElement) render() widget.Widget {
+	return widget.WithInteractionQuality(e.quality, renderElement(e.child))
+}
+
+func (e *interactionQualityProviderElement) renderWithContext(ctx *Context) widget.Widget {
+	return renderCompositeElementWithContext(ctx, e, 0, "")
+}
+
+func (e *interactionQualityProviderElement) identity() ElementIdentity {
+	return ElementIdentity{Kind: "interaction-quality-provider", ChildCount: 1}
+}
+
+func (e *interactionQualityProviderElement) HostChildren() []Element {
+	if e == nil {
+		return nil
+	}
+	return []Element{e.child}
+}
+
+func (e *interactionQualityProviderElement) ChildContext(ctx *Context) *Context {
+	if ctx == nil || e == nil {
+		return ctx
+	}
+	return ctx.WithInteractionQuality(e.quality)
+}
+
+func (e *interactionQualityProviderElement) RenderWithChildren(ctx *Context, children []Widget) Widget {
+	return widget.WithInteractionQuality(e.quality, firstWidget(children))
 }
 
 type layoutElement struct {

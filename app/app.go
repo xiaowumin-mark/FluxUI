@@ -738,6 +738,16 @@ func WithDensity(density theme.DensityScale) Option {
 	}
 }
 
+// WithInteractionQuality sets the global interaction quality policy.
+func WithInteractionQuality(quality theme.InteractionQuality) Option {
+	return func(app *Application) {
+		if app.Theme == nil {
+			app.Theme = theme.Default()
+		}
+		app.Theme.SetInteractionQuality(quality)
+	}
+}
+
 // WithFonts 追加全局字体集合。
 func WithFonts(faces ...theme.FontFace) Option {
 	return func(app *Application) {

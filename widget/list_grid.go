@@ -20,6 +20,8 @@ import (
 	gioWidget "gioui.org/widget"
 )
 
+const nonVirtualizedLargeItemThreshold = 256
+
 // ScrollOption 定义滚动配置。
 type ScrollOption func(*scrollConfig)
 
@@ -157,6 +159,9 @@ func (s *scrollWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		next := *ctx
 		next.Gtx = gtx
 		viewport := image.Rectangle{Min: ctx.Position(), Max: ctx.Position().Add(ctx.Gtx.Constraints.Max)}
+		if rt := ctx.Runtime(); rt != nil {
+			rt.RecordViewport(viewport)
+		}
 		next = *next.WithViewport(viewport)
 		scrollOffset := image.Point{}
 		if state.list.Axis == gioLayout.Horizontal {
@@ -507,15 +512,23 @@ func (l *listViewWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if l.builder == nil || l.count <= 0 {
 		return layout.Dimensions{}
 	}
+	if !l.config.virtualized {
+		return l.layoutNonVirtualized(ctx)
+	}
 
 	state := listViewStateFor(ctx)
 	state.list.Axis = toGioAxis(l.config.axis)
 
 	listChild := layoutWidgetFunc(func(listCtx *internal.Context) layout.Dimensions {
+		visibleItems := 0
+		viewport := viewportForContext(listCtx)
 		dims := state.list.Layout(listCtx.Gtx, l.count, func(gtx gioLayout.Context, index int) gioLayout.Dimensions {
+			visibleItems++
 			next := *listCtx
 			next.Gtx = gtx
-			child := l.builder(next.Child(index), index)
+			next = *next.WithViewport(viewport)
+			childCtx := next.Child(index)
+			child := l.builder(childCtx, index)
 			if child == nil {
 				return gioLayout.Dimensions{}
 			}
@@ -526,14 +539,61 @@ func (l *listViewWidget) Layout(ctx *internal.Context) layout.Dimensions {
 					child = Padding(style.Insets{Bottom: l.config.itemSpacing}, child)
 				}
 			}
-			childDims := child.Layout(next.Child(index))
+			childDims := child.Layout(childCtx)
 			return gioLayout.Dimensions{Size: childDims.Size}
 		})
 		state.viewportMaj = toGioAxis(l.config.axis).Convert(dims.Size).X
+		if rt := listCtx.Runtime(); rt != nil {
+			rt.RecordVirtualizedItems(l.count, visibleItems, viewport)
+		}
 		return layout.Dimensions{Size: dims.Size}
 	})
 
-	var root Widget = listChild
+	dims := l.wrapListBody(listChild).Layout(ctx.Child(0))
+	l.dispatchReachEnd(ctx, state)
+	return dims
+}
+
+func (l *listViewWidget) layoutNonVirtualized(ctx *internal.Context) layout.Dimensions {
+	if rt := ctx.Runtime(); rt != nil {
+		viewport := viewportForContext(ctx)
+		rt.RecordVirtualizedItems(l.count, l.count, viewport)
+		if l.count >= nonVirtualizedLargeItemThreshold {
+			rt.RecordNonVirtualizedItems(l.count)
+		}
+	}
+
+	children := make([]Widget, 0, l.count)
+	for index := 0; index < l.count; index++ {
+		idx := index
+		var child Widget = layoutWidgetFunc(func(itemCtx *internal.Context) layout.Dimensions {
+			item := l.builder(itemCtx, idx)
+			if item == nil {
+				item = emptyWidget
+			}
+			return item.Layout(itemCtx)
+		})
+		if l.config.itemSpacing > 0 && index < l.count-1 {
+			if l.config.axis == Horizontal {
+				child = Padding(style.Insets{Right: l.config.itemSpacing}, child)
+			} else {
+				child = Padding(style.Insets{Bottom: l.config.itemSpacing}, child)
+			}
+		}
+		children = append(children, child)
+	}
+
+	var body Widget
+	if l.config.axis == Horizontal {
+		body = Row(children...)
+	} else {
+		body = Column(children...)
+	}
+	return l.wrapListBody(body).Layout(ctx.Child(0))
+}
+
+func (l *listViewWidget) wrapListBody(body Widget) Widget {
+	var root Widget = body
 	if l.config.axis == Vertical {
 		root = expandWidth(root)
 	}
@@ -544,10 +604,7 @@ func (l *listViewWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			root = expandWidth(root)
 		}
 	}
-
-	dims := root.Layout(ctx.Child(0))
-	l.dispatchReachEnd(ctx, state)
-	return dims
+	return root
 }
 
 func (l *listViewWidget) dispatchReachEnd(ctx *internal.Context, state *listViewState) {
@@ -697,6 +754,9 @@ func GridOnReachEnd(fn func(ctx *internal.Context)) GridOption {
 }
 
 func (g *gridWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	if rt := ctx.Runtime(); rt != nil && len(g.children) >= nonVirtualizedLargeItemThreshold {
+		rt.RecordNonVirtualizedItems(len(g.children))
+	}
 	cols := g.resolveColumns(ctx)
 	return buildGrid(cols, g.children, g.config).Layout(ctx.Child(0))
 }
@@ -713,15 +773,19 @@ func (g *gridViewWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	state.list.Axis = gioLayout.Vertical
 
 	listChild := layoutWidgetFunc(func(listCtx *internal.Context) layout.Dimensions {
+		visibleItems := 0
+		viewport := viewportForContext(listCtx)
 		dims := state.list.Layout(listCtx.Gtx, rowCount, func(gtx gioLayout.Context, rowIndex int) gioLayout.Dimensions {
 			startIdx := rowIndex * cols
 			endIdx := startIdx + cols
 			if endIdx > g.count {
 				endIdx = g.count
 			}
+			visibleItems += endIdx - startIdx
 
 			next := *listCtx
 			next.Gtx = gtx
+			next = *next.WithViewport(viewport)
 			rowCtx := next.Scope(strconv.Itoa(rowIndex))
 
 			rowChildren := make([]Widget, 0, cols)
@@ -754,6 +818,9 @@ func (g *gridViewWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			return gioLayout.Dimensions{Size: childDims.Size}
 		})
 		state.viewportMaj = dims.Size.Y
+		if rt := listCtx.Runtime(); rt != nil {
+			rt.RecordVirtualizedItems(g.count, visibleItems, viewport)
+		}
 		return layout.Dimensions{Size: dims.Size}
 	})
 
@@ -892,4 +959,17 @@ func toGioAxis(axis Axis) gioLayout.Axis {
 
 func insetHorizontalPx(ctx *internal.Context, insets style.Insets) int {
 	return ctx.Gtx.Dp(safeDp(insets.Left)) + ctx.Gtx.Dp(safeDp(insets.Right))
+}
+
+func viewportForContext(ctx *internal.Context) image.Rectangle {
+	if ctx == nil {
+		return image.Rectangle{}
+	}
+	if viewport, ok := ctx.Viewport(); ok {
+		return viewport
+	}
+	return image.Rectangle{
+		Min: ctx.Position(),
+		Max: ctx.Position().Add(ctx.Gtx.Constraints.Max),
+	}
 }

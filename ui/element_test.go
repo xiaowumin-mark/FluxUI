@@ -1019,6 +1019,27 @@ func TestThemeProviderElementAppliesThemeDuringWidgetLayout(t *testing.T) {
 	}
 }
 
+func TestInteractionQualityProviderElementAppliesDuringWidgetLayout(t *testing.T) {
+	rt := internal.NewRuntime(NewTheme(LightColors()))
+	var ops op.Ops
+	gtx := gioLayout.Context{Ops: &ops}
+	got := InteractionQualityFull
+
+	root := InteractionQualityProviderElement(InteractionQualityLowCPU, FromWidget(interactionQualityProbeWidget{quality: &got}))
+
+	rt.BeginFrame()
+	w := renderElementWithContext(internal.NewContext(gtx, rt), root)
+	if w == nil {
+		t.Fatal("expected interaction quality widget")
+	}
+	w.Layout(internal.NewContext(gtx, rt))
+	rt.EndFrame()
+
+	if got != InteractionQualityLowCPU {
+		t.Fatalf("interaction quality provider = %v, want low_cpu", got)
+	}
+}
+
 type themeProbeWidget struct {
 	color *color.NRGBA
 }
@@ -1026,6 +1047,17 @@ type themeProbeWidget struct {
 func (w themeProbeWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if w.color != nil {
 		*w.color = ctx.Theme().Colors.SurfaceContainer
+	}
+	return layout.Dimensions{}
+}
+
+type interactionQualityProbeWidget struct {
+	quality *InteractionQuality
+}
+
+func (w interactionQualityProbeWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	if w.quality != nil {
+		*w.quality = UseInteractionQuality(ctx)
 	}
 	return layout.Dimensions{}
 }

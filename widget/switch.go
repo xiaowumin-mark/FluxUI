@@ -192,7 +192,7 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	target := func(targetCtx *internal.Context) image.Point {
 		if hasAnyDecoration(s.config.decoration) {
 			active := resolveDecorationState(deco, clickable.Hovered(), clickable.Pressed(), s.config.disabled)
-			duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), false, s.config.disabled)
+			duration, easing := md3InteractionTiming(targetCtx, clickable.Hovered(), clickable.Pressed(), false, s.config.disabled)
 			visual := md3AnimateDecoration(targetCtx, "switch-decoration", stripStateDecoration(active), duration, easing)
 			return layoutDecorationShell(targetCtx.Child(0), visual, content).Size
 		}
@@ -232,6 +232,6 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 		return image.Pt(x, size.Y/2)
 	}, func() float32 {
-		return materialStateLayerOpacity(clickable.Hovered(), clickable.Pressed())
+		return materialStateLayerOpacity(ctx, clickable.Hovered(), clickable.Pressed())
 	}, target)
 }

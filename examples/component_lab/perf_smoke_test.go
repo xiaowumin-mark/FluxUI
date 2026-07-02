@@ -34,17 +34,21 @@ func TestPerfScenario(t *testing.T) {
 
 	var ops op.Ops
 	var router input.Router
+	moveSeq := 0
 	for frame := 0; frame < 60; frame++ {
 		if frame > 0 {
 			y := float32(88 + (frame%20)*38)
+			runtime.QueuePointerMoveF32(f32.Pt(64+float32((frame%4)*230), y))
+		}
+		if pos, ok := runtime.CoalescedPointerMove(); ok {
+			moveSeq++
 			router.Queue(pointer.Event{
 				Kind:      pointer.Move,
 				Source:    pointer.Mouse,
 				PointerID: 1,
-				Time:      time.Duration(frame) * 16 * time.Millisecond,
-				Position:  f32.Pt(64+float32((frame%4)*230), y),
+				Time:      time.Duration(moveSeq) * 16 * time.Millisecond,
+				Position:  f32.Pt(float32(pos.X), float32(pos.Y)),
 			})
-			runtime.RecordRedrawReason("pointer.move")
 		}
 
 		ops.Reset()
@@ -76,36 +80,31 @@ func TestPerfScenario(t *testing.T) {
 
 func componentLabPerfScenario(ctx *ui.Context) ui.Element {
 	th := ui.UseTheme(ctx)
-	rows := make([]ui.Element, 0, 160)
-	for row := 0; row < 160; row++ {
-		cells := make([]ui.Element, 0, 4)
-		for col := 0; col < 4; col++ {
-			index := row*4 + col
-			cells = append(cells,
-				ui.FixedWidthElement(220,
-					ui.FilledTonalButtonElement(
-						ui.TextElement(fmt.Sprintf("Component %03d", index), ui.TextType(th.Types.LabelLarge)),
-						ui.OnHover(func(*ui.Context, bool) {}),
-					),
-				),
-			)
-			if col < 3 {
-				cells = append(cells, ui.HSpacerElement(10))
-			}
-		}
-		rows = append(rows, ui.PaddingElement(ui.Insets{Bottom: 8}, ui.RowElement(cells...)))
-	}
 
 	return ui.ThemeProviderElement(th,
 		ui.ContainerDecorationElement(
 			ui.Bg(th.Colors.Surface).WithPad(ui.All(16)),
-			ui.ScrollViewElement(
-				ui.ColumnElement(
-					ui.TextElement("Component Lab Performance Smoke", ui.TextType(th.Types.TitleLarge), ui.TextColor(th.Colors.OnSurface)),
-					ui.VSpacerElement(12),
-					ui.ColumnElement(rows...),
-				),
-				ui.ScrollBarVisible(true),
+			ui.ColumnElement(
+				ui.TextElement("Component Lab Performance Smoke", ui.TextType(th.Types.TitleLarge), ui.TextColor(th.Colors.OnSurface)),
+				ui.VSpacerElement(12),
+				ui.FixedHeightElement(820, ui.ListViewElement(160, func(ctx *ui.Context, row int) ui.Element {
+					cells := make([]ui.Element, 0, 7)
+					for col := 0; col < 4; col++ {
+						index := row*4 + col
+						cells = append(cells,
+							ui.FixedWidthElement(220,
+								ui.FilledTonalButtonElement(
+									ui.TextElement(fmt.Sprintf("Component %03d", index), ui.TextType(th.Types.LabelLarge)),
+									ui.OnHover(func(*ui.Context, bool) {}),
+								),
+							),
+						)
+						if col < 3 {
+							cells = append(cells, ui.HSpacerElement(10))
+						}
+					}
+					return ui.RowElement(cells...)
+				}, ui.ListVirtualized(true), ui.ListItemSpacing(8))),
 			),
 		),
 	)
@@ -119,16 +118,22 @@ func assertPerfStats(t *testing.T, stats internal.FrameStats) {
 	if stats.Layout.Count == 0 {
 		t.Fatalf("expected layout stats, got %s", internal.FormatFrameStats(stats))
 	}
-	if stats.Layout.Duration == 0 {
-		t.Fatalf("expected layout duration, got %s", internal.FormatFrameStats(stats))
-	}
-	if stats.Text.Count == 0 {
-		t.Fatalf("expected text stats, got %s", internal.FormatFrameStats(stats))
+	if stats.Text.Count == 0 && stats.Cache.TextHits == 0 {
+		t.Fatalf("expected text layout or text cache stats, got %s", internal.FormatFrameStats(stats))
 	}
 	if stats.Input.Count == 0 {
 		t.Fatalf("expected input stats, got %s", internal.FormatFrameStats(stats))
 	}
 	if len(stats.Reasons) == 0 {
 		t.Fatalf("expected redraw reasons, got %s", internal.FormatFrameStats(stats))
+	}
+	if stats.Virtualization.TotalItems == 0 || stats.Virtualization.VisibleItems == 0 {
+		t.Fatalf("expected virtualized smoke stats, got %s", internal.FormatFrameStats(stats))
+	}
+	if stats.Virtualization.VisibleItems >= stats.Virtualization.TotalItems {
+		t.Fatalf("expected smoke to build only visible list items, got %s", internal.FormatFrameStats(stats))
+	}
+	if stats.Cache.TextHits == 0 {
+		t.Fatalf("expected component lab smoke to hit text cache, got %s", internal.FormatFrameStats(stats))
 	}
 }

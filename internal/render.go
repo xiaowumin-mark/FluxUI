@@ -69,6 +69,7 @@ type TextSpec struct {
 	Color      color.NRGBA
 	Alignment  Alignment
 	Font       theme.FontSpec
+	FontReady  bool
 }
 
 // SurfaceSpec 描述容器样式。
@@ -183,18 +184,29 @@ type SliderSpec struct {
 
 // LayoutText 渲染文本。
 func (c *Context) LayoutText(spec TextSpec) image.Point {
-	if done := c.startFrameSection(PerfText, 1); done != nil {
-		defer done()
-	}
 	size := spec.Size
 	if size <= 0 {
 		size = c.Theme().TextSize
 	}
 	font := spec.Font
-	if strings.TrimSpace(font.Family) == "" {
+	if !spec.FontReady && strings.TrimSpace(font.Family) == "" {
 		font = c.Font()
 	}
-	font = font.Normalize()
+	if !spec.FontReady {
+		font = font.Normalize()
+	}
+
+	var cacheKey textLayoutCacheKey
+	if c.runtime != nil {
+		cacheKey = c.textLayoutCacheKey(spec, font, size)
+		if entry, ok := c.runtime.lookupTextLayoutCache(cacheKey); ok {
+			c.runtime.RecordTextCache(true)
+			entry.call.Add(c.Gtx.Ops)
+			return entry.size
+		}
+		c.runtime.RecordTextCache(false)
+	}
+
 	label := material.Label(c.MaterialTheme(), unit.Sp(size), spec.Content)
 	label.Font = gioFont.Font{
 		Typeface: gioFont.Typeface(font.Family),
@@ -205,6 +217,25 @@ func (c *Context) LayoutText(spec TextSpec) image.Point {
 	label.Alignment = toTextAlignment(spec.Alignment)
 	if spec.LineHeight > 0 {
 		label.LineHeight = unit.Sp(spec.LineHeight)
+	}
+
+	if c.runtime != nil {
+		if done := c.startFrameSection(PerfText, 1); done != nil {
+			defer done()
+		}
+		recordOps := new(op.Ops)
+		recordGtx := c.Gtx
+		recordGtx.Ops = recordOps
+		macro := op.Record(recordOps)
+		dims := label.Layout(recordGtx)
+		call := macro.Stop()
+		call.Add(c.Gtx.Ops)
+		c.runtime.storeTextLayoutCache(cacheKey, recordOps, call, dims.Size)
+		return dims.Size
+	}
+
+	if done := c.startFrameSection(PerfText, 1); done != nil {
+		defer done()
 	}
 	dims := label.Layout(c.Gtx)
 	return dims.Size
@@ -370,15 +401,26 @@ func shadowLayerCount(blur float32) int {
 }
 
 func (c *Context) layoutRoundedSurface(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
-	if done := c.startFrameSection(PerfDraw, 1); done != nil {
-		defer done()
-	}
-	rr := clampRoundedRadiusPx(size, gtx.Dp(unit.Dp(spec.Radius)))
-	rect := image.Rectangle{Max: size}
-	defer clip.UniformRRect(rect, rr).Push(gtx.Ops).Pop()
+	draw := func(gtx gioLayout.Context) {
+		rr := clampRoundedRadiusPx(size, gtx.Dp(unit.Dp(spec.Radius)))
+		rect := image.Rectangle{Max: size}
+		defer clip.UniformRRect(rect, rr).Push(gtx.Ops).Pop()
 
-	if spec.HasImage {
-		if spec.HasGradient {
+		if spec.HasImage {
+			if spec.HasGradient {
+				grad := paint.LinearGradientOp{
+					Stop1:  spec.GradientStart,
+					Color1: spec.GradientFrom,
+					Stop2:  spec.GradientEnd,
+					Color2: spec.GradientTo,
+				}
+				grad.Add(gtx.Ops)
+				paint.PaintOp{}.Add(gtx.Ops)
+			} else if spec.Background.A > 0 {
+				paint.Fill(gtx.Ops, spec.Background)
+			}
+			renderImage(gtx, size, spec)
+		} else if spec.HasGradient {
 			grad := paint.LinearGradientOp{
 				Stop1:  spec.GradientStart,
 				Color1: spec.GradientFrom,
@@ -387,90 +429,117 @@ func (c *Context) layoutRoundedSurface(gtx gioLayout.Context, size image.Point, 
 			}
 			grad.Add(gtx.Ops)
 			paint.PaintOp{}.Add(gtx.Ops)
-		} else if spec.Background.A > 0 {
+		} else {
 			paint.Fill(gtx.Ops, spec.Background)
 		}
-		renderImage(gtx, size, spec)
-	} else if spec.HasGradient {
-		grad := paint.LinearGradientOp{
-			Stop1:  spec.GradientStart,
-			Color1: spec.GradientFrom,
-			Stop2:  spec.GradientEnd,
-			Color2: spec.GradientTo,
-		}
-		grad.Add(gtx.Ops)
-		paint.PaintOp{}.Add(gtx.Ops)
-	} else {
-		paint.Fill(gtx.Ops, spec.Background)
-	}
 
-	if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
-		bw := gtx.Dp(unit.Dp(spec.BorderWidth))
-		if bw > 0 {
-			paint.FillShape(gtx.Ops, spec.BorderColor, clip.Stroke{
-				Path:  clip.UniformRRect(rect, rr).Path(gtx.Ops),
-				Width: float32(bw),
-			}.Op())
-		}
-	}
-}
-
-func (c *Context) layoutCircleSurface(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
-	if done := c.startFrameSection(PerfDraw, 1); done != nil {
-		defer done()
-	}
-	dim := size.X
-	if size.Y < dim {
-		dim = size.Y
-	}
-	offX := (size.X - dim) / 2
-	offY := (size.Y - dim) / 2
-	circleRect := image.Rect(offX, offY, offX+dim, offY+dim)
-	ellipse := clip.Ellipse(circleRect)
-	defer ellipse.Push(gtx.Ops).Pop()
-
-	if spec.HasImage {
-		if spec.HasGradient {
-			grad := paint.LinearGradientOp{
-				Stop1:  spec.GradientStart,
-				Color1: spec.GradientFrom,
-				Stop2:  spec.GradientEnd,
-				Color2: spec.GradientTo,
-			}
-			grad.Add(gtx.Ops)
-			paint.PaintOp{}.Add(gtx.Ops)
-		} else if spec.Background.A > 0 {
-			paint.Fill(gtx.Ops, spec.Background)
-		}
-		renderImage(gtx, size, spec)
-	} else if spec.HasGradient {
-		grad := paint.LinearGradientOp{
-			Stop1:  spec.GradientStart,
-			Color1: spec.GradientFrom,
-			Stop2:  spec.GradientEnd,
-			Color2: spec.GradientTo,
-		}
-		grad.Add(gtx.Ops)
-		paint.PaintOp{}.Add(gtx.Ops)
-	} else {
-		paint.Fill(gtx.Ops, spec.Background)
-	}
-
-	if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
-		bw := gtx.Dp(unit.Dp(spec.BorderWidth))
-		if bw > 0 {
-			whalf := (bw + 1) / 2
-			inner := circleRect
-			inner.Min = inner.Min.Add(image.Point{X: whalf, Y: whalf})
-			inner.Max = inner.Max.Sub(image.Point{X: whalf, Y: whalf})
-			if inner.Dx() > 0 && inner.Dy() > 0 {
+		if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
+			bw := gtx.Dp(unit.Dp(spec.BorderWidth))
+			if bw > 0 {
 				paint.FillShape(gtx.Ops, spec.BorderColor, clip.Stroke{
-					Path:  clip.Ellipse(inner).Path(gtx.Ops),
+					Path:  clip.UniformRRect(rect, rr).Path(gtx.Ops),
 					Width: float32(bw),
 				}.Op())
 			}
 		}
 	}
+	if c.layoutCachedStaticPaint(gtx, size, spec, false, draw) {
+		return
+	}
+	if done := c.startFrameSection(PerfDraw, 1); done != nil {
+		defer done()
+	}
+	draw(gtx)
+}
+
+func (c *Context) layoutCircleSurface(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
+	draw := func(gtx gioLayout.Context) {
+		dim := size.X
+		if size.Y < dim {
+			dim = size.Y
+		}
+		offX := (size.X - dim) / 2
+		offY := (size.Y - dim) / 2
+		circleRect := image.Rect(offX, offY, offX+dim, offY+dim)
+		ellipse := clip.Ellipse(circleRect)
+		defer ellipse.Push(gtx.Ops).Pop()
+
+		if spec.HasImage {
+			if spec.HasGradient {
+				grad := paint.LinearGradientOp{
+					Stop1:  spec.GradientStart,
+					Color1: spec.GradientFrom,
+					Stop2:  spec.GradientEnd,
+					Color2: spec.GradientTo,
+				}
+				grad.Add(gtx.Ops)
+				paint.PaintOp{}.Add(gtx.Ops)
+			} else if spec.Background.A > 0 {
+				paint.Fill(gtx.Ops, spec.Background)
+			}
+			renderImage(gtx, size, spec)
+		} else if spec.HasGradient {
+			grad := paint.LinearGradientOp{
+				Stop1:  spec.GradientStart,
+				Color1: spec.GradientFrom,
+				Stop2:  spec.GradientEnd,
+				Color2: spec.GradientTo,
+			}
+			grad.Add(gtx.Ops)
+			paint.PaintOp{}.Add(gtx.Ops)
+		} else {
+			paint.Fill(gtx.Ops, spec.Background)
+		}
+
+		if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
+			bw := gtx.Dp(unit.Dp(spec.BorderWidth))
+			if bw > 0 {
+				whalf := (bw + 1) / 2
+				inner := circleRect
+				inner.Min = inner.Min.Add(image.Point{X: whalf, Y: whalf})
+				inner.Max = inner.Max.Sub(image.Point{X: whalf, Y: whalf})
+				if inner.Dx() > 0 && inner.Dy() > 0 {
+					paint.FillShape(gtx.Ops, spec.BorderColor, clip.Stroke{
+						Path:  clip.Ellipse(inner).Path(gtx.Ops),
+						Width: float32(bw),
+					}.Op())
+				}
+			}
+		}
+	}
+	if c.layoutCachedStaticPaint(gtx, size, spec, true, draw) {
+		return
+	}
+	if done := c.startFrameSection(PerfDraw, 1); done != nil {
+		defer done()
+	}
+	draw(gtx)
+}
+
+func (c *Context) layoutCachedStaticPaint(gtx gioLayout.Context, size image.Point, spec SurfaceSpec, circle bool, draw func(gioLayout.Context)) bool {
+	if c == nil || c.runtime == nil || draw == nil || !staticPaintCacheable(spec, size) {
+		return false
+	}
+	key := staticPaintCacheKeyFor(spec, size, circle, float32(gtx.Metric.PxPerDp))
+	if entry, ok := c.runtime.lookupStaticPaintCache(key); ok {
+		c.runtime.RecordStaticPaintCache(true)
+		entry.call.Add(gtx.Ops)
+		return true
+	}
+
+	c.runtime.RecordStaticPaintCache(false)
+	if done := c.startFrameSection(PerfDraw, 1); done != nil {
+		defer done()
+	}
+	recordOps := new(op.Ops)
+	recordGtx := gtx
+	recordGtx.Ops = recordOps
+	macro := op.Record(recordOps)
+	draw(recordGtx)
+	call := macro.Stop()
+	call.Add(gtx.Ops)
+	c.runtime.storeStaticPaintCache(key, recordOps, call)
+	return true
 }
 
 func renderImage(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
@@ -512,13 +581,12 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 	}
 
 	recorded := op.Record(gtx.Ops)
-	inputDone := c.startFrameSection(PerfInput, 1)
-	dims := clickable.raw().Layout(gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
+	buttonLayout := func(gtx gioLayout.Context) gioLayout.Dimensions {
 		semantic.Button.Add(gtx.Ops)
 		dims := gioLayout.Background{}.Layout(gtx,
 			func(gtx gioLayout.Context) gioLayout.Dimensions {
 				fillRoundedRect(gtx, gtx.Constraints.Min, spec.Background, spec.Radius)
-				if !spec.Disabled {
+				if !spec.Disabled && clickable != nil {
 					c.sameScope(gtx).DrawRipple(clickable, gtx.Constraints.Min, RippleSpec{
 						Color:   spec.Foreground,
 						Radius:  spec.Radius,
@@ -542,9 +610,16 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 			},
 		)
 		return dims
-	})
-	if inputDone != nil {
-		inputDone()
+	}
+	var dims gioLayout.Dimensions
+	if spec.Disabled || clickable == nil {
+		dims = buttonLayout(gtx)
+	} else {
+		inputDone := c.startFrameSection(PerfInput, 1)
+		dims = clickable.raw().Layout(gtx, buttonLayout)
+		if inputDone != nil {
+			inputDone()
+		}
 	}
 	buttonOps := recorded.Stop()
 
@@ -562,7 +637,7 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 	if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
 		drawBorderWidth(gtx, dims.Size, spec.BorderColor, spec.Radius, spec.BorderWidth)
 	}
-	if !spec.Disabled && spec.FocusOpacity > 0 {
+	if !spec.Disabled && clickable != nil && spec.FocusOpacity > 0 {
 		focus := c.Theme().Colors.Primary
 		focus.A = uint8(float32(focus.A)*spec.FocusOpacity + 0.5)
 		c.DrawFocusIndicator(dims.Size, FocusIndicatorSpec{
@@ -1131,7 +1206,7 @@ func (c *Context) LayoutFlex(axis Axis, children ...FlexChild) image.Point {
 	for index, child := range children {
 		idx := index
 		layoutChild := func(gtx gioLayout.Context) gioLayout.Dimensions {
-			next := c.childWithGtx(gtx, "flex-"+strconv.Itoa(idx))
+			next := c.scopeWithGtx(gtx, "flex-"+strconv.Itoa(idx))
 			if !child.Flexed {
 				next = next.WithPositionOffset(axisMainOffset(axis, rigidOffset))
 			}
@@ -1158,7 +1233,7 @@ func (c *Context) LayoutStack(children ...StackChild) image.Point {
 	for index, child := range children {
 		idx := index
 		layoutChild := func(gtx gioLayout.Context) gioLayout.Dimensions {
-			next := c.childWithGtx(gtx, "stack-"+strconv.Itoa(idx))
+			next := c.scopeWithGtx(gtx, "stack-"+strconv.Itoa(idx))
 			return gioLayout.Dimensions{Size: child.Layout(next)}
 		}
 		if child.Expanded {

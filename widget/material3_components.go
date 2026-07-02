@@ -114,7 +114,7 @@ func md3ActionSurface(ctx *internal.Context, clickable *event.Clickable, spec md
 	hovered := clickable != nil && clickable.Hovered()
 	pressed := clickable != nil && clickable.Pressed()
 	focused := clickable != nil && clickable.Focused(ctx)
-	duration, easing := md3InteractionTiming(hovered, pressed, focused, spec.Disabled)
+	duration, easing := md3InteractionTiming(ctx, hovered, pressed, focused, spec.Disabled)
 
 	if spec.Disabled {
 		fg = style.DisabledContent(cs.OnSurface)
@@ -310,7 +310,6 @@ func MenuDecoration(d style.Decoration) MenuOption {
 }
 
 func (m *menuWidget) Layout(ctx *internal.Context) layout.Dimensions {
-	children := make([]Widget, 0, len(m.items))
 	showSelection := m.config.selectedKey != ""
 	for idx := range m.items {
 		if m.items[idx].Selected {
@@ -318,16 +317,23 @@ func (m *menuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			break
 		}
 	}
-	for idx := range m.items {
-		item := m.items[idx]
+
+	rowAt := func(rowCtx *internal.Context, index int) Widget {
+		item := m.items[index]
 		selected := item.Selected || (m.config.selectedKey != "" && item.Key == m.config.selectedKey)
-		children = append(children, m.menuRow(item, selected, showSelection))
+		return m.menuRow(item, selected, showSelection)
 	}
 
-	var body Widget = Column(children...)
-	estimatedHeight := float32(len(children))*densityHeight(ctx, 40, 36) + densityMetric(ctx, 12, 8)
+	var body Widget
+	estimatedHeight := float32(len(m.items))*densityHeight(ctx, 40, 36) + densityMetric(ctx, 12, 8)
 	if m.config.maxHeight > 0 && estimatedHeight > m.config.maxHeight {
-		body = FixedHeight(m.config.maxHeight, ScrollView(body, ScrollVertical(true)))
+		body = FixedHeight(m.config.maxHeight, ListView(len(m.items), rowAt, ListVirtualized(true)))
+	} else {
+		children := make([]Widget, 0, len(m.items))
+		for idx := range m.items {
+			children = append(children, rowAt(ctx.Child(idx), idx))
+		}
+		body = Column(children...)
 	}
 
 	cs := ctx.Theme().Colors

@@ -197,7 +197,7 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			hovered := clickable != nil && clickable.Hovered()
 			pressed := sliderValue.Dragging() || clickable != nil && clickable.Pressed()
 			active := resolveDecorationState(s.config.decoration, hovered, pressed, s.config.disabled)
-			duration, easing := md3InteractionTiming(hovered, pressed, false, s.config.disabled)
+			duration, easing := md3InteractionTiming(targetCtx, hovered, pressed, false, s.config.disabled)
 			visual := md3AnimateDecoration(targetCtx, "slider-decoration", stripStateDecoration(active), duration, easing)
 			return layoutDecorationShell(targetCtx.Child(0), visual, content).Size
 		}
@@ -222,7 +222,7 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		if sliderValue.Dragging() {
 			return style.StateLayerDraggedOpacity
 		}
-		return materialStateLayerOpacity(clickable != nil && clickable.Hovered(), clickable != nil && clickable.Pressed())
+		return materialStateLayerOpacity(ctx, clickable != nil && clickable.Hovered(), clickable != nil && clickable.Pressed())
 	}, target)
 
 	if !s.config.disabled && math.Abs(float64(sliderValue.Value-before)) > 0.0001 {

@@ -9,6 +9,7 @@ import (
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
+	"github.com/xiaowumin-mark/FluxUI/theme"
 
 	"gioui.org/op"
 	"gioui.org/op/paint"
@@ -178,7 +179,7 @@ func hasAnyDecoration(d style.Decoration) bool {
 func layoutDecoratedClickTarget(ctx *internal.Context, clickable *internal.ClickableState, hovered, pressed bool, d style.Decoration, disabled bool, child func(*internal.Context) image.Point) layout.Dimensions {
 	active := resolveDecorationState(d, hovered, pressed, disabled)
 	visualDecoration := stripStateDecoration(active)
-	duration, easing := md3InteractionTiming(hovered, pressed, false, disabled)
+	duration, easing := md3InteractionTiming(ctx, hovered, pressed, false, disabled)
 	visualDecoration = md3AnimateDecoration(ctx, "decorated-click-target-decoration", visualDecoration, duration, easing)
 
 	macro := op.Record(ctx.Gtx.Ops)
@@ -220,7 +221,6 @@ func layoutRippleTouchTarget(ctx *internal.Context, clickable *internal.Clickabl
 	}
 
 	if disabled || clickable == nil {
-		_ = md3AnimateStateLayerOpacity(ctx, "touch-state-layer", 0)
 		childCall.Add(ctx.Gtx.Ops)
 		return layout.Dimensions{Size: childSize}
 	}
@@ -304,11 +304,11 @@ func layoutStateLayerTouchTarget(ctx *internal.Context, clickable *internal.Clic
 	return layout.Dimensions{Size: childSize}
 }
 
-func materialStateLayerOpacity(hovered, pressed bool) float32 {
+func materialStateLayerOpacity(ctx *internal.Context, hovered, pressed bool) float32 {
 	if pressed {
 		return style.StateLayerPressedOpacity
 	}
-	if hovered {
+	if hovered && interactionQuality(ctx) != theme.InteractionQualityLowCPU {
 		return style.StateLayerHoverOpacity
 	}
 	return 0
@@ -316,29 +316,43 @@ func materialStateLayerOpacity(hovered, pressed bool) float32 {
 
 func materialAnimatedStateLayerOpacity(ctx *internal.Context, hovered, pressed, disabled bool) float32 {
 	if disabled {
-		return md3AnimateStateLayerOpacity(ctx, "md3-state-layer", 0)
+		return 0
 	}
-	return md3AnimateStateLayerOpacity(ctx, "md3-state-layer", materialStateLayerOpacity(hovered, pressed))
+	return md3AnimateStateLayerOpacity(ctx, "md3-state-layer", materialStateLayerOpacity(ctx, hovered, pressed))
 }
 
 func md3AnimateStateLayerOpacity(ctx *internal.Context, namespace string, target float32) float32 {
 	if ctx == nil {
 		return target
 	}
+	key := md3MotionKey(ctx, namespace)
+	if target > 0 && target <= style.StateLayerHoverOpacity+0.0001 {
+		switch interactionQuality(ctx) {
+		case theme.InteractionQualityLowCPU:
+			ctx.ForgetPersistentKey(key)
+			return 0
+		case theme.InteractionQualityBalanced:
+			ctx.ForgetPersistentKey(key)
+			return target
+		}
+	}
 	enterDuration := style.InteractionHoverEnterDuration
 	if target >= style.StateLayerPressedOpacity {
 		enterDuration = style.InteractionPressedEnterDuration
 	}
-	key := md3MotionKey(ctx, namespace)
 	if target <= 0 {
 		state, ok := md3ExistingFloatState(ctx, key)
 		if !ok {
 			return 0
 		}
+		if interactionQuality(ctx) != theme.InteractionQualityFull && state.to <= style.StateLayerHoverOpacity+0.0001 {
+			ctx.ForgetPersistentKey(key)
+			return 0
+		}
 		progress := state.advance(ctx, 0, style.InteractionPressedExitDuration, style.InteractionStandardAccelerateEasing)
 		if progress <= 0 {
 			if _, running := state.currentAndRunning(ctx.Now()); !running && state.to <= 0 {
-				ctx.ForgetPersistent(key)
+				ctx.ForgetPersistentKey(key)
 			}
 		}
 		return progress
@@ -387,19 +401,36 @@ func md3DrawFocusIndicator(ctx *internal.Context, size image.Point, spec interna
 	ctx.DrawFocusIndicator(size, spec)
 }
 
-func md3InteractionTiming(hovered, pressed, focused, disabled bool) (time.Duration, func(float32) float32) {
+func md3InteractionTiming(ctx *internal.Context, hovered, pressed, focused, disabled bool) (time.Duration, func(float32) float32) {
+	quality := interactionQuality(ctx)
 	switch {
 	case disabled:
 		return style.InteractionSelectedDuration, style.InteractionStandardEasing
 	case pressed:
 		return style.InteractionPressedEnterDuration, style.InteractionStandardDecelerateEasing
 	case hovered:
+		if quality != theme.InteractionQualityFull {
+			if focused {
+				return style.InteractionFocusEnterDuration, style.InteractionStandardDecelerateEasing
+			}
+			return 0, style.InteractionLinearEasing
+		}
 		return style.InteractionHoverEnterDuration, style.InteractionStandardDecelerateEasing
 	case focused:
 		return style.InteractionFocusEnterDuration, style.InteractionStandardDecelerateEasing
 	default:
+		if quality != theme.InteractionQualityFull {
+			return 0, style.InteractionLinearEasing
+		}
 		return style.InteractionHoverExitDuration, style.InteractionStandardAccelerateEasing
 	}
+}
+
+func interactionQuality(ctx *internal.Context) theme.InteractionQuality {
+	if ctx == nil {
+		return theme.InteractionQualityFull
+	}
+	return ctx.InteractionQuality()
 }
 
 type md3AnimatedFloatState struct {
@@ -415,6 +446,18 @@ func md3AnimateFloat(ctx *internal.Context, namespace string, target float32, du
 	if ctx == nil {
 		return target
 	}
+	if target <= 0 {
+		key := md3MotionKey(ctx, namespace)
+		state, ok := md3ExistingFloatState(ctx, key)
+		if !ok {
+			return 0
+		}
+		progress := state.advance(ctx, 0, duration, easing)
+		if progress <= 0 {
+			forgetIdleFloatState(ctx, key, state)
+		}
+		return progress
+	}
 	state := md3FloatStateFor(ctx, namespace, target)
 	return state.advance(ctx, target, duration, easing)
 }
@@ -422,6 +465,18 @@ func md3AnimateFloat(ctx *internal.Context, namespace string, target float32, du
 func md3AnimateFloatDirectional(ctx *internal.Context, namespace string, target float32, enterDuration, exitDuration time.Duration, enterEasing, exitEasing func(float32) float32) float32 {
 	if ctx == nil {
 		return target
+	}
+	if target <= 0 {
+		key := md3MotionKey(ctx, namespace)
+		state, ok := md3ExistingFloatState(ctx, key)
+		if !ok {
+			return 0
+		}
+		progress := state.advance(ctx, 0, exitDuration, exitEasing)
+		if progress <= 0 {
+			forgetIdleFloatState(ctx, key, state)
+		}
+		return progress
 	}
 	state := md3FloatStateFor(ctx, namespace, target)
 	current := state.valueAt(ctx.Now())
@@ -434,12 +489,21 @@ func md3AnimateFloatDirectional(ctx *internal.Context, namespace string, target 
 	return state.advance(ctx, target, duration, easing)
 }
 
+func forgetIdleFloatState(ctx *internal.Context, key internal.MemoryKey, state *md3AnimatedFloatState) {
+	if ctx == nil || state == nil {
+		return
+	}
+	if _, running := state.currentAndRunning(ctx.Now()); !running && state.to <= 0 {
+		ctx.ForgetPersistentKey(key)
+	}
+}
+
 func md3FloatStateFor(ctx *internal.Context, namespace string, initial float32) *md3AnimatedFloatState {
 	return md3FloatStateForKey(ctx, md3MotionKey(ctx, namespace), initial)
 }
 
-func md3FloatStateForKey(ctx *internal.Context, key string, initial float32) *md3AnimatedFloatState {
-	value := ctx.Persistent(key, func() any {
+func md3FloatStateForKey(ctx *internal.Context, key internal.MemoryKey, initial float32) *md3AnimatedFloatState {
+	value := ctx.PersistentKey(key, func() any {
 		return &md3AnimatedFloatState{
 			startedAt: ctx.Now(),
 			from:      initial,
@@ -458,11 +522,11 @@ func md3FloatStateForKey(ctx *internal.Context, key string, initial float32) *md
 	return state
 }
 
-func md3ExistingFloatState(ctx *internal.Context, key string) (*md3AnimatedFloatState, bool) {
+func md3ExistingFloatState(ctx *internal.Context, key internal.MemoryKey) (*md3AnimatedFloatState, bool) {
 	if ctx == nil {
 		return nil, false
 	}
-	value, ok := ctx.PersistentValue(key)
+	value, ok := ctx.PersistentValueKey(key)
 	if !ok {
 		return nil, false
 	}
@@ -566,13 +630,35 @@ func md3AnimateColor(ctx *internal.Context, namespace string, target color.NRGBA
 	if ctx == nil || duration <= 0 {
 		return target
 	}
+	key := md3MotionKey(ctx, namespace)
+	state := md3ColorStateForKey(ctx, key, target, duration, easing)
+	return md3AdvanceColorState(ctx, key, state, target, duration, easing)
+}
+
+func md3AnimateColorIfActive(ctx *internal.Context, namespace string, target color.NRGBA, active bool, duration time.Duration, easing func(float32) float32) color.NRGBA {
+	if ctx == nil || duration <= 0 {
+		return target
+	}
+	key := md3MotionKey(ctx, namespace)
+	if !active {
+		state, ok := md3ExistingColorState(ctx, key)
+		if !ok {
+			return target
+		}
+		return md3AdvanceColorState(ctx, key, state, target, duration, easing)
+	}
+	state := md3ColorStateForKey(ctx, key, target, duration, easing)
+	return md3AdvanceColorState(ctx, key, state, target, duration, easing)
+}
+
+func md3ColorStateForKey(ctx *internal.Context, key internal.MemoryKey, target color.NRGBA, duration time.Duration, easing func(float32) float32) *md3AnimatedColorState {
 	if rt := ctx.Runtime(); rt != nil {
 		rt.RecordFrameSection(internal.PerfAnimation, 1)
 	}
 	if easing == nil {
 		easing = style.InteractionLinearEasing
 	}
-	value := ctx.Persistent(md3MotionKey(ctx, namespace), func() any {
+	value := ctx.PersistentKey(key, func() any {
 		return &md3AnimatedColorState{
 			startedAt: ctx.Now(),
 			from:      target,
@@ -586,6 +672,37 @@ func md3AnimateColor(ctx *internal.Context, namespace string, target color.NRGBA
 	if !ok {
 		panic("github.com/xiaowumin-mark/FluxUI/widget: md3 animated color state type mismatch")
 	}
+	if state.easing == nil {
+		state.easing = style.InteractionLinearEasing
+	}
+	return state
+}
+
+func md3ExistingColorState(ctx *internal.Context, key internal.MemoryKey) (*md3AnimatedColorState, bool) {
+	if ctx == nil {
+		return nil, false
+	}
+	value, ok := ctx.PersistentValueKey(key)
+	if !ok {
+		return nil, false
+	}
+	state, ok := value.(*md3AnimatedColorState)
+	if !ok {
+		panic("github.com/xiaowumin-mark/FluxUI/widget: md3 animated color state type mismatch")
+	}
+	if state.easing == nil {
+		state.easing = style.InteractionLinearEasing
+	}
+	return state, true
+}
+
+func md3AdvanceColorState(ctx *internal.Context, key internal.MemoryKey, state *md3AnimatedColorState, target color.NRGBA, duration time.Duration, easing func(float32) float32) color.NRGBA {
+	if ctx == nil || state == nil {
+		return target
+	}
+	if easing == nil {
+		easing = style.InteractionLinearEasing
+	}
 	if state.to == target && state.duration == duration {
 		current, running := state.currentAndRunning(ctx.Now())
 		state.current = current
@@ -595,6 +712,7 @@ func md3AnimateColor(ctx *internal.Context, namespace string, target color.NRGBA
 			return current
 		}
 		state.snap(ctx.Now(), target, duration, easing)
+		forgetIdleColorState(ctx, key, state)
 		return target
 	}
 
@@ -602,6 +720,7 @@ func md3AnimateColor(ctx *internal.Context, namespace string, target color.NRGBA
 	current := state.valueAt(now)
 	if current == target {
 		state.snap(now, target, duration, easing)
+		forgetIdleColorState(ctx, key, state)
 		return target
 	}
 	state.startedAt = now
@@ -612,6 +731,19 @@ func md3AnimateColor(ctx *internal.Context, namespace string, target color.NRGBA
 	state.easing = easing
 	ctx.RequestFrameRedrawReason("animation.running")
 	return current
+}
+
+func forgetIdleColorState(ctx *internal.Context, key internal.MemoryKey, state *md3AnimatedColorState) {
+	if ctx == nil || state == nil {
+		return
+	}
+	if state.from == state.to {
+		ctx.ForgetPersistentKey(key)
+		return
+	}
+	if _, running := state.currentAndRunning(ctx.Now()); !running {
+		ctx.ForgetPersistentKey(key)
+	}
 }
 
 func (s *md3AnimatedColorState) snap(now time.Time, target color.NRGBA, duration time.Duration, easing func(float32) float32) {
@@ -668,7 +800,7 @@ func md3AnimateDecoration(ctx *internal.Context, namespace string, target style.
 	if easing == nil {
 		easing = style.InteractionLinearEasing
 	}
-	value := ctx.Persistent(md3MotionKey(ctx, namespace), func() any {
+	value := ctx.PersistentKey(md3MotionKey(ctx, namespace), func() any {
 		return &md3AnimatedDecorationState{
 			startedAt: ctx.Now(),
 			from:      target,
@@ -880,11 +1012,11 @@ func withAlphaFactor(col color.NRGBA, opacity float32) color.NRGBA {
 	return col
 }
 
-func md3MotionKey(ctx *internal.Context, namespace string) string {
+func md3MotionKey(ctx *internal.Context, namespace string) internal.MemoryKey {
 	if ctx == nil {
-		return "md3-motion:" + namespace
+		return internal.MemoryKey{Opaque: "md3-motion:" + namespace}
 	}
-	return ctx.TreePath() + "/md3-motion:" + namespace
+	return ctx.ScopeMemoryKey("md3-motion:" + namespace)
 }
 
 func boolProgress(active bool) float32 {

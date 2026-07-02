@@ -166,7 +166,7 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				indicatorBar = indicator
 				tabBg = withAlpha(indicator, 20)
 			}
-			duration, easing := md3InteractionTiming(clickable.Hovered(), clickable.Pressed(), clickable.Focused(tabCtx), false)
+			duration, easing := md3InteractionTiming(tabCtx, clickable.Hovered(), clickable.Pressed(), clickable.Focused(tabCtx), false)
 			txtColor = md3AnimateColor(tabCtx, "tab-text", txtColor, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 			indicatorBar = md3AnimateColor(tabCtx, "tab-indicator", indicatorBar, style.InteractionSelectedIndicatorDuration, style.InteractionStandardEasing)
 			tabBg = md3AnimateColor(tabCtx, "tab-bg", tabBg, duration, easing)

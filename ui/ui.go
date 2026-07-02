@@ -164,6 +164,10 @@ type Style = style.Style
 // Theme 是公开主题类型。
 type Theme = theme.Theme
 
+type ThemeOption = theme.ThemeOption
+
+type InteractionQuality = theme.InteractionQuality
+
 // ColorScheme 定义语义化色板。
 type ColorScheme = theme.ColorScheme
 
@@ -266,6 +270,12 @@ const (
 const (
 	DensityDefault = theme.DensityDefault
 	DensityCompact = theme.DensityCompact
+)
+
+const (
+	InteractionQualityFull     = theme.InteractionQualityFull
+	InteractionQualityBalanced = theme.InteractionQualityBalanced
+	InteractionQualityLowCPU   = theme.InteractionQualityLowCPU
 )
 
 // App 创建应用对象。
@@ -376,9 +386,17 @@ func WithDensity(density DensityScale) AppOption {
 	return fluxapp.WithDensity(density)
 }
 
+func WithInteractionQuality(quality InteractionQuality) AppOption {
+	return fluxapp.WithInteractionQuality(quality)
+}
+
 // NewTheme 从色板创建主题。
-func NewTheme(cs ColorScheme) *Theme {
-	return theme.New(cs)
+func NewTheme(cs ColorScheme, opts ...ThemeOption) *Theme {
+	return theme.New(cs, opts...)
+}
+
+func ThemeInteractionQuality(quality InteractionQuality) ThemeOption {
+	return theme.WithInteractionQuality(quality)
 }
 
 // ThemeFromSeed creates a theme from a Material Design 3 seed color.
@@ -585,6 +603,13 @@ func UseTheme(ctx *Context) *Theme {
 	return ctx.Theme()
 }
 
+func UseInteractionQuality(ctx *Context) InteractionQuality {
+	if ctx == nil {
+		return InteractionQualityFull
+	}
+	return ctx.InteractionQuality()
+}
+
 // UseFont 返回当前作用域默认字体。
 func UseFont(ctx *Context) FontSpec {
 	return ctx.Font()
@@ -730,6 +755,10 @@ func Stack(children ...Widget) Widget {
 // Center 创建居中布局。
 func Center(child Widget) Widget {
 	return widget.Center(child)
+}
+
+func Static(child Widget, deps ...any) Widget {
+	return widget.Static(child, deps...)
 }
 
 // Flexed 创建带权重的弹性子项。

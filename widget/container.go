@@ -65,7 +65,7 @@ func ContainerDecorationOnHoverLeave(fn func(ctx *internal.Context)) ContainerDe
 	return func(cfg *decorationContainerConfig) { cfg.onHoverLeave = fn }
 }
 
-// ContainerDecorationOnHover 设置每帧悬浮态回调。
+// ContainerDecorationOnHover 设置悬浮变化回调。
 func ContainerDecorationOnHover(fn func(ctx *internal.Context, hovering bool)) ContainerDecorationOption {
 	return func(cfg *decorationContainerConfig) { cfg.onHover = fn }
 }
@@ -154,29 +154,34 @@ func (c *decorationContainerWidget) layoutPassive(ctx *internal.Context) layout.
 }
 
 func (c *decorationContainerWidget) layoutInteractive(ctx *internal.Context) layout.Dimensions {
-	clickable := event.UseClickable(ctx)
+	var clickable *event.Clickable
+	interaction := event.InteractionSnapshot{}
 
-	for clickable.Clicked(ctx) {
-		if c.config.onClick != nil {
-			c.config.onClick(ctx)
+	if !c.config.disabled {
+		clickable = event.UseClickable(ctx)
+
+		for clickable.Clicked(ctx) {
+			if c.config.onClick != nil {
+				c.config.onClick(ctx)
+			}
+		}
+
+		interaction = clickable.Snapshot(ctx, false)
+		if changed, hovering := clickable.HoverChangedWithSnapshot(ctx, interaction.Hovered); changed {
+			c.wasHovered = hovering
+			if hovering && c.config.onHoverEnter != nil {
+				c.config.onHoverEnter(ctx)
+			}
+			if !hovering && c.config.onHoverLeave != nil {
+				c.config.onHoverLeave(ctx)
+			}
+			if c.config.onHover != nil {
+				c.config.onHover(ctx, hovering)
+			}
 		}
 	}
 
-	if changed, hovering := clickable.HoverChangedWithContext(ctx); changed {
-		c.wasHovered = hovering
-		if hovering && c.config.onHoverEnter != nil {
-			c.config.onHoverEnter(ctx)
-		}
-		if !hovering && c.config.onHoverLeave != nil {
-			c.config.onHoverLeave(ctx)
-		}
-	}
-
-	if c.config.onHover != nil {
-		c.config.onHover(ctx, clickable.Hovered())
-	}
-
-	pressed := clickable.Pressed()
+	pressed := interaction.Pressed
 	if c.wasPressed != pressed {
 		c.wasPressed = pressed
 		if c.config.onPressed != nil {
@@ -193,15 +198,17 @@ func (c *decorationContainerWidget) layoutInteractive(ctx *internal.Context) lay
 		if c.decoration.Pressed != nil {
 			activeDeco = c.decoration.Merge(*c.decoration.Pressed)
 		}
-	} else if clickable.Hovered() {
+	} else if interaction.Hovered {
 		if c.decoration.Hover != nil {
 			activeDeco = c.decoration.Merge(*c.decoration.Hover)
 		}
 	}
 
 	visualDeco := stripStateDecoration(activeDeco)
-	duration, easing := md3InteractionTiming(clickable.Hovered(), pressed, false, c.config.disabled)
-	visualDeco = md3AnimateDecoration(ctx, "container-decoration", visualDeco, duration, easing)
+	if !c.config.disabled {
+		duration, easing := md3InteractionTiming(ctx, interaction.Hovered, pressed, false, false)
+		visualDeco = md3AnimateDecoration(ctx, "container-decoration", visualDeco, duration, easing)
+	}
 	spec := decorationSurfaceSpec(visualDeco, ctx, ctx.Theme().Surface)
 	baseMargin := c.decoration.ResolveMargin(style.Insets{})
 	transform := visualDeco.ResolveTransform()
@@ -217,7 +224,11 @@ func (c *decorationContainerWidget) layoutInteractive(ctx *internal.Context) lay
 	})
 	visualCall := visualMacro.Stop()
 
-	layoutTransformedClickArea(ctx, clickable.Handle(), baseMargin, transform, dims)
+	var handle *internal.ClickableState
+	if clickable != nil {
+		handle = clickable.Handle()
+	}
+	layoutTransformedClickArea(ctx, handle, baseMargin, transform, dims)
 	visualCall.Add(ctx.Gtx.Ops)
 
 	return layout.Dimensions{Size: dims}

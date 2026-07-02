@@ -16,21 +16,24 @@ import (
 
 // Context 是每一帧传递给组件树的执行上下文。
 type Context struct {
-	Gtx           gioLayout.Context
-	runtime       *Runtime
-	path          string
-	hookIndex     int
-	foreground    color.NRGBA
-	font          theme.FontSpec
-	hasFont       bool
-	textStyle     theme.TextStyle
-	hasTextStyle  bool
-	instance      *ComponentInstance
-	providers     map[ProviderKey]any
-	themeOverride *theme.Theme
-	viewport      image.Rectangle
-	position      image.Point
-	hasViewport   bool
+	Gtx                           gioLayout.Context
+	runtime                       *Runtime
+	pathID                        PathID
+	debugPath                     string
+	hookIndex                     int
+	foreground                    color.NRGBA
+	font                          theme.FontSpec
+	hasFont                       bool
+	textStyle                     theme.TextStyle
+	hasTextStyle                  bool
+	instance                      *ComponentInstance
+	providers                     map[ProviderKey]any
+	themeOverride                 *theme.Theme
+	interactionQualityOverride    theme.InteractionQuality
+	hasInteractionQualityOverride bool
+	viewport                      image.Rectangle
+	position                      image.Point
+	hasViewport                   bool
 }
 
 // NewContext 创建 frame 级上下文。
@@ -44,7 +47,8 @@ func NewContext(gtx gioLayout.Context, runtime *Runtime) *Context {
 	return &Context{
 		Gtx:         gtx,
 		runtime:     runtime,
-		path:        "root",
+		pathID:      rootPathID,
+		debugPath:   "root",
 		foreground:  foreground,
 		viewport:    viewport,
 		hasViewport: hasViewport,
@@ -72,6 +76,20 @@ func (c *Context) Theme() *theme.Theme {
 		return theme.Default()
 	}
 	return c.runtime.Theme()
+}
+
+func (c *Context) InteractionQuality() theme.InteractionQuality {
+	if c == nil {
+		return theme.InteractionQualityFull
+	}
+	if c.hasInteractionQualityOverride {
+		return theme.NormalizeInteractionQuality(c.interactionQualityOverride)
+	}
+	th := c.Theme()
+	if th == nil {
+		return theme.InteractionQualityFull
+	}
+	return th.EffectiveInteractionQuality()
 }
 
 // SetThemeOverride sets a scoped theme on this context (used by ThemeProvider).
@@ -446,47 +464,92 @@ func (c *Context) WindowIsAlive() bool {
 
 // NextKey 生成当前作用域下稳定的 hook key。
 func (c *Context) NextKey(namespace string) string {
+	return c.DebugMemoryKey(c.NextMemoryKey(namespace))
+}
+
+func (c *Context) NextMemoryKey(namespace string) MemoryKey {
 	if c == nil {
-		return namespace + ":0"
+		return memoryKeyString(namespace + ":0")
 	}
-	key := c.path + "/" + namespace + ":" + strconv.Itoa(c.hookIndex)
+	slot := c.hookIndex
 	c.hookIndex++
 	if c.runtime != nil {
-		c.runtime.RecordHookCount(c.path, c.hookIndex)
+		c.runtime.RecordHookCountID(c.pathID, c.hookIndex)
+		return MemoryKey{Path: normalizePathID(c.pathID), Namespace: namespace, Slot: slot}
 	}
-	return key
+	path := c.debugPath
+	if path == "" {
+		path = "root"
+	}
+	return memoryKeyString(joinPath(path, namespace+":"+strconv.Itoa(slot)))
+}
+
+func (c *Context) ScopeMemoryKey(namespace string) MemoryKey {
+	if c == nil {
+		return memoryKeyString(namespace)
+	}
+	if c.runtime != nil {
+		return MemoryKey{Path: normalizePathID(c.pathID), Namespace: namespace, NoSlot: true}
+	}
+	path := c.debugPath
+	if path == "" {
+		path = "root"
+	}
+	return memoryKeyString(joinPath(path, namespace))
+}
+
+func (c *Context) DebugMemoryKey(key MemoryKey) string {
+	if c == nil {
+		return debugMemoryKeyWithoutRuntime(key, "")
+	}
+	if c.runtime != nil {
+		return c.runtime.DebugMemoryKey(key)
+	}
+	return debugMemoryKeyWithoutRuntime(key, c.debugPath)
 }
 
 // Persistent 读取或创建稳定对象。
 func (c *Context) Persistent(key string, factory func() any) any {
+	return c.PersistentKey(memoryKeyString(key), factory)
+}
+
+func (c *Context) PersistentKey(key MemoryKey, factory func() any) any {
 	if c == nil || c.runtime == nil {
 		if factory == nil {
 			return nil
 		}
 		return factory()
 	}
-	return c.runtime.remember(key, factory)
+	return c.runtime.rememberKey(key, factory)
 }
 
 // PersistentValue reads a stable object without creating it.
 func (c *Context) PersistentValue(key string) (any, bool) {
+	return c.PersistentValueKey(memoryKeyString(key))
+}
+
+func (c *Context) PersistentValueKey(key MemoryKey) (any, bool) {
 	if c == nil || c.runtime == nil {
 		return nil, false
 	}
-	return c.runtime.memoryValue(key)
+	return c.runtime.memoryValueKey(key)
 }
 
 // ForgetPersistent releases a stable object before the frame sweep.
 func (c *Context) ForgetPersistent(key string) {
+	c.ForgetPersistentKey(memoryKeyString(key))
+}
+
+func (c *Context) ForgetPersistentKey(key MemoryKey) {
 	if c == nil || c.runtime == nil {
 		return
 	}
-	c.runtime.forgetMemory(key)
+	c.runtime.forgetMemoryKey(key)
 }
 
 // Memo reads or creates a stable object using a hook key in the current scope.
 func (c *Context) Memo(namespace string, factory func() any) any {
-	return c.Persistent(c.NextKey(namespace), factory)
+	return c.PersistentKey(c.NextMemoryKey(namespace), factory)
 }
 
 // WithComponentInstance binds this context to a component hook instance.
@@ -505,6 +568,13 @@ func (c *Context) ComponentInstance() *ComponentInstance {
 		return nil
 	}
 	return c.instance
+}
+
+func (c *Context) PathID() PathID {
+	if c == nil {
+		return 0
+	}
+	return normalizePathID(c.pathID)
 }
 
 // NextHookSlot returns the next component-owned hook slot, if this context is
@@ -571,7 +641,7 @@ func (c *Context) Child(index int) *Context {
 	if c == nil {
 		return nil
 	}
-	return c.childWithGtx(c.Gtx, strconv.Itoa(index))
+	return c.childIndexWithGtx(c.Gtx, index)
 }
 
 // Scope 创建命名作用域。
@@ -579,7 +649,7 @@ func (c *Context) Scope(name string) *Context {
 	if c == nil {
 		return nil
 	}
-	return c.childWithGtx(c.Gtx, name)
+	return c.scopeWithGtx(c.Gtx, name)
 }
 
 // WithForeground 覆盖当前默认前景色。
@@ -610,6 +680,16 @@ func (c *Context) WithTheme(th *theme.Theme) *Context {
 	}
 	next := c.sameScope(c.Gtx)
 	next.themeOverride = th
+	return next
+}
+
+func (c *Context) WithInteractionQuality(quality theme.InteractionQuality) *Context {
+	if c == nil {
+		return nil
+	}
+	next := c.sameScope(c.Gtx)
+	next.interactionQualityOverride = theme.NormalizeInteractionQuality(quality)
+	next.hasInteractionQualityOverride = true
 	return next
 }
 
@@ -644,12 +724,32 @@ func contextKeyType[T any]() reflect.Type {
 	return reflect.TypeOf((*T)(nil)).Elem()
 }
 
-func (c *Context) childWithGtx(gtx gioLayout.Context, segment string) *Context {
+func (c *Context) childIndexWithGtx(gtx gioLayout.Context, index int) *Context {
 	if c == nil {
 		return nil
 	}
 	next := c.sameScope(gtx)
-	next.path = c.path + "/" + segment
+	if c.runtime != nil {
+		next.pathID = c.runtime.childPath(c.pathID, index)
+		next.debugPath = ""
+	} else {
+		next.debugPath = joinPath(c.debugPath, strconv.Itoa(index))
+	}
+	next.hookIndex = 0
+	return next
+}
+
+func (c *Context) scopeWithGtx(gtx gioLayout.Context, name string) *Context {
+	if c == nil {
+		return nil
+	}
+	next := c.sameScope(gtx)
+	if c.runtime != nil {
+		next.pathID = c.runtime.scopePath(c.pathID, name)
+		next.debugPath = ""
+	} else {
+		next.debugPath = joinPath(c.debugPath, name)
+	}
 	next.hookIndex = 0
 	return next
 }

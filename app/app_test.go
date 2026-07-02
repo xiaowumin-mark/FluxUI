@@ -5,6 +5,8 @@ import (
 	"image/color"
 	"testing"
 
+	"github.com/xiaowumin-mark/FluxUI/theme"
+
 	gioApp "gioui.org/app"
 	"gioui.org/unit"
 )
@@ -112,6 +114,13 @@ func TestWindowsChromeOptionNormalization(t *testing.T) {
 		app.WindowsFrameStyle.Corner != WindowsCornerDefault ||
 		app.WindowsFrameStyle.Border != WindowsFrameBorderDefault {
 		t.Fatalf("invalid frame style should normalize to defaults: %#v", app.WindowsFrameStyle)
+	}
+}
+
+func TestWithInteractionQualityOption(t *testing.T) {
+	app := New(nil, WithInteractionQuality(theme.InteractionQualityLowCPU))
+	if got := app.Theme.EffectiveInteractionQuality(); got != theme.InteractionQualityLowCPU {
+		t.Fatalf("interaction quality = %v, want low_cpu", got)
 	}
 }
 

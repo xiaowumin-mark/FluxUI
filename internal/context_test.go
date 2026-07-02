@@ -66,6 +66,24 @@ func TestScopeResetsHookIndex(t *testing.T) {
 	}
 }
 
+func TestInteractionQualityScopeOverridesTheme(t *testing.T) {
+	rt := NewRuntime(theme.Default(theme.WithInteractionQuality(theme.InteractionQualityBalanced)))
+	var ops op.Ops
+	ctx := NewContext(gioLayout.Context{Ops: &ops}, rt)
+
+	if got := ctx.InteractionQuality(); got != theme.InteractionQualityBalanced {
+		t.Fatalf("theme interaction quality = %v, want balanced", got)
+	}
+
+	scoped := ctx.WithInteractionQuality(theme.InteractionQualityLowCPU)
+	if got := scoped.InteractionQuality(); got != theme.InteractionQualityLowCPU {
+		t.Fatalf("scoped interaction quality = %v, want low_cpu", got)
+	}
+	if got := ctx.InteractionQuality(); got != theme.InteractionQualityBalanced {
+		t.Fatalf("original context quality changed to %v", got)
+	}
+}
+
 func TestChildPathIndependence(t *testing.T) {
 	_, ctx := newTestContext()
 	c0 := ctx.Child(0)
@@ -327,6 +345,26 @@ func TestTreePath(t *testing.T) {
 	child := ctx.Child(3)
 	if child.TreePath() != "root/3" {
 		t.Fatalf("expected 'root/3', got %s", child.TreePath())
+	}
+}
+
+func TestStructuredPathIDStableAndReadable(t *testing.T) {
+	_, ctx := newTestContext()
+	first := ctx.Scope("panel").Child(2)
+	second := ctx.Scope("panel").Child(2)
+	other := ctx.Scope("panel").Child(3)
+
+	if first.PathID() == 0 {
+		t.Fatal("expected non-zero path id")
+	}
+	if first.PathID() != second.PathID() {
+		t.Fatalf("expected same structured path id, got %d and %d", first.PathID(), second.PathID())
+	}
+	if first.PathID() == other.PathID() {
+		t.Fatalf("expected different child path ids, got %d", first.PathID())
+	}
+	if got := first.TreePath(); got != "root/panel/2" {
+		t.Fatalf("expected readable path root/panel/2, got %q", got)
 	}
 }
 

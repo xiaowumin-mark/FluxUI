@@ -10,10 +10,22 @@ type ClickHandler func(ctx *internal.Context)
 
 type HoverHandler func(ctx *internal.Context, hovering bool)
 
+type InteractionSnapshot struct {
+	Hovered bool
+	Pressed bool
+	Focused bool
+}
+
 type Clickable struct {
-	handle      *internal.ClickableState
-	hovered     bool
-	initialized bool
+	handle       *internal.ClickableState
+	runtime      *internal.Runtime
+	target       internal.PathID
+	hovered      bool
+	pressed      bool
+	focused      bool
+	initialized  bool
+	snapshotted  bool
+	lastSnapshot InteractionSnapshot
 }
 
 func UseClickable(ctx *internal.Context) *Clickable {
@@ -28,6 +40,8 @@ func UseClickable(ctx *internal.Context) *Clickable {
 	if clickable.handle != nil {
 		clickable.handle.BindRuntime(ctx.Runtime())
 	}
+	clickable.runtime = ctx.Runtime()
+	clickable.target = ctx.PathID()
 
 	return clickable
 }
@@ -43,21 +57,53 @@ func (c *Clickable) Hovered() bool {
 	if c == nil || c.handle == nil {
 		return false
 	}
-	return c.handle.Hovered()
+	hovered := c.handle.Hovered()
+	c.observeSnapshot(nil, InteractionSnapshot{
+		Hovered: hovered,
+		Pressed: c.lastSnapshot.Pressed,
+		Focused: c.lastSnapshot.Focused,
+	})
+	return hovered
 }
 
 func (c *Clickable) Pressed() bool {
 	if c == nil || c.handle == nil {
 		return false
 	}
-	return c.handle.Pressed()
+	pressed := c.handle.Pressed()
+	c.observeSnapshot(nil, InteractionSnapshot{
+		Hovered: c.lastSnapshot.Hovered,
+		Pressed: pressed,
+		Focused: c.lastSnapshot.Focused,
+	})
+	return pressed
 }
 
 func (c *Clickable) Focused(ctx *internal.Context) bool {
 	if c == nil || c.handle == nil {
 		return false
 	}
-	return c.handle.Focused(ctx)
+	focused := c.handle.Focused(ctx)
+	c.observeSnapshot(ctx, InteractionSnapshot{
+		Hovered: c.lastSnapshot.Hovered,
+		Pressed: c.lastSnapshot.Pressed,
+		Focused: focused,
+	})
+	return focused
+}
+
+func (c *Clickable) Snapshot(ctx *internal.Context, includeFocus bool) InteractionSnapshot {
+	if c == nil || c.handle == nil {
+		return InteractionSnapshot{}
+	}
+	snapshot := c.handle.Snapshot(ctx, includeFocus)
+	interaction := InteractionSnapshot{
+		Hovered: snapshot.Hovered,
+		Pressed: snapshot.Pressed,
+		Focused: snapshot.Focused,
+	}
+	c.observeSnapshot(ctx, interaction)
+	return interaction
 }
 
 func (c *Clickable) HoverChanged() (changed bool, hovering bool) {
@@ -68,19 +114,82 @@ func (c *Clickable) HoverChangedWithContext(ctx *internal.Context) (changed bool
 	return c.hoverChanged(ctx)
 }
 
+func (c *Clickable) HoverChangedWithSnapshot(ctx *internal.Context, hovering bool) (changed bool, hover bool) {
+	return c.hoverChangedValue(ctx, hovering)
+}
+
 func (c *Clickable) hoverChanged(ctx *internal.Context) (changed bool, hovering bool) {
 	if c == nil {
 		return false, false
 	}
-	wasInitialized := c != nil && c.initialized
 	hovering = c.Hovered()
-	changed = !c.initialized || c.hovered != hovering
+	return c.hoverChangedValue(ctx, hovering)
+}
+
+func (c *Clickable) hoverChangedValue(_ *internal.Context, hovering bool) (changed bool, hover bool) {
+	if c == nil {
+		return false, false
+	}
+	c.snapshotted = true
+	c.lastSnapshot.Hovered = hovering
+	changed = (!c.initialized && hovering) || (c.initialized && c.hovered != hovering)
 	c.hovered = hovering
 	c.initialized = true
-	if changed && wasInitialized && ctx != nil && ctx.Runtime() != nil {
-		ctx.Runtime().RecordRedrawReason("pointer.hover_changed")
-	}
 	return changed, hovering
+}
+
+func (c *Clickable) observeSnapshot(ctx *internal.Context, snapshot InteractionSnapshot) {
+	if c == nil {
+		return
+	}
+	rt := c.runtime
+	if ctx != nil && ctx.Runtime() != nil {
+		rt = ctx.Runtime()
+		c.runtime = rt
+	}
+	if rt == nil {
+		return
+	}
+	initialized := c.initialized || c.snapshotted
+	if !initialized && !snapshot.Hovered && !snapshot.Pressed && !snapshot.Focused {
+		c.pressed = snapshot.Pressed
+		c.focused = snapshot.Focused
+		c.lastSnapshot = snapshot
+		c.snapshotted = true
+		return
+	}
+	if initialized &&
+		c.hovered == snapshot.Hovered &&
+		c.pressed == snapshot.Pressed &&
+		c.focused == snapshot.Focused &&
+		!snapshot.Hovered && !snapshot.Pressed && !snapshot.Focused {
+		c.lastSnapshot = snapshot
+		c.snapshotted = true
+		return
+	}
+	target := c.target
+	if target == 0 && ctx != nil {
+		target = ctx.PathID()
+		c.target = target
+	}
+	if target == 0 {
+		return
+	}
+	previous := internal.ClickableSnapshot{
+		Hovered: c.hovered,
+		Pressed: c.pressed,
+		Focused: c.focused,
+	}
+	current := internal.ClickableSnapshot{
+		Hovered: snapshot.Hovered,
+		Pressed: snapshot.Pressed,
+		Focused: snapshot.Focused,
+	}
+	rt.ObserveInteractionSnapshot(target, previous, current, initialized)
+	c.pressed = snapshot.Pressed
+	c.focused = snapshot.Focused
+	c.lastSnapshot = snapshot
+	c.snapshotted = true
 }
 
 func (c *Clickable) Handle() *internal.ClickableState {

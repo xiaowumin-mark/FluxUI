@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"image"
 	"io"
 	"os"
 	"sort"
@@ -56,19 +57,45 @@ type FrameSectionStats struct {
 	Count    int64
 }
 
+// VirtualizationStats summarizes viewport-based list/grid clipping for one
+// frame. It counts items whose widgets were actually built and laid out.
+type VirtualizationStats struct {
+	Containers             int64
+	Viewports              int64
+	TotalItems             int64
+	VisibleItems           int64
+	CulledItems            int64
+	NonVirtualizedWarnings int64
+	LastViewportWidth      int
+	LastViewportHeight     int
+}
+
+// RenderCacheStats summarizes static render cache reuse for one frame.
+type RenderCacheStats struct {
+	TextHits          int64
+	TextMisses        int64
+	StaticPaintHits   int64
+	StaticPaintMisses int64
+	StaticTreeHits    int64
+	StaticTreeMisses  int64
+}
+
 // FrameStats is the coarse performance snapshot for one rendered frame.
 type FrameStats struct {
-	Frame        uint64
-	StartedAt    time.Time
-	Duration     time.Duration
-	Layout       FrameSectionStats
-	Draw         FrameSectionStats
-	Animation    FrameSectionStats
-	State        FrameSectionStats
-	Text         FrameSectionStats
-	Input        FrameSectionStats
-	Reasons      []string
-	ReasonCounts map[string]int
+	Frame          uint64
+	StartedAt      time.Time
+	Duration       time.Duration
+	Interaction    InteractionFrameStats
+	Virtualization VirtualizationStats
+	Cache          RenderCacheStats
+	Layout         FrameSectionStats
+	Draw           FrameSectionStats
+	Animation      FrameSectionStats
+	State          FrameSectionStats
+	Text           FrameSectionStats
+	Input          FrameSectionStats
+	Reasons        []string
+	ReasonCounts   map[string]int
 }
 
 type runtimePerfState struct {
@@ -159,6 +186,91 @@ func (r *Runtime) RecordFrameSection(section PerfSection, count int64) {
 	r.perf.mu.Unlock()
 }
 
+// RecordViewport records that a scrollable or virtualized container exposed a
+// viewport to its descendants.
+func (r *Runtime) RecordViewport(viewport image.Rectangle) {
+	if r == nil || !r.perf.enabled.Load() {
+		return
+	}
+	r.perf.mu.Lock()
+	r.perf.addViewportLocked(viewport)
+	r.perf.mu.Unlock()
+}
+
+// RecordVirtualizedItems records one virtualized container's total and
+// actually built item count.
+func (r *Runtime) RecordVirtualizedItems(total, visible int, viewport image.Rectangle) {
+	if r == nil || !r.perf.enabled.Load() {
+		return
+	}
+	if total < 0 {
+		total = 0
+	}
+	if visible < 0 {
+		visible = 0
+	}
+	if visible > total {
+		visible = total
+	}
+	r.perf.mu.Lock()
+	r.perf.current.Virtualization.Containers++
+	r.perf.current.Virtualization.TotalItems += int64(total)
+	r.perf.current.Virtualization.VisibleItems += int64(visible)
+	r.perf.current.Virtualization.CulledItems += int64(total - visible)
+	r.perf.addViewportLocked(viewport)
+	r.perf.mu.Unlock()
+}
+
+// RecordNonVirtualizedItems records a diagnostic warning for a large container
+// that opted out of viewport clipping.
+func (r *Runtime) RecordNonVirtualizedItems(total int) {
+	if r == nil || !r.perf.enabled.Load() || total <= 0 {
+		return
+	}
+	r.perf.mu.Lock()
+	r.perf.current.Virtualization.NonVirtualizedWarnings++
+	r.perf.mu.Unlock()
+}
+
+func (r *Runtime) RecordTextCache(hit bool) {
+	if r == nil || !r.perf.enabled.Load() {
+		return
+	}
+	r.perf.mu.Lock()
+	if hit {
+		r.perf.current.Cache.TextHits++
+	} else {
+		r.perf.current.Cache.TextMisses++
+	}
+	r.perf.mu.Unlock()
+}
+
+func (r *Runtime) RecordStaticPaintCache(hit bool) {
+	if r == nil || !r.perf.enabled.Load() {
+		return
+	}
+	r.perf.mu.Lock()
+	if hit {
+		r.perf.current.Cache.StaticPaintHits++
+	} else {
+		r.perf.current.Cache.StaticPaintMisses++
+	}
+	r.perf.mu.Unlock()
+}
+
+func (r *Runtime) RecordStaticSubtreeCache(hit bool) {
+	if r == nil || !r.perf.enabled.Load() {
+		return
+	}
+	r.perf.mu.Lock()
+	if hit {
+		r.perf.current.Cache.StaticTreeHits++
+	} else {
+		r.perf.current.Cache.StaticTreeMisses++
+	}
+	r.perf.mu.Unlock()
+}
+
 // StartFrameSection records count and returns a completion function that adds duration.
 func (r *Runtime) StartFrameSection(section PerfSection, count int64) func() {
 	if r == nil || !r.perf.enabled.Load() {
@@ -220,15 +332,17 @@ func (r *Runtime) endPerfFrame() {
 	}
 
 	var (
-		stats  FrameStats
-		writer io.Writer
-		log    bool
+		stats       FrameStats
+		interaction = r.LastInteractionStats()
+		writer      io.Writer
+		log         bool
 	)
 
 	r.perf.mu.Lock()
 	if r.perf.measureDurations.Load() && !r.perf.current.StartedAt.IsZero() {
 		r.perf.current.Duration = time.Since(r.perf.current.StartedAt)
 	}
+	r.perf.current.Interaction = interaction
 	r.perf.currentFrameActive = false
 	r.perf.last = cloneFrameStats(r.perf.current)
 	stats = cloneFrameStats(r.perf.last)
@@ -252,6 +366,15 @@ func (p *runtimePerfState) addReasonLocked(reason string) {
 		}
 		p.current.ReasonCounts[reason]++
 	}
+}
+
+func (p *runtimePerfState) addViewportLocked(viewport image.Rectangle) {
+	if viewport.Dx() <= 0 || viewport.Dy() <= 0 {
+		return
+	}
+	p.current.Virtualization.Viewports++
+	p.current.Virtualization.LastViewportWidth = viewport.Dx()
+	p.current.Virtualization.LastViewportHeight = viewport.Dy()
 }
 
 func (p *runtimePerfState) addSectionCountLocked(section PerfSection, count int64) {
@@ -327,10 +450,29 @@ func FormatFrameStats(stats FrameStats) string {
 	}
 
 	return fmt.Sprintf(
-		"frame=%d duration=%s reason=%s layout=%s draw=%s animation=%s state=%s text=%s input=%s layout_ops=%d draw_ops=%d animations=%d state_ops=%d text_ops=%d input_ops=%d",
+		"frame=%d duration=%s reason=%s pointer_moves=%d hover_changes=%d pressed_changes=%d focus_changes=%d hover_target=%q virtual_items=%d/%d virtual_culled=%d virtual_containers=%d viewports=%d viewport=%dx%d nonvirtual_warnings=%d text_cache=%d/%d static_paint_cache=%d/%d static_tree_cache=%d/%d layout=%s draw=%s animation=%s state=%s text=%s input=%s layout_ops=%d draw_ops=%d animations=%d state_ops=%d text_ops=%d input_ops=%d",
 		stats.Frame,
 		stats.Duration,
 		reason,
+		stats.Interaction.PointerMoves,
+		stats.Interaction.HoverChanged,
+		stats.Interaction.PressedChanged,
+		stats.Interaction.FocusChanged,
+		stats.Interaction.HoverTarget,
+		stats.Virtualization.VisibleItems,
+		stats.Virtualization.TotalItems,
+		stats.Virtualization.CulledItems,
+		stats.Virtualization.Containers,
+		stats.Virtualization.Viewports,
+		stats.Virtualization.LastViewportWidth,
+		stats.Virtualization.LastViewportHeight,
+		stats.Virtualization.NonVirtualizedWarnings,
+		stats.Cache.TextHits,
+		stats.Cache.TextHits+stats.Cache.TextMisses,
+		stats.Cache.StaticPaintHits,
+		stats.Cache.StaticPaintHits+stats.Cache.StaticPaintMisses,
+		stats.Cache.StaticTreeHits,
+		stats.Cache.StaticTreeHits+stats.Cache.StaticTreeMisses,
 		stats.Layout.Duration,
 		stats.Draw.Duration,
 		stats.Animation.Duration,

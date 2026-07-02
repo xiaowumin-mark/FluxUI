@@ -312,7 +312,7 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	} else if focused && activeDecoration.Focused != nil {
 		activeDecoration = activeDecoration.Merge(*activeDecoration.Focused)
 	}
-	duration, easing := md3InteractionTiming(false, false, focused, t.config.disabled)
+	duration, easing := md3InteractionTiming(ctx, false, false, focused, t.config.disabled)
 	activeDecoration = md3AnimateDecoration(ctx, "input-decoration", stripStateDecoration(activeDecoration), duration, easing)
 
 	th := ctx.Theme()

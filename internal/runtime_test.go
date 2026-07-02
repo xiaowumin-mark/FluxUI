@@ -295,10 +295,10 @@ func TestRememberSweepsInactiveFrameMemory(t *testing.T) {
 	rt.remember("kept", func() any { return 3 })
 	rt.EndFrame()
 
-	if _, ok := rt.memory["kept"]; !ok {
+	if _, ok := rt.memory[memoryKeyString("kept")]; !ok {
 		t.Fatal("expected active memory key to be retained")
 	}
-	if _, ok := rt.memory["removed"]; ok {
+	if _, ok := rt.memory[memoryKeyString("removed")]; ok {
 		t.Fatal("expected inactive memory key to be swept")
 	}
 }
@@ -309,7 +309,7 @@ func TestRememberOutsideFrameIsNotSweptByEndFrameWithoutBegin(t *testing.T) {
 
 	rt.EndFrame()
 
-	if _, ok := rt.memory["outside"]; !ok {
+	if _, ok := rt.memory[memoryKeyString("outside")]; !ok {
 		t.Fatal("expected memory created outside a tracked frame to remain")
 	}
 }
