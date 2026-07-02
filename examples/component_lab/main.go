@@ -1192,9 +1192,11 @@ func dialogOverlay(th *ui.Theme, open *fluxstate.State[bool], ref *ui.Ref[*ui.Di
 	}
 	return ui.DialogElement(
 		open.Value(),
-		ui.TextElement("DialogElement is rendered at the root stack so masking and focus can be checked against the full page.", ui.TextColor(th.Colors.OnSurface)),
-		ui.DialogTitle("Dialog"),
+		ui.TextElement("DialogElement is mounted in the root stack so the scrim and modal surface cover the full application instead of only this panel.", ui.TextColor(th.Colors.OnSurfaceVariant)),
+		ui.DialogIconElement(ui.IconElement("edit_note")),
+		ui.DialogHeadlineElement(ui.TextElement("Material dialog", ui.TextColor(th.Colors.OnSurface))),
 		ui.DialogWidth(460),
+		ui.DialogGlobalOverlay(true),
 		ui.DialogAttachRef(ref.Current),
 		ui.DialogOnOpenChange(func(ctx *ui.Context, value bool) { setIfChanged(open, value) }),
 		ui.DialogOnConfirm(func(ctx *ui.Context) {
@@ -1205,8 +1207,16 @@ func dialogOverlay(th *ui.Theme, open *fluxstate.State[bool], ref *ui.Ref[*ui.Di
 			setIfChanged(open, false)
 			ref.Current.Close()
 		}),
-		ui.DialogConfirmText("Apply"),
-		ui.DialogCancelText("Close"),
+		ui.DialogActionElements(
+			ui.TextButtonElement(ui.TextElement("Close"), ui.OnClick(func(ctx *ui.Context) {
+				setIfChanged(open, false)
+				ref.Current.Close()
+			})),
+			ui.TextButtonElement(ui.TextElement("Apply"), ui.OnClick(func(ctx *ui.Context) {
+				setIfChanged(open, false)
+				ref.Current.Close()
+			})),
+		),
 	)
 }
 

@@ -65,8 +65,6 @@ func App(ctx *ui.Context) ui.Element {
 				),
 			),
 			ui.PopupWidth(360),
-			ui.PopupPadding(ui.All(20)),
-			ui.PopupRadius(16),
 			ui.PopupMaskClosable(true),
 			ui.PopupOnOpenChange(func(ctx *ui.Context, open bool) {
 				popupOpen.Set(open)

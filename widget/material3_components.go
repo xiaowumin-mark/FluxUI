@@ -149,7 +149,9 @@ func md3ActionSurface(ctx *internal.Context, clickable *event.Clickable, spec md
 		shadowSpec.ShadowOffsetX = spec.Shadow.OffsetX
 		shadowSpec.ShadowOffsetY = spec.Shadow.OffsetY
 		shadowSpec.ShadowBlur = spec.Shadow.Blur
+		shadowSpec.ShadowSpread = spec.Shadow.Spread
 		shadowSpec.ShadowColor = spec.Shadow.Color
+		shadowSpec.ShadowLayers = spec.Shadow.EffectiveLayers()
 	}
 
 	layoutSurface := func(surfaceCtx *internal.Context) image.Point {

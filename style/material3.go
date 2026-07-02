@@ -41,8 +41,13 @@ func ElevationShadow(cs theme.ColorScheme, level int) BoxShadow {
 	}
 	shadow := ElevationBoxShadow(level)
 	if cs.Shadow.A != 0 {
+		for i := range shadow.Layers {
+			alpha := shadow.Layers[i].Color.A
+			shadow.Layers[i].Color = cs.Shadow
+			shadow.Layers[i].Color.A = alpha
+		}
 		shadow.Color = cs.Shadow
-		shadow.Color.A = elevationShadowAlpha(level)
+		shadow.Color.A = 38
 	}
 	return shadow
 }
@@ -70,21 +75,6 @@ func tonalElevationOverlay(level int) float32 {
 		return 0.12
 	default:
 		return 0.14
-	}
-}
-
-func elevationShadowAlpha(level int) uint8 {
-	switch level {
-	case 1:
-		return 24
-	case 2:
-		return 32
-	case 3:
-		return 38
-	case 4:
-		return 44
-	default:
-		return 50
 	}
 }
 

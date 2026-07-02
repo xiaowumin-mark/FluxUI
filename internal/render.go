@@ -90,7 +90,9 @@ type SurfaceSpec struct {
 	ShadowOffsetX float32
 	ShadowOffsetY float32
 	ShadowBlur    float32
+	ShadowSpread  float32
 	ShadowColor   color.NRGBA
+	ShadowLayers  []fluxstyle.ShadowLayer
 	HasImage      bool
 	ImageOp       paint.ImageOp
 	ImageFit      int
@@ -133,7 +135,9 @@ type ShadowSpec struct {
 	OffsetX float32
 	OffsetY float32
 	Blur    float32
+	Spread  float32
 	Color   color.NRGBA
+	Layers  []fluxstyle.ShadowLayer
 }
 
 // CheckboxSpec 描述复选框样式。
@@ -338,7 +342,7 @@ func (c *Context) LayoutSurfaceLooseContent(spec SurfaceSpec, child func(*Contex
 }
 
 func (c *Context) DrawSurfaceShadow(size image.Point, spec SurfaceSpec) {
-	if size.X <= 0 || size.Y <= 0 || !spec.HasShadow || spec.ShadowColor.A == 0 || spec.ShadowBlur <= 0 {
+	if size.X <= 0 || size.Y <= 0 || !spec.HasShadow || len(surfaceShadowLayers(spec)) == 0 {
 		return
 	}
 	c.drawShadowLayers(c.Gtx, size, spec)
@@ -348,61 +352,46 @@ func (c *Context) drawShadowLayers(gtx gioLayout.Context, size image.Point, spec
 	if done := c.startFrameSection(PerfDraw, 1); done != nil {
 		defer done()
 	}
-	n := shadowLayerCount(spec.ShadowBlur)
-	if n <= 0 || size.X <= 0 || size.Y <= 0 {
+	layers := surfaceShadowLayers(spec)
+	if size.X <= 0 || size.Y <= 0 || len(layers) == 0 {
 		return
 	}
-	baseAlpha := float32(spec.ShadowColor.A) / 255.0
-	for i := 0; i < n; i++ {
-		t := float32(i+1) / float32(n)
-		offX := int(float32(gtx.Dp(unit.Dp(spec.ShadowOffsetX))) * t * 2.0)
-		offY := int(float32(gtx.Dp(unit.Dp(spec.ShadowOffsetY))) * t * 2.0)
-		alpha := baseAlpha * (1.0 - t*0.4)
-		spread := gtx.Dp(unit.Dp(spec.ShadowBlur * t * 0.5))
-
-		sc := spec.ShadowColor
-		sc.A = uint8(alpha*255.0 + 0.5)
-
-		offStack := op.Offset(image.Pt(offX, offY)).Push(gtx.Ops)
-
-		if spec.CircleClip {
-			dim := size.X
-			if size.Y < dim {
-				dim = size.Y
-			}
-			offXc := (size.X - dim) / 2
-			offYc := (size.Y - dim) / 2
-			outer := image.Rect(offXc-spread, offYc-spread, offXc+dim+spread, offYc+dim+spread)
-			clipStack := clip.Ellipse(outer).Push(gtx.Ops)
-			paint.Fill(gtx.Ops, sc)
-			clipStack.Pop()
-		} else {
-			rect := image.Rect(-spread, -spread, size.X+spread, size.Y+spread)
-			rad := gtx.Dp(unit.Dp(spec.Radius)) + spread
-			rr := clampRoundedRadiusPx(rect.Size(), rad)
-			clipStack := clip.UniformRRect(rect, rr).Push(gtx.Ops)
-			paint.Fill(gtx.Ops, sc)
-			clipStack.Pop()
+	radius := gtx.Dp(unit.Dp(spec.Radius))
+	for _, layer := range layers {
+		layerBlur := gtx.Dp(unit.Dp(layer.Blur))
+		if layerBlur <= 0 || layer.Color.A == 0 {
+			continue
 		}
-
-		offStack.Pop()
+		layerOffX := gtx.Dp(unit.Dp(layer.OffsetX))
+		layerOffY := gtx.Dp(unit.Dp(layer.OffsetY))
+		spread := gtx.Dp(unit.Dp(layer.Spread))
+		entry := softShadowEntry(size, radius, layerBlur, spread, layerOffX, layerOffY, layer.Color, spec.CircleClip)
+		if entry.op.Size().X <= 0 || entry.op.Size().Y <= 0 {
+			continue
+		}
+		stack := op.Offset(image.Pt(-entry.padX, -entry.padY)).Push(gtx.Ops)
+		clipStack := clip.Rect(image.Rectangle{Max: entry.op.Size()}).Push(gtx.Ops)
+		entry.op.Add(gtx.Ops)
+		paint.PaintOp{}.Add(gtx.Ops)
+		clipStack.Pop()
+		stack.Pop()
 	}
 }
 
-func shadowLayerCount(blur float32) int {
-	if blur <= 0 {
-		return 0
+func surfaceShadowLayers(spec SurfaceSpec) []fluxstyle.ShadowLayer {
+	if len(spec.ShadowLayers) > 0 {
+		return spec.ShadowLayers
 	}
-	if blur <= 4 {
-		return 2
+	if spec.ShadowBlur <= 0 || spec.ShadowColor.A == 0 {
+		return nil
 	}
-	if blur <= 12 {
-		return 3
-	}
-	if blur <= 24 {
-		return 4
-	}
-	return 5
+	return []fluxstyle.ShadowLayer{{
+		OffsetX: spec.ShadowOffsetX,
+		OffsetY: spec.ShadowOffsetY,
+		Blur:    spec.ShadowBlur,
+		Spread:  spec.ShadowSpread,
+		Color:   spec.ShadowColor,
+	}}
 }
 
 func (c *Context) layoutRoundedSurface(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
@@ -628,14 +617,16 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 	}
 	buttonOps := recorded.Stop()
 
-	if spec.HasShadow && spec.Shadow.Color.A > 0 && spec.Shadow.Blur > 0 {
+	if spec.HasShadow && !shadowSpecIsZero(spec.Shadow) {
 		c.drawShadowLayers(gtx, dims.Size, SurfaceSpec{
 			Radius:        spec.Radius,
 			HasShadow:     true,
 			ShadowOffsetX: spec.Shadow.OffsetX,
 			ShadowOffsetY: spec.Shadow.OffsetY,
 			ShadowBlur:    spec.Shadow.Blur,
+			ShadowSpread:  spec.Shadow.Spread,
 			ShadowColor:   spec.Shadow.Color,
+			ShadowLayers:  spec.Shadow.Layers,
 		})
 	}
 	buttonOps.Add(gtx.Ops)
@@ -652,6 +643,18 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 	}
 
 	return dims.Size
+}
+
+func shadowSpecIsZero(spec ShadowSpec) bool {
+	if len(spec.Layers) > 0 {
+		for _, layer := range spec.Layers {
+			if layer.Blur > 0 && layer.Color.A > 0 {
+				return false
+			}
+		}
+		return true
+	}
+	return spec.Blur <= 0 || spec.Color.A == 0
 }
 
 type FocusIndicatorSpec struct {

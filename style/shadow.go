@@ -2,17 +2,44 @@ package style
 
 import "image/color"
 
-// BoxShadow 描述盒阴影。用多层半透明偏移矩形模拟模糊，
-// 近似于 Material Design 的阴影规范。
+// ShadowLayer 是单层 CSS box-shadow 语义。
+type ShadowLayer struct {
+	OffsetX float32
+	OffsetY float32
+	Blur    float32
+	Spread  float32
+	Color   color.NRGBA
+}
+
+// BoxShadow 描述盒阴影。渲染层会把它生成为可缓存的柔和模糊贴图，
+// 避免用多层硬边矩形模拟阴影。
 type BoxShadow struct {
 	OffsetX float32
 	OffsetY float32
 	Blur    float32
+	Spread  float32
 	Color   color.NRGBA
+	Layers  []ShadowLayer
 }
 
 func (s BoxShadow) IsZero() bool {
-	return s.Blur <= 0 || s.Color.A == 0
+	return len(s.EffectiveLayers()) == 0
+}
+
+func (s BoxShadow) EffectiveLayers() []ShadowLayer {
+	if len(s.Layers) > 0 {
+		layers := make([]ShadowLayer, 0, len(s.Layers))
+		for _, layer := range s.Layers {
+			if layer.Blur > 0 && layer.Color.A > 0 {
+				layers = append(layers, layer)
+			}
+		}
+		return layers
+	}
+	if s.Blur <= 0 || s.Color.A == 0 {
+		return nil
+	}
+	return []ShadowLayer{{OffsetX: s.OffsetX, OffsetY: s.OffsetY, Blur: s.Blur, Spread: s.Spread, Color: s.Color}}
 }
 
 // ElevationBoxShadow 返回 Material Design 高度等级对应的阴影预设。
@@ -21,15 +48,15 @@ func (s BoxShadow) IsZero() bool {
 func ElevationBoxShadow(level int) BoxShadow {
 	switch level {
 	case 1:
-		return BoxShadow{OffsetY: 1, Blur: 4, Color: color.NRGBA{R: 0, G: 0, B: 0, A: 40}}
+		return materialElevationShadow(1, 2, 0, 1, 3, 1)
 	case 2:
-		return BoxShadow{OffsetY: 2, Blur: 8, Color: color.NRGBA{R: 0, G: 0, B: 0, A: 52}}
+		return materialElevationShadow(1, 2, 0, 2, 6, 2)
 	case 3:
-		return BoxShadow{OffsetY: 5, Blur: 16, Color: color.NRGBA{R: 0, G: 0, B: 0, A: 62}}
+		return materialElevationShadow(1, 3, 0, 4, 8, 3)
 	case 4:
-		return BoxShadow{OffsetY: 10, Blur: 28, Color: color.NRGBA{R: 0, G: 0, B: 0, A: 72}}
+		return materialElevationShadow(2, 3, 0, 6, 10, 4)
 	case 5:
-		return BoxShadow{OffsetY: 16, Blur: 40, Color: color.NRGBA{R: 0, G: 0, B: 0, A: 82}}
+		return materialElevationShadow(4, 4, 0, 8, 12, 6)
 	default:
 		if level <= 0 {
 			return BoxShadow{}
@@ -37,5 +64,18 @@ func ElevationBoxShadow(level int) BoxShadow {
 		s := ElevationBoxShadow(5)
 		s.Blur = s.Blur * float32(level) / 5.0
 		return s
+	}
+}
+
+func materialElevationShadow(keyY, keyBlur, keySpread, ambientY, ambientBlur, ambientSpread float32) BoxShadow {
+	return BoxShadow{
+		OffsetY: ambientY,
+		Blur:    ambientBlur,
+		Spread:  ambientSpread,
+		Color:   color.NRGBA{R: 0, G: 0, B: 0, A: 38},
+		Layers: []ShadowLayer{
+			{OffsetY: keyY, Blur: keyBlur, Spread: keySpread, Color: color.NRGBA{R: 0, G: 0, B: 0, A: 77}},
+			{OffsetY: ambientY, Blur: ambientBlur, Spread: ambientSpread, Color: color.NRGBA{R: 0, G: 0, B: 0, A: 38}},
+		},
 	}
 }

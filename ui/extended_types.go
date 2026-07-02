@@ -36,6 +36,8 @@ type ProgressOption = widget.ProgressOption
 type TabsOption = widget.TabsOption
 type TabItem = widget.TabItem
 type DialogOption = widget.DialogOption
+type DialogType = widget.DialogType
+type DialogMount = widget.DialogMount
 type PopupOption = widget.PopupOption
 type ToastOption = widget.ToastOption
 type ToastType = widget.ToastType
@@ -90,6 +92,17 @@ const (
 	ToastTop    ToastPosition = widget.ToastTop
 	ToastCenter ToastPosition = widget.ToastCenter
 	ToastBottom ToastPosition = widget.ToastBottom
+)
+
+const (
+	DialogTypeBasic      DialogType = widget.DialogTypeBasic
+	DialogTypeAlert      DialogType = widget.DialogTypeAlert
+	DialogTypeFullscreen DialogType = widget.DialogTypeFullscreen
+)
+
+const (
+	DialogMountGlobal DialogMount = widget.DialogMountGlobal
+	DialogMountLocal  DialogMount = widget.DialogMountLocal
 )
 
 const (
@@ -2036,12 +2049,60 @@ func DialogWidth(width float32) DialogOption {
 	return widget.DialogWidth(width)
 }
 
+func DialogHeight(height float32) DialogOption {
+	return widget.DialogHeight(height)
+}
+
 func DialogRadius(radius float32) DialogOption {
 	return widget.DialogRadius(radius)
 }
 
 func DialogMaskClosable(maskClosable bool) DialogOption {
 	return widget.DialogMaskClosable(maskClosable)
+}
+
+func DialogQuick(quick bool) DialogOption {
+	return widget.DialogQuick(quick)
+}
+
+func DialogTypeOf(kind DialogType) DialogOption {
+	return widget.DialogTypeOf(kind)
+}
+
+func DialogMountMode(mount DialogMount) DialogOption {
+	return widget.DialogMountMode(mount)
+}
+
+func DialogGlobalOverlay(global bool) DialogOption {
+	return widget.DialogGlobalOverlay(global)
+}
+
+func DialogIcon(icon Widget) DialogOption {
+	return widget.DialogIcon(icon)
+}
+
+func DialogIconElement(icon Element) DialogOption {
+	return widget.DialogIcon(renderElement(icon))
+}
+
+func DialogHeadline(headline Widget) DialogOption {
+	return widget.DialogHeadline(headline)
+}
+
+func DialogHeadlineElement(headline Element) DialogOption {
+	return widget.DialogHeadline(renderElement(headline))
+}
+
+func DialogActions(actions ...Widget) DialogOption {
+	return widget.DialogActions(actions...)
+}
+
+func DialogActionElements(actions ...Element) DialogOption {
+	widgets := make([]Widget, 0, len(actions))
+	for _, action := range actions {
+		widgets = append(widgets, renderElement(action))
+	}
+	return widget.DialogActions(widgets...)
 }
 
 func DialogOnOpenChange(fn func(ctx *Context, open bool)) DialogOption {
@@ -2054,6 +2115,26 @@ func DialogOnConfirm(fn func(ctx *Context)) DialogOption {
 
 func DialogOnCancel(fn func(ctx *Context)) DialogOption {
 	return widget.DialogOnCancel(fn)
+}
+
+func DialogOnOpen(fn func(ctx *Context)) DialogOption {
+	return widget.DialogOnOpen(fn)
+}
+
+func DialogOnOpened(fn func(ctx *Context)) DialogOption {
+	return widget.DialogOnOpened(fn)
+}
+
+func DialogOnClose(fn func(ctx *Context)) DialogOption {
+	return widget.DialogOnClose(fn)
+}
+
+func DialogOnClosed(fn func(ctx *Context)) DialogOption {
+	return widget.DialogOnClosed(fn)
+}
+
+func DialogOnCancelOnly(fn func(ctx *Context)) DialogOption {
+	return widget.DialogOnCancelOnly(fn)
 }
 
 func NewDialogRef() *DialogRef {
@@ -2092,6 +2173,10 @@ func PopupWidth(width float32) PopupOption {
 	return widget.PopupWidth(width)
 }
 
+func PopupHeight(height float32) PopupOption {
+	return widget.PopupHeight(height)
+}
+
 func PopupRadius(radius float32) PopupOption {
 	return widget.PopupRadius(radius)
 }
@@ -2108,8 +2193,44 @@ func PopupPadding(insets Insets) PopupOption {
 	return widget.PopupPadding(insets)
 }
 
+func PopupQuick(quick bool) PopupOption {
+	return widget.PopupQuick(quick)
+}
+
+func PopupTypeOf(kind DialogType) PopupOption {
+	return widget.PopupTypeOf(kind)
+}
+
+func PopupMountMode(mount DialogMount) PopupOption {
+	return widget.PopupMountMode(mount)
+}
+
+func PopupGlobalOverlay(global bool) PopupOption {
+	return widget.PopupGlobalOverlay(global)
+}
+
 func PopupOnOpenChange(fn func(ctx *Context, open bool)) PopupOption {
 	return widget.PopupOnOpenChange(fn)
+}
+
+func PopupOnOpen(fn func(ctx *Context)) PopupOption {
+	return widget.PopupOnOpen(fn)
+}
+
+func PopupOnOpened(fn func(ctx *Context)) PopupOption {
+	return widget.PopupOnOpened(fn)
+}
+
+func PopupOnClose(fn func(ctx *Context)) PopupOption {
+	return widget.PopupOnClose(fn)
+}
+
+func PopupOnClosed(fn func(ctx *Context)) PopupOption {
+	return widget.PopupOnClosed(fn)
+}
+
+func PopupOnCancelOnly(fn func(ctx *Context)) PopupOption {
+	return widget.PopupOnCancelOnly(fn)
 }
 
 func NewPopupRef() *PopupRef {

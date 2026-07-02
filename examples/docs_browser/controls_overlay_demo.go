@@ -186,25 +186,30 @@ func docsDialogDemo(open docsBoolState) ui.Element {
 			),
 			ui.DialogElement(
 				open.Value(),
-				ui.TextElement("This is a docs browser Dialog example."),
-				ui.DialogTitle("Dialog example"),
-				ui.DialogWidth(340),
-				ui.DialogRadius(18),
+				ui.TextElement("This dialog uses Material Web style slots: icon, headline, content, actions, scrim, and modal lifecycle callbacks."),
+				ui.DialogIconElement(ui.IconElement("info")),
+				ui.DialogHeadlineElement(ui.TextElement("Dialog example")),
+				ui.DialogWidth(420),
+				ui.DialogRadius(28),
 				ui.DialogMaskClosable(true),
-				ui.DialogConfirmText("Apply"),
-				ui.DialogCancelText("Dismiss"),
-				ui.DialogDecoration(ui.Bg(ui.NRGBA(255, 255, 255, 255)).WithRad(18).Merge(ui.Elevation(4))),
-				ui.DialogMaskColor(ui.NRGBA(15, 23, 42, 255)),
-				ui.DialogMaskAlpha(90),
+				ui.DialogTypeOf(ui.DialogTypeAlert),
+				ui.DialogGlobalOverlay(true),
+				ui.DialogMaskColor(ui.NRGBA(15, 23, 42, 82)),
+				ui.DialogActions(
+					ui.TextButton(ui.Text("Dismiss"), ui.OnClick(func(ctx *ui.Context) {
+						open.Set(false)
+						ref.Current.Close()
+					})),
+					ui.TextButton(ui.Text("Apply"), ui.OnClick(func(ctx *ui.Context) {
+						open.Set(false)
+						ref.Current.Close()
+					})),
+				),
 				ui.DialogAttachRef(ref.Current),
 				ui.DialogOnOpenChange(func(ctx *ui.Context, next bool) {
 					open.Set(next)
 				}),
-				ui.DialogOnCancel(func(ctx *ui.Context) {
-					open.Set(false)
-					ref.Current.Close()
-				}),
-				ui.DialogOnConfirm(func(ctx *ui.Context) {
+				ui.DialogOnCancelOnly(func(ctx *ui.Context) {
 					open.Set(false)
 					ref.Current.Close()
 				}),
@@ -256,12 +261,8 @@ func docsPopupDemo(open docsBoolState) ui.Element {
 					),
 				),
 				ui.PopupWidth(320),
-				ui.PopupPadding(ui.All(16)),
-				ui.PopupRadius(12),
 				ui.PopupMaskClosable(true),
-				ui.PopupMaskColor(ui.NRGBA(15, 23, 42, 255)),
-				ui.PopupMaskAlpha(72),
-				ui.PopupDecoration(ui.Bg(ui.NRGBA(255, 255, 255, 255)).WithRad(12).Merge(ui.Elevation(3))),
+				ui.PopupMaskColor(ui.NRGBA(0, 0, 0, 82)),
 				ui.PopupAttachRef(ref.Current),
 				ui.PopupOnOpenChange(func(ctx *ui.Context, next bool) {
 					open.Set(next)

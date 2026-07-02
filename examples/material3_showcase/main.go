@@ -305,7 +305,7 @@ func App(ctx *ui.Context) ui.Element {
 						ui.Bg(th.Colors.SurfaceContainerLow).WithRad(th.Shapes.Medium).WithPad(ui.All(16)),
 						ui.ColumnElement(
 							ui.ToastElement("Inverse snackbar surface", ui.ToastDuration(0)),
-							ui.PopupElement(true, ui.TextElement("Popup uses SurfaceContainer + elevation", ui.TextColor(th.Colors.OnSurface)), ui.PopupPadding(ui.All(16)), ui.PopupWidth(340)),
+							ui.PopupElement(true, ui.TextElement("Popup uses Dialog surface shape and elevation", ui.TextColor(th.Colors.OnSurface)), ui.PopupWidth(340)),
 						),
 					),
 					ui.DialogElement(true,

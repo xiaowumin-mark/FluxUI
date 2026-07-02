@@ -114,10 +114,32 @@ func lerpBorder(from, to style.Border, t float32) style.Border {
 }
 
 func lerpShadow(from, to style.BoxShadow, t float32) style.BoxShadow {
-	return style.BoxShadow{
+	result := style.BoxShadow{
 		OffsetX: lerp(from.OffsetX, to.OffsetX, t),
 		OffsetY: lerp(from.OffsetY, to.OffsetY, t),
 		Blur:    lerp(from.Blur, to.Blur, t),
+		Spread:  lerp(from.Spread, to.Spread, t),
+		Color:   lerpNRGBA(from.Color, to.Color, t),
+	}
+	fromLayers := from.EffectiveLayers()
+	toLayers := to.EffectiveLayers()
+	if len(fromLayers) == len(toLayers) && len(toLayers) > 0 {
+		result.Layers = make([]style.ShadowLayer, len(toLayers))
+		for i := range toLayers {
+			result.Layers[i] = lerpShadowLayer(fromLayers[i], toLayers[i], t)
+		}
+	} else if len(toLayers) > 0 {
+		result.Layers = append([]style.ShadowLayer(nil), toLayers...)
+	}
+	return result
+}
+
+func lerpShadowLayer(from, to style.ShadowLayer, t float32) style.ShadowLayer {
+	return style.ShadowLayer{
+		OffsetX: lerp(from.OffsetX, to.OffsetX, t),
+		OffsetY: lerp(from.OffsetY, to.OffsetY, t),
+		Blur:    lerp(from.Blur, to.Blur, t),
+		Spread:  lerp(from.Spread, to.Spread, t),
 		Color:   lerpNRGBA(from.Color, to.Color, t),
 	}
 }
@@ -195,7 +217,20 @@ func shadowPtrEqual(a, b *style.BoxShadow) bool {
 	if a == nil || b == nil {
 		return false
 	}
-	return a.OffsetX == b.OffsetX && a.OffsetY == b.OffsetY && a.Blur == b.Blur && a.Color == b.Color
+	if a.OffsetX != b.OffsetX || a.OffsetY != b.OffsetY || a.Blur != b.Blur || a.Spread != b.Spread || a.Color != b.Color {
+		return false
+	}
+	aLayers := a.EffectiveLayers()
+	bLayers := b.EffectiveLayers()
+	if len(aLayers) != len(bLayers) {
+		return false
+	}
+	for i := range aLayers {
+		if aLayers[i] != bLayers[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func transformPtrEqual(a, b *style.Transform2D) bool {

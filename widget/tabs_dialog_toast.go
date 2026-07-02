@@ -711,16 +711,48 @@ func tabsStackedContent(icon, label Widget) Widget {
 // DialogOption 对话框配置。
 type DialogOption func(*dialogConfig)
 
+// DialogType 定义对话框语义类型。
+type DialogType int
+
+const (
+	DialogTypeBasic DialogType = iota
+	DialogTypeAlert
+	DialogTypeFullscreen
+)
+
+// DialogMount 定义对话框遮罩和面板的挂载范围。
+type DialogMount int
+
+const (
+	// DialogMountGlobal 按当前窗口/根布局可用区域绘制遮罩。Dialog 应放在根 Stack
+	// 的顶层以获得真正全局的 modal 行为。
+	DialogMountGlobal DialogMount = iota
+	// DialogMountLocal 只覆盖 Dialog 所在父布局分配到的区域。
+	DialogMountLocal
+)
+
 type dialogConfig struct {
 	title        string
 	width        float32
+	height       float32
 	radius       float32
 	maskClosable bool
+	quick        bool
+	kind         DialogType
+	mount        DialogMount
+	icon         Widget
+	headline     Widget
+	actions      []Widget
 	confirmText  string
 	cancelText   string
 	onOpenChange func(ctx *internal.Context, open bool)
 	onConfirm    func(ctx *internal.Context)
 	onCancel     func(ctx *internal.Context)
+	onOpen       func(ctx *internal.Context)
+	onOpened     func(ctx *internal.Context)
+	onClose      func(ctx *internal.Context)
+	onClosed     func(ctx *internal.Context)
+	onCancelOnly func(ctx *internal.Context)
 	ref          *DialogRef
 	decoration   style.Decoration
 	maskColor    color.NRGBA
@@ -734,7 +766,8 @@ type dialogWidget struct {
 }
 
 type dialogState struct {
-	wasOpen bool
+	wasOpen        bool
+	visibleWasOpen bool
 }
 
 // Dialog 创建对话框。
@@ -743,6 +776,7 @@ func Dialog(open bool, child Widget, opts ...DialogOption) Widget {
 		maskClosable: true,
 		confirmText:  "确定",
 		cancelText:   "取消",
+		mount:        DialogMountGlobal,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -766,6 +800,13 @@ func DialogWidth(width float32) DialogOption {
 	}
 }
 
+// DialogHeight 设置对话框固定高度。0 表示根据内容自适应并受窗口最大高度约束。
+func DialogHeight(height float32) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.height = height
+	}
+}
+
 func DialogRadius(radius float32) DialogOption {
 	return func(cfg *dialogConfig) {
 		cfg.radius = radius
@@ -775,6 +816,59 @@ func DialogRadius(radius float32) DialogOption {
 func DialogMaskClosable(maskClosable bool) DialogOption {
 	return func(cfg *dialogConfig) {
 		cfg.maskClosable = maskClosable
+	}
+}
+
+// DialogQuick 跳过打开/关闭动画，对齐 Material Web 的 quick 属性。
+func DialogQuick(quick bool) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.quick = quick
+	}
+}
+
+// DialogTypeOf 设置 basic/alert/fullscreen 语义。
+func DialogTypeOf(kind DialogType) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.kind = kind
+	}
+}
+
+// DialogMountMode 设置遮罩和面板覆盖范围。
+func DialogMountMode(mount DialogMount) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.mount = mount
+	}
+}
+
+// DialogGlobalOverlay 控制是否按根窗口区域绘制。默认 true。
+func DialogGlobalOverlay(global bool) DialogOption {
+	return func(cfg *dialogConfig) {
+		if global {
+			cfg.mount = DialogMountGlobal
+		} else {
+			cfg.mount = DialogMountLocal
+		}
+	}
+}
+
+// DialogIcon 设置标题上方图标。
+func DialogIcon(icon Widget) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.icon = icon
+	}
+}
+
+// DialogHeadline 设置自定义 headline 内容；优先级高于 DialogTitle。
+func DialogHeadline(headline Widget) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.headline = headline
+	}
+}
+
+// DialogActions 设置底部 action 区域；设置后不会自动生成确认/取消按钮。
+func DialogActions(actions ...Widget) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.actions = append([]Widget(nil), actions...)
 	}
 }
 
@@ -793,6 +887,37 @@ func DialogOnConfirm(fn func(ctx *internal.Context)) DialogOption {
 func DialogOnCancel(fn func(ctx *internal.Context)) DialogOption {
 	return func(cfg *dialogConfig) {
 		cfg.onCancel = fn
+	}
+}
+
+func DialogOnOpen(fn func(ctx *internal.Context)) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.onOpen = fn
+	}
+}
+
+func DialogOnOpened(fn func(ctx *internal.Context)) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.onOpened = fn
+	}
+}
+
+func DialogOnClose(fn func(ctx *internal.Context)) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.onClose = fn
+	}
+}
+
+func DialogOnClosed(fn func(ctx *internal.Context)) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.onClosed = fn
+	}
+}
+
+// DialogOnCancelOnly 在 scrim/Escape 取消时调用，不替代 DialogOnCancel 的按钮回调。
+func DialogOnCancelOnly(fn func(ctx *internal.Context)) DialogOption {
+	return func(cfg *dialogConfig) {
+		cfg.onCancelOnly = fn
 	}
 }
 
@@ -855,24 +980,55 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	state := dialogStateFor(ctx)
 	if d.config.onOpenChange != nil && state.wasOpen != open {
+		if open && d.config.onOpen != nil {
+			d.config.onOpen(ctx)
+		}
+		if !open && d.config.onClose != nil {
+			d.config.onClose(ctx)
+		}
 		state.wasOpen = open
 		d.config.onOpenChange(ctx, open)
+	}
+	if d.config.onOpenChange == nil && state.wasOpen != open {
+		if open && d.config.onOpen != nil {
+			d.config.onOpen(ctx)
+		}
+		if !open && d.config.onClose != nil {
+			d.config.onClose(ctx)
+		}
+		state.wasOpen = open
+	}
+	enterDuration := 500 * time.Millisecond
+	exitDuration := 150 * time.Millisecond
+	if d.config.quick {
+		enterDuration = 0
+		exitDuration = 0
 	}
 	overlayProgress, overlayVisible := md3OverlayProgress(
 		ctx,
 		"dialog-overlay",
 		open,
-		style.InteractionMenuEnterDuration,
-		style.InteractionMenuExitDuration,
-		style.InteractionEmphasizedDecelerateEasing,
+		enterDuration,
+		exitDuration,
+		style.InteractionEmphasizedEasing,
 		style.InteractionEmphasizedAccelerateEasing,
 	)
 	if !overlayVisible {
+		if state.visibleWasOpen && !open && d.config.onClosed != nil {
+			d.config.onClosed(ctx)
+		}
+		state.visibleWasOpen = false
 		return layout.Dimensions{}
+	}
+	if open && overlayProgress >= 1 && !state.visibleWasOpen {
+		state.visibleWasOpen = true
+		if d.config.onOpened != nil {
+			d.config.onOpened(ctx)
+		}
 	}
 
 	cs := ctx.Theme().Colors
-	maskColor := withAlpha(cs.Scrim, 120)
+	maskColor := withAlpha(cs.Scrim, 82)
 	if d.config.hasMaskColor {
 		maskColor = d.config.maskColor
 	}
@@ -883,54 +1039,64 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 		paint.FillShape(maskCtx.Gtx.Ops, maskColor, clip.Rect(image.Rectangle{Max: size}).Op())
 	}, open && d.config.maskClosable && d.config.onOpenChange != nil, func(maskCtx *internal.Context) {
+		if d.config.onCancelOnly != nil {
+			d.config.onCancelOnly(maskCtx)
+		}
 		d.config.onOpenChange(maskCtx, false)
 	})
 
-	parts := make([]Widget, 0, 3)
-	if d.config.title != "" {
-		parts = append(parts, Padding(style.Insets{Bottom: 8}, Text(d.config.title, TextType(ctx.Theme().Types.HeadlineSmall), TextColor(cs.OnSurface))))
+	sections := make([]dialogSection, 0, 4)
+	if d.config.icon != nil {
+		sections = append(sections, dialogSection{
+			kind:  dialogSectionIcon,
+			child: Center(FixedSize(24, 24, withForeground(cs.Secondary, d.config.icon))),
+		})
+	}
+	headline := d.config.headline
+	if headline == nil && d.config.title != "" {
+		headline = Text(d.config.title, TextType(ctx.Theme().Types.HeadlineSmall), TextColor(cs.OnSurface))
+	}
+	if headline != nil {
+		if d.config.icon != nil {
+			headline = Center(headline)
+		}
+		sections = append(sections, dialogSection{kind: dialogSectionHeadline, child: headline})
 	}
 	if d.child != nil {
-		parts = append(parts, withTextStyle(ctx.Theme().Types.BodyMedium, d.child))
+		sections = append(sections, dialogSection{kind: dialogSectionContent, child: withTextStyle(ctx.Theme().Types.BodyMedium, d.child)})
 	}
 
-	actions := make([]Widget, 0, 2)
-	if d.config.onCancel != nil {
-		actions = append(actions, Button(Text(d.config.cancelText), OnClick(d.config.onCancel)))
-	}
-	if d.config.onConfirm != nil {
-		actions = append(actions, Padding(style.Insets{Left: 8}, Button(Text(d.config.confirmText), OnClick(d.config.onConfirm))))
+	actions := d.config.actions
+	if len(actions) == 0 {
+		actions = make([]Widget, 0, 2)
+		if d.config.onCancel != nil {
+			actions = append(actions, TextButton(Text(d.config.cancelText, TextColor(cs.Primary), TextType(ctx.Theme().Types.LabelLarge)), ButtonForeground(cs.Primary), ButtonPadding(style.Symmetric(10, 12)), OnClick(d.config.onCancel)))
+		}
+		if d.config.onConfirm != nil {
+			actions = append(actions, TextButton(Text(d.config.confirmText, TextColor(cs.Primary), TextType(ctx.Theme().Types.LabelLarge)), ButtonForeground(cs.Primary), ButtonPadding(style.Symmetric(10, 12)), OnClick(d.config.onConfirm)))
+		}
 	}
 	if len(actions) > 0 {
-		parts = append(parts, Padding(style.Insets{Top: 12}, Row(actions...)))
+		actionChildren := make([]Widget, 0, len(actions)+1)
+		actionChildren = append(actionChildren, Expanded(Spacer(0, 0)))
+		for index, action := range actions {
+			if index > 0 {
+				actionChildren = append(actionChildren, HSpacer(8))
+			}
+			actionChildren = append(actionChildren, action)
+		}
+		sections = append(sections, dialogSection{kind: dialogSectionActions, child: Row(actionChildren...)})
 	}
 
 	radiusDefault := ctx.Theme().Shapes.ExtraLarge
 	if d.config.radius > 0 {
 		radiusDefault = d.config.radius
 	}
-	panelDeco := style.Decoration{}.
-		WithBg(d.config.decoration.ResolveBg(cs.SurfaceContainerHigh)).
-		WithPad(d.config.decoration.ResolvePad(style.All(24))).
-		WithRad(d.config.decoration.ResolveRad(radiusDefault))
-	if d.config.decoration.Shadow != nil {
-		panelDeco = panelDeco.WithShadow(*d.config.decoration.Shadow)
-	} else {
-		panelDeco = panelDeco.WithShadow(style.ElevationShadow(cs, 3))
-	}
-	if d.config.decoration.Border != nil {
-		panelDeco = panelDeco.WithBorder(*d.config.decoration.Border)
-	}
-	panel := ContainerDecoration(panelDeco, Column(parts...))
-	if d.config.width > 0 {
-		panel = &fixedSizeWidget{
-			width: d.config.width,
-			child: panel,
-		}
-	}
+	panelDeco := materialDialogSurfaceDecoration(ctx, d.config.decoration, cs.SurfaceContainerHigh, style.All(24), radiusDefault)
 
 	content := anchoredOverlayWidget(layoutWidgetFunc(func(overlayCtx *internal.Context) layout.Dimensions {
-		size := layoutMD3OverlayTransition(overlayCtx, overlayProgress, 8, func(transitionCtx *internal.Context) image.Point {
+		panel := d.materialPanel(panelDeco, sections, overlayProgress)
+		size := layoutMaterialDialogTransition(overlayCtx, overlayProgress, d.config.quick, func(transitionCtx *internal.Context) image.Point {
 			return panel.Layout(transitionCtx.Child(0)).Size
 		})
 		return layout.Dimensions{Size: size}
@@ -940,6 +1106,202 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		mask,
 		content,
 	).Layout(ctx.Child(0))
+}
+
+type dialogSectionKind uint8
+
+const (
+	dialogSectionIcon dialogSectionKind = iota
+	dialogSectionHeadline
+	dialogSectionContent
+	dialogSectionActions
+)
+
+type dialogSection struct {
+	kind  dialogSectionKind
+	child Widget
+}
+
+func (d *dialogWidget) materialPanel(deco style.Decoration, sections []dialogSection, progress float32) Widget {
+	return layoutWidgetFunc(func(panelCtx *internal.Context) layout.Dimensions {
+		gtx := panelCtx.Gtx
+		max := gtx.Constraints.Max
+		margin := gtx.Dp(safeDp(24))
+		if margin < 0 {
+			margin = 0
+		}
+		minW := gtx.Dp(safeDp(280))
+		maxW := gtx.Dp(safeDp(560))
+		if d.config.kind == DialogTypeFullscreen {
+			minW = max.X - margin*2
+			maxW = minW
+		}
+		if d.config.width > 0 {
+			minW = gtx.Dp(safeDp(d.config.width))
+			maxW = minW
+		}
+		if limit := max.X - margin*2; limit > 0 && maxW > limit {
+			maxW = limit
+		}
+		if minW > maxW {
+			minW = maxW
+		}
+		maxH := gtx.Dp(safeDp(560))
+		if limit := max.Y - margin*2; limit > 0 && maxH > limit {
+			maxH = limit
+		}
+		if d.config.kind == DialogTypeFullscreen {
+			maxH = max.Y - margin*2
+		}
+		if d.config.height > 0 {
+			maxH = gtx.Dp(safeDp(d.config.height))
+			if limit := max.Y - margin*2; limit > 0 && maxH > limit {
+				maxH = limit
+			}
+		}
+		if maxH < gtx.Dp(safeDp(140)) {
+			maxH = gtx.Dp(safeDp(140))
+		}
+
+		body := &dialogBodyWidget{sections: sections, progress: progress}
+		panel := ContainerDecoration(deco, body)
+		inner := gtx
+		inner.Constraints.Min.X = minW
+		inner.Constraints.Max.X = maxW
+		inner.Constraints.Max.Y = maxH
+		if d.config.height > 0 || d.config.kind == DialogTypeFullscreen {
+			inner.Constraints.Min.Y = maxH
+		}
+		next := *panelCtx
+		next.Gtx = inner
+		return panel.Layout(next.Child(0))
+	})
+}
+
+type dialogBodyWidget struct {
+	sections []dialogSection
+	progress float32
+}
+
+func (b *dialogBodyWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	children := make([]Widget, 0, len(b.sections))
+	for _, section := range b.sections {
+		if section.child == nil {
+			continue
+		}
+		pad := materialDialogSectionPadding(section.kind, b.hasIcon(), b.hasHeadline(), b.hasActions())
+		child := section.child
+		if !pad.IsZero() {
+			child = Padding(pad, child)
+		}
+		children = append(children, dialogSectionFade(section.kind, b.progress, child))
+	}
+	return Column(children...).Layout(ctx.Child(0))
+}
+
+func (b *dialogBodyWidget) hasHeadline() bool {
+	for _, section := range b.sections {
+		if section.kind == dialogSectionHeadline {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *dialogBodyWidget) hasIcon() bool {
+	for _, section := range b.sections {
+		if section.kind == dialogSectionIcon {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *dialogBodyWidget) hasActions() bool {
+	for _, section := range b.sections {
+		if section.kind == dialogSectionActions {
+			return true
+		}
+	}
+	return false
+}
+
+func materialDialogSectionPadding(kind dialogSectionKind, hasIcon, hasHeadline, hasActions bool) style.Insets {
+	switch kind {
+	case dialogSectionIcon:
+		return style.Insets{Top: 24, Left: 24, Right: 24}
+	case dialogSectionHeadline:
+		top := float32(24)
+		if hasIcon {
+			top = 16
+		}
+		return style.Insets{Top: top, Left: 24, Right: 24}
+	case dialogSectionContent:
+		top := float32(24)
+		bottom := float32(24)
+		if hasHeadline {
+			top = 16
+		}
+		if hasActions {
+			bottom = 8
+		}
+		return style.Insets{Top: top, Left: 24, Right: 24, Bottom: bottom}
+	case dialogSectionActions:
+		return style.Insets{Top: 16, Right: 24, Bottom: 24, Left: 24}
+	default:
+		return style.All(0)
+	}
+}
+
+func dialogSectionFade(kind dialogSectionKind, progress float32, child Widget) Widget {
+	return layoutWidgetFunc(func(ctx *internal.Context) layout.Dimensions {
+		p := clampFloat32(progress, 0, 1)
+		start := float32(0.2)
+		if kind == dialogSectionActions {
+			start = 0.5
+		}
+		alpha := float32(1)
+		if p < start {
+			alpha = 0
+		} else {
+			alpha = clampFloat32((p-start)/(1-start), 0, 1)
+		}
+		if alpha < 1 {
+			defer paint.PushOpacity(ctx.Gtx.Ops, alpha).Pop()
+		}
+		return child.Layout(ctx.Child(0))
+	})
+}
+
+func layoutMaterialDialogTransition(ctx *internal.Context, progress float32, quick bool, child func(*internal.Context) image.Point) image.Point {
+	if child == nil {
+		return image.Point{}
+	}
+	if quick {
+		return child(ctx.Child(0))
+	}
+	p := clampFloat32(progress, 0, 1)
+	offsetY := -ctx.Gtx.Dp(safeDp(50 * (1 - p)))
+	stack := op.Offset(image.Point{Y: offsetY}).Push(ctx.Gtx.Ops)
+	defer stack.Pop()
+	return child(ctx.Child(0))
+}
+
+func materialDialogSurfaceDecoration(ctx *internal.Context, d style.Decoration, defaultBg color.NRGBA, defaultPad style.Insets, defaultRadius float32) style.Decoration {
+	cs := ctx.Theme().Colors
+	deco := style.Decoration{}.
+		WithBg(d.ResolveBg(defaultBg)).
+		WithPad(d.ResolvePad(defaultPad)).
+		WithRad(d.ResolveRad(defaultRadius))
+	if d.Shadow != nil {
+		deco = deco.WithShadow(*d.Shadow)
+	} else {
+		deco = deco.WithShadow(style.ElevationShadow(cs, 3))
+	}
+	if d.Border != nil {
+		deco = deco.WithBorder(*d.Border)
+	}
+	return deco
 }
 
 func dialogStateFor(ctx *internal.Context) *dialogState {
@@ -1266,17 +1628,26 @@ type PopupOption func(*popupConfig)
 
 type popupConfig struct {
 	width         float32
+	height        float32
 	radius        float32
 	maskClosable  bool
+	kind          DialogType
+	mount         DialogMount
 	background    color.NRGBA
 	hasBackground bool
 	padding       style.Insets
 	hasPadding    bool
 	onOpenChange  func(ctx *internal.Context, open bool)
+	onOpen        func(ctx *internal.Context)
+	onOpened      func(ctx *internal.Context)
+	onClose       func(ctx *internal.Context)
+	onClosed      func(ctx *internal.Context)
+	onCancelOnly  func(ctx *internal.Context)
 	ref           *PopupRef
 	decoration    style.Decoration
 	maskColor     color.NRGBA
 	hasMaskColor  bool
+	quick         bool
 }
 
 type popupWidget struct {
@@ -1289,6 +1660,7 @@ type popupWidget struct {
 func Popup(open bool, child Widget, opts ...PopupOption) Widget {
 	cfg := popupConfig{
 		maskClosable: true,
+		mount:        DialogMountGlobal,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -1304,6 +1676,13 @@ func Popup(open bool, child Widget, opts ...PopupOption) Widget {
 func PopupWidth(width float32) PopupOption {
 	return func(cfg *popupConfig) {
 		cfg.width = width
+	}
+}
+
+// PopupHeight 设置弹窗固定高度。0 表示根据内容自适应并受窗口最大高度约束。
+func PopupHeight(height float32) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.height = height
 	}
 }
 
@@ -1337,10 +1716,73 @@ func PopupPadding(insets style.Insets) PopupOption {
 	}
 }
 
+// PopupQuick 跳过打开/关闭动画，与 DialogQuick 保持一致。
+func PopupQuick(quick bool) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.quick = quick
+	}
+}
+
+// PopupTypeOf 设置 basic/alert/fullscreen 语义，尺寸策略与 Dialog 保持一致。
+func PopupTypeOf(kind DialogType) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.kind = kind
+	}
+}
+
+// PopupMountMode 设置遮罩和面板覆盖范围。
+func PopupMountMode(mount DialogMount) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.mount = mount
+	}
+}
+
+// PopupGlobalOverlay 控制是否按根窗口区域绘制。默认 true。
+func PopupGlobalOverlay(global bool) PopupOption {
+	return func(cfg *popupConfig) {
+		if global {
+			cfg.mount = DialogMountGlobal
+		} else {
+			cfg.mount = DialogMountLocal
+		}
+	}
+}
+
 // PopupOnOpenChange 监听弹窗打开/关闭。
 func PopupOnOpenChange(fn func(ctx *internal.Context, open bool)) PopupOption {
 	return func(cfg *popupConfig) {
 		cfg.onOpenChange = fn
+	}
+}
+
+func PopupOnOpen(fn func(ctx *internal.Context)) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.onOpen = fn
+	}
+}
+
+func PopupOnOpened(fn func(ctx *internal.Context)) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.onOpened = fn
+	}
+}
+
+func PopupOnClose(fn func(ctx *internal.Context)) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.onClose = fn
+	}
+}
+
+func PopupOnClosed(fn func(ctx *internal.Context)) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.onClosed = fn
+	}
+}
+
+// PopupOnCancelOnly 在 scrim/Escape 取消时调用。
+func PopupOnCancelOnly(fn func(ctx *internal.Context)) PopupOption {
+	return func(cfg *popupConfig) {
+		cfg.onCancelOnly = fn
 	}
 }
 
@@ -1389,24 +1831,55 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	state := popupStateFor(ctx)
 	if p.config.onOpenChange != nil && state.wasOpen != open {
+		if open && p.config.onOpen != nil {
+			p.config.onOpen(ctx)
+		}
+		if !open && p.config.onClose != nil {
+			p.config.onClose(ctx)
+		}
 		state.wasOpen = open
 		p.config.onOpenChange(ctx, open)
+	}
+	if p.config.onOpenChange == nil && state.wasOpen != open {
+		if open && p.config.onOpen != nil {
+			p.config.onOpen(ctx)
+		}
+		if !open && p.config.onClose != nil {
+			p.config.onClose(ctx)
+		}
+		state.wasOpen = open
+	}
+	enterDuration := 500 * time.Millisecond
+	exitDuration := 150 * time.Millisecond
+	if p.config.quick {
+		enterDuration = 0
+		exitDuration = 0
 	}
 	overlayProgress, overlayVisible := md3OverlayProgress(
 		ctx,
 		"popup-overlay",
 		open,
-		style.InteractionMenuEnterDuration,
-		style.InteractionMenuExitDuration,
-		style.InteractionEmphasizedDecelerateEasing,
+		enterDuration,
+		exitDuration,
+		style.InteractionEmphasizedEasing,
 		style.InteractionEmphasizedAccelerateEasing,
 	)
 	if !overlayVisible {
+		if state.visibleWasOpen && !open && p.config.onClosed != nil {
+			p.config.onClosed(ctx)
+		}
+		state.visibleWasOpen = false
 		return layout.Dimensions{}
+	}
+	if open && overlayProgress >= 1 && !state.visibleWasOpen {
+		state.visibleWasOpen = true
+		if p.config.onOpened != nil {
+			p.config.onOpened(ctx)
+		}
 	}
 
 	cs := ctx.Theme().Colors
-	maskColor := withAlpha(cs.Scrim, 120)
+	maskColor := withAlpha(cs.Scrim, 82)
 	if p.config.hasMaskColor {
 		maskColor = p.config.maskColor
 	}
@@ -1417,44 +1890,35 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 		paint.FillShape(maskCtx.Gtx.Ops, maskColor, clip.Rect(image.Rectangle{Max: size}).Op())
 	}, open && p.config.maskClosable && p.config.onOpenChange != nil, func(maskCtx *internal.Context) {
+		if p.config.onCancelOnly != nil {
+			p.config.onCancelOnly(maskCtx)
+		}
 		p.config.onOpenChange(maskCtx, false)
 	})
 
-	bg := p.config.decoration.ResolveBg(cs.SurfaceContainer)
+	bg := p.config.decoration.ResolveBg(cs.SurfaceContainerHigh)
 	if p.config.hasBackground {
 		bg = p.config.background
 	}
-	padding := p.config.decoration.ResolvePad(style.All(0))
+	padding := p.config.decoration.ResolvePad(style.All(24))
 	if p.config.hasPadding {
 		padding = p.config.padding
 	}
-	radiusDefault := ctx.Theme().Shapes.Small
+	radiusDefault := ctx.Theme().Shapes.ExtraLarge
 	if p.config.radius > 0 {
 		radiusDefault = p.config.radius
 	}
-	radius := p.config.decoration.ResolveRad(radiusDefault)
-
-	var panel Widget
-	panelDeco := style.Decoration{}.WithBg(bg).WithPad(padding).WithRad(radius)
-	if p.config.decoration.Shadow != nil {
-		panelDeco = panelDeco.WithShadow(*p.config.decoration.Shadow)
-	} else {
-		panelDeco = panelDeco.WithShadow(style.ElevationShadow(cs, 2))
+	panelDeco := materialDialogSurfaceDecoration(ctx, p.config.decoration, bg, padding, radiusDefault)
+	fullscreen := p.config.kind == DialogTypeFullscreen
+	panelChild := p.child
+	if panelChild != nil {
+		panelChild = dialogSectionFade(dialogSectionContent, overlayProgress, panelChild)
 	}
-	if p.config.decoration.Border != nil {
-		panelDeco = panelDeco.WithBorder(*p.config.decoration.Border)
-	}
-	panel = ContainerDecoration(panelDeco, p.child)
-	if p.config.width > 0 {
-		panel = &fixedSizeWidget{
-			width: p.config.width,
-			child: panel,
-		}
-	}
+	panel := ContainerDecoration(panelDeco, panelChild)
 
 	content := anchoredOverlayWidget(layoutWidgetFunc(func(overlayCtx *internal.Context) layout.Dimensions {
-		size := layoutMD3OverlayTransition(overlayCtx, overlayProgress, 8, func(transitionCtx *internal.Context) image.Point {
-			return panel.Layout(transitionCtx.Child(0)).Size
+		size := layoutMaterialDialogTransition(overlayCtx, overlayProgress, p.config.quick, func(transitionCtx *internal.Context) image.Point {
+			return layoutMaterialModalPanel(transitionCtx, p.config.width, p.config.height, fullscreen, panel)
 		})
 		return layout.Dimensions{Size: size}
 	}), gioLayout.Center)
@@ -1465,8 +1929,64 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	).Layout(ctx.Child(0))
 }
 
+func layoutMaterialModalPanel(ctx *internal.Context, width float32, height float32, fullscreen bool, child Widget) image.Point {
+	if child == nil {
+		return image.Point{}
+	}
+	gtx := ctx.Gtx
+	max := gtx.Constraints.Max
+	margin := gtx.Dp(safeDp(24))
+	if margin < 0 {
+		margin = 0
+	}
+	minW := gtx.Dp(safeDp(280))
+	maxW := gtx.Dp(safeDp(560))
+	if fullscreen {
+		minW = max.X - margin*2
+		maxW = minW
+	}
+	if width > 0 {
+		minW = gtx.Dp(safeDp(width))
+		maxW = minW
+	}
+	if limit := max.X - margin*2; limit > 0 && maxW > limit {
+		maxW = limit
+	}
+	if minW > maxW {
+		minW = maxW
+	}
+	maxH := gtx.Dp(safeDp(560))
+	if limit := max.Y - margin*2; limit > 0 && maxH > limit {
+		maxH = limit
+	}
+	if fullscreen {
+		maxH = max.Y - margin*2
+	}
+	if height > 0 {
+		maxH = gtx.Dp(safeDp(height))
+		if limit := max.Y - margin*2; limit > 0 && maxH > limit {
+			maxH = limit
+		}
+	}
+	if maxH < gtx.Dp(safeDp(140)) {
+		maxH = gtx.Dp(safeDp(140))
+	}
+
+	inner := gtx
+	inner.Constraints.Min.X = minW
+	inner.Constraints.Max.X = maxW
+	inner.Constraints.Max.Y = maxH
+	if height > 0 || fullscreen {
+		inner.Constraints.Min.Y = maxH
+	}
+	next := *ctx
+	next.Gtx = inner
+	return child.Layout(next.Child(0)).Size
+}
+
 type popupState struct {
-	wasOpen bool
+	wasOpen        bool
+	visibleWasOpen bool
 }
 
 func popupStateFor(ctx *internal.Context) *popupState {

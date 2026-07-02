@@ -291,7 +291,9 @@ func decorationSurfaceSpec(d style.Decoration, ctx *internal.Context, defaultBg 
 		spec.ShadowOffsetX = shadow.OffsetX
 		spec.ShadowOffsetY = shadow.OffsetY
 		spec.ShadowBlur = shadow.Blur
+		spec.ShadowSpread = shadow.Spread
 		spec.ShadowColor = shadow.Color
+		spec.ShadowLayers = shadow.EffectiveLayers()
 	}
 
 	if img := d.ResolveImage(); img != nil && img.Src != nil {
