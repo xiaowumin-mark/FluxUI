@@ -8,6 +8,7 @@ import (
 
 func docsButtonDemo(buttonCount docsIntState) ui.Element {
 	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
 		ref := ui.UseRef(ctx, ui.NewButtonRef())
 		hovered := ui.UseState(ctx, false)
 		if ref.Current == nil {
@@ -17,7 +18,7 @@ func docsButtonDemo(buttonCount docsIntState) ui.Element {
 		return ui.FixedWidthElement(
 			680,
 			ui.ColumnElement(
-				ui.TextElement("MD3 button variants", ui.TextSize(14), ui.TextColor(ui.NRGBA(15, 23, 42, 255))),
+				ui.TextElement("MD3 button variants", ui.TextSize(14), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(10),
 				ui.RowElement(
 					ui.PaddingElement(ui.Insets{Right: 8}, ui.FilledButtonElement(
@@ -40,10 +41,10 @@ func docsButtonDemo(buttonCount docsIntState) ui.Element {
 						ui.ButtonElement(
 							ui.TextElement("Custom"),
 							ui.ButtonRadius(12),
-							ui.ButtonBackground(ui.NRGBA(15, 23, 42, 255)),
-							ui.ButtonForeground(ui.NRGBA(255, 255, 255, 255)),
+							ui.ButtonBackground(th.Colors.Primary),
+							ui.ButtonForeground(th.Colors.OnPrimary),
 							ui.ButtonDecoration(
-								ui.Bg(ui.NRGBA(15, 23, 42, 255)).
+								ui.Bg(th.Colors.Primary).
 									WithPad(ui.Symmetric(8, 14)).
 									WithRad(12),
 							),
@@ -56,7 +57,7 @@ func docsButtonDemo(buttonCount docsIntState) ui.Element {
 						ref.Current.Click()
 					}),
 					ui.ExpandedElement(ui.SpacerElement(0, 0)),
-					ui.TextElement(fmt.Sprintf("clicks = %d hovered = %t", buttonCount.Value(), hovered.Value()), ui.TextSize(13), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
+					ui.TextElement(fmt.Sprintf("clicks = %d hovered = %t", buttonCount.Value(), hovered.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
 				),
 			),
 		)
@@ -71,6 +72,7 @@ func docsButtonCountClick(buttonCount docsIntState) ui.ButtonOption {
 
 func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
 		ref := ui.UseRef(ctx, ui.NewInputRef())
 		focusState := ui.UseState(ctx, "blurred")
 		if ref.Current == nil {
@@ -80,7 +82,7 @@ func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 		return ui.FixedWidthElement(
 			680,
 			ui.ColumnElement(
-				ui.TextElement("Controlled input variants", ui.TextSize(14), ui.TextColor(ui.NRGBA(15, 23, 42, 255))),
+				ui.TextElement("Controlled input variants", ui.TextSize(14), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(10),
 				ui.RowElement(
 					ui.ExpandedElement(
@@ -196,7 +198,7 @@ func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 					),
 				),
 				ui.VSpacerElement(8),
-				ui.TextElement("value = "+inputValue.Value()+" | "+focusState.Value(), ui.TextSize(13), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
+				ui.TextElement("value = "+inputValue.Value()+" | "+focusState.Value(), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			),
 		)
 	})
@@ -204,6 +206,7 @@ func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 
 func docsCardDemo(buttonCount docsIntState) ui.Element {
 	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
 		ref := ui.UseRef(ctx, ui.NewButtonRef())
 		if ref.Current == nil {
 			ref.Current = ui.NewButtonRef()
@@ -214,14 +217,14 @@ func docsCardDemo(buttonCount docsIntState) ui.Element {
 		return ui.FixedWidthElement(
 			720,
 			ui.ColumnElement(
-				ui.TextElement("MD3 card variants", ui.TextSize(14), ui.TextColor(ui.NRGBA(15, 23, 42, 255))),
+				ui.TextElement("MD3 card variants", ui.TextSize(14), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(10),
 				ui.RowElement(
-					ui.ExpandedElement(docsCardVariant("Filled", "Default surface card.", ui.FilledCardElement, click, ui.CardAttachRef(ref.Current))),
+					ui.ExpandedElement(docsCardVariant("Filled", "Default surface card.", th, ui.FilledCardElement, click, ui.CardAttachRef(ref.Current))),
 					ui.HSpacerElement(10),
-					ui.ExpandedElement(docsCardVariant("Elevated", "Adds tonal elevation.", ui.ElevatedCardElement, click, ui.CardShadow(2))),
+					ui.ExpandedElement(docsCardVariant("Elevated", "Adds tonal elevation.", th, ui.ElevatedCardElement, click, ui.CardShadow(2))),
 					ui.HSpacerElement(10),
-					ui.ExpandedElement(docsCardVariant("Outlined", "Uses outline boundary.", ui.OutlinedCardElement, click, ui.CardBorder(ui.NRGBA(37, 99, 235, 255), 1))),
+					ui.ExpandedElement(docsCardVariant("Outlined", "Uses outline boundary.", th, ui.OutlinedCardElement, click, ui.CardBorder(th.Colors.Primary, 1))),
 				),
 				ui.VSpacerElement(10),
 				ui.RowElement(
@@ -229,14 +232,15 @@ func docsCardDemo(buttonCount docsIntState) ui.Element {
 						docsCardVariant(
 							"Custom options",
 							"Padding, radius, background, border, shadow, decoration.",
+							th,
 							ui.CardElement,
 							click,
 							ui.CardPadding(ui.All(14)),
 							ui.CardRadius(16),
-							ui.CardBackground(ui.NRGBA(240, 253, 244, 255)),
-							ui.CardBorder(ui.NRGBA(22, 163, 74, 255), 1),
+							ui.CardBackground(th.Colors.PrimaryContainer),
+							ui.CardBorder(th.Colors.Primary, 1),
 							ui.CardShadow(1),
-							ui.CardDecoration(ui.HoverBg(ui.NRGBA(220, 252, 231, 255))),
+							ui.CardDecoration(ui.HoverBg(th.Colors.SecondaryContainer)),
 						),
 					),
 					ui.HSpacerElement(10),
@@ -246,18 +250,18 @@ func docsCardDemo(buttonCount docsIntState) ui.Element {
 					}),
 				),
 				ui.VSpacerElement(8),
-				ui.TextElement(fmt.Sprintf("card clicks = %d", buttonCount.Value()), ui.TextSize(13), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
+				ui.TextElement(fmt.Sprintf("card clicks = %d", buttonCount.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			),
 		)
 	})
 }
 
-func docsCardVariant(label string, body string, card func(ui.Element, ...ui.CardOption) ui.Element, opts ...ui.CardOption) ui.Element {
+func docsCardVariant(label string, body string, th *ui.Theme, card func(ui.Element, ...ui.CardOption) ui.Element, opts ...ui.CardOption) ui.Element {
 	return card(
 		ui.ColumnElement(
-			ui.TextElement(label, ui.TextSize(13)),
+			ui.TextElement(label, ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 			ui.VSpacerElement(6),
-			ui.TextElement(body, ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
+			ui.TextElement(body, ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		),
 		opts...,
 	)

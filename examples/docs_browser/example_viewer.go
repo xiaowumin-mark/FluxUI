@@ -5,6 +5,7 @@ import (
 )
 
 func docsExampleSectionHeader(title string, exampleID string, popupOpen docsBoolState, th *ui.Theme) ui.Element {
+	_ = title
 	return ui.RowElement(
 		ui.TextElement("组件示例", ui.TextSize(17), ui.TextColor(th.Colors.OnSurface)),
 		ui.HSpacerElement(10),
@@ -13,9 +14,13 @@ func docsExampleSectionHeader(title string, exampleID string, popupOpen docsBool
 			ui.TextElement(exampleID, ui.TextSize(11), ui.TextColor(th.Colors.OnSecondaryContainer)),
 		),
 		ui.ExpandedElement(ui.SpacerElement(0, 0)),
-		ui.OutlinedButtonElement(
-			ui.TextElement("弹窗查看", ui.TextSize(12)),
-			ui.ButtonPadding(ui.Symmetric(5, 10)),
+		ui.FilledTonalButtonElement(
+			ui.RowElement(
+				ui.IconElement("open_in_new", ui.IconSize(18)),
+				ui.HSpacerElement(6),
+				ui.TextElement("打开示例", ui.TextSize(14)),
+			),
+			ui.ButtonPadding(ui.Symmetric(9, 14)),
 			ui.OnClick(func(ctx *ui.Context) {
 				popupOpen.Set(true)
 			}),
@@ -40,46 +45,35 @@ func docsExamplePopup(open bool, title string, exampleID string, demo ui.Element
 	if !open {
 		return ui.PopupElement(false, ui.SpacerElement(0, 0))
 	}
+	demoViewport := docsDemoViewport(exampleID, demo)
 	return ui.PopupElement(
 		open,
-		ui.ContainerDecorationElement(
-			ui.Bg(th.Colors.Surface).WithPad(ui.All(16)).WithRad(16),
-			ui.ColumnElement(
-				ui.RowElement(
-					ui.ColumnElement(
-						ui.TextElement(title, ui.TextSize(20), ui.TextColor(th.Colors.OnSurface)),
-						ui.VSpacerElement(4),
-						ui.TextElement("Example ID: "+exampleID, ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
-					),
-					ui.ExpandedElement(ui.SpacerElement(0, 0)),
-					ui.TextButtonElement(
-						ui.TextElement("关闭", ui.TextSize(12)),
-						ui.ButtonPadding(ui.Symmetric(5, 10)),
-						ui.OnClick(func(ctx *ui.Context) {
-							popupOpen.Set(false)
-						}),
-					),
+		ui.ColumnElement(
+			ui.RowElement(
+				ui.ColumnElement(
+					ui.TextElement(title, ui.TextSize(20), ui.TextColor(th.Colors.OnSurface)),
+					ui.VSpacerElement(4),
+					ui.TextElement("Example ID: "+exampleID, ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 				),
-				ui.VSpacerElement(12),
-				ui.ContainerDecorationElement(
-					ui.Bg(th.Colors.SurfaceContainerLow).
-						WithPad(ui.All(12)).
-						WithRad(12).
-						WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}),
-					ui.FixedHeightElement(
-						520,
-						ui.ScrollViewElement(
-							ui.FillElement(demo),
-							ui.ScrollVertical(true),
-						),
-					),
+				ui.ExpandedElement(ui.SpacerElement(0, 0)),
+				ui.TextButtonElement(
+					ui.TextElement("关闭", ui.TextSize(12)),
+					ui.ButtonPadding(ui.Symmetric(5, 10)),
+					ui.OnClick(func(ctx *ui.Context) {
+						popupOpen.Set(false)
+					}),
 				),
+			),
+			ui.VSpacerElement(12),
+			ui.ContainerDecorationElement(
+				ui.Bg(th.Colors.SurfaceContainerLow).
+					WithPad(ui.All(12)).
+					WithRad(12).
+					WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}),
+				ui.FixedHeightElement(420, demoViewport),
 			),
 		),
 		ui.PopupWidth(900),
-		ui.PopupPadding(ui.All(0)),
-		ui.PopupRadius(16),
-		ui.PopupBackground(th.Colors.Surface),
 		ui.PopupMaskAlpha(112),
 		ui.PopupMaskClosable(true),
 		ui.PopupOnOpenChange(func(ctx *ui.Context, open bool) {

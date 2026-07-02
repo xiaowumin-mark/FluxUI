@@ -22,7 +22,7 @@ func docsScrollViewDemo() ui.Element {
 				ui.PaddingElement(
 					ui.Insets{Bottom: 6},
 					ui.ContainerDecorationElement(
-						ui.Bg(rowColor(i)).
+						ui.Bg(themedRowColor(th, i)).
 							WithPad(ui.All(8)).
 							WithRad(7),
 						ui.TextElement(fmt.Sprintf("Log row %02d", i), ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
@@ -129,7 +129,7 @@ func docsListViewDemo(reachEndCount docsIntState) ui.Element {
 						return ui.Key(
 							fmt.Sprintf("row-%02d", index),
 							ui.ContainerDecorationElement(
-								ui.Bg(rowColor(index)).
+								ui.Bg(themedRowColor(th, index)).
 									WithPad(ui.Symmetric(8, 10)).
 									WithRad(7),
 								ui.RowElement(

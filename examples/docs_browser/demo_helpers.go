@@ -44,6 +44,16 @@ func rowColor(index int) color.NRGBA {
 	return ui.NRGBA(226, 232, 240, 255)
 }
 
+func themedRowColor(th *ui.Theme, index int) color.NRGBA {
+	if th == nil {
+		return rowColor(index)
+	}
+	if index%2 == 0 {
+		return th.Colors.SurfaceContainerLow
+	}
+	return th.Colors.SurfaceContainer
+}
+
 func hoverScale(hovered bool) float32 {
 	if hovered {
 		return 1.18

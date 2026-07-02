@@ -13,6 +13,7 @@ type docsFloat32State interface {
 
 func docsPressableDemo(clickCount docsIntState) ui.Element {
 	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
 		pressableRef := ui.UseRef(ctx, ui.NewPressableRef())
 		clickAreaRef := ui.UseRef(ctx, ui.NewClickAreaRef())
 		hovered := ui.UseState(ctx, false)
@@ -27,17 +28,17 @@ func docsPressableDemo(clickCount docsIntState) ui.Element {
 		return ui.FixedWidthElement(
 			520,
 			ui.ColumnElement(
-				ui.TextElement(fmt.Sprintf("Click count: %d", clickCount.Value()), ui.TextSize(13)),
+				ui.TextElement(fmt.Sprintf("Click count: %d", clickCount.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(8),
 				ui.PressableElement(
 					ui.FillWidthElement(
 						ui.ContainerDecorationElement(
-							ui.Bg(ui.NRGBA(227, 242, 253, 255)).
+							ui.Bg(th.Colors.SecondaryContainer).
 								WithPad(ui.All(14)).
 								WithRad(8).
-								WithHover(ui.Bg(ui.NRGBA(219, 234, 254, 255))).
-								WithPressed(ui.Bg(ui.NRGBA(191, 219, 254, 255))),
-							ui.TextElement(fmt.Sprintf("PressableElement hovered=%t pressed=%t", hovered.Value(), pressed.Value())),
+								WithHover(ui.Bg(th.Colors.PrimaryContainer)).
+								WithPressed(ui.Bg(th.Colors.TertiaryContainer)),
+							ui.TextElement(fmt.Sprintf("PressableElement hovered=%t pressed=%t", hovered.Value(), pressed.Value()), ui.TextColor(th.Colors.OnSecondaryContainer)),
 							ui.OnDecoHover(func(ctx *ui.Context, value bool) {
 								hovered.Set(value)
 							}),
@@ -60,11 +61,11 @@ func docsPressableDemo(clickCount docsIntState) ui.Element {
 					ui.HSpacerElement(8),
 					ui.ClickAreaElement(
 						ui.ContainerDecorationElement(
-							ui.Bg(ui.NRGBA(248, 250, 252, 255)).
+							ui.Bg(th.Colors.SurfaceContainerLow).
 								WithPad(ui.Symmetric(6, 10)).
 								WithRad(8).
-								WithBorder(ui.Border{Width: 1, Color: ui.NRGBA(203, 213, 225, 255)}),
-							ui.TextElement("ClickArea compatibility", ui.TextSize(12)),
+								WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}),
+							ui.TextElement("ClickArea compatibility", ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
 						),
 						func(ctx *ui.Context) {
 							clickCount.Set(clickCount.Value() + 1)

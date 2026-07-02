@@ -17,6 +17,7 @@ func docsRightPanelContent(
 	markdownContent []ui.Element,
 	buildDemo docsDemoBuilder,
 ) []ui.Element {
+	_ = buildDemo
 	if doc == nil {
 		return docsRightPanelEmptyState(th)
 	}
@@ -33,10 +34,6 @@ func docsRightPanelContent(
 	if exampleID == "" {
 		exampleID = doc.Meta.ID
 	}
-
-	presentation := docsDemoPresentationFor(exampleID)
-	demoContent := buildDemo(doc)
-	demoViewport := docsDemoViewport(exampleID, demoContent)
 
 	content := []ui.Element{
 		ui.TextElement(doc.Meta.Title, ui.TextSize(26), ui.TextColor(th.Colors.OnSurface)),
@@ -63,10 +60,6 @@ func docsRightPanelContent(
 		ui.PaddingElement(
 			ui.Insets{Top: 16},
 			docsExampleSectionHeader(doc.Meta.Title, exampleID, examplePopupOpen, th),
-		),
-		ui.PaddingElement(
-			ui.Insets{Top: 8},
-			docsInlineExampleFrame(presentation.Height, demoViewport, th),
 		),
 	)
 

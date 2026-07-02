@@ -143,6 +143,10 @@ func docsBrowserApp(ctx *ui.Context, runtimeState *docsRuntimeState) ui.Element 
 		markdownElements,
 		buildDemo,
 	)
+	rightList := docsRightPanelList(rightPanelContent)
+	if currentDocID != "" {
+		rightList = ui.Key("doc-scroll-"+currentDocID, rightList)
+	}
 	examplePopup := ui.SpacerElement(0, 0)
 	if currentDoc != nil && examplePopupOpen.Value() {
 		exampleID := currentDoc.Meta.Example.ID
@@ -166,7 +170,7 @@ func docsBrowserApp(ctx *ui.Context, runtimeState *docsRuntimeState) ui.Element 
 				Padding:    ui.All(16),
 			},
 			ui.StackElement(
-				docsRightPanelList(rightPanelContent),
+				rightList,
 				examplePopup,
 			),
 		),

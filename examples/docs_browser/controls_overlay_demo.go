@@ -70,6 +70,7 @@ func docsMenuDemo(menuOpen docsBoolState, menuValue docsStringState, th *ui.Them
 
 func docsTabsDemo(value docsStringState) ui.Element {
 	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
 		ref := ui.UseRef(ctx, ui.NewTabsRef())
 		if ref.Current == nil {
 			ref.Current = ui.NewTabsRef()
@@ -102,7 +103,7 @@ func docsTabsDemo(value docsStringState) ui.Element {
 		return ui.FixedWidthElement(
 			520,
 			ui.ColumnElement(
-				ui.TextElement("Primary full width", ui.TextSize(13)),
+				ui.TextElement("Primary full width", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 				ui.TabsElement(
 					value.Value(),
 					items,
@@ -113,7 +114,7 @@ func docsTabsDemo(value docsStringState) ui.Element {
 					}),
 				),
 				ui.VSpacerElement(10),
-				ui.TextElement("Scrolling tabs", ui.TextSize(13)),
+				ui.TextElement("Scrolling tabs", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 				ui.TabsElement(
 					scrollingActive.Value(),
 					scrollingItems,
@@ -123,7 +124,7 @@ func docsTabsDemo(value docsStringState) ui.Element {
 					}),
 				),
 				ui.VSpacerElement(10),
-				ui.TextElement("Secondary full width", ui.TextSize(13)),
+				ui.TextElement("Secondary full width", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 				ui.TabsElement(
 					value.Value(),
 					[]ui.TabItem{
@@ -135,9 +136,9 @@ func docsTabsDemo(value docsStringState) ui.Element {
 					ui.TabsSecondary(true),
 					ui.TabsInlineIcon(true),
 					ui.TabsFullWidth(true),
-					ui.TabsIndicatorColor(ui.NRGBA(37, 99, 235, 255)),
-					ui.TabsTextColor(ui.NRGBA(71, 85, 105, 255)),
-					ui.TabsActiveTextColor(ui.NRGBA(30, 64, 175, 255)),
+					ui.TabsIndicatorColor(th.Colors.Primary),
+					ui.TabsTextColor(th.Colors.OnSurfaceVariant),
+					ui.TabsActiveTextColor(th.Colors.Primary),
 					ui.TabsOnChange(func(ctx *ui.Context, key string) {
 						value.Set(key)
 					}),
@@ -150,7 +151,7 @@ func docsTabsDemo(value docsStringState) ui.Element {
 							ref.Current.SetActive("api")
 						}),
 						ui.HSpacerElement(8),
-						ui.TextElement("Current tab: "+value.Value(), ui.TextSize(13)),
+						ui.TextElement("Current tab: "+value.Value(), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
 					),
 				),
 			),
@@ -160,6 +161,7 @@ func docsTabsDemo(value docsStringState) ui.Element {
 
 func docsDialogDemo(open docsBoolState) ui.Element {
 	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
 		ref := ui.UseRef(ctx, ui.NewDialogRef())
 		if ref.Current == nil {
 			ref.Current = ui.NewDialogRef()
@@ -180,15 +182,15 @@ func docsDialogDemo(open docsBoolState) ui.Element {
 					),
 					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.TextElement("Dialog supports mask close, custom action text, ref commands, decoration, and mask color.", ui.TextSize(13)),
+						ui.TextElement("Dialog supports mask close, custom action text, ref commands, decoration, and mask color.", ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
 					),
 				),
 			),
 			ui.DialogElement(
 				open.Value(),
-				ui.TextElement("This dialog uses Material Web style slots: icon, headline, content, actions, scrim, and modal lifecycle callbacks."),
+				ui.TextElement("This dialog uses Material Web style slots: icon, headline, content, actions, scrim, and modal lifecycle callbacks.", ui.TextColor(th.Colors.OnSurfaceVariant)),
 				ui.DialogIconElement(ui.IconElement("info")),
-				ui.DialogHeadlineElement(ui.TextElement("Dialog example")),
+				ui.DialogHeadlineElement(ui.TextElement("Dialog example", ui.TextColor(th.Colors.OnSurface))),
 				ui.DialogWidth(420),
 				ui.DialogRadius(28),
 				ui.DialogMaskClosable(true),

@@ -33,9 +33,9 @@ func buildDocsDragDropDemo(ctx *ui.Context, state docsDragDropStateHandle, th *u
 	return ui.ScrollViewElement(
 		ui.ColumnElement(
 			ui.RowElement(
-				ui.ExpandedElement(docsDragSourcePanel(state)),
+				ui.ExpandedElement(docsDragSourcePanel(state, th)),
 				ui.HSpacerElement(12),
-				ui.ExpandedElement(docsDropTargetPanel(state, current)),
+				ui.ExpandedElement(docsDropTargetPanel(state, current, th)),
 			),
 			ui.VSpacerElement(12),
 			docsDragDropEventLog(current.Events, th),
@@ -44,14 +44,15 @@ func buildDocsDragDropDemo(ctx *ui.Context, state docsDragDropStateHandle, th *u
 	)
 }
 
-func docsDragSourcePanel(state docsDragDropStateHandle) ui.Element {
+func docsDragSourcePanel(state docsDragDropStateHandle, th *ui.Theme) ui.Element {
 	sampleFile := docsDragSampleFile()
 	return ui.ColumnElement(
-		ui.TextElement("Sources", ui.TextSize(15), ui.TextColor(ui.NRGBA(15, 23, 42, 255))),
+		ui.TextElement("Sources", ui.TextSize(15), ui.TextColor(th.Colors.OnSurface)),
 		ui.VSpacerElement(8),
 		docsDragSourceCard(
 			"Text",
 			"text/plain + custom preview",
+			th,
 			ui.NRGBA(239, 246, 255, 255),
 			ui.NRGBA(37, 99, 235, 255),
 			ui.DragSourceText("FluxUI docs payload"),
@@ -65,6 +66,7 @@ func docsDragSourcePanel(state docsDragDropStateHandle) ui.Element {
 		docsDragSourceCard(
 			"File URI",
 			filepath.Base(sampleFile),
+			th,
 			ui.NRGBA(240, 253, 244, 255),
 			ui.NRGBA(22, 163, 74, 255),
 			ui.DragSourceFiles(sampleFile),
@@ -77,6 +79,7 @@ func docsDragSourcePanel(state docsDragDropStateHandle) ui.Element {
 		docsDragSourceCard(
 			"JSON",
 			"application/json + OnRequest",
+			th,
 			ui.NRGBA(254, 249, 195, 255),
 			ui.NRGBA(202, 138, 4, 255),
 			ui.DragSourceData("application/json", []byte(`{"source":"docs_browser","kind":"drag_source"}`)),
@@ -92,6 +95,7 @@ func docsDragSourcePanel(state docsDragDropStateHandle) ui.Element {
 		docsDragSourceCard(
 			"Payloads",
 			"application/x-fluxui-doc",
+			th,
 			ui.NRGBA(250, 245, 255, 255),
 			ui.NRGBA(147, 51, 234, 255),
 			ui.DragSourcePayloads(
@@ -107,6 +111,7 @@ func docsDragSourcePanel(state docsDragDropStateHandle) ui.Element {
 		docsDragSourceCard(
 			"Disabled",
 			"DragSourceDisabled(true)",
+			th,
 			ui.NRGBA(248, 250, 252, 255),
 			ui.NRGBA(100, 116, 139, 255),
 			ui.DragSourceText("disabled"),
@@ -115,13 +120,14 @@ func docsDragSourcePanel(state docsDragDropStateHandle) ui.Element {
 	)
 }
 
-func docsDropTargetPanel(state docsDragDropStateHandle, current docsDragDropState) ui.Element {
+func docsDropTargetPanel(state docsDragDropStateHandle, current docsDragDropState, th *ui.Theme) ui.Element {
 	return ui.ColumnElement(
-		ui.TextElement("Targets", ui.TextSize(15), ui.TextColor(ui.NRGBA(15, 23, 42, 255))),
+		ui.TextElement("Targets", ui.TextSize(15), ui.TextColor(th.Colors.OnSurface)),
 		ui.VSpacerElement(8),
 		docsDropTargetCard(
 			"Accept text, files, JSON, custom MIME",
 			current.MainActive,
+			th,
 			func(ctx *ui.Context, event ui.DropEvent) {
 				recordDocsDropEvent(state, "main drop", event)
 			},
@@ -144,6 +150,7 @@ func docsDropTargetPanel(state docsDragDropStateHandle, current docsDragDropStat
 		docsDropTargetCard(
 			"Small maxBytes target",
 			current.SmallActive,
+			th,
 			func(ctx *ui.Context, event ui.DropEvent) {
 				recordDocsDropEvent(state, "limited drop", event)
 			},
@@ -163,6 +170,7 @@ func docsDropTargetPanel(state docsDragDropStateHandle, current docsDragDropStat
 				"Disabled target",
 				"DropTargetDisabled(true)",
 				false,
+				th,
 				ui.NRGBA(248, 250, 252, 255),
 				ui.NRGBA(100, 116, 139, 255),
 			),
@@ -172,14 +180,14 @@ func docsDropTargetPanel(state docsDragDropStateHandle, current docsDragDropStat
 	)
 }
 
-func docsDragSourceCard(title string, subtitle string, bg color.NRGBA, accent color.NRGBA, opts ...ui.DragSourceOption) ui.Element {
+func docsDragSourceCard(title string, subtitle string, th *ui.Theme, bg color.NRGBA, accent color.NRGBA, opts ...ui.DragSourceOption) ui.Element {
 	return ui.DragSourceElement(
-		docsPanelCard(title, subtitle, false, bg, accent),
+		docsPanelCard(title, subtitle, false, th, bg, accent),
 		opts...,
 	)
 }
 
-func docsDropTargetCard(title string, active bool, onDrop func(ctx *ui.Context, event ui.DropEvent), opts ...ui.DropTargetOption) ui.Element {
+func docsDropTargetCard(title string, active bool, th *ui.Theme, onDrop func(ctx *ui.Context, event ui.DropEvent), opts ...ui.DropTargetOption) ui.Element {
 	bg := ui.NRGBA(255, 255, 255, 255)
 	accent := ui.NRGBA(14, 116, 144, 255)
 	if active {
@@ -187,14 +195,20 @@ func docsDropTargetCard(title string, active bool, onDrop func(ctx *ui.Context, 
 		accent = ui.NRGBA(2, 132, 199, 255)
 	}
 	return ui.DropTargetElement(
-		docsPanelCard(title, "active state + error callback", active, bg, accent),
+		docsPanelCard(title, "active state + error callback", active, th, bg, accent),
 		onDrop,
 		opts...,
 	)
 }
 
-func docsPanelCard(title string, subtitle string, active bool, bg color.NRGBA, accent color.NRGBA) ui.Element {
+func docsPanelCard(title string, subtitle string, active bool, th *ui.Theme, bg color.NRGBA, accent color.NRGBA) ui.Element {
+	titleColor := ui.NRGBA(15, 23, 42, 255)
 	border := ui.Border{Width: 1, Color: ui.NRGBA(203, 213, 225, 255)}
+	if th != nil {
+		bg = th.Colors.SurfaceContainerLow
+		titleColor = th.Colors.OnSurface
+		border = ui.Border{Width: 1, Color: th.Colors.OutlineVariant}
+	}
 	if active {
 		border = ui.Border{Width: 2, Color: accent}
 	}
@@ -206,7 +220,7 @@ func docsPanelCard(title string, subtitle string, active bool, bg color.NRGBA, a
 		ui.FixedHeightElement(
 			62,
 			ui.ColumnElement(
-				ui.TextElement(title, ui.TextSize(13), ui.TextColor(ui.NRGBA(15, 23, 42, 255))),
+				ui.TextElement(title, ui.TextSize(13), ui.TextColor(titleColor)),
 				ui.PaddingElement(
 					ui.Insets{Top: 5},
 					ui.TextElement(subtitle, ui.TextSize(11), ui.TextColor(accent)),
@@ -236,7 +250,7 @@ func docsDragDropEventLog(events []string, th *ui.Theme) ui.Element {
 	}
 
 	items := make([]ui.Element, 0, len(events)+1)
-	items = append(items, ui.TextElement("Events", ui.TextSize(15), ui.TextColor(ui.NRGBA(15, 23, 42, 255))))
+	items = append(items, ui.TextElement("Events", ui.TextSize(15), ui.TextColor(textColor)))
 	if len(events) == 0 {
 		events = []string{"ready"}
 	}

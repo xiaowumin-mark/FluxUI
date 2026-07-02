@@ -111,12 +111,14 @@ func docsAPISearchResultRow(match docsAPISearchMatch, selectedDocID docsStringSt
 		ui.Insets{Bottom: 5},
 		ui.FillWidthElement(
 			ui.ButtonElement(
-				ui.ContainerDecorationElement(
-					ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.Symmetric(6, 8)).WithRad(6),
-					ui.ColumnElement(
-						ui.TextElement(docsAPIShortSignature(match.API, 64), ui.TextSize(11), ui.TextColor(th.Colors.OnSurface)),
-						ui.VSpacerElement(2),
-						ui.TextElement(title, ui.TextSize(10), ui.TextColor(th.Colors.OnSurfaceVariant)),
+				ui.FillWidthElement(
+					ui.ContainerDecorationElement(
+						ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.Symmetric(6, 8)).WithRad(6),
+						ui.ColumnElement(
+							ui.TextElement(docsAPIShortSignature(match.API, 48), ui.TextSize(11), ui.TextColor(th.Colors.OnSurface)),
+							ui.VSpacerElement(2),
+							ui.TextElement(title, ui.TextSize(10), ui.TextColor(th.Colors.OnSurfaceVariant)),
+						),
 					),
 				),
 				ui.ButtonPadding(ui.All(0)),

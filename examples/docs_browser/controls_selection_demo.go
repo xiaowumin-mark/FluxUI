@@ -8,19 +8,20 @@ import (
 
 func docsCheckboxDemo(checked docsBoolState) ui.Element {
 	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
 		ref := ui.UseRef(ctx, ui.NewCheckboxRef())
 		if ref.Current == nil {
 			ref.Current = ui.NewCheckboxRef()
 		}
 		return ui.FixedWidthElement(
-			430,
+			360,
 			ui.ColumnElement(
 				ui.CheckboxElement(
 					"Enable feature",
 					checked.Value(),
 					ui.CheckboxSize(22),
-					ui.CheckboxColor(ui.NRGBA(37, 99, 235, 255)),
-					ui.CheckboxDecoration(ui.Bg(ui.NRGBA(248, 250, 252, 255)).WithRad(8)),
+					ui.CheckboxColor(th.Colors.Primary),
+					ui.CheckboxDecoration(ui.Bg(th.Colors.SurfaceContainerLow).WithRad(8)),
 					ui.CheckboxAttachRef(ref.Current),
 					ui.CheckboxOnChange(func(ctx *ui.Context, value bool) {
 						checked.Set(value)
@@ -47,6 +48,7 @@ func docsCheckboxDemo(checked docsBoolState) ui.Element {
 
 func docsSwitchDemo(checked docsBoolState) ui.Element {
 	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
 		ref := ui.UseRef(ctx, ui.NewSwitchRef())
 		if ref.Current == nil {
 			ref.Current = ui.NewSwitchRef()
@@ -59,10 +61,10 @@ func docsSwitchDemo(checked docsBoolState) ui.Element {
 						checked.Value(),
 						ui.SwitchWidth(56),
 						ui.SwitchHeight(32),
-						ui.SwitchColor(ui.NRGBA(37, 99, 235, 255)),
-						ui.SwitchTrackColor(ui.NRGBA(191, 219, 254, 255)),
-						ui.SwitchThumbColor(ui.NRGBA(255, 255, 255, 255)),
-						ui.SwitchDecoration(ui.Bg(ui.NRGBA(248, 250, 252, 255)).WithPad(ui.All(3)).WithRad(999)),
+						ui.SwitchColor(th.Colors.Primary),
+						ui.SwitchTrackColor(th.Colors.PrimaryContainer),
+						ui.SwitchThumbColor(th.Colors.OnPrimary),
+						ui.SwitchDecoration(ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(3)).WithRad(999)),
 						ui.SwitchAttachRef(ref.Current),
 						ui.SwitchOnChange(func(ctx *ui.Context, value bool) {
 							checked.Set(value)
@@ -70,7 +72,7 @@ func docsSwitchDemo(checked docsBoolState) ui.Element {
 					),
 					ui.PaddingElement(
 						ui.Insets{Left: 10, Top: 5},
-						ui.TextElement(fmt.Sprintf("State: %v", checked.Value()), ui.TextSize(13)),
+						ui.TextElement(fmt.Sprintf("State: %v", checked.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 					),
 				),
 				ui.VSpacerElement(8),
@@ -190,6 +192,7 @@ func docsSliderDemo(value docsFloat32State) ui.Element {
 
 func docsRadioGroupDemo(value docsStringState) ui.Element {
 	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
 		ref := ui.UseRef(ctx, ui.NewRadioGroupRef())
 		if ref.Current == nil {
 			ref.Current = ui.NewRadioGroupRef()
@@ -199,26 +202,31 @@ func docsRadioGroupDemo(value docsStringState) ui.Element {
 			{Label: "Input", Value: "input"},
 			{Label: "Feedback", Value: "feedback"},
 		}
-		return ui.ColumnElement(
-			ui.RadioGroupElement(
-				value.Value(),
-				items,
-				ui.RadioGroupDirection(ui.Horizontal),
-				ui.RadioGroupSize(20),
-				ui.RadioGroupColor(ui.NRGBA(37, 99, 235, 255)),
-				ui.RadioGroupDecoration(ui.Bg(ui.NRGBA(248, 250, 252, 255)).WithPad(ui.All(8)).WithRad(10)),
-				ui.RadioGroupAttachRef(ref.Current),
-				ui.RadioGroupOnChange(func(ctx *ui.Context, next string) {
-					value.Set(next)
-				}),
-			),
-			ui.VSpacerElement(8),
-			ui.RowElement(
-				docsDemoControlButton("Set input", func(ctx *ui.Context) {
-					value.Set("input")
-					ref.Current.SetValue("input")
-				}),
-				ui.HSpacerElement(8),
+		return ui.FixedWidthElement(
+			430,
+			ui.ColumnElement(
+				ui.RadioGroupElement(
+					value.Value(),
+					items,
+					ui.RadioGroupDirection(ui.Horizontal),
+					ui.RadioGroupSize(20),
+					ui.RadioGroupColor(th.Colors.Primary),
+					ui.RadioGroupDecoration(ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(8)).WithRad(10)),
+					ui.RadioGroupAttachRef(ref.Current),
+					ui.RadioGroupOnChange(func(ctx *ui.Context, next string) {
+						value.Set(next)
+					}),
+				),
+				ui.VSpacerElement(10),
+				ui.RowElement(
+					docsDemoControlButton("Set input", func(ctx *ui.Context) {
+						value.Set("input")
+						ref.Current.SetValue("input")
+					}),
+					ui.HSpacerElement(8),
+					ui.ExpandedElement(ui.TextElement("RadioGroupRef.SetValue", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant))),
+				),
+				ui.VSpacerElement(10),
 				ui.RadioGroupElement("layout", items[:2], ui.RadioGroupDisabled(true)),
 			),
 		)

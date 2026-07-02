@@ -69,6 +69,7 @@ func docsCategoryFilterBar(docs []widgetDoc, selected docsStringState, th *ui.Th
 		ui.RowElement(items...),
 		ui.ScrollHorizontal(true),
 		ui.ScrollVertical(false),
+		ui.ScrollBarVisible(false),
 	)
 }
 

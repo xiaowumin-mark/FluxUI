@@ -9,6 +9,7 @@ import (
 
 func docsImageDemo() ui.Element {
 	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
 		ref := ui.UseRef(ctx, ui.NewButtonRef())
 		clicks := ui.UseState(ctx, 0)
 		if ref.Current == nil {
@@ -23,8 +24,8 @@ func docsImageDemo() ui.Element {
 					ui.ImageHeight(90),
 					ui.ImageFitMode(ui.ImageFitContain),
 					ui.ImageRadius(8),
-					ui.ImageBackground(ui.NRGBA(241, 245, 249, 255)),
-					ui.ImageDecoration(ui.BorderDeco(1, ui.NRGBA(203, 213, 225, 255))),
+					ui.ImageBackground(th.Colors.SurfaceContainerLow),
+					ui.ImageDecoration(ui.BorderDeco(1, th.Colors.OutlineVariant)),
 					ui.ImageAttachRef(ref.Current),
 					ui.ImageOnClick(func(ctx *ui.Context) {
 						clicks.Set(clicks.Value() + 1)
@@ -48,7 +49,7 @@ func docsImageDemo() ui.Element {
 					ref.Current.Click()
 				}),
 				ui.HSpacerElement(8),
-				ui.TextElement(fmt.Sprintf("image clicks = %d", clicks.Value()), ui.TextSize(12)),
+				ui.TextElement(fmt.Sprintf("image clicks = %d", clicks.Value()), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			),
 		)
 	})
@@ -76,27 +77,30 @@ func docsIconDemo() ui.Element {
 }
 
 func docsIconFontsDemo() ui.Element {
-	return ui.ColumnElement(
-		ui.TextElement(fmt.Sprintf("default icon font: %s", docsDefaultIconFontLabel()), ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
-		ui.VSpacerElement(10),
-		ui.RowElement(
-			ui.IconElement("home", ui.IconSize(24), ui.IconColor(ui.NRGBA(30, 136, 229, 255))),
-			ui.HSpacerElement(12),
-			ui.IconElement("search", ui.IconSize(24), ui.IconColor(ui.NRGBA(67, 160, 71, 255))),
-			ui.HSpacerElement(12),
-			ui.IconElement("settings", ui.IconSize(24), ui.IconColor(ui.NRGBA(245, 124, 0, 255))),
-			ui.HSpacerElement(12),
-			ui.IconElement("favorite", ui.IconUseFont(md3.ID), ui.IconSize(24), ui.IconColor(ui.NRGBA(220, 38, 38, 255))),
-		),
-		ui.VSpacerElement(10),
-		ui.RowElement(
-			ui.FilledIconButtonElement(ui.IconElement("add")),
-			ui.HSpacerElement(8),
-			ui.FilledTonalIconButtonElement(ui.IconElement("notifications")),
-			ui.HSpacerElement(8),
-			ui.OutlinedIconButtonElement(ui.IconElement("mail")),
-		),
-	)
+	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
+		return ui.ColumnElement(
+			ui.TextElement(fmt.Sprintf("default icon font: %s", docsDefaultIconFontLabel()), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.VSpacerElement(10),
+			ui.RowElement(
+				ui.IconElement("home", ui.IconSize(24), ui.IconColor(th.Colors.Primary)),
+				ui.HSpacerElement(12),
+				ui.IconElement("search", ui.IconSize(24), ui.IconColor(th.Colors.Secondary)),
+				ui.HSpacerElement(12),
+				ui.IconElement("settings", ui.IconSize(24), ui.IconColor(th.Colors.Tertiary)),
+				ui.HSpacerElement(12),
+				ui.IconElement("favorite", ui.IconUseFont(md3.ID), ui.IconSize(24), ui.IconColor(th.Colors.Error)),
+			),
+			ui.VSpacerElement(10),
+			ui.RowElement(
+				ui.FilledIconButtonElement(ui.IconElement("add")),
+				ui.HSpacerElement(8),
+				ui.FilledTonalIconButtonElement(ui.IconElement("notifications")),
+				ui.HSpacerElement(8),
+				ui.OutlinedIconButtonElement(ui.IconElement("mail")),
+			),
+		)
+	})
 }
 
 func docsDefaultIconFontLabel() string {
@@ -108,37 +112,40 @@ func docsDefaultIconFontLabel() string {
 }
 
 func docsListItemDemo(selected docsStringState) ui.Element {
-	return ui.FixedWidthElement(
-		380,
-		ui.ColumnElement(
-			ui.ListItemElementWithSlots(
-				ui.TextElement("Inbox"),
-				ui.TextElement("12 unread messages"),
-				ui.IconElement("info"),
-				ui.TextElement("12"),
-				ui.ListItemSelected(selected.Value() == "inbox"),
-				ui.ListItemMinHeight(64),
-				ui.ListItemDecoration(ui.Bg(ui.NRGBA(248, 250, 252, 255)).WithRad(10)),
-				ui.ListItemOnClick(func(ctx *ui.Context) { selected.Set("inbox") }),
+	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
+		return ui.FixedWidthElement(
+			380,
+			ui.ColumnElement(
+				ui.ListItemElementWithSlots(
+					ui.TextElement("Inbox"),
+					ui.TextElement("12 unread messages"),
+					ui.IconElement("info"),
+					ui.TextElement("12"),
+					ui.ListItemSelected(selected.Value() == "inbox"),
+					ui.ListItemMinHeight(64),
+					ui.ListItemDecoration(ui.Bg(th.Colors.SurfaceContainerLow).WithRad(10)),
+					ui.ListItemOnClick(func(ctx *ui.Context) { selected.Set("inbox") }),
+				),
+				ui.ListItemElementWithSlots(
+					ui.TextElement("Archive"),
+					ui.TextElement("Older conversations"),
+					ui.IconElement("archive"),
+					nil,
+					ui.ListItemSelected(selected.Value() == "archive"),
+					ui.ListItemOnClick(func(ctx *ui.Context) { selected.Set("archive") }),
+				),
+				ui.ListItemElement("Compact item", ui.ListItemOnClick(func(ctx *ui.Context) { selected.Set("compact") })),
+				ui.ListItemElementWithSlots(
+					ui.TextElement("Disabled"),
+					ui.TextElement("Unavailable item"),
+					ui.IconElement("delete"),
+					nil,
+					ui.ListItemDisabled(true),
+				),
 			),
-			ui.ListItemElementWithSlots(
-				ui.TextElement("Archive"),
-				ui.TextElement("Older conversations"),
-				ui.IconElement("archive"),
-				nil,
-				ui.ListItemSelected(selected.Value() == "archive"),
-				ui.ListItemOnClick(func(ctx *ui.Context) { selected.Set("archive") }),
-			),
-			ui.ListItemElement("Compact item", ui.ListItemOnClick(func(ctx *ui.Context) { selected.Set("compact") })),
-			ui.ListItemElementWithSlots(
-				ui.TextElement("Disabled"),
-				ui.TextElement("Unavailable item"),
-				ui.IconElement("delete"),
-				nil,
-				ui.ListItemDisabled(true),
-			),
-		),
-	)
+		)
+	})
 }
 
 func docsIconButtonDemo(selected docsBoolState) ui.Element {
