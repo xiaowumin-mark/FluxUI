@@ -30,6 +30,8 @@ func App(ctx *ui.Context) ui.Element {
 	checked := ui.UseState(ctx, true)
 	switched := ui.UseState(ctx, true)
 	sliderValue := ui.UseState(ctx, float32(56))
+	sliderRangeStart := ui.UseState(ctx, float32(20))
+	sliderRangeEnd := ui.UseState(ctx, float32(64))
 	radioValue := ui.UseState(ctx, "stable")
 	selectValue := ui.UseState(ctx, "apple")
 	menuOpen := ui.UseState(ctx, false)
@@ -93,7 +95,7 @@ func App(ctx *ui.Context) ui.Element {
 			case 3:
 				return section("Buttons and generic interaction", "Button variants, Pressable, ClickArea compatibility and command refs.", buttonsPanel(th, buttonCount, hovered, pressed, buttonRef, pressableRef, pressCount))
 			case 4:
-				return section("Text input and selection", "Controlled fields, checkbox, switch, slider, radio, select, menu and dropdown states.", inputSelectionPanel(th, textValue, passwordValue, focusState, checked, switched, sliderValue, radioValue, selectValue, menuOpen, menuValue, inputRef, checkboxRef, switchRef, sliderRef, radioRef, selectRef))
+				return section("Text input and selection", "Controlled fields, checkbox, switch, slider, radio, select, menu and dropdown states.", inputSelectionPanel(th, textValue, passwordValue, focusState, checked, switched, sliderValue, sliderRangeStart, sliderRangeEnd, radioValue, selectValue, menuOpen, menuValue, inputRef, checkboxRef, switchRef, sliderRef, radioRef, selectRef))
 			case 5:
 				return section("Cards, media and chips", "Image, icon, card variants, icon buttons, FABs, badges, chips and search bar.", mediaCardsPanel(th, imageClicks, buttonCount, iconSelected, fabCount, chipSelected, inputChipVisible, searchValue))
 			case 6:
@@ -379,6 +381,8 @@ func inputSelectionPanel(
 	checked *fluxstate.State[bool],
 	switched *fluxstate.State[bool],
 	sliderValue *fluxstate.State[float32],
+	sliderRangeStart *fluxstate.State[float32],
+	sliderRangeEnd *fluxstate.State[float32],
 	radioValue *fluxstate.State[string],
 	selectValue *fluxstate.State[string],
 	menuOpen *fluxstate.State[bool],
@@ -515,6 +519,7 @@ func inputSelectionPanel(
 			)),
 			ui.HSpacerElement(12),
 			ui.FixedWidthElement(300, ui.ColumnElement(
+				ui.TextElement("Continuous", ui.TextType(th.Types.BodySmall), ui.TextColor(th.Colors.OnSurfaceVariant)),
 				ui.SliderElement(
 					sliderValue.Value(),
 					ui.SliderMin(0),
@@ -524,13 +529,36 @@ func inputSelectionPanel(
 					ui.SliderAttachRef(sliderRef.Current),
 					ui.SliderOnChange(func(ctx *ui.Context, value float32) { setIfChanged(sliderValue, value) }),
 				),
+				ui.VSpacerElement(6),
+				ui.TextElement("Labeled + ticks", ui.TextType(th.Types.BodySmall), ui.TextColor(th.Colors.OnSurfaceVariant)),
+				ui.SliderElement(
+					sliderValue.Value(),
+					ui.SliderStep(10),
+					ui.SliderTicks(true),
+					ui.SliderLabeled(true),
+					ui.SliderWidth(280),
+					ui.SliderOnChange(func(ctx *ui.Context, value float32) { setIfChanged(sliderValue, value) }),
+				),
+				ui.VSpacerElement(6),
+				ui.TextElement("Range", ui.TextType(th.Types.BodySmall), ui.TextColor(th.Colors.OnSurfaceVariant)),
+				ui.RangeSliderElement(
+					sliderRangeStart.Value(),
+					sliderRangeEnd.Value(),
+					ui.SliderStep(5),
+					ui.SliderTicks(true),
+					ui.SliderWidth(280),
+					ui.SliderOnRangeChange(func(ctx *ui.Context, start, end float32) {
+						setIfChanged(sliderRangeStart, start)
+						setIfChanged(sliderRangeEnd, end)
+					}),
+				),
 				ui.VSpacerElement(8),
 				ui.RowElement(
 					ui.ButtonElement(ui.TextElement("-10"), ui.OnClick(func(ctx *ui.Context) { sliderRef.Current.StepBy(-10) })),
 					ui.HSpacerElement(8),
 					ui.ButtonElement(ui.TextElement("+10"), ui.OnClick(func(ctx *ui.Context) { sliderRef.Current.StepBy(10) })),
 					ui.HSpacerElement(8),
-					ui.TextElement(fmt.Sprintf("value %.0f", sliderValue.Value()), ui.TextType(th.Types.BodySmall), ui.TextColor(th.Colors.OnSurfaceVariant)),
+					ui.TextElement(fmt.Sprintf("value %.0f, range %.0f-%.0f", sliderValue.Value(), sliderRangeStart.Value(), sliderRangeEnd.Value()), ui.TextType(th.Types.BodySmall), ui.TextColor(th.Colors.OnSurfaceVariant)),
 				),
 			)),
 			ui.HSpacerElement(12),

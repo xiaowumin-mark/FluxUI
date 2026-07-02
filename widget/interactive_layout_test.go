@@ -199,7 +199,7 @@ func TestDefaultInteractiveWidgetsDoNotAddDecorationPadding(t *testing.T) {
 	rt.BeginFrame()
 	ctx = newInteractiveLayoutTestContext(rt)
 
-	if got, want := Slider(40).Layout(ctx).Size, image.Pt(200, 20); got != want {
+	if got, want := Slider(40).Layout(ctx).Size, image.Pt(200, 40); got != want {
 		t.Fatalf("default slider size = %v, want %v", got, want)
 	}
 

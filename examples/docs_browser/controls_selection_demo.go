@@ -94,29 +94,79 @@ func docsSwitchDemo(checked docsBoolState) ui.Element {
 
 func docsSliderDemo(value docsFloat32State) ui.Element {
 	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
+		th := ui.UseTheme(ctx)
 		ref := ui.UseRef(ctx, ui.NewSliderRef())
 		if ref.Current == nil {
 			ref.Current = ui.NewSliderRef()
 		}
+		rangeStart := ui.UseState(ctx, float32(18))
+		rangeEnd := ui.UseState(ctx, float32(48))
+		tickValue := ui.UseState(ctx, float32(20))
+		tickRangeStart := ui.UseState(ctx, float32(20))
+		tickRangeEnd := ui.UseState(ctx, float32(40))
+		customStart := ui.UseState(ctx, float32(15))
+		customEnd := ui.UseState(ctx, float32(92))
 		return ui.FixedWidthElement(
 			480,
 			ui.ColumnElement(
+				ui.TextElement("Single point sliders", ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
+				ui.VSpacerElement(8),
+				ui.TextElement("Continuous", ui.TextType(th.Types.BodyMedium)),
 				ui.SliderElement(
 					value.Value(),
 					ui.SliderMin(0),
 					ui.SliderMax(100),
-					ui.SliderStep(5),
-					ui.SliderWidth(360),
-					ui.SliderTrackColor(ui.NRGBA(226, 232, 240, 255)),
-					ui.SliderProgressColor(ui.NRGBA(37, 99, 235, 255)),
-					ui.SliderThumbColor(ui.NRGBA(29, 78, 216, 255)),
-					ui.SliderDecoration(ui.Bg(ui.NRGBA(248, 250, 252, 255)).WithPad(ui.Symmetric(8, 10)).WithRad(12)),
+					ui.SliderStep(0),
 					ui.SliderAttachRef(ref.Current),
 					ui.SliderOnChange(func(ctx *ui.Context, next float32) {
 						value.Set(next)
 					}),
 				),
+				ui.VSpacerElement(10),
+				ui.TextElement("Labeled", ui.TextType(th.Types.BodyMedium)),
+				ui.SliderElement(value.Value(), ui.SliderLabeled(true), ui.SliderOnChange(func(ctx *ui.Context, next float32) { value.Set(next) })),
+				ui.VSpacerElement(10),
+				ui.TextElement("Tick marks", ui.TextType(th.Types.BodyMedium)),
+				ui.SliderElement(tickValue.Value(), ui.SliderStep(10), ui.SliderTicks(true), ui.SliderOnChange(func(ctx *ui.Context, next float32) { tickValue.Set(next) })),
+				ui.VSpacerElement(18),
+				ui.TextElement("Range sliders", ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(8),
+				ui.TextElement("Range", ui.TextType(th.Types.BodyMedium)),
+				ui.RangeSliderElement(rangeStart.Value(), rangeEnd.Value(), ui.SliderOnRangeChange(func(ctx *ui.Context, start, end float32) {
+					rangeStart.Set(start)
+					rangeEnd.Set(end)
+				})),
+				ui.VSpacerElement(10),
+				ui.TextElement("Labeled", ui.TextType(th.Types.BodyMedium)),
+				ui.RangeSliderElement(rangeStart.Value(), rangeEnd.Value(), ui.SliderLabeled(true), ui.SliderOnRangeChange(func(ctx *ui.Context, start, end float32) {
+					rangeStart.Set(start)
+					rangeEnd.Set(end)
+				})),
+				ui.VSpacerElement(10),
+				ui.TextElement("Tick marks", ui.TextType(th.Types.BodyMedium)),
+				ui.RangeSliderElement(tickRangeStart.Value(), tickRangeEnd.Value(), ui.SliderStep(10), ui.SliderTicks(true), ui.SliderOnRangeChange(func(ctx *ui.Context, start, end float32) {
+					tickRangeStart.Set(start)
+					tickRangeEnd.Set(end)
+				})),
+				ui.VSpacerElement(18),
+				ui.TextElement("Custom styling", ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
+				ui.VSpacerElement(8),
+				ui.TextElement("Custom styles", ui.TextType(th.Types.BodyMedium)),
+				ui.RangeSliderElement(
+					customStart.Value(),
+					customEnd.Value(),
+					ui.SliderStep(10),
+					ui.SliderTicks(true),
+					ui.SliderTrackColor(ui.NRGBA(181, 204, 204, 255)),
+					ui.SliderProgressColor(ui.NRGBA(55, 80, 80, 255)),
+					ui.SliderThumbColor(ui.NRGBA(47, 70, 70, 255)),
+					ui.SliderDecoration(ui.Pad(ui.Symmetric(2, 0))),
+					ui.SliderOnRangeChange(func(ctx *ui.Context, start, end float32) {
+						customStart.Set(start)
+						customEnd.Set(end)
+					}),
+				),
+				ui.VSpacerElement(10),
 				ui.RowElement(
 					docsDemoControlButton("Step +10", func(ctx *ui.Context) {
 						next := minFloat32(100, value.Value()+10)
@@ -132,7 +182,7 @@ func docsSliderDemo(value docsFloat32State) ui.Element {
 					ui.TextElement(fmt.Sprintf("value = %.1f", value.Value()), ui.TextSize(13)),
 				),
 				ui.VSpacerElement(8),
-				ui.SliderElement(40, ui.SliderDisabled(true), ui.SliderWidth(240)),
+				ui.RowElement(ui.SliderElement(40, ui.SliderDisabled(true), ui.SliderWidth(240)), ui.HSpacerElement(12), ui.TextElement("disabled", ui.TextType(th.Types.BodySmall))),
 			),
 		)
 	})

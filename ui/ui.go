@@ -829,6 +829,11 @@ func Slider(value float32, opts ...SliderOption) Widget {
 	return widget.Slider(value, opts...)
 }
 
+// RangeSlider 创建 Material 3 双端范围滑块组件。
+func RangeSlider(start, end float32, opts ...SliderOption) Widget {
+	return widget.RangeSlider(start, end, opts...)
+}
+
 // Container 创建容器组件。
 //
 // Deprecated: Container 已被 ContainerDecoration 取代。
@@ -1568,6 +1573,31 @@ func SliderWidth(width float32) SliderOption {
 	return widget.SliderWidth(width)
 }
 
+// SliderLabeled 设置是否显示 Material 3 value label。
+func SliderLabeled(labeled bool) SliderOption {
+	return widget.SliderLabeled(labeled)
+}
+
+// SliderTicks 设置是否显示离散刻度。
+func SliderTicks(ticks bool) SliderOption {
+	return widget.SliderTicks(ticks)
+}
+
+// SliderValueLabel 设置单点滑块的显示标签。
+func SliderValueLabel(label string) SliderOption {
+	return widget.SliderValueLabel(label)
+}
+
+// SliderValueLabels 设置范围滑块两个 handle 的显示标签。
+func SliderValueLabels(start, end string) SliderOption {
+	return widget.SliderValueLabels(start, end)
+}
+
+// SliderRange 将 Slider 配置为范围滑块。
+func SliderRange(start, end float32) SliderOption {
+	return widget.SliderRange(start, end)
+}
+
 // SliderTrackColor 设置滑块轨道颜色。
 func SliderTrackColor(color color.NRGBA) SliderOption {
 	return widget.SliderTrackColor(color)
@@ -1583,6 +1613,14 @@ func SliderProgressColor(color color.NRGBA) SliderOption {
 	return widget.SliderProgressColor(color)
 }
 
+func SliderLabelColor(color color.NRGBA) SliderOption {
+	return widget.SliderLabelColor(color)
+}
+
+func SliderLabelTextColor(color color.NRGBA) SliderOption {
+	return widget.SliderLabelTextColor(color)
+}
+
 // SliderDecoration 通过 Decoration 统一设置滑块外层装饰和交互态。
 func SliderDecoration(d Decoration) SliderOption {
 	return widget.SliderDecoration(d)
@@ -1591,6 +1629,10 @@ func SliderDecoration(d Decoration) SliderOption {
 // SliderOnChange 绑定滑块变化事件。
 func SliderOnChange(fn func(ctx *Context, value float32)) SliderOption {
 	return widget.SliderOnChange(fn)
+}
+
+func SliderOnRangeChange(fn func(ctx *Context, start, end float32)) SliderOption {
+	return widget.SliderOnRangeChange(fn)
 }
 
 func NewSliderRef() *SliderRef {

@@ -37,6 +37,9 @@ func docsDemoPresentationFor(exampleID string) docsDemoPresentation {
 		presentation.Scroll = true
 	case "navigation_rail_basic", "navigation_drawer_basic":
 		presentation.Height = 280
+	case "slider_basic":
+		presentation.Height = 300
+		presentation.Scroll = true
 	}
 	presentation.Center = shouldCenterDemo(exampleID)
 	return presentation

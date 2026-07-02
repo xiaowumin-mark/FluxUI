@@ -334,6 +334,11 @@ func SliderElement(value float32, opts ...SliderOption) Element {
 	return FromWidget(widget.Slider(value, opts...))
 }
 
+// RangeSliderElement 创建可参与 reconciler 的受控范围滑块 Element。
+func RangeSliderElement(start, end float32, opts ...SliderOption) Element {
+	return FromWidget(widget.RangeSlider(start, end, opts...))
+}
+
 // RadioGroupElement 创建可参与 reconciler 的受控单选组 Element。
 func RadioGroupElement(value string, items []RadioItem, opts ...RadioGroupOption) Element {
 	return FromWidget(widget.RadioGroup(value, items, opts...))

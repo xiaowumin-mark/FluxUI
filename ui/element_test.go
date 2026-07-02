@@ -828,6 +828,9 @@ func TestFinalComponentElementsWrapLegacyWidgets(t *testing.T) {
 	if el := SliderElement(42); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected SliderElement to wrap a legacy slider widget")
 	}
+	if el := RangeSliderElement(20, 80); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected RangeSliderElement to wrap a legacy range slider widget")
+	}
 	if el := RadioGroupElement("a", []RadioItem{{Label: "A", Value: "a"}}); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected RadioGroupElement to wrap a legacy radio group widget")
 	}
