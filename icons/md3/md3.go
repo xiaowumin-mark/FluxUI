@@ -13,7 +13,7 @@ const (
 	Family = "Material Symbols Outlined"
 )
 
-//go:embed MaterialSymbolsOutlined.ttf
+//go:embed MaterialSymbolsOutlined.woff2
 var materialSymbolsOutlined []byte
 
 var font theme.IconFont
@@ -22,7 +22,7 @@ func init() {
 	var err error
 	font, err = theme.LoadIconFontFromBytes(
 		ID,
-		"MaterialSymbolsOutlined.ttf",
+		"MaterialSymbolsOutlined.woff2",
 		materialSymbolsOutlined,
 		theme.IconFontFamilyName(Family),
 		theme.IconFontDefault(true),

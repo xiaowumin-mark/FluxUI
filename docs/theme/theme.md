@@ -138,9 +138,9 @@ ui.WithFontElement(
 )
 ```
 
-字体发现辅助函数包括 `DefaultFontSpec`、`ParseFontFile`、`LoadFontsFromPaths`、`DiscoverSystemFonts`、`DiscoverSystemFontFamilies`、`SystemFontDirs` 和 `ListFontFamilies`。
+字体发现辅助函数包括 `DefaultFontSpec`、`ParseFontFile`、`LoadFontsFromPaths`、`DiscoverSystemFonts`、`DiscoverSystemFontFamilies`、`SystemFontDirs` 和 `ListFontFamilies`。字体加载支持 `ttf`、`otf`、`ttc`、`otc`、`woff` 和 `woff2`；WOFF/WOFF2 会在加载时解码为 SFNT 数据后交给 Gio shaper。
 
-图标字体通过 `IconFonts` 单独管理。导入 `github.com/xiaowumin-mark/FluxUI/icons/md3` 会自动注册内置 Material Symbols Outlined；应用也可以通过 `LoadIconFontFromPath` / `WithIconFonts` 追加自定义图标字体。详见 `docs/guides/icon-fonts.md`。
+图标字体通过 `IconFonts` 单独管理。导入 `github.com/xiaowumin-mark/FluxUI/icons/md3` 会自动注册内置 Material Symbols Outlined WOFF2；应用也可以通过 `LoadIconFontFromPath` / `WithIconFonts` 追加自定义图标字体。详见 `docs/guides/icon-fonts.md`。
 
 ## 使用建议
 - 组件样式优先读取 `ctx.Theme()`，避免硬编码黑白色。

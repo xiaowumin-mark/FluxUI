@@ -1,9 +1,12 @@
 package theme
 
 import (
+	"encoding/binary"
 	"errors"
 	"strings"
 	"sync"
+
+	sfntfont "github.com/tdewolff/font"
 )
 
 // IconFont describes one font family that can render icon ligatures.
@@ -11,6 +14,7 @@ type IconFont struct {
 	ID      string
 	Family  string
 	Faces   []FontFace
+	Glyphs  map[string]rune
 	Default bool
 }
 
@@ -36,7 +40,7 @@ func IconFontDefault(defaulted bool) IconFontOption {
 	}
 }
 
-// LoadIconFontFromPath loads an icon font from a ttf/otf/ttc/otc file.
+// LoadIconFontFromPath loads an icon font from a ttf/otf/ttc/otc/woff/woff2 file.
 func LoadIconFontFromPath(id string, path string, opts ...IconFontOption) (IconFont, error) {
 	faces, err := ParseFontFile(path)
 	if err != nil {
@@ -45,7 +49,7 @@ func LoadIconFontFromPath(id string, path string, opts ...IconFontOption) (IconF
 	return newIconFont(id, faces, opts...)
 }
 
-// LoadIconFontFromBytes loads an icon font from embedded ttf/otf/ttc/otc data.
+// LoadIconFontFromBytes loads an icon font from embedded ttf/otf/ttc/otc/woff/woff2 data.
 func LoadIconFontFromBytes(id string, name string, data []byte, opts ...IconFontOption) (IconFont, error) {
 	faces, err := ParseFontBytes(name, data)
 	if err != nil {
@@ -165,10 +169,25 @@ func (t *Theme) DefaultIconFont() (IconFont, bool) {
 	return IconFont{}, false
 }
 
+// ResolveIconText returns the text that should be shaped for an icon name.
+// Fonts with glyph-name cmap entries, such as Material Symbols WOFF2, can
+// render by codepoint even when they do not include ligature substitutions.
+func (font IconFont) ResolveIconText(name string) (string, bool) {
+	name = strings.TrimSpace(name)
+	if name == "" || len(font.Glyphs) == 0 {
+		return "", false
+	}
+	if r, ok := font.Glyphs[name]; ok && r != 0 {
+		return string(r), true
+	}
+	return "", false
+}
+
 func newIconFont(id string, faces []FontFace, opts ...IconFontOption) (IconFont, error) {
 	font := IconFont{
-		ID:    strings.TrimSpace(id),
-		Faces: append([]FontFace(nil), faces...),
+		ID:     strings.TrimSpace(id),
+		Faces:  append([]FontFace(nil), faces...),
+		Glyphs: iconGlyphsFromFaces(faces),
 	}
 	for _, opt := range opts {
 		opt(&font)
@@ -190,6 +209,7 @@ func normalizeIconFont(font IconFont) IconFont {
 	font.ID = strings.TrimSpace(font.ID)
 	font.Family = strings.TrimSpace(font.Family)
 	font.Faces = append([]FontFace(nil), font.Faces...)
+	font.Glyphs = cloneIconGlyphs(font.Glyphs)
 
 	if font.Family == "" {
 		for _, face := range font.Faces {
@@ -262,9 +282,163 @@ func cloneIconFonts(fonts []IconFont) []IconFont {
 
 func cloneIconFont(font IconFont) IconFont {
 	font.Faces = append([]FontFace(nil), font.Faces...)
+	font.Glyphs = cloneIconGlyphs(font.Glyphs)
 	return font
 }
 
 func iconFontIDEqual(a, b string) bool {
 	return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b))
+}
+
+func iconGlyphsFromFaces(faces []FontFace) map[string]rune {
+	var out map[string]rune
+	for _, face := range faces {
+		data := face.Data()
+		if len(data) == 0 {
+			continue
+		}
+		parsed, err := sfntfont.ParseSFNT(data, face.FaceIndex())
+		if err != nil {
+			continue
+		}
+		unicodeByGlyphID := cmapUnicodeByGlyphID(parsed.Tables["cmap"])
+		for glyphID := uint16(1); glyphID < parsed.NumGlyphs(); glyphID++ {
+			name := strings.TrimSpace(parsed.GlyphName(glyphID))
+			if name == "" || name == ".notdef" {
+				continue
+			}
+			r, ok := unicodeByGlyphID[glyphID]
+			if !ok || r == 0 {
+				continue
+			}
+			if out == nil {
+				out = make(map[string]rune, 256)
+			}
+			out[name] = r
+		}
+	}
+	return out
+}
+
+func cloneIconGlyphs(glyphs map[string]rune) map[string]rune {
+	if len(glyphs) == 0 {
+		return nil
+	}
+	out := make(map[string]rune, len(glyphs))
+	for name, r := range glyphs {
+		out[name] = r
+	}
+	return out
+}
+
+func cmapUnicodeByGlyphID(cmap []byte) map[uint16]rune {
+	if len(cmap) < 4 {
+		return nil
+	}
+	numTables := int(binary.BigEndian.Uint16(cmap[2:4]))
+	out := make(map[uint16]rune, 256)
+	for i := 0; i < numTables; i++ {
+		record := 4 + i*8
+		if record+8 > len(cmap) {
+			break
+		}
+		offset := int(binary.BigEndian.Uint32(cmap[record+4 : record+8]))
+		if offset < 0 || offset+2 > len(cmap) {
+			continue
+		}
+		switch binary.BigEndian.Uint16(cmap[offset : offset+2]) {
+		case 4:
+			parseCmapFormat4(out, cmap[offset:])
+		case 12, 13:
+			parseCmapFormat12Or13(out, cmap[offset:])
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func parseCmapFormat4(out map[uint16]rune, table []byte) {
+	if len(table) < 16 {
+		return
+	}
+	length := int(binary.BigEndian.Uint16(table[2:4]))
+	if length > len(table) {
+		length = len(table)
+	}
+	table = table[:length]
+	segCount := int(binary.BigEndian.Uint16(table[6:8]) / 2)
+	endCodes := 14
+	startCodes := endCodes + segCount*2 + 2
+	idDeltas := startCodes + segCount*2
+	idRangeOffsets := idDeltas + segCount*2
+	if idRangeOffsets+segCount*2 > len(table) {
+		return
+	}
+	for i := 0; i < segCount; i++ {
+		start := binary.BigEndian.Uint16(table[startCodes+i*2 : startCodes+i*2+2])
+		end := binary.BigEndian.Uint16(table[endCodes+i*2 : endCodes+i*2+2])
+		delta := binary.BigEndian.Uint16(table[idDeltas+i*2 : idDeltas+i*2+2])
+		rangeOffsetPos := idRangeOffsets + i*2
+		rangeOffset := binary.BigEndian.Uint16(table[rangeOffsetPos : rangeOffsetPos+2])
+		if start == 0xffff && end == 0xffff {
+			continue
+		}
+		for c := start; c <= end; c++ {
+			var glyphID uint16
+			if rangeOffset == 0 {
+				glyphID = c + delta
+			} else {
+				pos := rangeOffsetPos + int(rangeOffset) + int(c-start)*2
+				if pos+2 > len(table) {
+					continue
+				}
+				glyphID = binary.BigEndian.Uint16(table[pos : pos+2])
+				if glyphID != 0 {
+					glyphID += delta
+				}
+			}
+			if glyphID != 0 {
+				out[glyphID] = rune(c)
+			}
+			if c == 0xffff {
+				break
+			}
+		}
+	}
+}
+
+func parseCmapFormat12Or13(out map[uint16]rune, table []byte) {
+	if len(table) < 16 {
+		return
+	}
+	length := int(binary.BigEndian.Uint32(table[4:8]))
+	if length > len(table) {
+		length = len(table)
+	}
+	table = table[:length]
+	format := binary.BigEndian.Uint16(table[0:2])
+	numGroups := int(binary.BigEndian.Uint32(table[12:16]))
+	for i := 0; i < numGroups; i++ {
+		group := 16 + i*12
+		if group+12 > len(table) {
+			break
+		}
+		startChar := binary.BigEndian.Uint32(table[group : group+4])
+		endChar := binary.BigEndian.Uint32(table[group+4 : group+8])
+		startGlyph := binary.BigEndian.Uint32(table[group+8 : group+12])
+		if endChar < startChar || endChar-startChar > 100000 {
+			continue
+		}
+		for c := startChar; c <= endChar; c++ {
+			glyphID := startGlyph
+			if format == 12 {
+				glyphID += c - startChar
+			}
+			if glyphID > 0 && glyphID <= 0xffff && c <= 0x10ffff {
+				out[uint16(glyphID)] = rune(c)
+			}
+		}
+	}
 }

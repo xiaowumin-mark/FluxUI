@@ -19,7 +19,7 @@
 
 # Icon Fonts 图标字体
 
-FluxUI 的 `Icon` 支持图标字体 ligature。引入内置 MD3 图标字体包后，`Icon("home")`、`Icon("search")`、`Icon("settings")` 等名称会直接渲染为 Material Symbols 图标。
+FluxUI 的 `Icon` 支持按名称渲染图标字体。引入内置 MD3 图标字体包后，`Icon("home")`、`Icon("search")`、`Icon("settings")` 等名称会直接渲染为 Material Symbols 图标。
 
 ## 内置 MD3 图标
 
@@ -40,7 +40,11 @@ ui.IconButtonElement(ui.IconElement("search"))
 ui.FloatingActionButtonElement(ui.IconElement("add"))
 ```
 
-`icons/md3` 包通过 `go:embed` 内置 `MaterialSymbolsOutlined.ttf`，并在 `init` 中注册为默认图标字体。普通 `Text` 不会使用该字体，只有 `Icon` 会自动选择默认图标字体。
+`icons/md3` 包通过 `go:embed` 内置 `@material-symbols/font-400` 的 `MaterialSymbolsOutlined.woff2`，并在 `init` 中注册为默认图标字体。普通 `Text` 不会使用该字体，只有 `Icon` 会自动选择默认图标字体。
+
+当前内置字体是固定 weight 400 的 Material Symbols Outlined WOFF2，文件大小约 0.49 MB；旧版 10.63 MB TTF 已移除。WOFF2 会在加载时解码为 SFNT 字节再交给 Gio shaper，因此运行时渲染路径仍与 TTF/OTF 一致。
+
+Material Symbols WOFF2 不依赖 GSUB ligature 表。FluxUI 会在加载图标字体时读取 cmap 和 glyph name，把 `home`、`search` 等名称解析成字体内的图标 codepoint，再交给 Gio shaper 渲染。对于仍包含 ligature 表的传统图标字体，未命中 codepoint 映射时会继续按 ligature 文本渲染。
 
 ## 指定图标字体
 
@@ -58,12 +62,12 @@ ui.IconElement("home", ui.IconFontFamily("Material Symbols Outlined"))
 
 ## 加载自定义字体
 
-开发者可以从文件加载额外图标字体，并通过 `WithIconFonts` 加入当前应用主题：
+开发者可以从文件加载额外图标字体，并通过 `WithIconFonts` 加入当前应用主题。支持 `ttf`、`otf`、`ttc`、`otc`、`woff` 和 `woff2`：
 
 ```go
 brand, err := ui.LoadIconFontFromPath(
     "brand",
-    "assets/BrandIcons.ttf",
+    "assets/BrandIcons.woff2",
     ui.IconFontFamilyName("Brand Icons"),
 )
 if err != nil {
@@ -80,7 +84,7 @@ _ = ui.RunElement(App,
 ```go
 brand, err := ui.LoadIconFontFromPath(
     "brand",
-    "assets/BrandIcons.ttf",
+    "assets/BrandIcons.woff2",
     ui.IconFontFamilyName("Brand Icons"),
     ui.IconFontDefault(true),
 )

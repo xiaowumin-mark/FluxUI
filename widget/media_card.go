@@ -446,6 +446,9 @@ func (i *iconWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	textOpts := []TextOption{TextSize(i.config.size), TextColor(col)}
 	if font, ok := i.resolveIconFont(ctx); ok {
 		name = iconLigatureName(name)
+		if resolved, ok := font.ResolveIconText(name); ok {
+			name = resolved
+		}
 		textOpts = append(textOpts, TextFont(theme.FontFamily(font.Family)))
 	}
 

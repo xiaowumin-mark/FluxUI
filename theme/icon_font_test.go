@@ -61,3 +61,18 @@ func TestLoadIconFontFromBytesRejectsEmptyData(t *testing.T) {
 		t.Fatal("expected empty font data to fail")
 	}
 }
+
+func TestIconFontCloneCopiesGlyphs(t *testing.T) {
+	font := IconFont{
+		ID:     "icons",
+		Family: "Icons",
+		Glyphs: map[string]rune{"home": '\ue9b2'},
+	}
+	cloned := cloneIconFont(font)
+	cloned.Glyphs["home"] = '\ue88a'
+
+	got, ok := font.ResolveIconText("home")
+	if !ok || got != "\ue9b2" {
+		t.Fatalf("original glyph map changed after clone mutation: got %q, %v", got, ok)
+	}
+}

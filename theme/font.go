@@ -10,6 +10,7 @@ import (
 
 	giofont "gioui.org/font"
 	"gioui.org/font/opentype"
+	wofffont "github.com/tdewolff/font"
 )
 
 // FontStyle 表示字体样式。
@@ -85,7 +86,7 @@ func (f FontSpec) Normalize() FontSpec {
 	return f
 }
 
-// ParseFontFile 解析单个字体文件，支持 ttf/otf/ttc/otc。
+// ParseFontFile 解析单个字体文件，支持 ttf/otf/ttc/otc/woff/woff2。
 func ParseFontFile(path string) ([]FontFace, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -94,15 +95,19 @@ func ParseFontFile(path string) ([]FontFace, error) {
 	return ParseFontBytes(path, data)
 }
 
-// ParseFontBytes 从内存中的字体数据解析字体面，支持 ttf/otf/ttc/otc。
+// ParseFontBytes 从内存中的字体数据解析字体面，支持 ttf/otf/ttc/otc/woff/woff2。
 func ParseFontBytes(name string, data []byte) ([]FontFace, error) {
-	rawFaces, err := opentype.ParseCollection(data)
+	sfntData, err := normalizeFontBytes(name, data)
+	if err != nil {
+		return nil, err
+	}
+	rawFaces, err := opentype.ParseCollection(sfntData)
 	if err != nil {
 		return nil, err
 	}
 
-	copied := make([]byte, len(data))
-	copy(copied, data)
+	copied := make([]byte, len(sfntData))
+	copy(copied, sfntData)
 	src := &fontSource{
 		data: copied,
 		path: name,
@@ -158,7 +163,7 @@ func LoadFontsFromDir(dir string) ([]FontFace, error) {
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(d.Name()))
-		if ext != ".ttf" && ext != ".otf" && ext != ".ttc" && ext != ".otc" {
+		if !isSupportedFontExt(ext) {
 			return nil
 		}
 		faces, err := ParseFontFile(path)
@@ -251,7 +256,7 @@ func DiscoverSystemFonts() ([]FontFace, error) {
 				return nil
 			}
 			ext := strings.ToLower(filepath.Ext(d.Name()))
-			if ext != ".ttf" && ext != ".otf" && ext != ".ttc" && ext != ".otc" {
+			if !isSupportedFontExt(ext) {
 				return nil
 			}
 			faces, err := ParseFontFile(path)
@@ -423,4 +428,35 @@ func fromGioFontStyle(style giofont.Style) FontStyle {
 type fontSource struct {
 	data []byte
 	path string
+}
+
+func normalizeFontBytes(name string, data []byte) ([]byte, error) {
+	if len(data) == 0 {
+		return nil, errors.New("theme: empty font data")
+	}
+	if isCompressedWebFont(name, data) {
+		return wofffont.ToSFNT(data)
+	}
+	return data, nil
+}
+
+func isCompressedWebFont(name string, data []byte) bool {
+	ext := strings.ToLower(filepath.Ext(name))
+	if ext == ".woff" || ext == ".woff2" {
+		return true
+	}
+	if len(data) < 4 {
+		return false
+	}
+	magic := string(data[:4])
+	return magic == "wOFF" || magic == "wOF2"
+}
+
+func isSupportedFontExt(ext string) bool {
+	switch ext {
+	case ".ttf", ".otf", ".ttc", ".otc", ".woff", ".woff2":
+		return true
+	default:
+		return false
+	}
 }

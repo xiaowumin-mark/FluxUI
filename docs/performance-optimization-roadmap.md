@@ -603,6 +603,25 @@ text-ns/frame         ≈ 536ns
 
 P6 后的 1k 全可见可交互压力测试仍有约 `7.75ms/frame`，主要因为 1000 个可见按钮仍必须 layout 并注册 clickable/input handler。pprof 显示 `LayoutFlex/Flex.Layout`、`buttonWidget.Layout`、`Context.LayoutButton`、`Clickable.Layout` 和 `Router.Frame/collect` 仍是主链路。结论是继续优化应优先减少可见交互节点数、避免误用非虚拟化大滚动内容、扩大静态 subtree 使用范围，而不是 fork Gio。
 
+## 图标字体资源优化记录（已完成：2026-07-02）
+
+状态：已完成。默认 MD3 outlined 图标字体已从 10.63 MB 的 `MaterialSymbolsOutlined.ttf` 替换为 `@material-symbols/font-400` 提供的 `MaterialSymbolsOutlined.woff2`，当前嵌入文件大小为 487,748 bytes，约 0.49 MB，资源体积下降约 95.4%。
+
+完成内容：
+
+- [x] 新增 WOFF/WOFF2 字体加载和解码能力。`ParseFontFile`、`ParseFontBytes`、`LoadIconFontFromPath`、`LoadIconFontFromBytes` 现在支持 `ttf`、`otf`、`ttc`、`otc`、`woff`、`woff2`。
+- [x] WOFF/WOFF2 在加载时解码为 SFNT 字节，再交给 Gio `opentype.ParseCollection` 和后续 shaper 使用，避免 Gio 渲染路径直接依赖压缩容器格式。
+- [x] `icons/md3` 默认嵌入 `MaterialSymbolsOutlined.woff2`，保留 `Material Symbols Outlined` family 和 `md3` 默认注册行为。
+- [x] 新增测试确认嵌入源是 WOFF2，注册到 theme 的 `FontFace.Data()` 已经是解码后的 SFNT 数据。
+- [x] 新增图标字体 glyph-name/cmap 映射。`@material-symbols/font-400` 不包含 GSUB ligature 规则，FluxUI 会把 `Icon("home")` 解析成字体内 codepoint 后渲染，避免显示为小方格。
+- [x] `docs/guides/icon-fonts.md`、`docs/theme/theme.md`、`docs/widgets/icon.md` 已记录 WOFF2 默认字体、支持格式和体积变化。
+
+完成原因：
+
+- 原 TTF 包含完整 outlined 字体，体积约 10 MB，作为默认嵌入资源会直接放大应用二进制和分发包体积。
+- `@material-symbols/font-400` 是固定 weight 400 的 Material Symbols 包，保留图标 glyph name 和 cmap codepoint，符合 FluxUI 当前 `Icon("search")` 这类按名称调用的 API，不需要改成 SVG。
+- WOFF2 只影响加载时解码，渲染阶段仍使用 Gio 既有 SFNT/OpenType shaper，风险集中且可测试。
+
 ## 当前已知问题和对应路线
 
 | 问题 | 路线 |

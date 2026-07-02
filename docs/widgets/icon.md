@@ -22,7 +22,7 @@
 # Icon 图标
 
 ## 组件说明
-Icon 用于表达操作和状态语义。导入 `github.com/xiaowumin-mark/FluxUI/icons/md3` 后，Icon 默认使用内置 Material Symbols Outlined 图标字体，并把 `name` 当作 ligature 名称渲染。
+Icon 用于表达操作和状态语义。导入 `github.com/xiaowumin-mark/FluxUI/icons/md3` 后，Icon 默认使用内置 Material Symbols Outlined WOFF2 图标字体，并按 `name` 查找图标 codepoint 渲染。
 
 ## 使用方法
 - 通过 `name` 传入图标语义标识，例如 `home`、`search`、`settings`、`add`。
