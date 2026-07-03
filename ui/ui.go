@@ -1124,6 +1124,12 @@ type Decoration = style.Decoration
 // Border 定义边框样式。
 type Border = style.Border
 
+// CornerShape 定义 CSS corner-shape 风格的角形状。
+type CornerShape = style.CornerShape
+
+// CornerShapes 定义四角形状，顺序为左上、右上、右下、左下。
+type CornerShapes = style.CornerShapes
+
 // LinearGradient 定义线性渐变。
 type LinearGradient = style.LinearGradient
 
@@ -1138,6 +1144,15 @@ type Transform2D = style.Transform2D
 
 // TransformOrigin 定义变换原点。
 type TransformOrigin = style.TransformOrigin
+
+const (
+	CornerRound    = style.CornerRound
+	CornerSquare   = style.CornerSquare
+	CornerBevel    = style.CornerBevel
+	CornerNotch    = style.CornerNotch
+	CornerScoop    = style.CornerScoop
+	CornerSquircle = style.CornerSquircle
+)
 
 const (
 	ImageFillContain = style.ImageFillContain
@@ -1172,6 +1187,16 @@ func Margin(m Insets) style.Decoration {
 // Rad 创建仅设置圆角的装饰。
 func Rad(r float32) style.Decoration {
 	return style.Decoration{}.WithRad(r)
+}
+
+// CornerShapeDeco 创建仅设置角形状的装饰。需要配合非零 Rad 才可见。
+func CornerShapeDeco(shape CornerShape) style.Decoration {
+	return style.Decoration{}.WithCornerShape(shape)
+}
+
+// CornerShapesDeco 创建仅设置四角形状的装饰，顺序为左上、右上、右下、左下。
+func CornerShapesDeco(topLeft, topRight, bottomRight, bottomLeft CornerShape) style.Decoration {
+	return style.Decoration{}.WithCornerShapes(topLeft, topRight, bottomRight, bottomLeft)
 }
 
 // BorderDeco 创建仅设置边框的装饰。

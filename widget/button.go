@@ -255,6 +255,7 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		Background:  background,
 		Foreground:  foreground,
 		Radius:      radius,
+		CornerShape: md3PillCornerShape(activeDecoration),
 		Padding:     toInternalInsets(padding),
 		TextStyle:   spec.text,
 		BorderColor: borderColor,

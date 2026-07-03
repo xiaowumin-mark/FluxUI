@@ -3,6 +3,7 @@ package internal
 import (
 	"image"
 	"image/color"
+	"math"
 	"testing"
 
 	"github.com/xiaowumin-mark/FluxUI/theme"
@@ -16,6 +17,23 @@ func TestClampRoundedRadiusPxCapsFullRadiusToHalfShortestSide(t *testing.T) {
 	got := clampRoundedRadiusPx(image.Pt(120, 40), 999)
 	if got != 20 {
 		t.Fatalf("clampRoundedRadiusPx() = %d, want 20", got)
+	}
+}
+
+func TestSuperellipseCornerPointMatchesCSSSquircleMidpoint(t *testing.T) {
+	radius := float32(20)
+	invExponent := 1.0 / float64(cssCornerShapeSquircleExponent)
+	paramExponent := 2.0 / float64(cssCornerShapeSquircleExponent)
+	x := float32(math.Pow(math.Sin(math.Pi/4), paramExponent))
+	y := float32(math.Pow(math.Cos(math.Pi/4), paramExponent))
+	gotX, gotY := superellipseCornerPoint(20, 20, radius, cornerQuadrantTopRight, x, y)
+	want := float32(20 + float64(radius)*math.Pow(0.5, invExponent))
+	if diff := math.Abs(float64(gotX - want)); diff > 0.001 {
+		t.Fatalf("squircle midpoint x = %.4f, want %.4f", gotX, want)
+	}
+	wantY := float32(20 - float64(radius)*math.Pow(0.5, invExponent))
+	if diff := math.Abs(float64(gotY - wantY)); diff > 0.001 {
+		t.Fatalf("squircle midpoint y = %.4f, want %.4f", gotY, wantY)
 	}
 }
 

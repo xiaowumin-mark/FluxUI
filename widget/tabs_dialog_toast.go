@@ -1088,7 +1088,7 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		sections = append(sections, dialogSection{kind: dialogSectionActions, child: Row(actionChildren...)})
 	}
 
-	radiusDefault := ctx.Theme().Shapes.ExtraLarge
+	radiusDefault := md3DefaultSquircleRadius(d.config.decoration, ctx.Theme().Shapes.ExtraLarge, 36)
 	if d.config.radius > 0 {
 		radiusDefault = d.config.radius
 	}
@@ -1293,6 +1293,7 @@ func materialDialogSurfaceDecoration(ctx *internal.Context, d style.Decoration, 
 		WithBg(d.ResolveBg(defaultBg)).
 		WithPad(d.ResolvePad(defaultPad)).
 		WithRad(d.ResolveRad(defaultRadius))
+	deco = md3ApplyOuterCornerShape(ctx, deco, d, d.ResolveRad(defaultRadius))
 	if d.Shadow != nil {
 		deco = deco.WithShadow(*d.Shadow)
 	} else {
@@ -1498,8 +1499,12 @@ func (t *toastWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		)
 	}
 
+	toastRadius := md3DefaultSquircleRadius(t.config.decoration, ctx.Theme().Shapes.ExtraSmall, 14)
 	body := ContainerDecoration(
-		style.Decoration{}.WithBg(bg).WithPad(t.config.decoration.ResolvePad(style.Symmetric(8, 16))).WithRad(t.config.decoration.ResolveRad(ctx.Theme().Shapes.ExtraSmall)),
+		md3ApplyOuterCornerShape(ctx, style.Decoration{}.
+			WithBg(bg).
+			WithPad(t.config.decoration.ResolvePad(style.Symmetric(8, 16))).
+			WithRad(toastRadius), t.config.decoration, toastRadius),
 		content,
 	)
 
@@ -1904,7 +1909,7 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if p.config.hasPadding {
 		padding = p.config.padding
 	}
-	radiusDefault := ctx.Theme().Shapes.ExtraLarge
+	radiusDefault := md3DefaultSquircleRadius(p.config.decoration, ctx.Theme().Shapes.ExtraLarge, 36)
 	if p.config.radius > 0 {
 		radiusDefault = p.config.radius
 	}

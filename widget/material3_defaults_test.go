@@ -60,6 +60,17 @@ func TestButtonRadiusAllowsExplicitZero(t *testing.T) {
 	}
 }
 
+func TestMD3PillCornerShapeKeepsOfficialRoundPillByDefault(t *testing.T) {
+	if got := md3PillCornerShape(style.Decoration{}); !got.IsZero() {
+		t.Fatalf("default MD3 pill corner shape = %#v, want round pill", got)
+	}
+
+	custom := style.Decoration{}.WithCornerShape(style.CornerSquircle)
+	if got := md3PillCornerShape(custom); got != style.UniformCornerShape(style.CornerSquircle) {
+		t.Fatalf("custom MD3 pill corner shape = %#v, want squircle", got)
+	}
+}
+
 func TestInputMD3VariantDefaults(t *testing.T) {
 	th := theme.New(theme.LightColors())
 

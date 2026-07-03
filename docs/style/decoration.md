@@ -12,6 +12,10 @@
     "Pad(p Insets) Decoration",
     "Margin(m Insets) Decoration",
     "Rad(r float32) Decoration",
+    "type CornerShape = style.CornerShape",
+    "const CornerRound, CornerSquare, CornerBevel, CornerNotch, CornerScoop, CornerSquircle",
+    "CornerShapeDeco(shape CornerShape) Decoration",
+    "CornerShapesDeco(topLeft, topRight, bottomRight, bottomLeft CornerShape) Decoration",
     "BorderDeco(width float32, col color.NRGBA) Decoration",
     "Opacity(v float32) Decoration",
     "Circle() Decoration",
@@ -36,6 +40,8 @@
     "(Decoration).WithPad(p Insets) Decoration",
     "(Decoration).WithMargin(m Insets) Decoration",
     "(Decoration).WithRad(r float32) Decoration",
+    "(Decoration).WithCornerShape(shape CornerShape) Decoration",
+    "(Decoration).WithCornerShapes(topLeft, topRight, bottomRight, bottomLeft CornerShape) Decoration",
     "(Decoration).WithBorder(b style.Border) Decoration",
     "(Decoration).WithOpacity(v float32) Decoration",
     "(Decoration).WithCircleClip() Decoration",
@@ -60,7 +66,7 @@
 # Decoration 装饰器
 
 ## API 说明
-Decoration 是 FluxUI 推荐的统一样式入口。它用可选字段描述视觉外观：背景、渐变、内边距、外边距、圆角、边框、透明度、圆形裁切、阴影、背景图片、2D 变换，以及 hover / pressed / focused / disabled 状态装饰。
+Decoration 是 FluxUI 推荐的统一样式入口。它用可选字段描述视觉外观：背景、渐变、内边距、外边距、圆角、corner-shape、边框、透明度、圆形裁切、阴影、背景图片、2D 变换，以及 hover / pressed / focused / disabled 状态装饰。
 
 所有字段都是“可选覆盖”。字段未设置时，组件会继续使用自身默认样式或主题回退值。
 
@@ -80,6 +86,29 @@ Decoration 是 FluxUI 推荐的统一样式入口。它用可选字段描述视�
 - 使用 `Merge` 合并装饰，后者的非空字段覆盖前者。
 - 交互组件可通过 `WithHover` / `WithPressed` / `WithDisabled` 定义状态样式。
 - 优先使用 `*Decoration(...)` 组件选项，而不是同时散落多个颜色、边距、圆角选项。
+
+## Corner Shape
+`WithCornerShape` 和 `WithCornerShapes` 对齐 CSS `corner-shape` 的关键词模型，需要配合非零 `WithRad` 使用。
+
+支持的形状包括：
+
+- `CornerRound`: 默认圆角。
+- `CornerSquare`: 方角。
+- `CornerBevel`: 斜切角。
+- `CornerNotch`: 内凹折角。
+- `CornerScoop`: 内凹曲线角。
+- `CornerSquircle`: 对齐 CSS `corner-shape: squircle`，按 `superellipse(2)` 计算，也就是传统超椭圆指数 4。
+
+```go
+surface := ui.Bg(th.Colors.PrimaryContainer).
+    WithPad(ui.All(16)).
+    WithRad(24).
+    WithCornerShape(ui.CornerSquircle)
+
+mixed := ui.Bg(th.Colors.SurfaceContainer).
+    WithRad(24).
+    WithCornerShapes(ui.CornerSquircle, ui.CornerBevel, ui.CornerScoop, ui.CornerNotch)
+```
 
 ## 基础示例
 ```go

@@ -89,6 +89,7 @@ type md3ActionSurfaceSpec struct {
 	Background     color.NRGBA
 	Foreground     color.NRGBA
 	Radius         float32
+	CornerShape    style.CornerShapes
 	Padding        style.Insets
 	Border         style.Border
 	Shadow         style.BoxShadow
@@ -139,6 +140,7 @@ func md3ActionSurface(ctx *internal.Context, clickable *event.Clickable, spec md
 	surfaceSpec := internal.SurfaceSpec{
 		Background:  bg,
 		Radius:      spec.Radius,
+		CornerShape: spec.CornerShape,
 		Padding:     toInternalInsets(spec.Padding),
 		BorderColor: border.Color,
 		BorderWidth: border.Width,
@@ -257,6 +259,35 @@ func middleRow(children ...Widget) Widget {
 		dims := gioLayout.Flex{Axis: gioLayout.Horizontal, Alignment: gioLayout.Middle}.Layout(ctx.Gtx, items...)
 		return layout.Dimensions{Size: dims.Size}
 	})
+}
+
+func md3OuterCornerShapeForRadius(ctx *internal.Context, d style.Decoration, radius float32) style.CornerShapes {
+	if d.Corner != nil {
+		return *d.Corner
+	}
+	if ctx != nil && radius >= ctx.Theme().Shapes.Full {
+		return style.CornerShapes{}
+	}
+	return style.UniformCornerShape(style.CornerSquircle)
+}
+
+func md3PillCornerShape(d style.Decoration) style.CornerShapes {
+	if d.Corner != nil {
+		return *d.Corner
+	}
+	return style.CornerShapes{}
+}
+
+func md3DefaultSquircleRadius(d style.Decoration, defaultRadius, squircleRadius float32) float32 {
+	if d.Radius != nil || d.Corner != nil {
+		return d.ResolveRad(defaultRadius)
+	}
+	return squircleRadius
+}
+
+func md3ApplyOuterCornerShape(ctx *internal.Context, deco, source style.Decoration, radius float32) style.Decoration {
+	corner := md3OuterCornerShapeForRadius(ctx, source, radius)
+	return deco.WithCornerShapes(corner.TopLeft, corner.TopRight, corner.BottomRight, corner.BottomLeft)
 }
 
 // MenuItem describes a Material 3 menu row.
@@ -1324,21 +1355,31 @@ func (f *fabWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if f.config.decoration.Shadow != nil {
 		// handled below through the resolved shadow
 	}
-	radius = f.config.decoration.ResolveRad(radius)
+	squircleRadius := float32(20)
+	switch f.config.variant {
+	case fabVariantSmall:
+		squircleRadius = 16
+	case fabVariantLarge:
+		squircleRadius = 36
+	case fabVariantExtended:
+		squircleRadius = 24
+	}
+	radius = md3DefaultSquircleRadius(f.config.decoration, radius, squircleRadius)
 	shadow := style.ElevationShadow(cs, 3)
 	if f.config.decoration.Shadow != nil {
 		shadow = *f.config.decoration.Shadow
 	}
 
 	return md3ActionSurface(ctx, clickable, md3ActionSurfaceSpec{
-		Background: bg,
-		Foreground: fg,
-		Radius:     radius,
-		Padding:    f.config.decoration.ResolvePad(padding),
-		Shadow:     shadow,
-		MinWidth:   minW,
-		MinHeight:  minH,
-		Disabled:   f.config.disabled,
+		Background:  bg,
+		Foreground:  fg,
+		Radius:      radius,
+		CornerShape: md3OuterCornerShapeForRadius(ctx, f.config.decoration, radius),
+		Padding:     f.config.decoration.ResolvePad(padding),
+		Shadow:      shadow,
+		MinWidth:    minW,
+		MinHeight:   minH,
+		Disabled:    f.config.disabled,
 	}, Center(content))
 }
 
@@ -1624,6 +1665,7 @@ func (n *navigationDrawerWidget) drawerItem(item NavItem) Widget {
 			Background:     bg,
 			Foreground:     fg,
 			Radius:         itemCtx.Theme().Shapes.Full,
+			CornerShape:    md3PillCornerShape(style.Decoration{}),
 			Padding:        densityInsets(itemCtx, style.Symmetric(4, 16), style.Symmetric(2, 16)),
 			MinHeight:      densityHeight(itemCtx, 48, 40),
 			FillWidth:      true,
@@ -1702,11 +1744,12 @@ func (t *tooltipWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if t.config.hasText {
 		fg = t.config.textColor
 	}
+	tooltipRadius := md3DefaultSquircleRadius(t.config.decoration, ctx.Theme().Shapes.ExtraSmall, 10)
 	body := ContainerDecoration(
-		style.Decoration{}.
+		md3ApplyOuterCornerShape(ctx, style.Decoration{}.
 			WithBg(t.config.decoration.ResolveBg(cs.InverseSurface)).
 			WithPad(t.config.decoration.ResolvePad(style.Symmetric(6, 8))).
-			WithRad(t.config.decoration.ResolveRad(ctx.Theme().Shapes.ExtraSmall)),
+			WithRad(tooltipRadius), t.config.decoration, tooltipRadius),
 		Text(t.label, TextColor(fg), TextType(ctx.Theme().Types.BodySmall)),
 	)
 
@@ -2112,15 +2155,17 @@ func (c *chipWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		bg = color.NRGBA{}
 	}
 
+	chipRadius := md3DefaultSquircleRadius(c.config.decoration, 8, 12)
 	return md3ActionSurface(ctx, clickable, md3ActionSurfaceSpec{
-		Background: bg,
-		Foreground: fg,
-		Radius:     c.config.decoration.ResolveRad(8),
-		Padding:    padding,
-		Border:     border,
-		Shadow:     shadow,
-		MinHeight:  32,
-		Disabled:   c.config.disabled,
+		Background:  bg,
+		Foreground:  fg,
+		Radius:      chipRadius,
+		CornerShape: md3OuterCornerShapeForRadius(ctx, c.config.decoration, chipRadius),
+		Padding:     padding,
+		Border:      border,
+		Shadow:      shadow,
+		MinHeight:   32,
+		Disabled:    c.config.disabled,
 	}, middleRow(rowChildren...))
 }
 
@@ -2220,10 +2265,10 @@ func (s *searchBarWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	body := minSize(0, 56, ContainerDecoration(
-		style.Decoration{}.
+		md3ApplyOuterCornerShape(ctx, style.Decoration{}.
 			WithBg(s.config.decoration.ResolveBg(cs.SurfaceContainerHigh)).
 			WithPad(s.config.decoration.ResolvePad(style.Symmetric(0, 16))).
-			WithRad(s.config.decoration.ResolveRad(ctx.Theme().Shapes.Full)),
+			WithRad(s.config.decoration.ResolveRad(ctx.Theme().Shapes.Full)), s.config.decoration, s.config.decoration.ResolveRad(ctx.Theme().Shapes.Full)),
 		withForeground(fg, middleRow(rowChildren...)),
 	))
 	return body.Layout(ctx.Child(0))

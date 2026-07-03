@@ -294,7 +294,10 @@ func (b *bottomNavWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				displayIcon = Text("•", TextColor(itemColor))
 			}
 			itemContent := ContainerDecoration(
-				style.Decoration{}.WithBg(bg).WithPad(style.Symmetric(6, 10)).WithRad(tabCtx.Theme().Shapes.Full),
+				style.Decoration{}.
+					WithBg(bg).
+					WithPad(style.Symmetric(6, 10)).
+					WithRad(tabCtx.Theme().Shapes.Full),
 				Column(
 					displayIcon,
 					Padding(style.Insets{Top: 4}, Text(item.Label, TextColor(itemColor), TextType(tabCtx.Theme().Types.LabelMedium))),

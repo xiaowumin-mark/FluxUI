@@ -12,6 +12,7 @@ import (
 func shouldCenterDemo(exampleID string) bool {
 	switch exampleID {
 	case "button_basic",
+		"style_showcase",
 		"checkbox_basic",
 		"switch_basic",
 		"slider_basic",

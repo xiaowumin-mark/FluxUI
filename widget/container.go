@@ -271,6 +271,7 @@ func decorationSurfaceSpec(d style.Decoration, ctx *internal.Context, defaultBg 
 	spec := internal.SurfaceSpec{
 		Background:  bg,
 		Radius:      rad,
+		CornerShape: d.ResolveCornerShape(),
 		Padding:     toInternalInsets(d.ResolvePad(style.Insets{})),
 		BorderColor: border.Color,
 		BorderWidth: border.Width,

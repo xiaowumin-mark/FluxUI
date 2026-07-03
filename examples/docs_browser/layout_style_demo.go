@@ -125,6 +125,48 @@ func docsDecorationDemo(active docsBoolState, th *ui.Theme) ui.Element {
 	)
 }
 
+func docsStyleShowcaseDemo(th *ui.Theme) ui.Element {
+	items := []ui.Element{
+		docsStyleShowcaseCard("Background + Padding", ui.Bg(th.Colors.PrimaryContainer).WithPad(ui.All(14)).WithRad(14), th.Colors.OnPrimaryContainer),
+		docsStyleShowcaseCard("Margin + Border", ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(14)).WithMargin(ui.All(6)).WithRad(14).WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}), th.Colors.OnSurface),
+		docsStyleShowcaseCard("Corner: bevel", ui.Bg(th.Colors.SecondaryContainer).WithPad(ui.All(14)).WithRad(22).WithCornerShape(ui.CornerBevel), th.Colors.OnSecondaryContainer),
+		docsStyleShowcaseCard("Corner: notch", ui.Bg(th.Colors.TertiaryContainer).WithPad(ui.All(14)).WithRad(22).WithCornerShape(ui.CornerNotch), th.Colors.OnTertiaryContainer),
+		docsStyleShowcaseCard("Corner: scoop", ui.Bg(th.Colors.PrimaryContainer).WithPad(ui.All(14)).WithRad(22).WithCornerShape(ui.CornerScoop), th.Colors.OnPrimaryContainer),
+		docsStyleShowcaseCard("Corner: squircle", ui.Bg(th.Colors.SecondaryContainer).WithPad(ui.All(14)).WithRad(22).WithCornerShape(ui.CornerSquircle), th.Colors.OnSecondaryContainer),
+		docsStyleShowcaseCard("Per-corner shapes", ui.Bg(th.Colors.SurfaceContainerHigh).WithPad(ui.All(14)).WithRad(22).WithCornerShapes(ui.CornerSquircle, ui.CornerBevel, ui.CornerScoop, ui.CornerNotch).WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}), th.Colors.OnSurface),
+		docsStyleShowcaseCard("Opacity", ui.Bg(th.Colors.ErrorContainer).WithPad(ui.All(14)).WithRad(14).WithOpacity(0.72), th.Colors.OnErrorContainer),
+		docsStyleShowcaseCard("Circle clip", ui.Circle().Merge(ui.Bg(th.Colors.Tertiary)).WithPad(ui.All(18)), th.Colors.OnTertiary),
+		docsStyleShowcaseCard("Elevation shadow", ui.Bg(th.Colors.SurfaceContainer).WithPad(ui.All(14)).WithRad(18).Merge(ui.Elevation(3)), th.Colors.OnSurface),
+		docsStyleShowcaseCard("Linear gradient", ui.LinearGrad(image.Point{}, image.Pt(220, 110), th.Colors.Primary, th.Colors.Tertiary).WithPad(ui.All(14)).WithRad(18), th.Colors.OnPrimary),
+		docsStyleShowcaseCard("Transform", ui.Bg(th.Colors.SecondaryContainer).WithPad(ui.All(14)).WithRad(14).Merge(ui.TransformDeco(-4, 1.04, 1.04, 6, 2, ui.TransformCenter)), th.Colors.OnSecondaryContainer),
+		docsStyleShowcaseCard("Hover / Pressed", ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(14)).WithRad(14).WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}).WithHover(ui.Bg(th.Colors.PrimaryContainer)).WithPressed(ui.Bg(th.Colors.SecondaryContainer)), th.Colors.OnSurface),
+		docsStyleShowcaseCard("Disabled", ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(14)).WithRad(14).WithDisabled(ui.Opacity(0.38)), th.Colors.OnSurfaceVariant),
+	}
+	rows := make([]ui.Element, 0, (len(items)+1)/2)
+	for i := 0; i < len(items); i += 2 {
+		children := []ui.Element{ui.ExpandedElement(items[i])}
+		if i+1 < len(items) {
+			children = append(children, ui.HSpacerElement(10), ui.ExpandedElement(items[i+1]))
+		}
+		rows = append(rows, ui.RowElement(children...))
+		if i+2 < len(items) {
+			rows = append(rows, ui.VSpacerElement(10))
+		}
+	}
+	return ui.FixedWidthElement(680, ui.ColumnElement(rows...))
+}
+
+func docsStyleShowcaseCard(label string, deco ui.Decoration, fg color.NRGBA) ui.Element {
+	return ui.ContainerDecorationElement(
+		deco,
+		ui.FixedHeightElement(
+			58,
+			ui.CenterElement(ui.TextElement(label, ui.TextSize(12), ui.TextColor(fg))),
+		),
+		ui.OnDecoClick(func(ctx *ui.Context) {}),
+	)
+}
+
 func docsDecorationEventSample(th *ui.Theme) ui.Element {
 	return ui.ContainerDecorationElement(
 		ui.Bg(th.Colors.SurfaceContainerLow).
@@ -227,9 +269,28 @@ func docsTransformDemo() ui.Element {
 				ui.Bg(ui.NRGBA(219, 234, 254, 255)).
 					WithPad(ui.All(14)).
 					WithRad(12).
-					Merge(ui.ScaleDeco(1.08, 1.08)).
+					Merge(ui.TransformDeco(0, 1.08, 1.08, 6, 2, ui.TransformCenter)),
+				ui.TextElement("TransformDeco"),
+			),
+		),
+		ui.PaddingElement(
+			ui.All(10),
+			ui.ContainerDecorationElement(
+				ui.Bg(ui.NRGBA(240, 253, 244, 255)).
+					WithPad(ui.All(14)).
+					WithRad(12).
+					Merge(ui.ScaleDeco(1.08, 1.08)),
+				ui.TextElement("ScaleDeco"),
+			),
+		),
+		ui.PaddingElement(
+			ui.All(10),
+			ui.ContainerDecorationElement(
+				ui.Bg(ui.NRGBA(250, 245, 255, 255)).
+					WithPad(ui.All(14)).
+					WithRad(12).
 					Merge(ui.TranslateDeco(6, 2)),
-				ui.TextElement("Scale + Translate"),
+				ui.TextElement("TranslateDeco"),
 			),
 		),
 	)

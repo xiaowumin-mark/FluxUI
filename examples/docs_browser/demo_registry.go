@@ -74,6 +74,8 @@ func buildDocsDemo(ctx *ui.Context, doc *widgetDoc, state docsDemoState) ui.Elem
 		return docsContainerDemo()
 	case "decoration_basic", "decoration_guide_basic":
 		return docsDecorationDemo(state.StyleDemoActive, th)
+	case "style_showcase":
+		return docsStyleShowcaseDemo(th)
 	case "insets_basic":
 		return docsInsetsDemo()
 	case "border_basic":

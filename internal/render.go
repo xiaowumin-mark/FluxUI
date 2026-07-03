@@ -3,6 +3,7 @@ package internal
 import (
 	"image"
 	"image/color"
+	"math"
 	"strconv"
 	"strings"
 
@@ -76,6 +77,7 @@ type TextSpec struct {
 type SurfaceSpec struct {
 	Background    color.NRGBA
 	Radius        float32
+	CornerShape   fluxstyle.CornerShapes
 	Padding       Insets
 	BorderColor   color.NRGBA
 	BorderWidth   float32
@@ -104,6 +106,7 @@ type ButtonSpec struct {
 	Foreground   color.NRGBA
 	TextStyle    theme.TextStyle
 	Radius       float32
+	CornerShape  fluxstyle.CornerShapes
 	Padding      Insets
 	BorderColor  color.NRGBA
 	BorderWidth  float32
@@ -398,40 +401,33 @@ func (c *Context) layoutRoundedSurface(gtx gioLayout.Context, size image.Point, 
 	draw := func(gtx gioLayout.Context) {
 		rr := clampRoundedRadiusPx(size, gtx.Dp(unit.Dp(spec.Radius)))
 		rect := image.Rectangle{Max: size}
-		defer clip.UniformRRect(rect, rr).Push(gtx.Ops).Pop()
+		if rr <= 0 || spec.CornerShape.IsZero() {
+			defer clip.UniformRRect(rect, rr).Push(gtx.Ops).Pop()
 
-		if spec.HasImage {
-			if spec.HasGradient {
-				grad := paint.LinearGradientOp{
-					Stop1:  spec.GradientStart,
-					Color1: spec.GradientFrom,
-					Stop2:  spec.GradientEnd,
-					Color2: spec.GradientTo,
+			paintSurfaceFill(gtx, size, spec)
+
+			if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
+				bw := gtx.Dp(unit.Dp(spec.BorderWidth))
+				if bw > 0 {
+					paint.FillShape(gtx.Ops, spec.BorderColor, clip.Stroke{
+						Path:  clip.UniformRRect(rect, rr).Path(gtx.Ops),
+						Width: float32(bw),
+					}.Op())
 				}
-				grad.Add(gtx.Ops)
-				paint.PaintOp{}.Add(gtx.Ops)
-			} else if spec.Background.A > 0 {
-				paint.Fill(gtx.Ops, spec.Background)
 			}
-			renderImage(gtx, size, spec)
-		} else if spec.HasGradient {
-			grad := paint.LinearGradientOp{
-				Stop1:  spec.GradientStart,
-				Color1: spec.GradientFrom,
-				Stop2:  spec.GradientEnd,
-				Color2: spec.GradientTo,
-			}
-			grad.Add(gtx.Ops)
-			paint.PaintOp{}.Add(gtx.Ops)
 		} else {
-			paint.Fill(gtx.Ops, spec.Background)
-		}
+			path := cornerShapePath(gtx.Ops, rect, rr, spec.CornerShape)
+			defer clip.Outline{Path: path}.Op().Push(gtx.Ops).Pop()
 
-		if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
-			bw := gtx.Dp(unit.Dp(spec.BorderWidth))
-			if bw > 0 {
+			paintSurfaceFill(gtx, size, spec)
+
+			if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
+				bw := gtx.Dp(unit.Dp(spec.BorderWidth))
+				if bw <= 0 {
+					return
+				}
 				paint.FillShape(gtx.Ops, spec.BorderColor, clip.Stroke{
-					Path:  clip.UniformRRect(rect, rr).Path(gtx.Ops),
+					Path:  path,
 					Width: float32(bw),
 				}.Op())
 			}
@@ -444,6 +440,184 @@ func (c *Context) layoutRoundedSurface(gtx gioLayout.Context, size image.Point, 
 		defer done()
 	}
 	draw(gtx)
+}
+
+func paintSurfaceFill(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
+	if spec.HasImage {
+		if spec.HasGradient {
+			grad := paint.LinearGradientOp{
+				Stop1:  spec.GradientStart,
+				Color1: spec.GradientFrom,
+				Stop2:  spec.GradientEnd,
+				Color2: spec.GradientTo,
+			}
+			grad.Add(gtx.Ops)
+			paint.PaintOp{}.Add(gtx.Ops)
+		} else if spec.Background.A > 0 {
+			paint.Fill(gtx.Ops, spec.Background)
+		}
+		renderImage(gtx, size, spec)
+		return
+	}
+	if spec.HasGradient {
+		grad := paint.LinearGradientOp{
+			Stop1:  spec.GradientStart,
+			Color1: spec.GradientFrom,
+			Stop2:  spec.GradientEnd,
+			Color2: spec.GradientTo,
+		}
+		grad.Add(gtx.Ops)
+		paint.PaintOp{}.Add(gtx.Ops)
+		return
+	}
+	paint.Fill(gtx.Ops, spec.Background)
+}
+
+func cornerShapePath(ops *op.Ops, rect image.Rectangle, radius int, shapes fluxstyle.CornerShapes) clip.PathSpec {
+	r := float32(clampRoundedRadiusPx(rect.Size(), radius))
+	x0 := float32(rect.Min.X)
+	y0 := float32(rect.Min.Y)
+	x1 := float32(rect.Max.X)
+	y1 := float32(rect.Max.Y)
+
+	var path clip.Path
+	path.Begin(ops)
+	path.MoveTo(f32.Pt(x0+r, y0))
+	path.LineTo(f32.Pt(x1-r, y0))
+	cornerPathTR(&path, x1, y0, r, shapes.TopRight)
+	path.LineTo(f32.Pt(x1, y1-r))
+	cornerPathBR(&path, x1, y1, r, shapes.BottomRight)
+	path.LineTo(f32.Pt(x0+r, y1))
+	cornerPathBL(&path, x0, y1, r, shapes.BottomLeft)
+	path.LineTo(f32.Pt(x0, y0+r))
+	cornerPathTL(&path, x0, y0, r, shapes.TopLeft)
+	path.Close()
+	return path.End()
+}
+
+func cornerPathTR(path *clip.Path, x, y, r float32, shape fluxstyle.CornerShape) {
+	switch shape {
+	case fluxstyle.CornerSquare:
+		path.LineTo(f32.Pt(x, y))
+		path.LineTo(f32.Pt(x, y+r))
+	case fluxstyle.CornerBevel:
+		path.LineTo(f32.Pt(x, y+r))
+	case fluxstyle.CornerNotch:
+		path.LineTo(f32.Pt(x-r, y+r))
+		path.LineTo(f32.Pt(x, y+r))
+	case fluxstyle.CornerScoop:
+		path.CubeTo(f32.Pt(x-r, y+r*cornerCircleK), f32.Pt(x-r*cornerCircleK, y+r), f32.Pt(x, y+r))
+	case fluxstyle.CornerSquircle:
+		appendSuperellipseCorner(path, x-r, y+r, r, cornerQuadrantTopRight, cssCornerShapeSquircleExponent)
+	default:
+		path.CubeTo(f32.Pt(x-r*(1-cornerCircleK), y), f32.Pt(x, y+r*(1-cornerCircleK)), f32.Pt(x, y+r))
+	}
+}
+
+func cornerPathBR(path *clip.Path, x, y, r float32, shape fluxstyle.CornerShape) {
+	switch shape {
+	case fluxstyle.CornerSquare:
+		path.LineTo(f32.Pt(x, y))
+		path.LineTo(f32.Pt(x-r, y))
+	case fluxstyle.CornerBevel:
+		path.LineTo(f32.Pt(x-r, y))
+	case fluxstyle.CornerNotch:
+		path.LineTo(f32.Pt(x-r, y-r))
+		path.LineTo(f32.Pt(x-r, y))
+	case fluxstyle.CornerScoop:
+		path.CubeTo(f32.Pt(x-r*cornerCircleK, y-r), f32.Pt(x-r, y-r*cornerCircleK), f32.Pt(x-r, y))
+	case fluxstyle.CornerSquircle:
+		appendSuperellipseCorner(path, x-r, y-r, r, cornerQuadrantBottomRight, cssCornerShapeSquircleExponent)
+	default:
+		path.CubeTo(f32.Pt(x, y-r*(1-cornerCircleK)), f32.Pt(x-r*(1-cornerCircleK), y), f32.Pt(x-r, y))
+	}
+}
+
+func cornerPathBL(path *clip.Path, x, y, r float32, shape fluxstyle.CornerShape) {
+	switch shape {
+	case fluxstyle.CornerSquare:
+		path.LineTo(f32.Pt(x, y))
+		path.LineTo(f32.Pt(x, y-r))
+	case fluxstyle.CornerBevel:
+		path.LineTo(f32.Pt(x, y-r))
+	case fluxstyle.CornerNotch:
+		path.LineTo(f32.Pt(x+r, y-r))
+		path.LineTo(f32.Pt(x, y-r))
+	case fluxstyle.CornerScoop:
+		path.CubeTo(f32.Pt(x+r, y-r*cornerCircleK), f32.Pt(x+r*cornerCircleK, y-r), f32.Pt(x, y-r))
+	case fluxstyle.CornerSquircle:
+		appendSuperellipseCorner(path, x+r, y-r, r, cornerQuadrantBottomLeft, cssCornerShapeSquircleExponent)
+	default:
+		path.CubeTo(f32.Pt(x+r*(1-cornerCircleK), y), f32.Pt(x, y-r*(1-cornerCircleK)), f32.Pt(x, y-r))
+	}
+}
+
+func cornerPathTL(path *clip.Path, x, y, r float32, shape fluxstyle.CornerShape) {
+	switch shape {
+	case fluxstyle.CornerSquare:
+		path.LineTo(f32.Pt(x, y))
+		path.LineTo(f32.Pt(x+r, y))
+	case fluxstyle.CornerBevel:
+		path.LineTo(f32.Pt(x+r, y))
+	case fluxstyle.CornerNotch:
+		path.LineTo(f32.Pt(x+r, y+r))
+		path.LineTo(f32.Pt(x+r, y))
+	case fluxstyle.CornerScoop:
+		path.CubeTo(f32.Pt(x+r*cornerCircleK, y+r), f32.Pt(x+r, y+r*cornerCircleK), f32.Pt(x+r, y))
+	case fluxstyle.CornerSquircle:
+		appendSuperellipseCorner(path, x+r, y+r, r, cornerQuadrantTopLeft, cssCornerShapeSquircleExponent)
+	default:
+		path.CubeTo(f32.Pt(x, y+r*(1-cornerCircleK)), f32.Pt(x+r*(1-cornerCircleK), y), f32.Pt(x+r, y))
+	}
+}
+
+const cornerCircleK = 0.5522847498307936
+const cssCornerShapeSquircleExponent = 4
+
+type cornerQuadrant uint8
+
+const (
+	cornerQuadrantTopRight cornerQuadrant = iota
+	cornerQuadrantBottomRight
+	cornerQuadrantBottomLeft
+	cornerQuadrantTopLeft
+)
+
+func appendSuperellipseCorner(path *clip.Path, cx, cy, radius float32, quadrant cornerQuadrant, exponent float64) {
+	segments := superellipseSegments(radius)
+	for i := 1; i <= segments; i++ {
+		angle := float64(i) * (math.Pi / 2) / float64(segments)
+		x := math.Pow(math.Sin(angle), 2/exponent)
+		y := math.Pow(math.Cos(angle), 2/exponent)
+		px, py := superellipseCornerPoint(cx, cy, radius, quadrant, float32(x), float32(y))
+		path.LineTo(f32.Pt(px, py))
+	}
+}
+
+func superellipseSegments(radius float32) int {
+	switch {
+	case radius >= 48:
+		return 14
+	case radius >= 24:
+		return 12
+	case radius >= 12:
+		return 10
+	default:
+		return 8
+	}
+}
+
+func superellipseCornerPoint(cx, cy, radius float32, quadrant cornerQuadrant, x, y float32) (float32, float32) {
+	switch quadrant {
+	case cornerQuadrantTopRight:
+		return cx + radius*x, cy - radius*y
+	case cornerQuadrantBottomRight:
+		return cx + radius*y, cy + radius*x
+	case cornerQuadrantBottomLeft:
+		return cx - radius*x, cy + radius*y
+	default:
+		return cx - radius*y, cy - radius*x
+	}
 }
 
 func (c *Context) layoutCircleSurface(gtx gioLayout.Context, size image.Point, spec SurfaceSpec) {
@@ -579,7 +753,7 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 		semantic.Button.Add(gtx.Ops)
 		dims := gioLayout.Background{}.Layout(gtx,
 			func(gtx gioLayout.Context) gioLayout.Dimensions {
-				fillRoundedRect(gtx, gtx.Constraints.Min, spec.Background, spec.Radius)
+				fillRoundedRectShape(gtx, gtx.Constraints.Min, spec.Background, spec.Radius, spec.CornerShape)
 				if !spec.Disabled && clickable != nil {
 					c.sameScope(gtx).DrawRipple(clickable, gtx.Constraints.Min, RippleSpec{
 						Color:   spec.Foreground,
@@ -620,6 +794,7 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 	if spec.HasShadow && !shadowSpecIsZero(spec.Shadow) {
 		c.drawShadowLayers(gtx, dims.Size, SurfaceSpec{
 			Radius:        spec.Radius,
+			CornerShape:   spec.CornerShape,
 			HasShadow:     true,
 			ShadowOffsetX: spec.Shadow.OffsetX,
 			ShadowOffsetY: spec.Shadow.OffsetY,
@@ -631,7 +806,7 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 	}
 	buttonOps.Add(gtx.Ops)
 	if spec.BorderWidth > 0 && spec.BorderColor.A > 0 {
-		drawBorderWidth(gtx, dims.Size, spec.BorderColor, spec.Radius, spec.BorderWidth)
+		drawBorderWidthShape(gtx, dims.Size, spec.BorderColor, spec.Radius, spec.BorderWidth, spec.CornerShape)
 	}
 	if !spec.Disabled && clickable != nil && spec.FocusOpacity > 0 {
 		focus := c.Theme().Colors.Primary
@@ -1327,11 +1502,20 @@ func (c *Context) LayoutStack(children ...StackChild) image.Point {
 }
 
 func fillRoundedRect(gtx gioLayout.Context, size image.Point, background color.NRGBA, radius float32) {
+	fillRoundedRectShape(gtx, size, background, radius, fluxstyle.CornerShapes{})
+}
+
+func fillRoundedRectShape(gtx gioLayout.Context, size image.Point, background color.NRGBA, radius float32, cornerShape fluxstyle.CornerShapes) {
 	if size.X <= 0 || size.Y <= 0 || background.A == 0 {
 		return
 	}
 	rr := clampRoundedRadiusPx(size, gtx.Dp(unit.Dp(radius)))
-	defer clip.UniformRRect(image.Rectangle{Max: size}, rr).Push(gtx.Ops).Pop()
+	if rr <= 0 || cornerShape.IsZero() {
+		defer clip.UniformRRect(image.Rectangle{Max: size}, rr).Push(gtx.Ops).Pop()
+		paint.Fill(gtx.Ops, background)
+		return
+	}
+	defer clip.Outline{Path: cornerShapePath(gtx.Ops, image.Rectangle{Max: size}, rr, cornerShape)}.Op().Push(gtx.Ops).Pop()
 	paint.Fill(gtx.Ops, background)
 }
 
@@ -1340,6 +1524,10 @@ func drawBorder(gtx gioLayout.Context, size image.Point, borderColor color.NRGBA
 }
 
 func drawBorderWidth(gtx gioLayout.Context, size image.Point, borderColor color.NRGBA, radius, borderWidth float32) {
+	drawBorderWidthShape(gtx, size, borderColor, radius, borderWidth, fluxstyle.CornerShapes{})
+}
+
+func drawBorderWidthShape(gtx gioLayout.Context, size image.Point, borderColor color.NRGBA, radius, borderWidth float32, cornerShape fluxstyle.CornerShapes) {
 	if size.X <= 0 || size.Y <= 0 || borderColor.A == 0 {
 		return
 	}
@@ -1357,8 +1545,12 @@ func drawBorderWidth(gtx gioLayout.Context, size image.Point, borderColor color.
 	}
 
 	rr := clampRoundedRadiusPx(image.Point{X: rect.Dx(), Y: rect.Dy()}, gtx.Dp(unit.Dp(radius)))
+	path := clip.UniformRRect(rect, rr).Path(gtx.Ops)
+	if rr > 0 && !cornerShape.IsZero() {
+		path = cornerShapePath(gtx.Ops, rect, rr, cornerShape)
+	}
 	paint.FillShape(gtx.Ops, borderColor, clip.Stroke{
-		Path:  clip.UniformRRect(rect, rr).Path(gtx.Ops),
+		Path:  path,
 		Width: float32(width),
 	}.Op())
 }

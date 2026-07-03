@@ -14,6 +14,7 @@ type Decoration struct {
 	Padding    *Insets
 	Margin     *Insets
 	Radius     *float32
+	Corner     *CornerShapes
 	Border     *Border
 	Opacity    *float32
 	CircleClip bool
@@ -56,6 +57,26 @@ func (d Decoration) WithMargin(m Insets) Decoration {
 // WithRad 设置圆角半径。
 func (d Decoration) WithRad(r float32) Decoration {
 	d.Radius = &r
+	return d
+}
+
+// WithCornerShape sets the shape for every rounded corner.
+func (d Decoration) WithCornerShape(shape CornerShape) Decoration {
+	shapes := UniformCornerShape(shape)
+	d.Corner = &shapes
+	return d
+}
+
+// WithCornerShapes sets per-corner shapes in CSS order:
+// top-left, top-right, bottom-right, bottom-left.
+func (d Decoration) WithCornerShapes(topLeft, topRight, bottomRight, bottomLeft CornerShape) Decoration {
+	shapes := CornerShapes{
+		TopLeft:     topLeft,
+		TopRight:    topRight,
+		BottomRight: bottomRight,
+		BottomLeft:  bottomLeft,
+	}
+	d.Corner = &shapes
 	return d
 }
 
@@ -136,6 +157,9 @@ func (d Decoration) Merge(other Decoration) Decoration {
 	if other.Radius != nil {
 		d.Radius = other.Radius
 	}
+	if other.Corner != nil {
+		d.Corner = other.Corner
+	}
 	if other.Border != nil {
 		d.Border = other.Border
 	}
@@ -204,6 +228,14 @@ func (d Decoration) ResolveRad(defaultRad float32) float32 {
 		return *d.Radius
 	}
 	return defaultRad
+}
+
+// ResolveCornerShape returns configured corner shapes or all-round by default.
+func (d Decoration) ResolveCornerShape() CornerShapes {
+	if d.Corner != nil {
+		return *d.Corner
+	}
+	return CornerShapes{}
 }
 
 // ResolveBorder 若 Border 已设置则返回其值，否则返回 defaultBorder。

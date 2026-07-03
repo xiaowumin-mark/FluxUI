@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strconv"
 
+	fluxstyle "github.com/xiaowumin-mark/FluxUI/style"
 	theme "github.com/xiaowumin-mark/FluxUI/theme"
 
 	"gioui.org/op"
@@ -64,6 +65,7 @@ type staticPaintCacheKey struct {
 	width        int
 	height       int
 	radiusBits   uint32
+	corner       uint32
 	background   color.NRGBA
 	borderColor  color.NRGBA
 	borderBits   uint32
@@ -323,6 +325,7 @@ func staticPaintCacheKeyFor(spec SurfaceSpec, size image.Point, circle bool, pxP
 		width:        size.X,
 		height:       size.Y,
 		radiusBits:   math.Float32bits(spec.Radius),
+		corner:       staticPaintCornerShapeBits(spec.CornerShape),
 		background:   spec.Background,
 		borderColor:  spec.BorderColor,
 		borderBits:   math.Float32bits(spec.BorderWidth),
@@ -335,4 +338,11 @@ func staticPaintCacheKeyFor(spec SurfaceSpec, size image.Point, circle bool, pxP
 		gradEndY:     math.Float32bits(spec.GradientEnd.Y),
 		pxPerDpBits:  math.Float32bits(pxPerDp),
 	}
+}
+
+func staticPaintCornerShapeBits(shapes fluxstyle.CornerShapes) uint32 {
+	return uint32(shapes.TopLeft) |
+		uint32(shapes.TopRight)<<8 |
+		uint32(shapes.BottomRight)<<16 |
+		uint32(shapes.BottomLeft)<<24
 }

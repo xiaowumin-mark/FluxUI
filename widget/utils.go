@@ -211,7 +211,7 @@ func colorOr(col, fallback color.NRGBA) color.NRGBA {
 func hasDecorationVisual(d style.Decoration) bool {
 	return d.Background != nil || d.Gradient != nil || d.Padding != nil || d.Margin != nil ||
 		d.Radius != nil || d.Border != nil || d.Opacity != nil || d.CircleClip ||
-		d.Shadow != nil || d.Image != nil || d.Transform != nil
+		d.Corner != nil || d.Shadow != nil || d.Image != nil || d.Transform != nil
 }
 
 func hasDecorationState(d style.Decoration) bool {
