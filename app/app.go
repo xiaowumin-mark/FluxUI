@@ -844,6 +844,17 @@ func LogRedrawReasons(enabled bool) Option {
 	}
 }
 
+// LogEvents controls whether each dispatched FluxUI event writes diagnostics.
+func LogEvents(enabled bool) Option {
+	return func(app *Application) {
+		app.PerfDiagnostics.LogEvents = enabled
+		if enabled {
+			app.PerfDiagnostics.Enabled = true
+			app.PerfDiagnostics.MeasureDurations = true
+		}
+	}
+}
+
 // ListWindows 返回当前仍然存活的窗口句柄列表。
 func ListWindows() []WindowHandle {
 	windowRegistryMu.RLock()

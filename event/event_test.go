@@ -1,8 +1,11 @@
 package event
 
 import (
+	"bytes"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
 
@@ -18,6 +21,114 @@ func newEventTestTree(t *testing.T) (*internal.Runtime, *internal.Context, *inte
 	child := parent.Scope("child")
 	t.Cleanup(rt.EndFrame)
 	return rt, root, parent, child
+}
+
+func TestEventDiagnosticsRecordPathDurationAndCancellation(t *testing.T) {
+	var logs bytes.Buffer
+	rt := internal.NewRuntime(nil)
+	rt.SetPerfDiagnostics(internal.PerfDiagnostics{
+		Enabled:          true,
+		MeasureDurations: true,
+		LogEvents:        true,
+		Writer:           &logs,
+	})
+	rt.BeginFrame()
+	root := internal.NewContext(gioLayout.Context{}, rt)
+	parent := root.Child(0)
+	child := parent.Scope("child")
+
+	On(parent, Click, func(ctx *internal.Context, ev *Event) {
+		time.Sleep(time.Microsecond)
+	}, Capture())
+	On(child, Click, func(ctx *internal.Context, ev *Event) {
+		ev.PreventDefault()
+		ev.StopPropagation()
+	})
+
+	ev := Event{Type: Click, Bubbles: true, Cancelable: true}
+	if DispatchEvent(root, child.PathID(), &ev) {
+		t.Fatal("dispatch returned true after preventDefault")
+	}
+	rt.EndFrame()
+
+	stats := rt.LastFrameStats()
+	if stats.Events.Dispatches != 1 || stats.Events.ListenerCalls != 2 {
+		t.Fatalf("event diagnostics dispatch/listeners = %d/%d, want 1/2", stats.Events.Dispatches, stats.Events.ListenerCalls)
+	}
+	if stats.Events.PointerEvents != 1 || stats.Interaction.PointerEvents != 1 {
+		t.Fatalf("pointer event diagnostics = events:%d interaction:%d, want 1/1", stats.Events.PointerEvents, stats.Interaction.PointerEvents)
+	}
+	if stats.Events.DefaultPrevented != 1 || stats.Events.PropagationStopped != 1 {
+		t.Fatalf("cancel diagnostics = prevented:%d stopped:%d, want 1/1", stats.Events.DefaultPrevented, stats.Events.PropagationStopped)
+	}
+	if stats.Events.ListenerDuration <= 0 {
+		t.Fatalf("listener duration = %s, want > 0", stats.Events.ListenerDuration)
+	}
+
+	line := logs.String()
+	for _, want := range []string{
+		`event type="click"`,
+		`target="root/0/child"`,
+		`path="root/0/child>root/0>root"`,
+		`listeners=2`,
+		`default_prevented=true`,
+		`propagation_stopped=true`,
+		`default_allowed=false`,
+	} {
+		if !strings.Contains(line, want) {
+			t.Fatalf("event log missing %q in %s", want, line)
+		}
+	}
+
+	formatted := internal.FormatFrameStats(stats)
+	for _, want := range []string{
+		"event_dispatches=1",
+		"event_listeners=2",
+		"event_default_prevented=1",
+		`event_last_type="click"`,
+	} {
+		if !strings.Contains(formatted, want) {
+			t.Fatalf("frame stats missing %q in %s", want, formatted)
+		}
+	}
+}
+
+func TestEventDiagnosticsClassifyPointerWheelKeyboardFocus(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	rt.SetPerfDiagnostics(internal.PerfDiagnostics{
+		Enabled:          true,
+		MeasureDurations: true,
+	})
+	rt.BeginFrame()
+	root := internal.NewContext(gioLayout.Context{}, rt)
+	child := root.Scope("child")
+
+	RegisterFocusTarget(child)
+	DispatchPointerEvent(root, child.PathID(), &PointerEvent{Event: Event{Type: PointerMove}})
+	DispatchWheelEvent(root, child.PathID(), &WheelEvent{})
+	DispatchKeyboardEvent(root, child.PathID(), &KeyboardEvent{
+		Event: Event{Type: KeyDown},
+		Key:   "A",
+		Code:  "KeyA",
+	})
+	if !RequestFocus(child) {
+		t.Fatal("RequestFocus returned false")
+	}
+	rt.EndFrame()
+
+	stats := rt.LastFrameStats()
+	if stats.Events.PointerEvents != 1 || stats.Interaction.PointerEvents != 1 {
+		t.Fatalf("pointer diagnostics = events:%d interaction:%d, want 1/1", stats.Events.PointerEvents, stats.Interaction.PointerEvents)
+	}
+	if stats.Events.WheelEvents != 1 || stats.Interaction.WheelEvents != 1 {
+		t.Fatalf("wheel diagnostics = events:%d interaction:%d, want 1/1", stats.Events.WheelEvents, stats.Interaction.WheelEvents)
+	}
+	if stats.Events.KeyboardEvents != 1 || stats.Interaction.KeyboardEvents != 1 {
+		t.Fatalf("keyboard diagnostics = events:%d interaction:%d, want 1/1", stats.Events.KeyboardEvents, stats.Interaction.KeyboardEvents)
+	}
+	if stats.Events.FocusEvents != 2 || stats.Interaction.FocusEvents != 2 {
+		t.Fatalf("focus diagnostics = events:%d interaction:%d, want 2/2", stats.Events.FocusEvents, stats.Interaction.FocusEvents)
+	}
 }
 
 func TestDispatchOrderCaptureTargetBubble(t *testing.T) {

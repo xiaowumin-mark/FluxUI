@@ -48,6 +48,7 @@ type PerfDiagnostics struct {
 	Enabled          bool
 	MeasureDurations bool
 	LogRedrawReasons bool
+	LogEvents        bool
 	Writer           io.Writer
 }
 
@@ -80,12 +81,34 @@ type RenderCacheStats struct {
 	StaticTreeMisses  int64
 }
 
+// EventDiagnosticsStats summarizes event dispatch work observed in one frame.
+type EventDiagnosticsStats struct {
+	Dispatches                  int64
+	ListenerCalls               int64
+	ListenerDuration            time.Duration
+	DefaultPrevented            int64
+	PropagationStopped          int64
+	ImmediatePropagationStopped int64
+	PointerEvents               int64
+	WheelEvents                 int64
+	KeyboardEvents              int64
+	FocusEvents                 int64
+	InputEvents                 int64
+	DragEvents                  int64
+	CustomEvents                int64
+	ActivationEvents            int64
+	LastType                    string
+	LastTarget                  string
+	LastPath                    string
+}
+
 // FrameStats is the coarse performance snapshot for one rendered frame.
 type FrameStats struct {
 	Frame          uint64
 	StartedAt      time.Time
 	Duration       time.Duration
 	Interaction    InteractionFrameStats
+	Events         EventDiagnosticsStats
 	Virtualization VirtualizationStats
 	Cache          RenderCacheStats
 	Layout         FrameSectionStats
@@ -104,6 +127,7 @@ type runtimePerfState struct {
 	enabled            atomic.Bool
 	measureDurations   atomic.Bool
 	logRedrawReasons   atomic.Bool
+	logEvents          atomic.Bool
 	frameSeq           uint64
 	current            FrameStats
 	last               FrameStats
@@ -118,7 +142,7 @@ func (r *Runtime) SetPerfDiagnostics(config PerfDiagnostics) {
 	if config.Enabled && !config.MeasureDurations {
 		config.MeasureDurations = true
 	}
-	if config.Enabled && config.LogRedrawReasons && config.Writer == nil {
+	if config.Enabled && (config.LogRedrawReasons || config.LogEvents) && config.Writer == nil {
 		config.Writer = os.Stderr
 	}
 
@@ -135,6 +159,7 @@ func (r *Runtime) SetPerfDiagnostics(config PerfDiagnostics) {
 	r.perf.enabled.Store(config.Enabled)
 	r.perf.measureDurations.Store(config.Enabled && config.MeasureDurations)
 	r.perf.logRedrawReasons.Store(config.Enabled && config.LogRedrawReasons)
+	r.perf.logEvents.Store(config.Enabled && config.LogEvents)
 }
 
 func (r *Runtime) PerfDiagnostics() PerfDiagnostics {
@@ -304,6 +329,125 @@ func (c *Context) startFrameSection(section PerfSection, count int64) func() {
 	return c.runtime.StartFrameSection(section, count)
 }
 
+func (r *Runtime) eventDiagnosticsEnabled() bool {
+	return r != nil && r.perf.enabled.Load()
+}
+
+func (r *Runtime) eventListenerDurationEnabled() bool {
+	return r != nil && r.perf.enabled.Load() && r.perf.measureDurations.Load()
+}
+
+func (r *Runtime) recordEventDispatch(event *Event, path []PathID, listenerCalls int64, listenerDuration time.Duration, allowed bool) {
+	if r == nil || !r.perf.enabled.Load() || event == nil {
+		return
+	}
+
+	var (
+		writer io.Writer
+		log    bool
+		record eventLogRecord
+	)
+	if r.perf.logEvents.Load() {
+		log = true
+		record = r.newEventLogRecord(event, path, listenerCalls, listenerDuration, allowed)
+	}
+
+	r.perf.mu.Lock()
+	stats := &r.perf.current.Events
+	stats.Dispatches++
+	stats.ListenerCalls += listenerCalls
+	stats.ListenerDuration += listenerDuration
+	if event.DefaultPrevented {
+		stats.DefaultPrevented++
+	}
+	if event.PropagationStopped() {
+		stats.PropagationStopped++
+	}
+	if event.ImmediatePropagationStopped() {
+		stats.ImmediatePropagationStopped++
+	}
+	switch eventDiagnosticsKind(event.Type) {
+	case "pointer":
+		stats.PointerEvents++
+	case "wheel":
+		stats.WheelEvents++
+	case "keyboard":
+		stats.KeyboardEvents++
+	case "focus":
+		stats.FocusEvents++
+	case "input":
+		stats.InputEvents++
+	case "drag":
+		stats.DragEvents++
+	case "activation":
+		stats.ActivationEvents++
+	default:
+		stats.CustomEvents++
+	}
+	if log {
+		stats.LastType = record.Type
+		stats.LastTarget = record.Target
+		stats.LastPath = record.Path
+		writer = r.perf.config.Writer
+	}
+	r.perf.mu.Unlock()
+
+	if log && writer != nil {
+		_, _ = fmt.Fprintln(writer, formatEventLogRecord(record))
+	}
+}
+
+type eventLogRecord struct {
+	Type             string
+	Target           string
+	Path             string
+	ListenerCalls    int64
+	ListenerDuration time.Duration
+	DefaultPrevented bool
+	PropagationStop  bool
+	ImmediateStop    bool
+	DefaultAllowed   bool
+}
+
+func (r *Runtime) newEventLogRecord(event *Event, path []PathID, listenerCalls int64, listenerDuration time.Duration, allowed bool) eventLogRecord {
+	record := eventLogRecord{
+		Type:             string(event.Type),
+		Target:           r.debugInteractionTarget(event.Target),
+		ListenerCalls:    listenerCalls,
+		ListenerDuration: listenerDuration,
+		DefaultPrevented: event.DefaultPrevented,
+		PropagationStop:  event.PropagationStopped(),
+		ImmediateStop:    event.ImmediatePropagationStopped(),
+		DefaultAllowed:   allowed,
+	}
+	if record.Target == "" {
+		record.Target = r.debugInteractionTarget(normalizeOptionalPathID(event.Target))
+	}
+	if len(path) > 0 {
+		parts := make([]string, 0, len(path))
+		for _, id := range path {
+			parts = append(parts, r.debugInteractionTarget(id))
+		}
+		record.Path = strings.Join(parts, ">")
+	}
+	return record
+}
+
+func formatEventLogRecord(record eventLogRecord) string {
+	return fmt.Sprintf(
+		"event type=%q target=%q path=%q listeners=%d listener_duration=%s default_prevented=%t propagation_stopped=%t immediate_stopped=%t default_allowed=%t",
+		record.Type,
+		record.Target,
+		record.Path,
+		record.ListenerCalls,
+		record.ListenerDuration,
+		record.DefaultPrevented,
+		record.PropagationStop,
+		record.ImmediateStop,
+		record.DefaultAllowed,
+	)
+}
+
 func (r *Runtime) beginPerfFrame() {
 	if r == nil || !r.perf.enabled.Load() {
 		return
@@ -415,6 +559,27 @@ func (p *runtimePerfState) sectionLocked(section PerfSection) *FrameSectionStats
 	}
 }
 
+func eventDiagnosticsKind(eventType EventType) string {
+	switch eventType {
+	case "pointerdown", "pointerup", "pointermove", "pointerenter", "pointerleave", "pointerover", "pointerout", "pointercancel", "click", "dblclick", "auxclick", "contextmenu":
+		return "pointer"
+	case "wheel":
+		return "wheel"
+	case EventTypeKeyDown, EventTypeKeyUp:
+		return "keyboard"
+	case EventTypeFocus, EventTypeBlur, EventTypeFocusIn, EventTypeFocusOut:
+		return "focus"
+	case EventTypeBeforeInput, EventTypeInput, EventTypeChange, EventTypeSubmit, EventTypeCompositionStart, EventTypeCompositionUpdate, EventTypeCompositionEnd:
+		return "input"
+	case "dragstart", "drag", "dragenter", "dragover", "dragleave", "drop", "dragend":
+		return "drag"
+	case EventTypeActivate:
+		return "activation"
+	default:
+		return "custom"
+	}
+}
+
 func cloneFrameStats(stats FrameStats) FrameStats {
 	if len(stats.ReasonCounts) > 0 {
 		counts := make(map[string]int, len(stats.ReasonCounts))
@@ -450,15 +615,36 @@ func FormatFrameStats(stats FrameStats) string {
 	}
 
 	return fmt.Sprintf(
-		"frame=%d duration=%s reason=%s pointer_moves=%d hover_changes=%d pressed_changes=%d focus_changes=%d hover_target=%q virtual_items=%d/%d virtual_culled=%d virtual_containers=%d viewports=%d viewport=%dx%d nonvirtual_warnings=%d text_cache=%d/%d static_paint_cache=%d/%d static_tree_cache=%d/%d layout=%s draw=%s animation=%s state=%s text=%s input=%s layout_ops=%d draw_ops=%d animations=%d state_ops=%d text_ops=%d input_ops=%d",
+		"frame=%d duration=%s reason=%s pointer_moves=%d pointer_events=%d wheel_events=%d keyboard_events=%d focus_events=%d hover_changes=%d pressed_changes=%d focus_changes=%d hover_target=%q event_dispatches=%d event_listeners=%d event_listener_duration=%s event_default_prevented=%d event_propagation_stopped=%d event_immediate_stopped=%d event_pointer=%d event_wheel=%d event_keyboard=%d event_focus=%d event_input=%d event_drag=%d event_custom=%d event_activation=%d event_last_type=%q event_last_target=%q event_last_path=%q virtual_items=%d/%d virtual_culled=%d virtual_containers=%d viewports=%d viewport=%dx%d nonvirtual_warnings=%d text_cache=%d/%d static_paint_cache=%d/%d static_tree_cache=%d/%d layout=%s draw=%s animation=%s state=%s text=%s input=%s layout_ops=%d draw_ops=%d animations=%d state_ops=%d text_ops=%d input_ops=%d",
 		stats.Frame,
 		stats.Duration,
 		reason,
 		stats.Interaction.PointerMoves,
+		stats.Interaction.PointerEvents,
+		stats.Interaction.WheelEvents,
+		stats.Interaction.KeyboardEvents,
+		stats.Interaction.FocusEvents,
 		stats.Interaction.HoverChanged,
 		stats.Interaction.PressedChanged,
 		stats.Interaction.FocusChanged,
 		stats.Interaction.HoverTarget,
+		stats.Events.Dispatches,
+		stats.Events.ListenerCalls,
+		stats.Events.ListenerDuration,
+		stats.Events.DefaultPrevented,
+		stats.Events.PropagationStopped,
+		stats.Events.ImmediatePropagationStopped,
+		stats.Events.PointerEvents,
+		stats.Events.WheelEvents,
+		stats.Events.KeyboardEvents,
+		stats.Events.FocusEvents,
+		stats.Events.InputEvents,
+		stats.Events.DragEvents,
+		stats.Events.CustomEvents,
+		stats.Events.ActivationEvents,
+		stats.Events.LastType,
+		stats.Events.LastTarget,
+		stats.Events.LastPath,
 		stats.Virtualization.VisibleItems,
 		stats.Virtualization.TotalItems,
 		stats.Virtualization.CulledItems,

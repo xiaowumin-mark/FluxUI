@@ -897,6 +897,31 @@ go test ./event ./internal ./widget ./ui -count=1
 - 高频 pointer move 示例无明显分配热点。
 - 文档能说明“什么时候用简单 OnClick，什么时候用高级事件”。
 
+P7 完成记录：
+
+- 运行时诊断：
+  - `internal.PerfDiagnostics` 新增 `LogEvents`。
+  - `ui.LogEvents(enabled)` / `app.LogEvents(enabled)` 可在开发模式输出事件诊断。
+  - `FrameStats.Events` 记录 dispatch 数量、listener 调用次数、listener 总耗时、取消状态、传播停止状态、分类计数和最后一次事件摘要。
+  - 事件日志输出 `type`、`target`、`path`、`listeners`、`listener_duration`、`default_prevented`、`propagation_stopped`、`immediate_stopped`、`default_allowed`。
+- interaction diagnostics：
+  - `InteractionFrameStats` 扩展 `PointerEvents`、`WheelEvents`、`KeyboardEvents`、`FocusEvents`。
+  - pointer / wheel / keyboard / focus 事件在 perf diagnostics 开启时进入统一统计。
+- 性能：
+  - `widget/pointer_area_bench_test.go` 新增 `BenchmarkPointerAreaHighFrequencyMove` 和 `BenchmarkPointerAreaHighFrequencyWheel`。
+  - `PointerArea` 复用 Gio pointer event drain buffer 和 coalesced sample buffer，listener dispatch 不再为匹配列表额外分配。
+- docs browser：
+  - 新增 `docs/guides/event-system.md` 指南，明确简单 `OnClick` / `OnHover` / `InputOnChange` / `ScrollOnChange` 与高级事件层的使用边界。
+  - 新增 `examples/docs_browser/event_system_demo.go`，完整展示 pointer capture、coalesced move、wheel、右键菜单、局部快捷键、focus、`beforeinput`、`input`、`submit`、custom event、capture/bubble、drag/drop。
+  - `event_system_basic` 已接入 docs browser demo registry、presentation 和文档元数据回归测试。
+
+验证命令：
+
+```sh
+go test ./event ./internal ./widget ./ui ./app ./examples/docs_browser -count=1
+go test ./widget -bench "BenchmarkPointerAreaHighFrequency(Move|Wheel)$" -benchmem -run ^$ -benchtime=100x
+```
+
 ## 能力矩阵
 
 | 能力 | 当前状态 | 目标状态 |

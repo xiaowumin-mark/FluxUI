@@ -116,6 +116,8 @@ func buildDocsDemo(ctx *ui.Context, doc *widgetDoc, state docsDemoState) ui.Elem
 		return buildDocsDragDropDemo(ctx, state.DragDropDemoState, th)
 	case "system_api_basic":
 		return buildDocsSystemAPIDemo(ctx, state.SystemDemoStatus, th)
+	case "event_system_basic":
+		return buildDocsEventSystemDemo(th)
 	case "material3_showcase":
 		return buildDocsMaterial3Showcase(th)
 	case "textfield_basic":

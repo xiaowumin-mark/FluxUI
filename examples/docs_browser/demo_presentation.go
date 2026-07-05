@@ -35,6 +35,9 @@ func docsDemoPresentationFor(exampleID string) docsDemoPresentation {
 	case "system_api_basic":
 		presentation.Height = 360
 		presentation.Scroll = true
+	case "event_system_basic":
+		presentation.Height = 440
+		presentation.Scroll = true
 	case "hooks_lifecycle_basic":
 		presentation.Height = 430
 		presentation.Scroll = true
@@ -92,6 +95,7 @@ func isDocsDemoKnown(exampleID string) bool {
 		"drop_target_basic",
 		"drag_source_basic",
 		"system_api_basic",
+		"event_system_basic",
 		"material3_showcase",
 		"textfield_basic",
 		"checkbox_basic",

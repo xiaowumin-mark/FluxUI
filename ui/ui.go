@@ -508,6 +508,11 @@ func LogRedrawReasons(enabled bool) AppOption {
 	return fluxapp.LogRedrawReasons(enabled)
 }
 
+// LogEvents controls whether each dispatched FluxUI event writes diagnostics.
+func LogEvents(enabled bool) AppOption {
+	return fluxapp.LogEvents(enabled)
+}
+
 // FormatFrameStats formats a compact one-line frame diagnostics record.
 func FormatFrameStats(stats FrameStats) string {
 	return internal.FormatFrameStats(stats)

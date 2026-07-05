@@ -24,6 +24,10 @@ const (
 type InteractionFrameStats struct {
 	Frame           uint64
 	PointerMoves    int
+	PointerEvents   int
+	WheelEvents     int
+	KeyboardEvents  int
+	FocusEvents     int
 	HoverChanged    int
 	PressedChanged  int
 	FocusChanged    int
@@ -146,6 +150,24 @@ func (r *Runtime) ObserveInteractionSnapshot(target PathID, previous, current Cl
 	return stats
 }
 
+func (r *Runtime) ObserveEventDispatch(eventType EventType) {
+	if r == nil || eventType == "" {
+		return
+	}
+	r.interact.mu.Lock()
+	switch eventInteractionKind(eventType) {
+	case "pointer":
+		r.interact.last.PointerEvents++
+	case "wheel":
+		r.interact.last.WheelEvents++
+	case "keyboard":
+		r.interact.last.KeyboardEvents++
+	case "focus":
+		r.interact.last.FocusEvents++
+	}
+	r.interact.mu.Unlock()
+}
+
 func (r *Runtime) LastInteractionStats() InteractionFrameStats {
 	if r == nil {
 		return InteractionFrameStats{}
@@ -161,4 +183,19 @@ func (r *Runtime) debugInteractionTarget(id PathID) string {
 		return ""
 	}
 	return r.DebugPath(id)
+}
+
+func eventInteractionKind(eventType EventType) string {
+	switch eventType {
+	case "pointerdown", "pointerup", "pointermove", "pointerenter", "pointerleave", "pointerover", "pointerout", "pointercancel", "click", "dblclick", "auxclick", "contextmenu":
+		return "pointer"
+	case "wheel":
+		return "wheel"
+	case EventTypeKeyDown, EventTypeKeyUp:
+		return "keyboard"
+	case EventTypeFocus, EventTypeBlur, EventTypeFocusIn, EventTypeFocusOut:
+		return "focus"
+	default:
+		return ""
+	}
 }

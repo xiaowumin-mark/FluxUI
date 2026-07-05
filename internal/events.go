@@ -228,6 +228,16 @@ type eventListener struct {
 	removed bool
 }
 
+type eventListenerDispatchStats struct {
+	calls    int64
+	duration time.Duration
+}
+
+func (s *eventListenerDispatchStats) add(other eventListenerDispatchStats) {
+	s.calls += other.calls
+	s.duration += other.duration
+}
+
 type focusTarget struct {
 	Target   PathID
 	Parent   PathID
@@ -383,6 +393,9 @@ func (r *Runtime) RegisterEventListener(ctx *Context, eventType EventType, handl
 		Options: opts,
 		Context: ctx,
 		seq:     r.events.nextSeq,
+	})
+	sort.SliceStable(r.events.listeners[target], func(i, j int) bool {
+		return eventListenerLess(r.events.listeners[target][i], r.events.listeners[target][j])
 	})
 }
 
@@ -647,25 +660,25 @@ func (r *Runtime) DispatchEvent(ctx *Context, target PathID, event *Event) bool 
 	}
 	path := r.eventPath(target)
 	event.path = path
-
-	rootToTarget := reversePath(path)
-	captureEnd := len(rootToTarget) - 1
-	if captureEnd < 0 {
-		captureEnd = 0
+	if r.eventDiagnosticsEnabled() {
+		r.ObserveEventDispatch(event.Type)
 	}
-	for _, current := range rootToTarget[:captureEnd] {
+
+	var listenerStats eventListenerDispatchStats
+	for i := len(path) - 1; i >= 1; i-- {
 		if event.propagationStopped {
 			break
 		}
-		r.dispatchEventListeners(current, EventPhaseCapture, event, true)
+		current := path[i]
+		listenerStats.add(r.dispatchEventListeners(current, EventPhaseCapture, event, true))
 	}
 
 	if !event.propagationStopped {
 		event.Phase = EventPhaseTarget
 		event.CurrentTarget = target
-		r.dispatchEventListeners(target, EventPhaseTarget, event, true)
+		listenerStats.add(r.dispatchEventListeners(target, EventPhaseTarget, event, true))
 		if !event.immediatePropagationStopped {
-			r.dispatchEventListeners(target, EventPhaseTarget, event, false)
+			listenerStats.add(r.dispatchEventListeners(target, EventPhaseTarget, event, false))
 		}
 	}
 
@@ -674,24 +687,29 @@ func (r *Runtime) DispatchEvent(ctx *Context, target PathID, event *Event) bool 
 			if event.propagationStopped {
 				break
 			}
-			r.dispatchEventListeners(current, EventPhaseBubble, event, false)
+			listenerStats.add(r.dispatchEventListeners(current, EventPhaseBubble, event, false))
 		}
 	}
 
+	allowed := !(event.Cancelable && event.DefaultPrevented)
+	r.recordEventDispatch(event, path, listenerStats.calls, listenerStats.duration, allowed)
 	event.Phase = EventPhaseNone
 	event.CurrentTarget = 0
-	return !(event.Cancelable && event.DefaultPrevented)
+	return allowed
 }
 
-func (r *Runtime) dispatchEventListeners(target PathID, phase EventPhase, event *Event, capture bool) {
-	listeners := r.matchingEventListeners(target, event.Type, capture)
+func (r *Runtime) dispatchEventListeners(target PathID, phase EventPhase, event *Event, capture bool) eventListenerDispatchStats {
+	var stats eventListenerDispatchStats
+	target = normalizePathID(target)
+	listeners := r.events.listeners[target]
 	if len(listeners) == 0 {
-		return
+		return stats
 	}
 	event.Phase = phase
 	event.CurrentTarget = target
+	measureDuration := r.eventListenerDurationEnabled()
 	for _, listener := range listeners {
-		if listener == nil || listener.removed || listener.Handler == nil {
+		if listener == nil || listener.removed || listener.Handler == nil || listener.Type != event.Type || listener.Options.Capture != capture {
 			continue
 		}
 		if event.immediatePropagationStopped {
@@ -699,34 +717,32 @@ func (r *Runtime) dispatchEventListeners(target PathID, phase EventPhase, event 
 		}
 		previousPassive := event.currentPassiveListener
 		event.currentPassiveListener = listener.Options.Passive
+		var started time.Time
+		if measureDuration {
+			started = time.Now()
+		}
 		listener.Handler(listener.Context, event)
+		if measureDuration {
+			stats.duration += time.Since(started)
+		}
+		stats.calls++
 		event.currentPassiveListener = previousPassive
 		if listener.Options.Once {
 			listener.removed = true
 		}
 	}
 	r.pruneRemovedEventListeners(target)
+	return stats
 }
 
-func (r *Runtime) matchingEventListeners(target PathID, eventType EventType, capture bool) []*eventListener {
-	all := r.events.listeners[normalizePathID(target)]
-	if len(all) == 0 {
-		return nil
+func eventListenerLess(a, b *eventListener) bool {
+	if a == nil || b == nil {
+		return b != nil
 	}
-	matches := make([]*eventListener, 0, len(all))
-	for _, listener := range all {
-		if listener == nil || listener.removed || listener.Type != eventType || listener.Options.Capture != capture {
-			continue
-		}
-		matches = append(matches, listener)
+	if a.Options.Priority == b.Options.Priority {
+		return a.seq < b.seq
 	}
-	sort.SliceStable(matches, func(i, j int) bool {
-		if matches[i].Options.Priority == matches[j].Options.Priority {
-			return matches[i].seq < matches[j].seq
-		}
-		return matches[i].Options.Priority > matches[j].Options.Priority
-	})
-	return matches
+	return a.Options.Priority > b.Options.Priority
 }
 
 func (r *Runtime) pruneRemovedEventListeners(target PathID) {
@@ -1057,9 +1073,12 @@ func (r *Runtime) activateFocusTarget(ctx *Context, target PathID) {
 
 func (r *Runtime) eventPath(target PathID) []PathID {
 	target = normalizePathID(target)
-	path := []PathID{target}
-	seen := map[PathID]struct{}{target: {}}
+	path := make([]PathID, 0, 8)
+	path = append(path, target)
 	for current := target; current != rootPathID; {
+		if len(path) >= 256 {
+			break
+		}
 		parent := r.eventParentFor(current)
 		if entry, ok := r.events.targets[normalizePathID(current)]; ok {
 			switch entry.Boundary.Mode {
@@ -1078,11 +1097,10 @@ func (r *Runtime) eventPath(target PathID) []PathID {
 			parent = rootPathID
 		}
 		parent = normalizePathID(parent)
-		if _, ok := seen[parent]; ok {
+		if pathIndex(path, parent) >= 0 {
 			break
 		}
 		path = append(path, parent)
-		seen[parent] = struct{}{}
 		current = parent
 	}
 	return path
@@ -1135,15 +1153,4 @@ func normalizeOptionalPathID(id PathID) PathID {
 		return 0
 	}
 	return normalizePathID(id)
-}
-
-func reversePath(path []PathID) []PathID {
-	if len(path) == 0 {
-		return nil
-	}
-	out := make([]PathID, len(path))
-	for i := range path {
-		out[len(path)-1-i] = path[i]
-	}
-	return out
 }

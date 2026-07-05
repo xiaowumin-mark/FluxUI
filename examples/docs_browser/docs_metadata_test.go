@@ -64,6 +64,51 @@ func TestSystemDocsExposeBrowserExample(t *testing.T) {
 	}
 }
 
+func TestEventSystemDocsExposeBrowserExample(t *testing.T) {
+	docs, err := loadWidgetDocs()
+	if err != nil {
+		t.Fatalf("load docs: %v", err)
+	}
+
+	doc := findDocByID(docs, "event_system")
+	if doc == nil {
+		t.Fatal("expected event_system doc to be loaded")
+	}
+	if doc.Meta.Example.ID != "event_system_basic" {
+		t.Fatalf("event_system example id = %q, want event_system_basic", doc.Meta.Example.ID)
+	}
+	if !strings.Contains(doc.Content, "什么时候用简单 API") || !strings.Contains(doc.Content, "什么时候用高级事件") {
+		t.Fatal("event system guide should explain simple API vs advanced events")
+	}
+
+	data, err := os.ReadFile("event_system_demo.go")
+	if err != nil {
+		t.Fatalf("read event_system_demo.go: %v", err)
+	}
+	source := string(data)
+	for token, label := range map[string]string{
+		"PointerAreaElement(":       "pointer area example",
+		"PointerOnContextMenu(":     "context menu example",
+		"PointerOnWheel(":           "wheel example",
+		"KeyboardScopeElement(":     "keyboard scope example",
+		"ShortcutOn(":               "local shortcut example",
+		"InputOnBeforeInput(":       "beforeinput example",
+		"DragSourceElement(":        "drag source example",
+		"DropTargetElement(":        "drop target example",
+		"DispatchCustomEvent(":      "custom event example",
+		"OnEvent(ctx,":              "event listener example",
+		"PointerCaptureOnPress(":    "pointer capture example",
+		"CoalescedSamples()":        "coalesced pointer example",
+		"ev.PreventDefault()":       "preventDefault example",
+		"ev.StopPropagation()":      "stopPropagation example",
+		"ev.SetPointerCapture(ctx)": "set pointer capture example",
+	} {
+		if !strings.Contains(source, token) {
+			t.Fatalf("missing %s in event_system_demo.go; expected token %q", label, token)
+		}
+	}
+}
+
 func TestRootRoadmapDocsExposeBrowserExamples(t *testing.T) {
 	docs, err := loadWidgetDocs()
 	if err != nil {
@@ -294,6 +339,7 @@ func TestDocsDemoPresentationRules(t *testing.T) {
 		"animation_basic":    {Height: 300, Scroll: true},
 		"material3_showcase": {Height: 440, Scroll: true},
 		"system_api_basic":   {Height: 360, Scroll: true},
+		"event_system_basic": {Height: 440, Scroll: true},
 	}
 	for exampleID, want := range cases {
 		got := docsDemoPresentationFor(exampleID)

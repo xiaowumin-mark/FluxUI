@@ -38,6 +38,8 @@ type pointerAreaWidget struct {
 
 type pointerAreaState struct {
 	tag           any
+	events        []pointer.Event
+	coalesced     []fluxevent.PointerSample
 	pressed       bool
 	pointerID     uint64
 	button        fluxevent.Button
@@ -214,18 +216,20 @@ func processPointerAreaEvents(ctx *internal.Context, state *pointerAreaState, cf
 	if state == nil || state.tag == nil {
 		return
 	}
-	events := drainPointerAreaEvents(ctx, state.tag)
+	events := drainPointerAreaEvents(ctx, state)
 	for i := 0; i < len(events); {
 		ev := events[i]
 		if isPointerMoveKind(ev.Kind) {
 			j := i + 1
-			coalesced := []fluxevent.PointerSample{fluxevent.PointerSampleFromGio(ev)}
+			coalesced := state.coalesced[:0]
+			coalesced = append(coalesced, fluxevent.PointerSampleFromGio(ev))
 			for j < len(events) && isPointerMoveKind(events[j].Kind) && events[j].PointerID == ev.PointerID {
 				coalesced = append(coalesced, fluxevent.PointerSampleFromGio(events[j]))
 				ev = events[j]
 				j++
 			}
 			dispatchPointerAreaPointerEvent(ctx, fluxevent.PointerMove, ev, fluxevent.ButtonNone, coalesced)
+			state.coalesced = coalesced[:0]
 			i = j
 			continue
 		}
@@ -275,15 +279,18 @@ func processPointerAreaEvents(ctx *internal.Context, state *pointerAreaState, cf
 	}
 }
 
-func drainPointerAreaEvents(ctx *internal.Context, tag any) []pointer.Event {
+func drainPointerAreaEvents(ctx *internal.Context, state *pointerAreaState) []pointer.Event {
+	if state == nil || state.tag == nil {
+		return nil
+	}
 	const scrollLimit = 1 << 30
 	filter := pointer.Filter{
-		Target:  tag,
+		Target:  state.tag,
 		Kinds:   pointer.Press | pointer.Release | pointer.Move | pointer.Drag | pointer.Enter | pointer.Leave | pointer.Cancel | pointer.Scroll,
 		ScrollX: pointer.ScrollRange{Min: -scrollLimit, Max: scrollLimit},
 		ScrollY: pointer.ScrollRange{Min: -scrollLimit, Max: scrollLimit},
 	}
-	var out []pointer.Event
+	out := state.events[:0]
 	for {
 		ev, ok := ctx.Gtx.Event(filter)
 		if !ok {
@@ -293,6 +300,7 @@ func drainPointerAreaEvents(ctx *internal.Context, tag any) []pointer.Event {
 			out = append(out, pe)
 		}
 	}
+	state.events = out
 	return out
 }
 
