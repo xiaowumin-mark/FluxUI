@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 
+	fluxevent "github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 
@@ -175,15 +176,20 @@ func (d *dropTargetWidget) dispatchDrops(ctx *internal.Context, state *dropTarge
 			}
 			switch ev := ev.(type) {
 			case transfer.InitiateEvent:
-				d.setActive(ctx, state, true)
+				if d.dispatchDropTargetEvent(ctx, fluxevent.DragEnter, DropEvent{}, true, ev) &&
+					d.dispatchDropTargetEvent(ctx, fluxevent.DragOver, DropEvent{}, true, ev) {
+					d.setActive(ctx, state, true)
+				}
 			case transfer.CancelEvent:
+				d.dispatchDropTargetEvent(ctx, fluxevent.DragLeave, DropEvent{}, false, ev)
 				d.setActive(ctx, state, false)
 			case transfer.DataEvent:
 				event := dropEventFromTransfer(ev, d.config.maxBytes, d.config.operation)
-				if event.Err != nil && d.config.onError != nil {
+				allowed := d.dispatchDropTargetEvent(ctx, fluxevent.Drop, event, false, ev)
+				if allowed && event.Err != nil && d.config.onError != nil {
 					d.config.onError(ctx, event)
 				}
-				if d.onDrop != nil {
+				if allowed && d.onDrop != nil {
 					d.onDrop(ctx, event)
 				}
 				d.setActive(ctx, state, false)
@@ -203,6 +209,33 @@ func (d *dropTargetWidget) setActive(ctx *internal.Context, state *dropTargetSta
 	d.config.onActiveChange(ctx, DropTargetStateEvent{
 		Active: active,
 		Types:  append([]string(nil), d.config.types...),
+	})
+}
+
+func (d *dropTargetWidget) dispatchDropTargetEvent(ctx *internal.Context, eventType fluxevent.Type, event DropEvent, active bool, native any) bool {
+	if ctx == nil {
+		return false
+	}
+	data := append([]byte(nil), event.Data...)
+	paths := append([]string(nil), event.Paths...)
+	operation := event.Operation
+	if operation == "" {
+		operation = d.config.operation
+	}
+	return fluxevent.DispatchDragEvent(ctx, ctx.PathID(), &fluxevent.DragEvent{
+		Event: fluxevent.Event{
+			Type:    eventType,
+			Trusted: true,
+		},
+		MIMEType:  event.Type,
+		Data:      data,
+		Text:      event.Text,
+		Paths:     paths,
+		Operation: string(firstDragOperation([]DragOperation{operation})),
+		Types:     append([]string(nil), d.config.types...),
+		Active:    active,
+		Err:       event.Err,
+		Native:    native,
 	})
 }
 

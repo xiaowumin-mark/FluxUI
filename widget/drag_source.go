@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	fluxevent "github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 
@@ -265,10 +266,8 @@ func (d *dragSourceWidget) dispatchRequests(ctx *internal.Context, state *dragSo
 					Data:      data,
 					Operation: firstDragOperation(d.config.operations),
 				}
-				if d.config.onEvent != nil {
-					d.config.onEvent(ctx, event)
-				}
-				if d.config.onRequest != nil {
+				allowed := d.dispatchSourceEvent(ctx, event)
+				if allowed && d.config.onRequest != nil {
 					d.config.onRequest(ctx, event)
 				}
 				d.finish(ctx, state, DragSourceEventCompleted)
@@ -285,14 +284,11 @@ func (d *dragSourceWidget) setActive(ctx *internal.Context, state *dragSourceSta
 		return
 	}
 	state.active = active
-	if d.config.onEvent == nil {
-		return
-	}
 	kind := DragSourceEventStarted
 	if !active {
 		kind = DragSourceEventCancelled
 	}
-	d.config.onEvent(ctx, DragSourceEvent{
+	d.dispatchSourceEvent(ctx, DragSourceEvent{
 		Kind:      kind,
 		Operation: firstDragOperation(d.config.operations),
 	})
@@ -303,13 +299,53 @@ func (d *dragSourceWidget) finish(ctx *internal.Context, state *dragSourceState,
 		return
 	}
 	state.active = false
-	if d.config.onEvent == nil {
-		return
-	}
-	d.config.onEvent(ctx, DragSourceEvent{
+	d.dispatchSourceEvent(ctx, DragSourceEvent{
 		Kind:      kind,
 		Operation: firstDragOperation(d.config.operations),
 	})
+}
+
+func (d *dragSourceWidget) dispatchSourceEvent(ctx *internal.Context, event DragSourceEvent) bool {
+	if ctx == nil {
+		return false
+	}
+	drag := dragEventFromSourceEvent(event)
+	allowed := fluxevent.DispatchDragEvent(ctx, ctx.PathID(), drag)
+	if d.config.onEvent == nil {
+		return allowed
+	}
+	if allowed {
+		d.config.onEvent(ctx, event)
+	}
+	return allowed
+}
+
+func dragEventFromSourceEvent(event DragSourceEvent) *fluxevent.DragEvent {
+	data := append([]byte(nil), event.Data...)
+	return &fluxevent.DragEvent{
+		Event: fluxevent.Event{
+			Type:    dragSourceFluxEventType(event.Kind),
+			Trusted: true,
+		},
+		MIMEType:  event.Type,
+		Data:      data,
+		Text:      string(data),
+		Operation: string(event.Operation),
+		Err:       event.Err,
+	}
+}
+
+func dragSourceFluxEventType(kind DragSourceEventKind) fluxevent.Type {
+	switch kind {
+	case DragSourceEventStarted:
+		return fluxevent.DragStart
+	case DragSourceEventRequested:
+		return fluxevent.Drag
+	case DragSourceEventCompleted, DragSourceEventCancelled:
+		return fluxevent.DragEnd
+	default:
+		return fluxevent.Drag
+	}
 }
 
 func (s *dragSourceState) update(ctx *internal.Context) dragSourcePointerUpdate {

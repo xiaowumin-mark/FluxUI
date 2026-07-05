@@ -59,18 +59,22 @@ func (c *clickAreaWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	clickable := event.UseClickable(ctx)
+	dispatcher := event.Dispatcher{Click: c.onClick}
+	event.RegisterFocusTarget(ctx, event.FocusActivate(func(ctx *internal.Context) {
+		dispatcher.DispatchClickEvent(ctx, nil)
+	}))
 	if c.config.ref != nil {
 		c.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for range c.config.ref.drainCommands() {
-			if c.onClick != nil {
-				c.onClick(ctx)
-			}
+			dispatcher.DispatchClickEvent(ctx, nil)
 		}
 	}
-	for clickable.Clicked(ctx) {
-		if c.onClick != nil {
-			c.onClick(ctx)
+	for {
+		click, ok := clickable.ClickedEvent(ctx)
+		if !ok {
+			break
 		}
+		dispatcher.DispatchClickEvent(ctx, click)
 	}
 
 	size := ctx.LayoutClickArea(clickable.Handle(), func(childCtx *internal.Context) image.Point {

@@ -53,6 +53,39 @@ func TestUseStateFallsBackToLegacyWithoutComponentInstance(t *testing.T) {
 	rt.EndFrame()
 }
 
+func TestUIExportsGenericDragEventDispatch(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	var ops op.Ops
+	gtx := gioLayout.Context{Ops: &ops}
+
+	rt.BeginFrame()
+	root := internal.NewContext(gtx, rt)
+	parent := root.Scope("parent")
+	child := parent.Scope("child")
+	var calls []string
+
+	OnDrag(parent, EventDrop, func(ctx *Context, ev *DragEvent) {
+		calls = append(calls, "capture")
+	}, Capture())
+	OnDrag(child, EventDrop, func(ctx *Context, ev *DragEvent) {
+		calls = append(calls, ev.Text)
+		ev.PreventDefault()
+	})
+
+	ev := &DragEvent{Event: Event{Type: EventDrop}, Text: "payload"}
+	if DispatchDragEvent(root, child.PathID(), ev) {
+		t.Fatal("DispatchDragEvent returned true after PreventDefault")
+	}
+	if !ev.DefaultPrevented || ev.Phase != EventPhaseNone {
+		t.Fatalf("event final state = prevented:%v phase:%v", ev.DefaultPrevented, ev.Phase)
+	}
+	rt.EndFrame()
+
+	if got, want := fmt.Sprint(calls), "[capture payload]"; got != want {
+		t.Fatalf("calls = %s, want %s", got, want)
+	}
+}
+
 func TestUseStateUsesComponentHookSlot(t *testing.T) {
 	rt := internal.NewRuntime(nil)
 	var ops op.Ops
@@ -788,6 +821,18 @@ func TestInteractiveElementsWrapLegacyWidgets(t *testing.T) {
 	}
 	if el := ClickAreaElement(TextElement("tap"), nil); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected ClickAreaElement to wrap a legacy click area widget")
+	}
+	if el := PointerAreaElement(TextElement("point")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected PointerAreaElement to wrap a pointer area widget")
+	}
+	if el := KeyboardScopeElement(TextElement("keys")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected KeyboardScopeElement to wrap a keyboard scope widget")
+	}
+	if el := EventBoundaryElement(TextElement("bounded")); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected EventBoundaryElement to wrap an event boundary widget")
+	}
+	if el := EventPortalElement(TextElement("portal"), 0); el == nil || RenderElement(el) == nil {
+		t.Fatal("expected EventPortalElement to wrap an event portal widget")
 	}
 	if el := DropTargetElement(TextElement("drop"), nil); el == nil || RenderElement(el) == nil {
 		t.Fatal("expected DropTargetElement to wrap a legacy drop target widget")

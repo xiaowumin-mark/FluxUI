@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/xiaowumin-mark/FluxUI/system"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
@@ -214,6 +215,7 @@ func markdownTable(lines []string, th *ui.Theme) ui.Element {
 		return ui.SpacerElement(0, 0)
 	}
 
+	columnWidths := markdownTableColumnWidths(rows)
 	items := make([]ui.Element, 0, len(rows))
 	for rowIndex, row := range rows {
 		bg := th.Colors.SurfaceContainerLow
@@ -224,9 +226,14 @@ func markdownTable(lines []string, th *ui.Theme) ui.Element {
 		}
 
 		cells := make([]ui.Element, 0, len(row))
-		for _, cell := range row {
+		for colIndex, cell := range row {
+			width := float32(96)
+			if colIndex < len(columnWidths) {
+				width = columnWidths[colIndex]
+			}
 			cells = append(cells,
-				ui.ExpandedElement(
+				ui.FixedWidthElement(
+					width,
 					ui.PaddingElement(
 						ui.Insets{Right: 8},
 						ui.TextElement(markdownInlineText(cell), ui.TextSize(12), ui.TextColor(textColor)),
@@ -256,6 +263,51 @@ func markdownTable(lines []string, th *ui.Theme) ui.Element {
 			ui.ScrollVertical(false),
 		),
 	)
+}
+
+func markdownTableColumnWidths(rows [][]string) []float32 {
+	colCount := 0
+	for _, row := range rows {
+		if len(row) > colCount {
+			colCount = len(row)
+		}
+	}
+	if colCount == 0 {
+		return nil
+	}
+
+	widths := make([]float32, colCount)
+	for _, row := range rows {
+		for colIndex, cell := range row {
+			width := markdownTableCellWidth(markdownInlineText(cell))
+			if width > widths[colIndex] {
+				widths[colIndex] = width
+			}
+		}
+	}
+	for i, width := range widths {
+		if width <= 0 {
+			widths[i] = 96
+		}
+	}
+	return widths
+}
+
+func markdownTableCellWidth(text string) float32 {
+	const (
+		minWidth = 88
+		maxWidth = 280
+		charPx   = 7
+		padding  = 34
+	)
+	width := float32(utf8.RuneCountInString(text)*charPx + padding)
+	if width < minWidth {
+		return minWidth
+	}
+	if width > maxWidth {
+		return maxWidth
+	}
+	return width
 }
 
 func markdownCopyButton(label string, code string, copyState docsStringState) ui.Element {

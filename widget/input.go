@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	fluxevent "github.com/xiaowumin-mark/FluxUI/event"
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
 	layout "github.com/xiaowumin-mark/FluxUI/layout"
 	style "github.com/xiaowumin-mark/FluxUI/style"
@@ -73,6 +74,9 @@ type inputConfig struct {
 	hasWeight      bool
 	onChange       func(ctx *internal.Context, value string)
 	onFocus        func(ctx *internal.Context, focused bool)
+	onBeforeInput  fluxevent.InputHandler
+	onInputEvent   fluxevent.InputHandler
+	onSubmit       fluxevent.InputHandler
 	ref            *InputRef
 	decoration     style.Decoration
 }
@@ -83,12 +87,14 @@ type inputWidget struct {
 }
 
 type inputState struct {
-	editor      *gioWidget.Editor
-	initialized bool
-	focused     bool
-	syncedValue string
-	blurTag     any
-	fieldSize   image.Point
+	editor       *gioWidget.Editor
+	initialized  bool
+	focused      bool
+	syncedValue  string
+	blurTag      any
+	fieldSize    image.Point
+	valueHistory []string
+	historyIndex int
 }
 
 func inputStateFor(ctx *internal.Context) *inputState {
@@ -328,6 +334,24 @@ func InputOnFocus(fn func(ctx *internal.Context, focused bool)) InputOption {
 	}
 }
 
+func InputOnBeforeInput(fn fluxevent.InputHandler) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.onBeforeInput = fn
+	}
+}
+
+func InputOnInputEvent(fn fluxevent.InputHandler) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.onInputEvent = fn
+	}
+}
+
+func InputOnSubmit(fn fluxevent.InputHandler) InputOption {
+	return func(cfg *inputConfig) {
+		cfg.onSubmit = fn
+	}
+}
+
 // InputAttachRef 绑定命令型引用，用于外部主动操作输入框。
 func InputAttachRef(ref *InputRef) InputOption {
 	return func(cfg *inputConfig) {
@@ -349,11 +373,14 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 
+	t.registerInputEventListeners(ctx)
+
 	controlled := t.config.onChange != nil
 
 	if !state.initialized {
 		editor.SetText(t.value)
 		state.syncedValue = t.value
+		state.resetInputHistory(t.value)
 		state.initialized = true
 	} else if controlled && t.value != state.syncedValue {
 		if shouldRecreateEditorForMemory(state.syncedValue, t.value) {
@@ -365,10 +392,12 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 		editor.SetText(t.value)
 		state.syncedValue = t.value
+		state.resetInputHistory(t.value)
 	}
 
 	editor.SingleLine = t.config.singleLine
 	editor.ReadOnly = t.config.disabled
+	editor.Submit = t.config.onSubmit != nil
 	editor.MaxLen = t.config.maxLen
 	if t.config.password {
 		editor.Mask = '*'
@@ -381,23 +410,11 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		for _, cmd := range t.config.ref.drainCommands() {
 			switch cmd.kind {
 			case inputCmdSetText:
-				editor.SetText(cmd.text)
-				state.syncedValue = editor.Text()
-				if t.config.onChange != nil {
-					t.config.onChange(ctx, state.syncedValue)
-				}
+				t.commitProgrammaticInput(ctx, state, editor, cmd.text, cmd.text, fluxevent.InputTypeProgrammaticSetText)
 			case inputCmdAppend:
-				editor.SetText(editor.Text() + cmd.text)
-				state.syncedValue = editor.Text()
-				if t.config.onChange != nil {
-					t.config.onChange(ctx, state.syncedValue)
-				}
+				t.commitProgrammaticInput(ctx, state, editor, editor.Text()+cmd.text, cmd.text, fluxevent.InputTypeProgrammaticAppend)
 			case inputCmdClear:
-				editor.SetText("")
-				state.syncedValue = ""
-				if t.config.onChange != nil {
-					t.config.onChange(ctx, "")
-				}
+				t.commitProgrammaticInput(ctx, state, editor, "", "", fluxevent.InputTypeProgrammaticClear)
 			case inputCmdFocus:
 				ctx.Gtx.Execute(key.FocusCmd{Tag: editor})
 			case inputCmdBlur:
@@ -411,12 +428,14 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		if !ok {
 			break
 		}
-		if _, changed := ev.(gioWidget.ChangeEvent); changed && t.config.onChange != nil {
+		switch ev := ev.(type) {
+		case gioWidget.ChangeEvent:
 			text := editor.Text()
 			if text != state.syncedValue {
-				state.syncedValue = text
-				t.config.onChange(ctx, text)
+				t.commitUserInput(ctx, state, editor, text, ev)
 			}
+		case gioWidget.SubmitEvent:
+			t.dispatchSubmit(ctx, state, ev.Text, ev)
 		}
 	}
 
@@ -532,6 +551,230 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	state.fieldSize = size
 
 	return layout.Dimensions{Size: size}
+}
+
+func (t *inputWidget) registerInputEventListeners(ctx *internal.Context) {
+	if ctx == nil || ctx.Runtime() == nil {
+		return
+	}
+	if t.config.onBeforeInput != nil {
+		fluxevent.OnInput(ctx, fluxevent.BeforeInput, t.config.onBeforeInput)
+	}
+	if t.config.onInputEvent != nil {
+		fluxevent.OnInput(ctx, fluxevent.Input, t.config.onInputEvent)
+	}
+	if t.config.onSubmit != nil {
+		fluxevent.OnInput(ctx, fluxevent.Submit, t.config.onSubmit)
+	}
+}
+
+func (t *inputWidget) commitProgrammaticInput(ctx *internal.Context, state *inputState, editor *gioWidget.Editor, next string, data string, inputType string) {
+	if state == nil || editor == nil {
+		return
+	}
+	previous := state.syncedValue
+	before := t.newInputEvent(ctx, fluxevent.BeforeInput, previous, next, data, inputType, fluxevent.InputSourceProgrammatic, false, nil, false)
+	if !t.dispatchInputEvent(ctx, before) {
+		return
+	}
+	editor.SetText(next)
+	value := editor.Text()
+	if value != next {
+		_, data = inputTextDiff(previous, value)
+	}
+	t.finishInputMutation(ctx, state, previous, value, data, inputType, fluxevent.InputSourceProgrammatic, false, nil)
+}
+
+func (t *inputWidget) commitUserInput(ctx *internal.Context, state *inputState, editor *gioWidget.Editor, value string, native any) {
+	if state == nil || editor == nil {
+		return
+	}
+	previous := state.syncedValue
+	mutation := state.classifyUserInput(previous, value)
+	before := t.newInputEvent(ctx, fluxevent.BeforeInput, previous, value, mutation.data, mutation.inputType, mutation.source, true, native, true)
+	if !t.dispatchInputEvent(ctx, before) {
+		editor.SetText(previous)
+		state.syncedValue = previous
+		return
+	}
+	t.finishInputMutation(ctx, state, previous, value, mutation.data, mutation.inputType, mutation.source, true, native)
+}
+
+func (t *inputWidget) finishInputMutation(ctx *internal.Context, state *inputState, previous string, value string, data string, inputType string, source fluxevent.InputSource, bestEffort bool, native any) {
+	state.syncedValue = value
+	state.recordInputHistory(value, source)
+
+	input := t.newInputEvent(ctx, fluxevent.Input, previous, value, data, inputType, source, source != fluxevent.InputSourceProgrammatic, native, bestEffort)
+	t.dispatchInputEvent(ctx, input)
+	change := t.newInputEvent(ctx, fluxevent.Change, previous, value, data, inputType, source, source != fluxevent.InputSourceProgrammatic, native, bestEffort)
+	t.dispatchInputEvent(ctx, change)
+	if t.config.onChange != nil {
+		t.config.onChange(ctx, value)
+	}
+}
+
+func (t *inputWidget) dispatchSubmit(ctx *internal.Context, state *inputState, value string, native any) {
+	previous := ""
+	if state != nil {
+		previous = state.syncedValue
+	}
+	ev := t.newInputEvent(ctx, fluxevent.Submit, previous, value, "", fluxevent.InputTypeInsertLineBreak, fluxevent.InputSourceUser, true, native, false)
+	t.dispatchInputEvent(ctx, ev)
+}
+
+func (t *inputWidget) newInputEvent(ctx *internal.Context, eventType fluxevent.Type, previous string, value string, data string, inputType string, source fluxevent.InputSource, trusted bool, native any, bestEffort bool) *fluxevent.InputEvent {
+	target := fluxevent.TargetID(0)
+	if ctx != nil {
+		target = ctx.PathID()
+	}
+	return &fluxevent.InputEvent{
+		Event: fluxevent.Event{
+			Type:    eventType,
+			Target:  target,
+			Trusted: trusted,
+		},
+		Data:          data,
+		InputType:     inputType,
+		Source:        source,
+		Value:         value,
+		PreviousValue: previous,
+		BestEffort:    bestEffort,
+		Native:        native,
+	}
+}
+
+func (t *inputWidget) dispatchInputEvent(ctx *internal.Context, ev *fluxevent.InputEvent) bool {
+	if ev == nil {
+		return true
+	}
+	target := fluxevent.TargetID(0)
+	if ctx != nil {
+		target = ctx.PathID()
+	}
+	allowed := fluxevent.DispatchInputEvent(ctx, target, ev)
+	if ctx != nil && ctx.Runtime() != nil {
+		return allowed
+	}
+	switch ev.Type {
+	case fluxevent.BeforeInput:
+		if t.config.onBeforeInput != nil {
+			t.config.onBeforeInput(ctx, ev)
+		}
+	case fluxevent.Input:
+		if t.config.onInputEvent != nil {
+			t.config.onInputEvent(ctx, ev)
+		}
+	case fluxevent.Submit:
+		if t.config.onSubmit != nil {
+			t.config.onSubmit(ctx, ev)
+		}
+	}
+	return !(ev.Cancelable && ev.DefaultPrevented)
+}
+
+type inputMutation struct {
+	data      string
+	inputType string
+	source    fluxevent.InputSource
+}
+
+func (s *inputState) classifyUserInput(previous, value string) inputMutation {
+	removed, inserted := inputTextDiff(previous, value)
+	mutation := inputMutation{
+		data:      inserted,
+		inputType: inputTypeForDiff(removed, inserted),
+		source:    fluxevent.InputSourceUser,
+	}
+	switch {
+	case s != nil && s.historyIndex > 0 && s.historyIndex <= len(s.valueHistory)-1 && s.valueHistory[s.historyIndex-1] == value:
+		mutation.source = fluxevent.InputSourceUndo
+		mutation.inputType = fluxevent.InputTypeHistoryUndo
+	case s != nil && s.historyIndex >= 0 && s.historyIndex+1 < len(s.valueHistory) && s.valueHistory[s.historyIndex+1] == value:
+		mutation.source = fluxevent.InputSourceRedo
+		mutation.inputType = fluxevent.InputTypeHistoryRedo
+	case removed != "" && inserted == "":
+		mutation.source = fluxevent.InputSourceDelete
+	case inserted != "" && likelyPasteData(inserted):
+		mutation.source = fluxevent.InputSourcePaste
+		mutation.inputType = fluxevent.InputTypeInsertFromPaste
+	}
+	return mutation
+}
+
+func (s *inputState) resetInputHistory(value string) {
+	if s == nil {
+		return
+	}
+	s.valueHistory = append(s.valueHistory[:0], value)
+	s.historyIndex = 0
+}
+
+func (s *inputState) recordInputHistory(value string, source fluxevent.InputSource) {
+	if s == nil {
+		return
+	}
+	if len(s.valueHistory) == 0 {
+		s.resetInputHistory(value)
+		return
+	}
+	switch source {
+	case fluxevent.InputSourceUndo:
+		if s.historyIndex > 0 && s.valueHistory[s.historyIndex-1] == value {
+			s.historyIndex--
+			return
+		}
+	case fluxevent.InputSourceRedo:
+		if s.historyIndex+1 < len(s.valueHistory) && s.valueHistory[s.historyIndex+1] == value {
+			s.historyIndex++
+			return
+		}
+	}
+	if s.historyIndex >= 0 && s.historyIndex < len(s.valueHistory) && s.valueHistory[s.historyIndex] == value {
+		return
+	}
+	if s.historyIndex+1 < len(s.valueHistory) {
+		s.valueHistory = s.valueHistory[:s.historyIndex+1]
+	}
+	s.valueHistory = append(s.valueHistory, value)
+	s.historyIndex = len(s.valueHistory) - 1
+}
+
+func inputTypeForDiff(removed, inserted string) string {
+	switch {
+	case removed != "" && inserted == "":
+		return fluxevent.InputTypeDeleteContentBackward
+	case removed != "" && inserted != "":
+		return fluxevent.InputTypeInsertReplacement
+	case inserted != "":
+		return fluxevent.InputTypeInsertText
+	default:
+		return fluxevent.InputTypeInsertText
+	}
+}
+
+func inputTextDiff(previous, value string) (removed string, inserted string) {
+	if previous == value {
+		return "", ""
+	}
+	prevRunes := []rune(previous)
+	nextRunes := []rune(value)
+	start := 0
+	for start < len(prevRunes) && start < len(nextRunes) && prevRunes[start] == nextRunes[start] {
+		start++
+	}
+	end := 0
+	for start+end < len(prevRunes) && start+end < len(nextRunes) &&
+		prevRunes[len(prevRunes)-1-end] == nextRunes[len(nextRunes)-1-end] {
+		end++
+	}
+	return string(prevRunes[start : len(prevRunes)-end]), string(nextRunes[start : len(nextRunes)-end])
+}
+
+func likelyPasteData(data string) bool {
+	if strings.ContainsAny(data, "\n\r\t") {
+		return true
+	}
+	return len([]rune(data)) > 1
 }
 
 func (t *inputWidget) handleOutsidePressBlur(ctx *internal.Context, state *inputState, editor *gioWidget.Editor) {

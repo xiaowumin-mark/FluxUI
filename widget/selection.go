@@ -146,15 +146,29 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 		var row Widget = layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
 			clickable := event.UseClickable(rowCtx)
+			activate := func(actionCtx *internal.Context) {
+				if item.Value == currentValue {
+					return
+				}
+				currentValue = item.Value
+				if r.config.onChange != nil {
+					r.config.onChange(actionCtx, item.Value)
+				}
+			}
+			if r.config.disabled {
+				event.RegisterFocusTarget(rowCtx, event.FocusDisabled(true))
+			} else {
+				event.RegisterFocusTarget(rowCtx, event.FocusActivate(func(ctx *internal.Context) {
+					dispatchClickDefault(ctx, nil, func() { activate(ctx) })
+				}))
+			}
 			if !r.config.disabled {
-				for clickable.Clicked(rowCtx) {
-					if item.Value == currentValue {
-						continue
+				for {
+					click, ok := clickable.ClickedEvent(rowCtx)
+					if !ok {
+						break
 					}
-					currentValue = item.Value
-					if r.config.onChange != nil {
-						r.config.onChange(rowCtx, item.Value)
-					}
+					dispatchClickDefault(rowCtx, click, func() { activate(rowCtx) })
 				}
 			}
 
@@ -534,18 +548,32 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 		var row Widget = layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
 			clickable := event.UseClickable(rowCtx)
 			disabled := s.config.disabled || item.Disabled
+			activate := func(actionCtx *internal.Context) {
+				currentValue = item.Value
+				if s.config.onChange != nil {
+					s.config.onChange(actionCtx, item.Value)
+				}
+				if state.opened {
+					state.opened = false
+					if s.config.onOpen != nil {
+						s.config.onOpen(actionCtx, false)
+					}
+				}
+			}
+			if disabled {
+				event.RegisterFocusTarget(rowCtx, event.FocusDisabled(true))
+			} else {
+				event.RegisterFocusTarget(rowCtx, event.FocusActivate(func(ctx *internal.Context) {
+					dispatchClickDefault(ctx, nil, func() { activate(ctx) })
+				}))
+			}
 			if !disabled {
-				for clickable.Clicked(rowCtx) {
-					currentValue = item.Value
-					if s.config.onChange != nil {
-						s.config.onChange(rowCtx, item.Value)
+				for {
+					click, ok := clickable.ClickedEvent(rowCtx)
+					if !ok {
+						break
 					}
-					if state.opened {
-						state.opened = false
-						if s.config.onOpen != nil {
-							s.config.onOpen(rowCtx, false)
-						}
-					}
+					dispatchClickDefault(rowCtx, click, func() { activate(rowCtx) })
 				}
 			}
 
@@ -721,12 +749,26 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 
 func (s *selectWidget[T]) layoutSelectField(ctx *internal.Context, valueLabel string, hasValue bool, state *selectState) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
+	activate := func(actionCtx *internal.Context) {
+		state.opened = !state.opened
+		if s.config.onOpen != nil {
+			s.config.onOpen(actionCtx, state.opened)
+		}
+	}
+	if s.config.disabled {
+		event.RegisterFocusTarget(ctx, event.FocusDisabled(true))
+	} else {
+		event.RegisterFocusTarget(ctx, event.FocusActivate(func(ctx *internal.Context) {
+			dispatchClickDefault(ctx, nil, func() { activate(ctx) })
+		}))
+	}
 	if !s.config.disabled {
-		for clickable.Clicked(ctx) {
-			state.opened = !state.opened
-			if s.config.onOpen != nil {
-				s.config.onOpen(ctx, state.opened)
+		for {
+			click, ok := clickable.ClickedEvent(ctx)
+			if !ok {
+				break
 			}
+			dispatchClickDefault(ctx, click, func() { activate(ctx) })
 		}
 	}
 

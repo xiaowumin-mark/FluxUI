@@ -70,6 +70,50 @@ func TestSliderDragDispatchesOnChange(t *testing.T) {
 	}
 }
 
+func TestSliderPointerCursorIsClippedToTrack(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	defer rt.Dispose()
+
+	var router input.Router
+	var ops op.Ops
+	gtx := gioLayout.Context{
+		Constraints: gioLayout.Exact(image.Pt(240, 80)),
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Now:         time.Unix(0, 0),
+		Source:      router.Source(),
+		Ops:         &ops,
+	}
+
+	rt.BeginFrame()
+	Slider(50, SliderWidth(200)).Layout(internal.NewContext(gtx, rt).Scope("slider"))
+	rt.EndFrame()
+	router.Frame(&ops)
+
+	router.Queue(pointer.Event{
+		Kind:      pointer.Move,
+		Source:    pointer.Mouse,
+		Buttons:   pointer.ButtonPrimary,
+		PointerID: 1,
+		Position:  f32.Pt(40, 10),
+	})
+	router.Frame(&ops)
+	if got := router.Cursor(); got != pointer.CursorPointer {
+		t.Fatalf("cursor over slider track = %v, want %v", got, pointer.CursorPointer)
+	}
+
+	router.Queue(pointer.Event{
+		Kind:      pointer.Move,
+		Source:    pointer.Mouse,
+		Buttons:   pointer.ButtonPrimary,
+		PointerID: 1,
+		Position:  f32.Pt(40, 60),
+	})
+	router.Frame(&ops)
+	if got := router.Cursor(); got != pointer.CursorDefault {
+		t.Fatalf("cursor outside slider track = %v, want %v", got, pointer.CursorDefault)
+	}
+}
+
 func sliderPointer(kind pointer.Kind, x, y float32, at time.Duration) pointer.Event {
 	event := pointer.Event{
 		Kind:      kind,

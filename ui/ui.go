@@ -1454,6 +1454,18 @@ func InputOnFocus(fn func(ctx *Context, focused bool)) InputOption {
 	return widget.InputOnFocus(fn)
 }
 
+func InputOnBeforeInput(fn func(ctx *Context, event *InputEvent)) InputOption {
+	return widget.InputOnBeforeInput(fn)
+}
+
+func InputOnInputEvent(fn func(ctx *Context, event *InputEvent)) InputOption {
+	return widget.InputOnInputEvent(fn)
+}
+
+func InputOnSubmit(fn func(ctx *Context, event *InputEvent)) InputOption {
+	return widget.InputOnSubmit(fn)
+}
+
 func NewInputRef() *InputRef {
 	return widget.NewInputRef()
 }

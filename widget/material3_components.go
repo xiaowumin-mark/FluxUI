@@ -543,11 +543,25 @@ func (m *menuWidget) menuRow(item MenuItem, selected bool, showSelection bool, s
 	return layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
 		clickable := event.UseClickable(rowCtx)
 		hasSubmenu := len(item.Children) > 0
+		activate := func(actionCtx *internal.Context) {
+			if m.config.onSelect != nil {
+				m.config.onSelect(actionCtx, item.Key)
+			}
+		}
+		if item.Disabled || hasSubmenu {
+			event.RegisterFocusTarget(rowCtx, event.FocusDisabled(item.Disabled))
+		} else {
+			event.RegisterFocusTarget(rowCtx, event.FocusActivate(func(ctx *internal.Context) {
+				dispatchClickDefault(ctx, nil, func() { activate(ctx) })
+			}))
+		}
 		if !item.Disabled && !hasSubmenu {
-			for clickable.Clicked(rowCtx) {
-				if m.config.onSelect != nil {
-					m.config.onSelect(rowCtx, item.Key)
+			for {
+				click, ok := clickable.ClickedEvent(rowCtx)
+				if !ok {
+					break
 				}
+				dispatchClickDefault(rowCtx, click, func() { activate(rowCtx) })
 			}
 		}
 
@@ -790,11 +804,25 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 	open := d.open
 	clickable := event.UseClickable(ctx)
-	for clickable.Clicked(ctx) {
-		open = !open
-		if d.config.onOpenChange != nil {
-			d.config.onOpenChange(ctx, open)
+	event.RegisterFocusTarget(ctx, event.FocusActivate(func(ctx *internal.Context) {
+		dispatchClickDefault(ctx, nil, func() {
+			open = !open
+			if d.config.onOpenChange != nil {
+				d.config.onOpenChange(ctx, open)
+			}
+		})
+	}))
+	for {
+		click, ok := clickable.ClickedEvent(ctx)
+		if !ok {
+			break
 		}
+		dispatchClickDefault(ctx, click, func() {
+			open = !open
+			if d.config.onOpenChange != nil {
+				d.config.onOpenChange(ctx, open)
+			}
+		})
 	}
 	triggerDims := ctx.LayoutRippleArea(clickable.Handle(), internal.RippleSpec{
 		Color:   ctx.Theme().Colors.Primary,

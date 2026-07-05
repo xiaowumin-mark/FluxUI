@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	fluxevent "github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
@@ -447,8 +448,8 @@ func registerSliderPointer(ctx *internal.Context, state *sliderState, disabled b
 	defer pointer.PassOp{}.Push(ctx.Gtx.Ops).Pop()
 	area := clip.Rect(rect).Push(ctx.Gtx.Ops)
 	gioEvent.Op(ctx.Gtx.Ops, state.tag)
-	area.Pop()
 	pointer.CursorPointer.Add(ctx.Gtx.Ops)
+	area.Pop()
 }
 
 func processSliderPointerEvents(ctx *internal.Context, state *sliderState, cfg sliderConfig, rect image.Rectangle) {
@@ -468,34 +469,71 @@ func processSliderPointerEvents(ctx *internal.Context, state *sliderState, cfg s
 		if !ok {
 			continue
 		}
-		switch pe.Kind {
-		case pointer.Press:
+		eventType, ok := fluxevent.TypeFromGioPointerKind(pe.Kind)
+		if !ok || eventType == fluxevent.Wheel {
+			continue
+		}
+		pointerEvent := fluxevent.PointerEventFromGio(ctx, eventType, pe)
+		allowed := fluxevent.DispatchPointerEvent(ctx, sliderPointerDispatchTarget(ctx, pointerEvent.PointerID), &pointerEvent)
+		switch eventType {
+		case fluxevent.PointerDown:
+			if !allowed {
+				continue
+			}
 			state.pressed = true
-			state.pointerID = pe.PointerID
-			state.active = nearestSliderHandle(state, cfg.rangeSlider, pe.Position, rect)
+			state.pointerID = pointer.ID(pointerEvent.PointerID)
+			state.active = nearestSliderHandle(state, cfg.rangeSlider, pointerEvent.Position, rect)
 			state.actionFrom = state.start
 			state.actionTo = state.end
 			state.canFlip = cfg.rangeSlider
-			updateSliderValueFromPosition(state, cfg, pe.Position, rect)
-		case pointer.Move, pointer.Drag:
-			updateSliderHover(state, cfg.rangeSlider, pe.Position, rect)
-			if state.pressed && (pe.Buttons.Contain(pointer.ButtonPrimary) || pe.Kind == pointer.Drag) {
-				updateSliderValueFromPosition(state, cfg, pe.Position, rect)
+			if rt := ctx.Runtime(); rt != nil {
+				rt.SetPointerCapture(pointerEvent.PointerID, ctx.PathID())
 			}
-		case pointer.Enter:
-			updateSliderHover(state, cfg.rangeSlider, pe.Position, rect)
-		case pointer.Leave:
+			updateSliderValueFromPosition(state, cfg, pointerEvent.Position, rect)
+		case fluxevent.PointerMove:
+			if !allowed {
+				continue
+			}
+			updateSliderHover(state, cfg.rangeSlider, pointerEvent.Position, rect)
+			if state.pressed && (pointerEvent.Buttons.Contain(fluxevent.ButtonsPrimary) || pe.Kind == pointer.Drag) {
+				updateSliderValueFromPosition(state, cfg, pointerEvent.Position, rect)
+			}
+		case fluxevent.PointerEnter:
+			if !allowed {
+				continue
+			}
+			updateSliderHover(state, cfg.rangeSlider, pointerEvent.Position, rect)
+		case fluxevent.PointerLeave:
+			if !allowed {
+				continue
+			}
 			state.hoverStart = false
 			state.hoverEnd = false
-		case pointer.Release, pointer.Cancel:
-			if state.pressed {
-				updateSliderValueFromPosition(state, cfg, pe.Position, rect)
+		case fluxevent.PointerUp, fluxevent.PointerCancel:
+			if allowed && state.pressed {
+				updateSliderValueFromPosition(state, cfg, pointerEvent.Position, rect)
+			}
+			if rt := ctx.Runtime(); rt != nil {
+				rt.ReleasePointerCapture(pointerEvent.PointerID, ctx.PathID())
 			}
 			state.pressed = false
 			state.active = sliderHandleNone
 			state.canFlip = false
 		}
 	}
+}
+
+func sliderPointerDispatchTarget(ctx *internal.Context, pointerID uint64) fluxevent.TargetID {
+	if ctx == nil {
+		return 0
+	}
+	target := ctx.PathID()
+	if rt := ctx.Runtime(); rt != nil {
+		if captured, ok := rt.PointerCaptureTarget(pointerID); ok {
+			target = captured
+		}
+	}
+	return target
 }
 
 func nearestSliderHandle(state *sliderState, ranged bool, pos f32.Point, rect image.Rectangle) sliderHandle {

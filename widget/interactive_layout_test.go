@@ -332,6 +332,112 @@ func TestMD3SelectionNavigationAndOverlayDefaultsLayout(t *testing.T) {
 	}
 }
 
+func TestModalInternalPressDoesNotCloseMaskClosableOverlay(t *testing.T) {
+	tests := []struct {
+		name string
+		root func(onOpenChange func(*internal.Context, bool)) Widget
+	}{
+		{
+			name: "popup",
+			root: func(onOpenChange func(*internal.Context, bool)) Widget {
+				return Popup(
+					true,
+					Spacer(260, 180),
+					PopupWidth(320),
+					PopupHeight(220),
+					PopupQuick(true),
+					PopupMaskClosable(true),
+					PopupOnOpenChange(onOpenChange),
+				)
+			},
+		},
+		{
+			name: "dialog",
+			root: func(onOpenChange func(*internal.Context, bool)) Widget {
+				return Dialog(
+					true,
+					Spacer(240, 120),
+					DialogWidth(320),
+					DialogHeight(220),
+					DialogQuick(true),
+					DialogMaskClosable(true),
+					DialogOnOpenChange(onOpenChange),
+				)
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rt := internal.NewRuntime(nil)
+			defer rt.Dispose()
+
+			var router input.Router
+			var ops op.Ops
+			now := time.Unix(0, 0)
+			closeCalls := 0
+			w := tc.root(func(_ *internal.Context, open bool) {
+				if !open {
+					closeCalls++
+				}
+			})
+
+			renderPointer := func(frame int, events ...pointer.Event) {
+				for _, ev := range events {
+					router.Queue(ev)
+				}
+				ops.Reset()
+				gtx := gioLayout.Context{
+					Ops:         &ops,
+					Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+					Now:         now.Add(time.Duration(frame) * 16 * time.Millisecond),
+					Constraints: gioLayout.Exact(image.Pt(640, 480)),
+					Source:      router.Source(),
+				}
+				rt.BeginFrame()
+				w.Layout(internal.NewContext(gtx, rt))
+				rt.EndFrame()
+				router.Frame(&ops)
+			}
+
+			renderPointer(0)
+			renderPointer(1, pointer.Event{
+				Kind:      pointer.Press,
+				Source:    pointer.Mouse,
+				PointerID: 1,
+				Buttons:   pointer.ButtonPrimary,
+				Position:  f32.Pt(320, 240),
+			})
+			renderPointer(2, pointer.Event{
+				Kind:      pointer.Release,
+				Source:    pointer.Mouse,
+				PointerID: 1,
+				Position:  f32.Pt(320, 240),
+			})
+			if closeCalls != 0 {
+				t.Fatalf("internal press closed %s, closeCalls=%d", tc.name, closeCalls)
+			}
+
+			renderPointer(3, pointer.Event{
+				Kind:      pointer.Press,
+				Source:    pointer.Mouse,
+				PointerID: 2,
+				Buttons:   pointer.ButtonPrimary,
+				Position:  f32.Pt(20, 20),
+			})
+			renderPointer(4, pointer.Event{
+				Kind:      pointer.Release,
+				Source:    pointer.Mouse,
+				PointerID: 2,
+				Position:  f32.Pt(20, 20),
+			})
+			if closeCalls == 0 {
+				t.Fatalf("outside mask press did not close %s", tc.name)
+			}
+		})
+	}
+}
+
 func TestMD3PopupPlacementFlipsWhenBelowSpaceIsInsufficient(t *testing.T) {
 	rt := internal.NewRuntime(nil)
 	rt.BeginFrame()

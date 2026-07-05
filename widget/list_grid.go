@@ -7,10 +7,12 @@ import (
 	"reflect"
 	"strconv"
 
+	fluxevent "github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
 
+	gioEvent "gioui.org/io/event"
 	"gioui.org/io/pointer"
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"
@@ -44,6 +46,8 @@ type scrollWidget struct {
 type scrollState struct {
 	list        gioLayout.List
 	bar         gioWidget.Scrollbar
+	wheelTag    any
+	wheelLeft   float32
 	lastFirst   int
 	lastOff     int
 	autoInited  bool
@@ -122,6 +126,7 @@ func (s *scrollWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	state := scrollStateFor(ctx)
 	forceToEnd := false
+	pendingScrollBy := float32(0)
 	if s.config.ref != nil {
 		s.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for _, cmd := range s.config.ref.drainCommands() {
@@ -138,7 +143,7 @@ func (s *scrollWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				state.list.Position.Offset = cmd.offset
 				state.list.Position.BeforeEnd = true
 			case scrollCmdBy:
-				state.list.ScrollBy(cmd.delta)
+				pendingScrollBy += cmd.delta
 			}
 		}
 	}
@@ -154,25 +159,9 @@ func (s *scrollWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		}
 	}
 	state.list.Axis = resolveAxis(s.config.vertical, s.config.horizontal)
+	s.processWheelEvents(ctx, state)
 
-	dims := state.list.Layout(ctx.Gtx, 1, func(gtx gioLayout.Context, index int) gioLayout.Dimensions {
-		next := *ctx
-		next.Gtx = gtx
-		viewport := image.Rectangle{Min: ctx.Position(), Max: ctx.Position().Add(ctx.Gtx.Constraints.Max)}
-		if rt := ctx.Runtime(); rt != nil {
-			rt.RecordViewport(viewport)
-		}
-		next = *next.WithViewport(viewport)
-		scrollOffset := image.Point{}
-		if state.list.Axis == gioLayout.Horizontal {
-			scrollOffset.X = -state.list.Position.Offset
-		} else {
-			scrollOffset.Y = -state.list.Position.Offset
-		}
-		next = *next.WithPositionOffset(scrollOffset)
-		childDims := s.child.Layout(next.Child(index))
-		return gioLayout.Dimensions{Size: childDims.Size}
-	})
+	dims := s.layoutContent(ctx, state, pendingScrollBy)
 
 	if s.config.barVisible {
 		s.drawScrollBar(ctx, state, dims.Size)
@@ -193,6 +182,219 @@ func (s *scrollWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	return layout.Dimensions{Size: dims.Size}
+}
+
+func (s *scrollWidget) layoutContent(ctx *internal.Context, state *scrollState, pendingScrollBy float32) layout.Dimensions {
+	if ctx == nil || state == nil || s.child == nil {
+		return layout.Dimensions{}
+	}
+
+	axis := state.list.Axis
+	childGtx := ctx.Gtx
+	const scrollContentLimit = 1_000_000
+	if axis == gioLayout.Horizontal {
+		childGtx.Constraints.Min.X = 0
+		childGtx.Constraints.Max.X = scrollContentLimit
+	} else {
+		childGtx.Constraints.Min.Y = 0
+		childGtx.Constraints.Max.Y = scrollContentLimit
+	}
+
+	viewportMax := ctx.Gtx.Constraints.Max
+	viewport := image.Rectangle{Min: ctx.Position(), Max: ctx.Position().Add(viewportMax)}
+	if rt := ctx.Runtime(); rt != nil {
+		rt.RecordViewport(viewport)
+	}
+
+	layoutChild := func(offset int) (layout.Dimensions, op.CallOp) {
+		macro := op.Record(ctx.Gtx.Ops)
+		next := *ctx
+		next.Gtx = childGtx
+		next = *next.WithViewport(viewport)
+		next = *next.WithPointerPassThrough(true)
+		scrollOffset := image.Point{}
+		if axis == gioLayout.Horizontal {
+			scrollOffset.X = -offset
+		} else {
+			scrollOffset.Y = -offset
+		}
+		next = *next.WithPositionOffset(scrollOffset)
+		childDims := s.child.Layout(next.Child(0))
+		return childDims, macro.Stop()
+	}
+
+	initialOffset := state.list.Position.Offset
+	if initialOffset < 0 {
+		initialOffset = 0
+	}
+	childDims, call := layoutChild(initialOffset)
+	contentMajor := axis.Convert(childDims.Size).X
+	if contentMajor < 0 {
+		contentMajor = 0
+	}
+
+	size := childDims.Size
+	major := contentMajor
+	maxMajor := axis.Convert(ctx.Gtx.Constraints.Max).X
+	if major > maxMajor {
+		major = maxMajor
+	}
+	sizeOnAxis := axis.Convert(size)
+	sizeOnAxis.X = major
+	size = axis.Convert(sizeOnAxis)
+	size = clampPointToConstraints(size, ctx.Gtx.Constraints.Min, ctx.Gtx.Constraints.Max)
+	viewportMajor := axis.Convert(size).X
+
+	offset := initialOffset
+	if pendingScrollBy != 0 && contentMajor > 0 {
+		offset += int(math.Round(float64(pendingScrollBy * float32(contentMajor))))
+		state.list.Position.BeforeEnd = true
+	}
+	if state.list.ScrollToEnd && !state.list.Position.BeforeEnd {
+		offset = scrollViewMaxOffset(contentMajor, viewportMajor)
+	}
+	offset = scrollViewClampOffset(offset, contentMajor, viewportMajor)
+	if offset != initialOffset {
+		childDims, call = layoutChild(offset)
+		contentMajor = axis.Convert(childDims.Size).X
+		if contentMajor < 0 {
+			contentMajor = 0
+		}
+		offset = scrollViewClampOffset(offset, contentMajor, viewportMajor)
+	}
+
+	scrollViewSetPosition(state, offset, contentMajor, viewportMajor)
+	s.registerWheelTarget(ctx, state, size)
+
+	area := clip.Rect(image.Rectangle{Max: size}).Push(ctx.Gtx.Ops)
+	scrollOffset := image.Point{}
+	if axis == gioLayout.Horizontal {
+		scrollOffset.X = -offset
+	} else {
+		scrollOffset.Y = -offset
+	}
+	trans := op.Offset(scrollOffset).Push(ctx.Gtx.Ops)
+	call.Add(ctx.Gtx.Ops)
+	trans.Pop()
+	area.Pop()
+
+	return layout.Dimensions{Size: size}
+}
+
+func (s *scrollWidget) registerWheelTarget(ctx *internal.Context, state *scrollState, size image.Point) {
+	if ctx == nil || state == nil || state.wheelTag == nil || size.X <= 0 || size.Y <= 0 {
+		return
+	}
+	pass := pointer.PassOp{}.Push(ctx.Gtx.Ops)
+	defer pass.Pop()
+	area := clip.Rect(image.Rectangle{Max: size}).Push(ctx.Gtx.Ops)
+	gioEvent.Op(ctx.Gtx.Ops, state.wheelTag)
+	area.Pop()
+}
+
+func (s *scrollWidget) processWheelEvents(ctx *internal.Context, state *scrollState) {
+	if ctx == nil || state == nil || state.wheelTag == nil {
+		return
+	}
+	const scrollLimit = 1 << 30
+	filter := pointer.Filter{
+		Target: state.wheelTag,
+		Kinds:  pointer.Scroll,
+	}
+	if state.list.Axis == gioLayout.Horizontal {
+		filter.ScrollX = pointer.ScrollRange{Min: -scrollLimit, Max: scrollLimit}
+		filter.ScrollY = pointer.ScrollRange{Min: 0, Max: 0}
+	} else {
+		filter.ScrollX = pointer.ScrollRange{Min: 0, Max: 0}
+		filter.ScrollY = pointer.ScrollRange{Min: -scrollLimit, Max: scrollLimit}
+	}
+	for {
+		raw, ok := ctx.Gtx.Event(filter)
+		if !ok {
+			break
+		}
+		pe, ok := raw.(pointer.Event)
+		if !ok {
+			continue
+		}
+		wheel := fluxevent.WheelEventFromGio(ctx, pe)
+		if !fluxevent.DispatchWheelEvent(ctx, ctx.PathID(), &wheel) {
+			continue
+		}
+		s.applyWheelDefault(ctx, state, &wheel)
+	}
+}
+
+func (s *scrollWidget) applyWheelDefault(ctx *internal.Context, state *scrollState, wheel *fluxevent.WheelEvent) {
+	if ctx == nil || state == nil || wheel == nil {
+		return
+	}
+	delta := wheel.DeltaY
+	if state.list.Axis == gioLayout.Horizontal {
+		delta = wheel.DeltaX
+	}
+	if delta == 0 {
+		return
+	}
+	state.wheelLeft += delta
+	pixels := int(state.wheelLeft)
+	state.wheelLeft -= float32(pixels)
+	if pixels == 0 {
+		return
+	}
+	state.list.Position.Offset += pixels
+	state.list.Position.BeforeEnd = true
+	ctx.RequestFrameRedrawReason("input.scrollview.wheel")
+}
+
+func scrollViewMaxOffset(contentMajor, viewportMajor int) int {
+	maxOffset := contentMajor - viewportMajor
+	if maxOffset < 0 {
+		return 0
+	}
+	return maxOffset
+}
+
+func scrollViewClampOffset(offset, contentMajor, viewportMajor int) int {
+	maxOffset := scrollViewMaxOffset(contentMajor, viewportMajor)
+	if offset < 0 {
+		return 0
+	}
+	if offset > maxOffset {
+		return maxOffset
+	}
+	return offset
+}
+
+func scrollViewSetPosition(state *scrollState, offset, contentMajor, viewportMajor int) {
+	if state == nil {
+		return
+	}
+	offset = scrollViewClampOffset(offset, contentMajor, viewportMajor)
+	pos := &state.list.Position
+	pos.First = 0
+	pos.Offset = offset
+	pos.Count = 0
+	if contentMajor > 0 {
+		pos.Count = 1
+	}
+	pos.Length = contentMajor
+	pos.OffsetLast = viewportMajor - (contentMajor - offset)
+	pos.BeforeEnd = offset < scrollViewMaxOffset(contentMajor, viewportMajor)
+}
+
+func scrollViewScrollByFraction(state *scrollState, delta float32, viewportMajor int) bool {
+	if state == nil || delta == 0 || state.list.Position.Length <= 0 {
+		return false
+	}
+	pos := state.list.Position
+	next := pos.Offset + int(math.Round(float64(delta*float32(pos.Length))))
+	next = scrollViewClampOffset(next, pos.Length, viewportMajor)
+	if next == pos.Offset {
+		return false
+	}
+	scrollViewSetPosition(state, next, pos.Length, viewportMajor)
+	return true
 }
 
 func (s *scrollWidget) drawScrollBar(ctx *internal.Context, state *scrollState, size image.Point) {
@@ -243,10 +445,10 @@ func (s *scrollWidget) drawScrollBar(ctx *internal.Context, state *scrollState, 
 		}
 		s.handleScrollBarInput(ctx, state, track, viewportStart, viewportEnd)
 		if delta := state.bar.ScrollDistance(); delta != 0 {
-			state.list.ScrollBy(delta)
-			viewportStart = clampFloat32(viewportStart+delta, 0, 1)
-			viewportEnd = clampFloat32(viewportEnd+delta, 0, 1)
-			ctx.RequestFrameRedrawReason("input.scrollbar")
+			if scrollViewScrollByFraction(state, delta, viewport) {
+				viewportStart, viewportEnd = viewportFromListPosition(state.list.Position, 1, viewport)
+				ctx.RequestFrameRedrawReason("input.scrollbar")
+			}
 		}
 		if state.bar.Dragging() {
 			ctx.RequestFrameRedrawReason("input.scrollbar")
@@ -261,10 +463,10 @@ func (s *scrollWidget) drawScrollBar(ctx *internal.Context, state *scrollState, 
 	}
 	s.handleScrollBarInput(ctx, state, track, viewportStart, viewportEnd)
 	if delta := state.bar.ScrollDistance(); delta != 0 {
-		state.list.ScrollBy(delta)
-		viewportStart = clampFloat32(viewportStart+delta, 0, 1)
-		viewportEnd = clampFloat32(viewportEnd+delta, 0, 1)
-		ctx.RequestFrameRedrawReason("input.scrollbar")
+		if scrollViewScrollByFraction(state, delta, viewport) {
+			viewportStart, viewportEnd = viewportFromListPosition(state.list.Position, 1, viewport)
+			ctx.RequestFrameRedrawReason("input.scrollbar")
+		}
 	}
 	if state.bar.Dragging() {
 		ctx.RequestFrameRedrawReason("input.scrollbar")
@@ -420,12 +622,16 @@ func setAlpha(col color.NRGBA, alpha uint8) color.NRGBA {
 func scrollStateFor(ctx *internal.Context) *scrollState {
 	value := ctx.Memo("scroll", func() any {
 		return &scrollState{
-			list: gioLayout.List{Axis: gioLayout.Vertical},
+			list:     gioLayout.List{Axis: gioLayout.Vertical},
+			wheelTag: new(int),
 		}
 	})
 	state, ok := value.(*scrollState)
 	if !ok {
 		panic("github.com/xiaowumin-mark/FluxUIwidget: scroll state type mismatch")
+	}
+	if state.wheelTag == nil {
+		state.wheelTag = new(int)
 	}
 	return state
 }

@@ -1,6 +1,11 @@
 package internal
 
-import gioWidget "gioui.org/widget"
+import (
+	"image"
+
+	"gioui.org/io/key"
+	gioWidget "gioui.org/widget"
+)
 
 type ClickableState struct {
 	button  gioWidget.Clickable
@@ -11,6 +16,14 @@ type ClickableSnapshot struct {
 	Hovered bool
 	Pressed bool
 	Focused bool
+}
+
+// ClickData is the best-effort payload for a Clickable activation.
+type ClickData struct {
+	Modifiers   key.Modifiers
+	NumClicks   int
+	Position    image.Point
+	HasPosition bool
 }
 
 func NewClickableState() *ClickableState {
@@ -25,8 +38,13 @@ func (c *ClickableState) BindRuntime(rt *Runtime) {
 }
 
 func (c *ClickableState) Clicked(ctx *Context) bool {
+	_, clicked := c.ClickedEvent(ctx)
+	return clicked
+}
+
+func (c *ClickableState) ClickedEvent(ctx *Context) (ClickData, bool) {
 	if c == nil || ctx == nil {
-		return false
+		return ClickData{}, false
 	}
 	if ctx.runtime != nil {
 		c.runtime = ctx.runtime
@@ -35,7 +53,23 @@ func (c *ClickableState) Clicked(ctx *Context) bool {
 	if done != nil {
 		defer done()
 	}
-	return c.button.Clicked(ctx.Gtx)
+	click, clicked := c.button.Update(ctx.Gtx)
+	if !clicked {
+		return ClickData{}, false
+	}
+	data := ClickData{
+		Modifiers: click.Modifiers,
+		NumClicks: click.NumClicks,
+	}
+	history := c.button.History()
+	if len(history) > 0 {
+		last := history[len(history)-1]
+		if !last.Cancelled {
+			data.Position = last.Position
+			data.HasPosition = true
+		}
+	}
+	return data, true
 }
 
 func (c *ClickableState) Hovered() bool {

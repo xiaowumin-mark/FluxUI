@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/anim"
+	fluxevent "github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
 	"github.com/xiaowumin-mark/FluxUI/theme"
 
+	"gioui.org/f32"
 	gioEvent "gioui.org/io/event"
 	"gioui.org/io/pointer"
 	"gioui.org/op"
@@ -83,7 +85,11 @@ func md3DismissOnOutsidePress(ctx *internal.Context, tag any, protected []image.
 			}
 		}
 		if !inside {
-			onDismiss(ctx)
+			pointerEvent := fluxevent.PointerEventFromGio(ctx, fluxevent.PointerDown, pe)
+			pointerEvent.Position = f32.Pt(float32(point.X), float32(point.Y))
+			if fluxevent.DispatchPointerEvent(ctx, ctx.PathID(), &pointerEvent) {
+				onDismiss(ctx)
+			}
 		}
 	}
 }

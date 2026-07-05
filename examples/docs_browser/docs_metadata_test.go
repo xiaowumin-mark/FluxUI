@@ -371,6 +371,25 @@ func TestRenderMarkdownDocumentBuildsTables(t *testing.T) {
 	}
 }
 
+func TestMarkdownTableColumnWidthsStayFinite(t *testing.T) {
+	widths := markdownTableColumnWidths([][]string{
+		{"API", "Use"},
+		{"RunElement", "docs browser"},
+		{"VeryLongColumnValueThatShouldBeClampedInsteadOfExpandingForever", "short"},
+	})
+	if len(widths) != 2 {
+		t.Fatalf("column width count = %d, want 2", len(widths))
+	}
+	for index, width := range widths {
+		if width < 88 || width > 280 {
+			t.Fatalf("column %d width = %.1f, want clamped finite width", index, width)
+		}
+	}
+	if total := widths[0] + widths[1]; total >= 1_000_000 {
+		t.Fatalf("table content width = %.1f, should not inherit scroll measurement limit", total)
+	}
+}
+
 func TestMaterial3ShowcaseElementBuilds(t *testing.T) {
 	th := docsBrowserTheme(defaultDocsThemeSeed, false)
 	if buildDocsMaterial3Showcase(th) == nil {

@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
+
+	"gioui.org/f32"
 )
 
 type ClickHandler func(ctx *internal.Context)
@@ -51,6 +53,39 @@ func (c *Clickable) Clicked(ctx *internal.Context) bool {
 		return false
 	}
 	return c.handle.Clicked(ctx)
+}
+
+func (c *Clickable) ClickedEvent(ctx *internal.Context) (*PointerEvent, bool) {
+	if c == nil || c.handle == nil {
+		return nil, false
+	}
+	click, ok := c.handle.ClickedEvent(ctx)
+	if !ok {
+		return nil, false
+	}
+	button := ButtonNone
+	pointerType := PointerOther
+	var position f32.Point
+	if click.HasPosition {
+		button = ButtonPrimary
+		pointerType = PointerMouse
+		position = f32.Pt(float32(click.Position.X), float32(click.Position.Y))
+	}
+	return &PointerEvent{
+		Event: Event{
+			Type:       Click,
+			Time:       eventTime(ctx),
+			Bubbles:    true,
+			Cancelable: true,
+			Trusted:    true,
+		},
+		PointerType: pointerType,
+		IsPrimary:   true,
+		Button:      button,
+		Position:    position,
+		Modifiers:   ModifiersFromGio(click.Modifiers),
+		ClickCount:  click.NumClicks,
+	}, true
 }
 
 func (c *Clickable) Hovered() bool {

@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"time"
 
+	fluxevent "github.com/xiaowumin-mark/FluxUI/event"
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
 	theme "github.com/xiaowumin-mark/FluxUI/theme"
 	widget "github.com/xiaowumin-mark/FluxUI/widget"
@@ -46,6 +47,42 @@ type ScrollOption = widget.ScrollOption
 type ScrollRef = widget.ScrollRef
 type ClickAreaOption = widget.ClickAreaOption
 type PressableOption = widget.PressableOption
+type PointerAreaOption = widget.PointerAreaOption
+type KeyboardScopeOption = widget.KeyboardScopeOption
+type EventBoundaryOption = widget.EventBoundaryOption
+type EventType = fluxevent.Type
+type EventPhase = fluxevent.Phase
+type Event = fluxevent.Event
+type EventHandler = fluxevent.Handler
+type CustomEventConfig = fluxevent.CustomEventConfig
+type CustomEventOption = fluxevent.CustomEventOption
+type PointerEvent = fluxevent.PointerEvent
+type WheelEvent = fluxevent.WheelEvent
+type KeyboardEvent = fluxevent.KeyboardEvent
+type FocusEvent = fluxevent.FocusEvent
+type InputEvent = fluxevent.InputEvent
+type CompositionEvent = fluxevent.CompositionEvent
+type DragEvent = fluxevent.DragEvent
+type DragHandler = fluxevent.DragHandler
+type ActivationEvent = fluxevent.ActivationEvent
+type ActivationHandler = fluxevent.ActivationHandler
+type ActivationSource = fluxevent.ActivationSource
+type PointerType = fluxevent.PointerType
+type PointerButton = fluxevent.Button
+type Buttons = fluxevent.Buttons
+type Modifiers = fluxevent.Modifiers
+type InputSource = fluxevent.InputSource
+type ListenerOption = fluxevent.ListenerOption
+type TargetID = fluxevent.TargetID
+type BoundaryMode = fluxevent.BoundaryMode
+type BoundaryPolicy = fluxevent.BoundaryPolicy
+type BoundaryOption = fluxevent.BoundaryOption
+type KeyLocation = fluxevent.KeyLocation
+type FocusDirection = fluxevent.FocusDirection
+type FocusManager = fluxevent.FocusManager
+type FocusActivation = fluxevent.FocusActivation
+type FocusTargetOption = fluxevent.FocusTargetOption
+type Shortcut = fluxevent.Shortcut
 type RadioGroupRef = widget.RadioGroupRef
 type TabsRef = widget.TabsRef
 type DialogRef = widget.DialogRef
@@ -127,6 +164,42 @@ const (
 )
 
 const (
+	KeyLocationStandard KeyLocation = fluxevent.KeyLocationStandard
+	KeyLocationLeft     KeyLocation = fluxevent.KeyLocationLeft
+	KeyLocationRight    KeyLocation = fluxevent.KeyLocationRight
+	KeyLocationNumpad   KeyLocation = fluxevent.KeyLocationNumpad
+)
+
+const (
+	InputSourceUnknown      InputSource = fluxevent.InputSourceUnknown
+	InputSourceUser         InputSource = fluxevent.InputSourceUser
+	InputSourceProgrammatic InputSource = fluxevent.InputSourceProgrammatic
+	InputSourcePaste        InputSource = fluxevent.InputSourcePaste
+	InputSourceDelete       InputSource = fluxevent.InputSourceDelete
+	InputSourceUndo         InputSource = fluxevent.InputSourceUndo
+	InputSourceRedo         InputSource = fluxevent.InputSourceRedo
+)
+
+const (
+	InputTypeInsertText            = fluxevent.InputTypeInsertText
+	InputTypeInsertFromPaste       = fluxevent.InputTypeInsertFromPaste
+	InputTypeInsertReplacement     = fluxevent.InputTypeInsertReplacement
+	InputTypeDeleteContent         = fluxevent.InputTypeDeleteContent
+	InputTypeDeleteContentBackward = fluxevent.InputTypeDeleteContentBackward
+	InputTypeHistoryUndo           = fluxevent.InputTypeHistoryUndo
+	InputTypeHistoryRedo           = fluxevent.InputTypeHistoryRedo
+	InputTypeInsertLineBreak       = fluxevent.InputTypeInsertLineBreak
+	InputTypeProgrammaticSetText   = fluxevent.InputTypeProgrammaticSetText
+	InputTypeProgrammaticAppend    = fluxevent.InputTypeProgrammaticAppend
+	InputTypeProgrammaticClear     = fluxevent.InputTypeProgrammaticClear
+)
+
+const (
+	FocusForward  FocusDirection = fluxevent.FocusForward
+	FocusBackward FocusDirection = fluxevent.FocusBackward
+)
+
+const (
 	MenuPositioningAbsolute MenuPositioning = widget.MenuPositioningAbsolute
 	MenuPositioningFixed    MenuPositioning = widget.MenuPositioningFixed
 	MenuPositioningDocument MenuPositioning = widget.MenuPositioningDocument
@@ -136,6 +209,63 @@ const (
 type SelectOptionItem[T comparable] = widget.SelectOptionItem[T]
 type SelectOption[T comparable] = widget.SelectOption[T]
 type SelectRef[T comparable] = widget.SelectRef[T]
+
+const (
+	EventPhaseNone    EventPhase = fluxevent.PhaseNone
+	EventPhaseCapture EventPhase = fluxevent.PhaseCapture
+	EventPhaseTarget  EventPhase = fluxevent.PhaseTarget
+	EventPhaseBubble  EventPhase = fluxevent.PhaseBubble
+)
+
+const (
+	EventClick             EventType = fluxevent.Click
+	EventActivate          EventType = fluxevent.Activate
+	EventPointerDown       EventType = fluxevent.PointerDown
+	EventPointerUp         EventType = fluxevent.PointerUp
+	EventPointerMove       EventType = fluxevent.PointerMove
+	EventPointerEnter      EventType = fluxevent.PointerEnter
+	EventPointerLeave      EventType = fluxevent.PointerLeave
+	EventPointerOver       EventType = fluxevent.PointerOver
+	EventPointerOut        EventType = fluxevent.PointerOut
+	EventPointerCancel     EventType = fluxevent.PointerCancel
+	EventDblClick          EventType = fluxevent.DblClick
+	EventAuxClick          EventType = fluxevent.AuxClick
+	EventContextMenu       EventType = fluxevent.ContextMenu
+	EventWheel             EventType = fluxevent.Wheel
+	EventKeyDown           EventType = fluxevent.KeyDown
+	EventKeyUp             EventType = fluxevent.KeyUp
+	EventFocus             EventType = fluxevent.Focus
+	EventBlur              EventType = fluxevent.Blur
+	EventFocusIn           EventType = fluxevent.FocusIn
+	EventFocusOut          EventType = fluxevent.FocusOut
+	EventBeforeInput       EventType = fluxevent.BeforeInput
+	EventInput             EventType = fluxevent.Input
+	EventChange            EventType = fluxevent.Change
+	EventSubmit            EventType = fluxevent.Submit
+	EventCompositionStart  EventType = fluxevent.CompositionStart
+	EventCompositionUpdate EventType = fluxevent.CompositionUpdate
+	EventCompositionEnd    EventType = fluxevent.CompositionEnd
+	EventDragStart         EventType = fluxevent.DragStart
+	EventDrag              EventType = fluxevent.Drag
+	EventDragEnter         EventType = fluxevent.DragEnter
+	EventDragOver          EventType = fluxevent.DragOver
+	EventDragLeave         EventType = fluxevent.DragLeave
+	EventDrop              EventType = fluxevent.Drop
+	EventDragEnd           EventType = fluxevent.DragEnd
+)
+
+const (
+	BoundaryNone     BoundaryMode = fluxevent.BoundaryNone
+	BoundaryStop     BoundaryMode = fluxevent.BoundaryStop
+	BoundaryRedirect BoundaryMode = fluxevent.BoundaryRedirect
+)
+
+const (
+	ActivationSourceUnknown      ActivationSource = fluxevent.ActivationSourceUnknown
+	ActivationSourcePointer      ActivationSource = fluxevent.ActivationSourcePointer
+	ActivationSourceKeyboard     ActivationSource = fluxevent.ActivationSourceKeyboard
+	ActivationSourceProgrammatic ActivationSource = fluxevent.ActivationSourceProgrammatic
+)
 
 type singleChildElement struct {
 	kind     string
@@ -296,6 +426,18 @@ func ClickAreaElement(child Element, onClick func(ctx *Context), opts ...ClickAr
 func PressableElement(child Element, onClick func(ctx *Context), opts ...PressableOption) Element {
 	return &singleChildElement{kind: "pressable", child: child, renderFn: func(child Widget) Widget {
 		return widget.Pressable(child, onClick, opts...)
+	}}
+}
+
+func PointerAreaElement(child Element, opts ...PointerAreaOption) Element {
+	return &singleChildElement{kind: "pointer-area", child: child, renderFn: func(child Widget) Widget {
+		return widget.PointerArea(child, opts...)
+	}}
+}
+
+func KeyboardScopeElement(child Element, opts ...KeyboardScopeOption) Element {
+	return &singleChildElement{kind: "keyboard-scope", child: child, renderFn: func(child Widget) Widget {
+		return widget.KeyboardScope(child, opts...)
 	}}
 }
 
@@ -773,6 +915,294 @@ func ClickArea(child Widget, onClick func(ctx *Context), opts ...ClickAreaOption
 
 func Pressable(child Widget, onClick func(ctx *Context), opts ...PressableOption) Widget {
 	return widget.Pressable(child, onClick, opts...)
+}
+
+func PointerArea(child Widget, opts ...PointerAreaOption) Widget {
+	return widget.PointerArea(child, opts...)
+}
+
+func EventBoundary(child Widget, opts ...EventBoundaryOption) Widget {
+	return widget.EventBoundary(child, opts...)
+}
+
+func EventPortal(child Widget, owner TargetID) Widget {
+	return widget.EventPortal(child, owner)
+}
+
+func OnEvent(ctx *Context, eventType EventType, fn func(ctx *Context, ev *Event), opts ...ListenerOption) {
+	fluxevent.On(ctx, eventType, fn, opts...)
+}
+
+func NewCustomEvent(eventType EventType, detail any, opts ...CustomEventOption) Event {
+	return fluxevent.NewCustomEvent(eventType, detail, opts...)
+}
+
+func DispatchCustomEvent(ctx *Context, target TargetID, eventType EventType, detail any, opts ...CustomEventOption) bool {
+	return fluxevent.DispatchCustomEvent(ctx, target, eventType, detail, opts...)
+}
+
+func DispatchEvent(ctx *Context, target TargetID, ev Event) bool {
+	return fluxevent.Dispatch(ctx, target, ev)
+}
+
+func DispatchEventPtr(ctx *Context, target TargetID, ev *Event) bool {
+	return fluxevent.DispatchEvent(ctx, target, ev)
+}
+
+func OnDrag(ctx *Context, eventType EventType, fn func(ctx *Context, ev *DragEvent), opts ...ListenerOption) {
+	fluxevent.OnDrag(ctx, eventType, fn, opts...)
+}
+
+func DispatchDragEvent(ctx *Context, target TargetID, ev *DragEvent) bool {
+	return fluxevent.DispatchDragEvent(ctx, target, ev)
+}
+
+func OnActivate(ctx *Context, fn func(ctx *Context, ev *ActivationEvent), opts ...ListenerOption) {
+	fluxevent.OnActivate(ctx, fn, opts...)
+}
+
+func DispatchActivationEvent(ctx *Context, target TargetID, ev *ActivationEvent) bool {
+	return fluxevent.DispatchActivationEvent(ctx, target, ev)
+}
+
+func Capture() ListenerOption {
+	return fluxevent.Capture()
+}
+
+func Once() ListenerOption {
+	return fluxevent.Once()
+}
+
+func Passive() ListenerOption {
+	return fluxevent.Passive()
+}
+
+func EventPriority(priority int) ListenerOption {
+	return fluxevent.Priority(priority)
+}
+
+func CustomBubbles(bubbles bool) CustomEventOption {
+	return fluxevent.CustomBubbles(bubbles)
+}
+
+func CustomCancelable(cancelable bool) CustomEventOption {
+	return fluxevent.CustomCancelable(cancelable)
+}
+
+func CustomTrusted(trusted bool) CustomEventOption {
+	return fluxevent.CustomTrusted(trusted)
+}
+
+func BoundaryStopPropagation() BoundaryOption {
+	return fluxevent.BoundaryStopPropagation()
+}
+
+func BoundaryRedirectTo(target TargetID) BoundaryOption {
+	return fluxevent.BoundaryRedirectTo(target)
+}
+
+func RegisterBoundary(ctx *Context, opts ...BoundaryOption) {
+	fluxevent.RegisterBoundary(ctx, opts...)
+}
+
+func RegisterPortal(ctx *Context, owner TargetID) {
+	fluxevent.RegisterPortal(ctx, owner)
+}
+
+func EventBoundaryDisabled(disabled bool) EventBoundaryOption {
+	return widget.EventBoundaryDisabled(disabled)
+}
+
+func EventBoundaryStopPropagation() EventBoundaryOption {
+	return widget.EventBoundaryStopPropagation()
+}
+
+func EventBoundaryRedirectTo(target TargetID) EventBoundaryOption {
+	return widget.EventBoundaryRedirectTo(target)
+}
+
+func PointerAreaDisabled(disabled bool) PointerAreaOption {
+	return widget.PointerAreaDisabled(disabled)
+}
+
+func PointerAreaPassThrough(passThrough bool) PointerAreaOption {
+	return widget.PointerAreaPassThrough(passThrough)
+}
+
+func PointerCaptureOnPress(capture bool) PointerAreaOption {
+	return widget.PointerCaptureOnPress(capture)
+}
+
+func PointerOn(eventType EventType, fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOn(eventType, fn, opts...)
+}
+
+func PointerOnDown(fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnDown(fn, opts...)
+}
+
+func PointerOnUp(fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnUp(fn, opts...)
+}
+
+func PointerOnMove(fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnMove(fn, opts...)
+}
+
+func PointerOnEnter(fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnEnter(fn, opts...)
+}
+
+func PointerOnLeave(fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnLeave(fn, opts...)
+}
+
+func PointerOnOver(fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnOver(fn, opts...)
+}
+
+func PointerOnOut(fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnOut(fn, opts...)
+}
+
+func PointerOnCancel(fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnCancel(fn, opts...)
+}
+
+func PointerOnClick(fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnClick(fn, opts...)
+}
+
+func PointerOnDoubleClick(fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnDoubleClick(fn, opts...)
+}
+
+func PointerOnAuxClick(fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnAuxClick(fn, opts...)
+}
+
+func PointerOnContextMenu(fn func(ctx *Context, ev *PointerEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnContextMenu(fn, opts...)
+}
+
+func PointerOnWheel(fn func(ctx *Context, ev *WheelEvent), opts ...ListenerOption) PointerAreaOption {
+	return widget.PointerOnWheel(fn, opts...)
+}
+
+func KeyboardScope(child Widget, opts ...KeyboardScopeOption) Widget {
+	return widget.KeyboardScope(child, opts...)
+}
+
+func KeyboardScopeDisabled(disabled bool) KeyboardScopeOption {
+	return widget.KeyboardScopeDisabled(disabled)
+}
+
+func KeyboardScopeFocusable(focusable bool) KeyboardScopeOption {
+	return widget.KeyboardScopeFocusable(focusable)
+}
+
+func KeyboardScopeTabIndex(index int) KeyboardScopeOption {
+	return widget.KeyboardScopeTabIndex(index)
+}
+
+func KeyboardScopeAutoFocus(autoFocus bool) KeyboardScopeOption {
+	return widget.KeyboardScopeAutoFocus(autoFocus)
+}
+
+func KeyOn(eventType EventType, fn func(ctx *Context, ev *KeyboardEvent), opts ...ListenerOption) KeyboardScopeOption {
+	return widget.KeyOn(eventType, fn, opts...)
+}
+
+func KeyOnDown(fn func(ctx *Context, ev *KeyboardEvent), opts ...ListenerOption) KeyboardScopeOption {
+	return widget.KeyOnDown(fn, opts...)
+}
+
+func KeyOnUp(fn func(ctx *Context, ev *KeyboardEvent), opts ...ListenerOption) KeyboardScopeOption {
+	return widget.KeyOnUp(fn, opts...)
+}
+
+func FocusOn(eventType EventType, fn func(ctx *Context, ev *FocusEvent), opts ...ListenerOption) KeyboardScopeOption {
+	return widget.FocusOn(eventType, fn, opts...)
+}
+
+func FocusOnFocus(fn func(ctx *Context, ev *FocusEvent), opts ...ListenerOption) KeyboardScopeOption {
+	return widget.FocusOnFocus(fn, opts...)
+}
+
+func FocusOnBlur(fn func(ctx *Context, ev *FocusEvent), opts ...ListenerOption) KeyboardScopeOption {
+	return widget.FocusOnBlur(fn, opts...)
+}
+
+func FocusOnIn(fn func(ctx *Context, ev *FocusEvent), opts ...ListenerOption) KeyboardScopeOption {
+	return widget.FocusOnIn(fn, opts...)
+}
+
+func FocusOnOut(fn func(ctx *Context, ev *FocusEvent), opts ...ListenerOption) KeyboardScopeOption {
+	return widget.FocusOnOut(fn, opts...)
+}
+
+func ShortcutOn(spec Shortcut, fn func(ctx *Context, ev *KeyboardEvent), opts ...ListenerOption) KeyboardScopeOption {
+	return widget.ShortcutOn(spec, fn, opts...)
+}
+
+func ShortcutKey(key string, modifiers Modifiers) Shortcut {
+	return fluxevent.ShortcutKey(key, modifiers)
+}
+
+func ShortcutCode(code string, modifiers Modifiers) Shortcut {
+	return fluxevent.ShortcutCode(code, modifiers)
+}
+
+func ShortcutExactModifiers(spec Shortcut) Shortcut {
+	return fluxevent.ShortcutExactModifiers(spec)
+}
+
+func ShortcutScope(spec Shortcut, scope TargetID) Shortcut {
+	return fluxevent.ShortcutScope(spec, scope)
+}
+
+func FocusManagerFor(ctx *Context) FocusManager {
+	return fluxevent.FocusManagerFor(ctx)
+}
+
+func RegisterFocusTarget(ctx *Context, opts ...FocusTargetOption) {
+	fluxevent.RegisterFocusTarget(ctx, opts...)
+}
+
+func FocusTabIndex(index int) FocusTargetOption {
+	return fluxevent.FocusTabIndex(index)
+}
+
+func FocusDisabled(disabled bool) FocusTargetOption {
+	return fluxevent.FocusDisabled(disabled)
+}
+
+func FocusHidden(hidden bool) FocusTargetOption {
+	return fluxevent.FocusHidden(hidden)
+}
+
+func FocusActivate(fn FocusActivation) FocusTargetOption {
+	return fluxevent.FocusActivate(fn)
+}
+
+func RequestFocus(ctx *Context) bool {
+	return fluxevent.RequestFocus(ctx)
+}
+
+func BlurFocus(ctx *Context) bool {
+	return fluxevent.BlurFocus(ctx)
+}
+
+func IsFocused(ctx *Context) bool {
+	return fluxevent.Focused(ctx)
+}
+
+func FocusedTarget(ctx *Context) TargetID {
+	return fluxevent.FocusedTarget(ctx)
+}
+
+func MoveFocus(ctx *Context, direction FocusDirection) bool {
+	return fluxevent.MoveFocus(ctx, direction)
 }
 
 func NewClickAreaRef() *ClickAreaRef {
@@ -2677,4 +3107,16 @@ func NavigationDrawerInactiveColor(col color.NRGBA) NavigationDrawerOption {
 
 func NavigationDrawerDecoration(d Decoration) NavigationDrawerOption {
 	return widget.NavigationDrawerDecoration(d)
+}
+
+func EventBoundaryElement(child Element, opts ...EventBoundaryOption) Element {
+	return &singleChildElement{kind: "event-boundary", child: child, renderFn: func(child Widget) Widget {
+		return widget.EventBoundary(child, opts...)
+	}}
+}
+
+func EventPortalElement(child Element, owner TargetID) Element {
+	return &singleChildElement{kind: "event-portal", child: child, renderFn: func(child Widget) Widget {
+		return widget.EventPortal(child, owner)
+	}}
 }

@@ -43,6 +43,7 @@ type Runtime struct {
 	perf       runtimePerfState
 	interact   runtimeInteractionState
 	render     runtimeRenderCache
+	events     runtimeEventState
 	pathIDs    map[pathLookupKey]PathID
 	pathDebug  map[PathID]*pathDebugEntry
 	nextPathID PathID
@@ -149,6 +150,7 @@ func (r *Runtime) BeginFrame() {
 	r.beginInteractionFrame()
 	r.beginPerfFrame()
 	r.beginRenderCacheFrame()
+	r.beginEventFrame()
 	if r.hookStore != nil {
 		r.hookStore.BeginFrame()
 	}
@@ -172,6 +174,7 @@ func (r *Runtime) EndFrame() {
 	if r == nil {
 		return
 	}
+	r.endEventFrame()
 	if r.hookStore != nil {
 		r.hookStore.EndFrame()
 	}

@@ -9,6 +9,7 @@ import (
 
 	theme "github.com/xiaowumin-mark/FluxUI/theme"
 
+	"gioui.org/io/pointer"
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/widget/material"
@@ -34,6 +35,7 @@ type Context struct {
 	viewport                      image.Rectangle
 	position                      image.Point
 	hasViewport                   bool
+	pointerPassThrough            bool
 }
 
 // NewContext 创建 frame 级上下文。
@@ -41,6 +43,9 @@ func NewContext(gtx gioLayout.Context, runtime *Runtime) *Context {
 	foreground := theme.Default().TextColor
 	if runtime != nil && runtime.Theme() != nil {
 		foreground = runtime.Theme().TextColor
+	}
+	if runtime != nil {
+		runtime.RegisterEventTarget(rootPathID, 0)
 	}
 	viewport := image.Rectangle{Max: gtx.Constraints.Max}
 	hasViewport := viewport.Dx() > 0 && viewport.Dy() > 0
@@ -693,6 +698,27 @@ func (c *Context) WithInteractionQuality(quality theme.InteractionQuality) *Cont
 	return next
 }
 
+func (c *Context) WithPointerPassThrough(pass bool) *Context {
+	if c == nil {
+		return nil
+	}
+	next := c.sameScope(c.Gtx)
+	next.pointerPassThrough = pass
+	return next
+}
+
+func (c *Context) PointerPassThrough() bool {
+	return c != nil && c.pointerPassThrough
+}
+
+func (c *Context) pushPointerPassThrough(ops *op.Ops) func() {
+	if c == nil || !c.pointerPassThrough || ops == nil {
+		return nil
+	}
+	stack := pointer.PassOp{}.Push(ops)
+	return stack.Pop
+}
+
 func (c *Context) WithTextStyle(style theme.TextStyle) *Context {
 	if c == nil {
 		return nil
@@ -732,6 +758,7 @@ func (c *Context) childIndexWithGtx(gtx gioLayout.Context, index int) *Context {
 	if c.runtime != nil {
 		next.pathID = c.runtime.childPath(c.pathID, index)
 		next.debugPath = ""
+		c.runtime.RegisterEventTarget(next.pathID, c.pathID)
 	} else {
 		next.debugPath = joinPath(c.debugPath, strconv.Itoa(index))
 	}
@@ -747,6 +774,7 @@ func (c *Context) scopeWithGtx(gtx gioLayout.Context, name string) *Context {
 	if c.runtime != nil {
 		next.pathID = c.runtime.scopePath(c.pathID, name)
 		next.debugPath = ""
+		c.runtime.RegisterEventTarget(next.pathID, c.pathID)
 	} else {
 		next.debugPath = joinPath(c.debugPath, name)
 	}

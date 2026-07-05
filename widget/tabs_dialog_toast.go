@@ -11,6 +11,8 @@ import (
 	"github.com/xiaowumin-mark/FluxUI/style"
 
 	"gioui.org/f32"
+	gioEvent "gioui.org/io/event"
+	"gioui.org/io/pointer"
 	gioLayout "gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -1094,9 +1096,13 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 	panelDeco := materialDialogSurfaceDecoration(ctx, d.config.decoration, cs.SurfaceContainerHigh, style.All(24), radiusDefault)
 
+	owner := ctx.PathID()
 	content := anchoredOverlayWidget(layoutWidgetFunc(func(overlayCtx *internal.Context) layout.Dimensions {
-		panel := d.materialPanel(panelDeco, sections, overlayProgress)
-		size := layoutMaterialDialogTransition(overlayCtx, overlayProgress, d.config.quick, func(transitionCtx *internal.Context) image.Point {
+		portalCtx := overlayCtx.Scope("dialog-portal")
+		event.RegisterPortal(portalCtx, owner)
+		event.RegisterBoundary(portalCtx, event.BoundaryStopPropagation())
+		panel := modalPanelInputShield(d.materialPanel(panelDeco, sections, overlayProgress))
+		size := layoutMaterialDialogTransition(portalCtx, overlayProgress, d.config.quick, func(transitionCtx *internal.Context) image.Point {
 			return panel.Layout(transitionCtx.Child(0)).Size
 		})
 		return layout.Dimensions{Size: size}
@@ -1631,6 +1637,48 @@ func (f *fillWidgetDef) Layout(ctx *internal.Context) layout.Dimensions {
 // PopupOption 弹窗配置。
 type PopupOption func(*popupConfig)
 
+type modalPanelInputShieldWidget struct {
+	child Widget
+}
+
+func modalPanelInputShield(child Widget) Widget {
+	if child == nil {
+		return nil
+	}
+	return &modalPanelInputShieldWidget{child: child}
+}
+
+func (w *modalPanelInputShieldWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	if w.child == nil {
+		return layout.Dimensions{}
+	}
+	tag := ctx.Memo("modal-panel-input-shield", func() any {
+		return new(int)
+	})
+	for {
+		_, ok := ctx.Gtx.Event(pointer.Filter{
+			Target:  tag,
+			Kinds:   pointer.Press | pointer.Release | pointer.Move | pointer.Drag | pointer.Enter | pointer.Leave | pointer.Cancel | pointer.Scroll,
+			ScrollX: pointer.ScrollRange{Min: -1 << 30, Max: 1 << 30},
+			ScrollY: pointer.ScrollRange{Min: -1 << 30, Max: 1 << 30},
+		})
+		if !ok {
+			break
+		}
+	}
+
+	macro := op.Record(ctx.Gtx.Ops)
+	dims := w.child.Layout(ctx.Child(0))
+	call := macro.Stop()
+	if dims.Size.X > 0 && dims.Size.Y > 0 {
+		area := clip.Rect(image.Rectangle{Max: dims.Size}).Push(ctx.Gtx.Ops)
+		gioEvent.Op(ctx.Gtx.Ops, tag)
+		area.Pop()
+	}
+	call.Add(ctx.Gtx.Ops)
+	return dims
+}
+
 type popupConfig struct {
 	width         float32
 	height        float32
@@ -1919,10 +1967,13 @@ func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if panelChild != nil {
 		panelChild = dialogSectionFade(dialogSectionContent, overlayProgress, panelChild)
 	}
-	panel := ContainerDecoration(panelDeco, panelChild)
+	panel := modalPanelInputShield(ContainerDecoration(panelDeco, panelChild))
 
+	owner := ctx.PathID()
 	content := anchoredOverlayWidget(layoutWidgetFunc(func(overlayCtx *internal.Context) layout.Dimensions {
-		size := layoutMaterialDialogTransition(overlayCtx, overlayProgress, p.config.quick, func(transitionCtx *internal.Context) image.Point {
+		portalCtx := overlayCtx.Scope("popup-portal")
+		event.RegisterPortal(portalCtx, owner)
+		size := layoutMaterialDialogTransition(portalCtx, overlayProgress, p.config.quick, func(transitionCtx *internal.Context) image.Point {
 			return layoutMaterialModalPanel(transitionCtx, p.config.width, p.config.height, fullscreen, panel)
 		})
 		return layout.Dimensions{Size: size}

@@ -85,6 +85,19 @@ func CheckboxDecoration(d style.Decoration) CheckboxOption {
 
 func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
+	activate := func(actionCtx *internal.Context) {
+		next := !c.value
+		if c.config.onChange != nil {
+			c.config.onChange(actionCtx, next)
+		}
+	}
+	if c.config.disabled {
+		event.RegisterFocusTarget(ctx, event.FocusDisabled(true))
+	} else {
+		event.RegisterFocusTarget(ctx, event.FocusActivate(func(ctx *internal.Context) {
+			dispatchClickDefault(ctx, nil, func() { activate(ctx) })
+		}))
+	}
 	if c.config.ref != nil {
 		c.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for _, cmd := range c.config.ref.drainCommands() {
@@ -105,13 +118,14 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 	interaction := event.InteractionSnapshot{}
 	if !c.config.disabled {
-		for clickable.Clicked(ctx) {
-			next := !c.value
-			if c.config.onChange != nil {
-				c.config.onChange(ctx, next)
+		for {
+			click, ok := clickable.ClickedEvent(ctx)
+			if !ok {
+				break
 			}
+			dispatchClickDefault(ctx, click, func() { activate(ctx) })
 		}
-		interaction = clickable.Snapshot(ctx, false)
+		interaction = clickable.Snapshot(ctx, true)
 	}
 
 	cs := ctx.Theme().Colors

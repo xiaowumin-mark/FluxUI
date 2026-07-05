@@ -784,7 +784,11 @@ func (c *Context) LayoutButton(clickable *ClickableState, spec ButtonSpec, child
 		dims = buttonLayout(gtx)
 	} else {
 		inputDone := c.startFrameSection(PerfInput, 1)
+		popPass := c.pushPointerPassThrough(gtx.Ops)
 		dims = clickable.raw().Layout(gtx, buttonLayout)
+		if popPass != nil {
+			popPass()
+		}
 		if inputDone != nil {
 			inputDone()
 		}
@@ -879,10 +883,14 @@ func (c *Context) LayoutClickArea(clickable *ClickableState, child func(*Context
 	}
 
 	inputDone := c.startFrameSection(PerfInput, 1)
+	popPass := c.pushPointerPassThrough(c.Gtx.Ops)
 	dims := clickable.raw().Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
 		next := c.sameScope(gtx)
 		return gioLayout.Dimensions{Size: child(next)}
 	})
+	if popPass != nil {
+		popPass()
+	}
 	if inputDone != nil {
 		inputDone()
 	}

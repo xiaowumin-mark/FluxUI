@@ -118,6 +118,7 @@ func (c *Context) LayoutRippleArea(clickable *ClickableState, spec RippleSpec, c
 	clickable.BindRuntime(c.Runtime())
 
 	inputDone := c.startFrameSection(PerfInput, 1)
+	popPass := c.pushPointerPassThrough(c.Gtx.Ops)
 	dims := clickable.raw().Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
 		next := c.sameScope(gtx)
 		recorded := op.Record(gtx.Ops)
@@ -127,6 +128,9 @@ func (c *Context) LayoutRippleArea(clickable *ClickableState, spec RippleSpec, c
 		call.Add(gtx.Ops)
 		return gioLayout.Dimensions{Size: size}
 	})
+	if popPass != nil {
+		popPass()
+	}
 	if inputDone != nil {
 		inputDone()
 	}
@@ -147,6 +151,7 @@ func (c *Context) LayoutRippleOverlayArea(clickable *ClickableState, spec Ripple
 	clickable.BindRuntime(c.Runtime())
 
 	inputDone := c.startFrameSection(PerfInput, 1)
+	popPass := c.pushPointerPassThrough(c.Gtx.Ops)
 	dims := clickable.raw().Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
 		next := c.sameScope(gtx)
 		recorded := op.Record(gtx.Ops)
@@ -156,6 +161,9 @@ func (c *Context) LayoutRippleOverlayArea(clickable *ClickableState, spec Ripple
 		next.DrawRipple(clickable, size, spec)
 		return gioLayout.Dimensions{Size: size}
 	})
+	if popPass != nil {
+		popPass()
+	}
 	if inputDone != nil {
 		inputDone()
 	}
