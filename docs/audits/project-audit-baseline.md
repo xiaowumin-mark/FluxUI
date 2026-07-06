@@ -65,6 +65,7 @@
 | A5.2 EventTarget 分发顺序审查 | [audit-a5.2-eventtarget-dispatch-order.md](audit-a5.2-eventtarget-dispatch-order.md) | Done | 2026-07-06 |
 | A5.3 旧事件桥接审查 | [audit-a5.3-legacy-event-bridge.md](audit-a5.3-legacy-event-bridge.md) | Done | 2026-07-06 |
 | A5.4 PointerArea 影响范围审查 | [audit-a5.4-pointerarea-scope.md](audit-a5.4-pointerarea-scope.md) | Done | 2026-07-06 |
+| A5.5 default action 可取消性矩阵 | [audit-a5.5-default-action-cancelability.md](audit-a5.5-default-action-cancelability.md) | Done | 2026-07-06 |
 
 ---
 
@@ -181,3 +182,8 @@
 - PointerArea pass-through、disabled、captureOnPress 影响范围区分
 - event system testbench P2 Pointer/Wheel 手动验收入口
 - PointerArea 坐标级 hit rect 自动测试缺口识别
+- default action 可取消性矩阵
+- PreventDefault 生效条件和 passive 限制
+- click、keydown、wheel、beforeinput、dragover、drop 取消边界
+- runtime keyboard default action 与 widget-local default action gate
+- wheel/drop preventDefault widget 级测试缺口识别
