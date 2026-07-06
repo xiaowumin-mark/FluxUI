@@ -60,6 +60,7 @@
 | A4.2 交互态视觉来源审查 | [audit-a4.2-interaction-state-sources.md](audit-a4.2-interaction-state-sources.md) | Done | 2026-07-06 |
 | A4.3 ripple 和 state layer 审查 | [audit-a4.3-ripple-state-layer.md](audit-a4.3-ripple-state-layer.md) | Done | 2026-07-06 |
 | A4.4 cursor 策略审查 | [audit-a4.4-cursor-strategy.md](audit-a4.4-cursor-strategy.md) | Done | 2026-07-06 |
+| A4.5 动画和布局隔离审查 | [audit-a4.5-animation-layout-isolation.md](audit-a4.5-animation-layout-isolation.md) | Done | 2026-07-06 |
 
 ---
 
@@ -151,3 +152,9 @@
 - disabled cursor 禁用边界
 - cursor 清理和默认重置验证
 - 单控件整窗 cursor 污染风险识别
+- overlay 动画进度来源识别
+- Dialog/Popup 普通布局与 overlay 布局隔离
+- Toast/Snackbar 锚定 overlay 动画边界
+- Select menu reveal 动画与 trigger 尺寸隔离
+- Tabs indicator 视觉动画边界
+- 动画 redraw 与布局尺寸关系识别
