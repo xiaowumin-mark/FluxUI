@@ -71,6 +71,7 @@
 | A6.3 横向滚动策略审查 | [audit-a6.3-horizontal-scroll-strategy.md](audit-a6.3-horizontal-scroll-strategy.md) | Done | 2026-07-06 |
 | A6.4 滚动后命中刷新审查 | [audit-a6.4-scroll-hit-refresh.md](audit-a6.4-scroll-hit-refresh.md) | Done | 2026-07-06 |
 | A7.1 Focus target 注册审查 | [audit-a7.1-focus-target-registration.md](audit-a7.1-focus-target-registration.md) | Done | 2026-07-06 |
+| A7.2 键盘事件和 shortcut 边界审查 | [audit-a7.2-keyboard-shortcut-boundary.md](audit-a7.2-keyboard-shortcut-boundary.md) | Done | 2026-07-06 |
 
 ---
 
@@ -220,3 +221,8 @@
 - Input Gio editor focus 与 FluxUI runtime focus 分离
 - Dialog portal/boundary 与内部控件 focus 归属
 - disabled/hidden/tabStop focus 判定规则
+- keydown/keyup typed event 路由
+- KeyboardScope Gio key event drain 边界
+- OnShortcut 局部快捷键 scope 匹配和排序
+- shortcut 与 runtime keyboard default action 顺序
+- system global shortcut 与组件树 shortcut 分层边界
