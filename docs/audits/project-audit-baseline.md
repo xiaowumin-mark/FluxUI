@@ -45,6 +45,7 @@
 | A1.4 旧 API 兼容边界 | [audit-a1.4-legacy-api-compatibility.md](audit-a1.4-legacy-api-compatibility.md) | Done | 2026-07-06 |
 | A2.1 Frame 生命周期图 | [audit-a2.1-frame-lifecycle.md](audit-a2.1-frame-lifecycle.md) | Done | 2026-07-06 |
 | A2.2 PathID 和状态保存审查 | [audit-a2.2-pathid-state-retention.md](audit-a2.2-pathid-state-retention.md) | Done | 2026-07-06 |
+| A2.3 Runtime registry 审查 | [audit-a2.3-runtime-registry.md](audit-a2.3-runtime-registry.md) | Done | 2026-07-06 |
 
 ---
 
@@ -79,3 +80,8 @@
 - Widget 列表位置状态风险
 - Portal event parent 与 state path 边界
 - Ref attach 命令目标边界
+- Runtime event registry 生命周期
+- 每帧 listener/focus/shortcut 重建
+- pointer capture 跨帧 stale 风险
+- Scroll wheel Gio tag 与 runtime registry 边界
+- diagnostics current/last/pending 状态边界
