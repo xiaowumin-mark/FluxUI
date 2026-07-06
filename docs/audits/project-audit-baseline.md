@@ -70,6 +70,7 @@
 | A6.2 wheel 分发和父子滚动审查 | [audit-a6.2-wheel-nested-scroll.md](audit-a6.2-wheel-nested-scroll.md) | Done | 2026-07-06 |
 | A6.3 横向滚动策略审查 | [audit-a6.3-horizontal-scroll-strategy.md](audit-a6.3-horizontal-scroll-strategy.md) | Done | 2026-07-06 |
 | A6.4 滚动后命中刷新审查 | [audit-a6.4-scroll-hit-refresh.md](audit-a6.4-scroll-hit-refresh.md) | Done | 2026-07-06 |
+| A7.1 Focus target 注册审查 | [audit-a7.1-focus-target-registration.md](audit-a7.1-focus-target-registration.md) | Done | 2026-07-06 |
 
 ---
 
@@ -212,3 +213,10 @@
 - Select/Menu 下拉列表滚动命中入口
 - pointer hover target 每帧重新收集边界
 - 滚动后不移动鼠标点击新目标测试缺口
+- runtime focus target 每帧注册和清理
+- FocusManager facade 与 runtime focus 状态边界
+- KeyboardScope focusable、disabled、autoFocus、tabIndex 规则
+- Button/Select runtime focus target 注册路径
+- Input Gio editor focus 与 FluxUI runtime focus 分离
+- Dialog portal/boundary 与内部控件 focus 归属
+- disabled/hidden/tabStop focus 判定规则
