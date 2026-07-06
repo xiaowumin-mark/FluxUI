@@ -62,6 +62,7 @@
 | A4.4 cursor 策略审查 | [audit-a4.4-cursor-strategy.md](audit-a4.4-cursor-strategy.md) | Done | 2026-07-06 |
 | A4.5 动画和布局隔离审查 | [audit-a4.5-animation-layout-isolation.md](audit-a4.5-animation-layout-isolation.md) | Done | 2026-07-06 |
 | A5.1 Gio 原始输入映射表 | [audit-a5.1-gio-raw-input-mapping.md](audit-a5.1-gio-raw-input-mapping.md) | Done | 2026-07-06 |
+| A5.2 EventTarget 分发顺序审查 | [audit-a5.2-eventtarget-dispatch-order.md](audit-a5.2-eventtarget-dispatch-order.md) | Done | 2026-07-06 |
 
 ---
 
@@ -165,3 +166,7 @@
 - Gio transfer 到 FluxUI DragEvent/DropEvent 映射
 - clipboard system API 与 event system 边界识别
 - 不可用字段、best-effort 字段、后端依赖字段标注
+- EventTarget capture/target/bubble 分发顺序
+- listener priority、once、passive、stop、preventDefault 语义
+- target path、portal、boundary 路径改写语义
+- runtime keyboard default action 与 widget-local default action 分层
