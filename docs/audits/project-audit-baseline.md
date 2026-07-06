@@ -59,6 +59,7 @@
 | A4.1 Decoration 合并规则审查 | [audit-a4.1-decoration-merge-rules.md](audit-a4.1-decoration-merge-rules.md) | Done | 2026-07-06 |
 | A4.2 交互态视觉来源审查 | [audit-a4.2-interaction-state-sources.md](audit-a4.2-interaction-state-sources.md) | Done | 2026-07-06 |
 | A4.3 ripple 和 state layer 审查 | [audit-a4.3-ripple-state-layer.md](audit-a4.3-ripple-state-layer.md) | Done | 2026-07-06 |
+| A4.4 cursor 策略审查 | [audit-a4.4-cursor-strategy.md](audit-a4.4-cursor-strategy.md) | Done | 2026-07-06 |
 
 ---
 
@@ -144,3 +145,9 @@
 - hover/pressed 触发条件
 - disabled 下交互反馈禁用
 - touch target 与 layout size 区分
+- component_lab cursor 异常入口定位
+- Gio cursor op 设置边界
+- Slider track cursor clip 策略
+- disabled cursor 禁用边界
+- cursor 清理和默认重置验证
+- 单控件整窗 cursor 污染风险识别
