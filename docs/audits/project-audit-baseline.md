@@ -4,7 +4,7 @@
   "title": "项目逻辑审查基线记录",
   "category": "工程审查",
   "order": 47,
-  "summary": "记录 FluxUI 大项目逻辑审查 Batch 0~1 的基线事实，按任务拆分到独立子文件。",
+  "summary": "记录 FluxUI 大项目逻辑审查 Batch 0~2 的基线事实，按任务拆分到独立子文件。",
   "example": { "id": "event_system_basic" },
   "apis": [
     "internal.Context",
@@ -53,6 +53,7 @@
 | 任务 | 文件 | 状态 | 日期 |
 | --- | --- | --- | --- |
 | A3.1 基础布局约束矩阵 | [audit-a3.1-basic-layout-constraints.md](audit-a3.1-basic-layout-constraints.md) | Done | 2026-07-06 |
+| A3.2 滚动容器布局审查 | [audit-a3.2-scroll-container-layout.md](audit-a3.2-scroll-container-layout.md) | Done | 2026-07-06 |
 
 ---
 
@@ -103,3 +104,8 @@
 - Center Gio Direction 约束边界
 - Container/Padding inset 约束链路
 - Fixed/Fill sizing 零 Max 和滚动上限风险
+- ScrollView 主轴 content/viewport/offset 规则
+- ListView/GridView 虚拟化滚动边界
+- Grid 静态布局与 GridView 滚动语义区分
+- ScrollRef 主轴命令与 offset clamp
+- wheel 事件横纵轴过滤和嵌套滚动边界
