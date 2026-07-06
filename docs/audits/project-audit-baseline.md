@@ -57,6 +57,7 @@
 | A3.3 横向内容溢出审查 | [audit-a3.3-horizontal-overflow.md](audit-a3.3-horizontal-overflow.md) | Done | 2026-07-06 |
 | A3.4 hit area 和 layout area 对齐审查 | [audit-a3.4-hit-layout-area.md](audit-a3.4-hit-layout-area.md) | Done | 2026-07-06 |
 | A4.1 Decoration 合并规则审查 | [audit-a4.1-decoration-merge-rules.md](audit-a4.1-decoration-merge-rules.md) | Done | 2026-07-06 |
+| A4.2 交互态视觉来源审查 | [audit-a4.2-interaction-state-sources.md](audit-a4.2-interaction-state-sources.md) | Done | 2026-07-06 |
 
 ---
 
@@ -130,3 +131,9 @@
 - disabled/hover/focus 视觉保护
 - 状态 decoration 动画前清理
 - 用户覆盖风险识别
+- hover/pressed/focused 输入状态来源
+- disabled/selected/error 组件语义状态来源
+- Gio focus 与 runtime focus 语义边界
+- Material state layer 状态消费
+- focus indicator 状态消费
+- 状态来源重复计算风险识别
