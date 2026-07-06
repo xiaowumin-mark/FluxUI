@@ -61,6 +61,7 @@
 | A4.3 ripple 和 state layer 审查 | [audit-a4.3-ripple-state-layer.md](audit-a4.3-ripple-state-layer.md) | Done | 2026-07-06 |
 | A4.4 cursor 策略审查 | [audit-a4.4-cursor-strategy.md](audit-a4.4-cursor-strategy.md) | Done | 2026-07-06 |
 | A4.5 动画和布局隔离审查 | [audit-a4.5-animation-layout-isolation.md](audit-a4.5-animation-layout-isolation.md) | Done | 2026-07-06 |
+| A5.1 Gio 原始输入映射表 | [audit-a5.1-gio-raw-input-mapping.md](audit-a5.1-gio-raw-input-mapping.md) | Done | 2026-07-06 |
 
 ---
 
@@ -158,3 +159,9 @@
 - Select menu reveal 动画与 trigger 尺寸隔离
 - Tabs indicator 视觉动画边界
 - 动画 redraw 与布局尺寸关系识别
+- Gio pointer 到 FluxUI PointerEvent/WheelEvent 字段映射
+- Gio key 到 FluxUI KeyboardEvent 字段映射
+- Gio Editor Change/Submit 到 FluxUI InputEvent best-effort 映射
+- Gio transfer 到 FluxUI DragEvent/DropEvent 映射
+- clipboard system API 与 event system 边界识别
+- 不可用字段、best-effort 字段、后端依赖字段标注
