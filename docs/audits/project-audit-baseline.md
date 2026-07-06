@@ -54,6 +54,7 @@
 | --- | --- | --- | --- |
 | A3.1 基础布局约束矩阵 | [audit-a3.1-basic-layout-constraints.md](audit-a3.1-basic-layout-constraints.md) | Done | 2026-07-06 |
 | A3.2 滚动容器布局审查 | [audit-a3.2-scroll-container-layout.md](audit-a3.2-scroll-container-layout.md) | Done | 2026-07-06 |
+| A3.3 横向内容溢出审查 | [audit-a3.3-horizontal-overflow.md](audit-a3.3-horizontal-overflow.md) | Done | 2026-07-06 |
 
 ---
 
@@ -109,3 +110,9 @@
 - Grid 静态布局与 GridView 滚动语义区分
 - ScrollRef 主轴命令与 offset clamp
 - wheel 事件横纵轴过滤和嵌套滚动边界
+- docs browser 代码块横向滚动边界
+- Markdown 表格有限列宽策略
+- chips row 横向 ScrollView 边界
+- Tabs scrollable/fullWidth 宽度策略
+- Menu/Select popup 宽度 clamp
+- 普通 Row/Flex 非保护型横向布局边界
