@@ -43,6 +43,7 @@
 | A1.2 public API 所有权清单 | [audit-a1.2-public-api-ownership.md](audit-a1.2-public-api-ownership.md) | Done | 2026-07-06 |
 | A1.3 escape hatch 边界审查 | [audit-a1.3-escape-hatch.md](audit-a1.3-escape-hatch.md) | Done | 2026-07-06 |
 | A1.4 旧 API 兼容边界 | [audit-a1.4-legacy-api-compatibility.md](audit-a1.4-legacy-api-compatibility.md) | Done | 2026-07-06 |
+| A2.1 Frame 生命周期图 | [audit-a2.1-frame-lifecycle.md](audit-a2.1-frame-lifecycle.md) | Done | 2026-07-06 |
 
 ---
 
@@ -67,3 +68,8 @@
 - Gio 原始事件桥接
 - Widget 与 Element 兼容桥
 - 事件系统迁移边界
+- Runtime frame begin/end
+- Context 根作用域和子作用域
+- 每帧 event registry 重建
+- 跨帧 PathID 和状态保存
+- runtime frame 清扫边界
