@@ -69,6 +69,7 @@
 | A6.1 ScrollView 和 ListView offset 审查 | [audit-a6.1-scroll-offset.md](audit-a6.1-scroll-offset.md) | Done | 2026-07-06 |
 | A6.2 wheel 分发和父子滚动审查 | [audit-a6.2-wheel-nested-scroll.md](audit-a6.2-wheel-nested-scroll.md) | Done | 2026-07-06 |
 | A6.3 横向滚动策略审查 | [audit-a6.3-horizontal-scroll-strategy.md](audit-a6.3-horizontal-scroll-strategy.md) | Done | 2026-07-06 |
+| A6.4 滚动后命中刷新审查 | [audit-a6.4-scroll-hit-refresh.md](audit-a6.4-scroll-hit-refresh.md) | Done | 2026-07-06 |
 
 ---
 
@@ -206,3 +207,8 @@
 - touchpad 横向 delta 入口
 - tabs/chips/table/code block 横向滚动验收入口
 - 剩余 delta 未建模风险识别
+- scroll 后 visual position 与 hit position 重建
+- ScrollView/ListView 下一帧 ops/filter 命中刷新
+- Select/Menu 下拉列表滚动命中入口
+- pointer hover target 每帧重新收集边界
+- 滚动后不移动鼠标点击新目标测试缺口
