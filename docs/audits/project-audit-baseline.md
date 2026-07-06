@@ -56,6 +56,7 @@
 | A3.2 滚动容器布局审查 | [audit-a3.2-scroll-container-layout.md](audit-a3.2-scroll-container-layout.md) | Done | 2026-07-06 |
 | A3.3 横向内容溢出审查 | [audit-a3.3-horizontal-overflow.md](audit-a3.3-horizontal-overflow.md) | Done | 2026-07-06 |
 | A3.4 hit area 和 layout area 对齐审查 | [audit-a3.4-hit-layout-area.md](audit-a3.4-hit-layout-area.md) | Done | 2026-07-06 |
+| A4.1 Decoration 合并规则审查 | [audit-a4.1-decoration-merge-rules.md](audit-a4.1-decoration-merge-rules.md) | Done | 2026-07-06 |
 
 ---
 
@@ -123,3 +124,9 @@
 - Tabs item 等分/滚动命中边界
 - Ripple 不改变 layout/hit size
 - 空白区域不触发 hover target
+- Decoration 字段级覆盖规则
+- 交互态 Decoration 显式接管边界
+- Material 3 默认样式 fallback
+- disabled/hover/focus 视觉保护
+- 状态 decoration 动画前清理
+- 用户覆盖风险识别
