@@ -46,6 +46,7 @@
 | A2.1 Frame 生命周期图 | [audit-a2.1-frame-lifecycle.md](audit-a2.1-frame-lifecycle.md) | Done | 2026-07-06 |
 | A2.2 PathID 和状态保存审查 | [audit-a2.2-pathid-state-retention.md](audit-a2.2-pathid-state-retention.md) | Done | 2026-07-06 |
 | A2.3 Runtime registry 审查 | [audit-a2.3-runtime-registry.md](audit-a2.3-runtime-registry.md) | Done | 2026-07-06 |
+| A2.4 redraw 和 invalidation 审查 | [audit-a2.4-redraw-invalidation.md](audit-a2.4-redraw-invalidation.md) | Done | 2026-07-06 |
 
 ---
 
@@ -85,3 +86,8 @@
 - pointer capture 跨帧 stale 风险
 - Scroll wheel Gio tag 与 runtime registry 边界
 - diagnostics current/last/pending 状态边界
+- Runtime invalidator 与 Gio Window.Invalidate 绑定
+- frame 内 op.InvalidateCmd 刷新
+- redraw reason pending/current 语义
+- 用户输入、动画、状态变更、程序命令 redraw 来源区分
+- 动画 idle 停止与 redraw reason 基线
