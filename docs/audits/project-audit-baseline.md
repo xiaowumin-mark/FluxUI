@@ -68,6 +68,7 @@
 | A5.5 default action 可取消性矩阵 | [audit-a5.5-default-action-cancelability.md](audit-a5.5-default-action-cancelability.md) | Done | 2026-07-06 |
 | A6.1 ScrollView 和 ListView offset 审查 | [audit-a6.1-scroll-offset.md](audit-a6.1-scroll-offset.md) | Done | 2026-07-06 |
 | A6.2 wheel 分发和父子滚动审查 | [audit-a6.2-wheel-nested-scroll.md](audit-a6.2-wheel-nested-scroll.md) | Done | 2026-07-06 |
+| A6.3 横向滚动策略审查 | [audit-a6.3-horizontal-scroll-strategy.md](audit-a6.3-horizontal-scroll-strategy.md) | Done | 2026-07-06 |
 
 ---
 
@@ -200,4 +201,8 @@
 - Input、Slider、DragSource wheel 截停边界
 - Select/Menu/ListView 选项滚动入口
 - docs content scroll 与代码块/表格嵌套滚动入口
+- 横向 ScrollView 只消费 DeltaX 的策略
+- shift-wheel 未定义/未实现边界
+- touchpad 横向 delta 入口
+- tabs/chips/table/code block 横向滚动验收入口
 - 剩余 delta 未建模风险识别
