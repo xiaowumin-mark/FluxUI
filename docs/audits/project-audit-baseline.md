@@ -48,6 +48,12 @@
 | A2.3 Runtime registry 审查 | [audit-a2.3-runtime-registry.md](audit-a2.3-runtime-registry.md) | Done | 2026-07-06 |
 | A2.4 redraw 和 invalidation 审查 | [audit-a2.4-redraw-invalidation.md](audit-a2.4-redraw-invalidation.md) | Done | 2026-07-06 |
 
+## Batch 2：布局、渲染和样式稳定性
+
+| 任务 | 文件 | 状态 | 日期 |
+| --- | --- | --- | --- |
+| A3.1 基础布局约束矩阵 | [audit-a3.1-basic-layout-constraints.md](audit-a3.1-basic-layout-constraints.md) | Done | 2026-07-06 |
+
 ---
 
 ## 关联能力总览
@@ -91,3 +97,9 @@
 - redraw reason pending/current 语义
 - 用户输入、动画、状态变更、程序命令 redraw 来源区分
 - 动画 idle 停止与 redraw reason 基线
+- 基础布局 constraints 输入/输出矩阵
+- Row/Column Flex 有限和宽松约束语义
+- Stack Stacked/Expanded 注释实现差异
+- Center Gio Direction 约束边界
+- Container/Padding inset 约束链路
+- Fixed/Fill sizing 零 Max 和滚动上限风险
