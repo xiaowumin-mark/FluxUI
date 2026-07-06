@@ -66,6 +66,7 @@
 | A5.3 旧事件桥接审查 | [audit-a5.3-legacy-event-bridge.md](audit-a5.3-legacy-event-bridge.md) | Done | 2026-07-06 |
 | A5.4 PointerArea 影响范围审查 | [audit-a5.4-pointerarea-scope.md](audit-a5.4-pointerarea-scope.md) | Done | 2026-07-06 |
 | A5.5 default action 可取消性矩阵 | [audit-a5.5-default-action-cancelability.md](audit-a5.5-default-action-cancelability.md) | Done | 2026-07-06 |
+| A6.1 ScrollView 和 ListView offset 审查 | [audit-a6.1-scroll-offset.md](audit-a6.1-scroll-offset.md) | Done | 2026-07-06 |
 
 ---
 
@@ -187,3 +188,8 @@
 - click、keydown、wheel、beforeinput、dragover、drop 取消边界
 - runtime keyboard default action 与 widget-local default action gate
 - wheel/drop preventDefault widget 级测试缺口识别
+- ScrollView offset 来源、单位、更新时机
+- ScrollOnChange 旧回调触发和上报值边界
+- 旧 ScrollOnChange 长期显示 0 的原因定位
+- ScrollRef 命令消费与 offset clamp
+- ListView Gio Position 和 reach-end 边界
