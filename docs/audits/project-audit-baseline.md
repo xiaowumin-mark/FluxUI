@@ -55,6 +55,7 @@
 | A3.1 基础布局约束矩阵 | [audit-a3.1-basic-layout-constraints.md](audit-a3.1-basic-layout-constraints.md) | Done | 2026-07-06 |
 | A3.2 滚动容器布局审查 | [audit-a3.2-scroll-container-layout.md](audit-a3.2-scroll-container-layout.md) | Done | 2026-07-06 |
 | A3.3 横向内容溢出审查 | [audit-a3.3-horizontal-overflow.md](audit-a3.3-horizontal-overflow.md) | Done | 2026-07-06 |
+| A3.4 hit area 和 layout area 对齐审查 | [audit-a3.4-hit-layout-area.md](audit-a3.4-hit-layout-area.md) | Done | 2026-07-06 |
 
 ---
 
@@ -116,3 +117,9 @@
 - Tabs scrollable/fullWidth 宽度策略
 - Menu/Select popup 宽度 clamp
 - 普通 Row/Flex 非保护型横向布局边界
+- PointerArea 子尺寸命中注册
+- Pressable/ClickArea 无样式点击区域
+- ContainerDecoration 视觉区域和 margin 命中边界
+- Tabs item 等分/滚动命中边界
+- Ripple 不改变 layout/hit size
+- 空白区域不触发 hover target
