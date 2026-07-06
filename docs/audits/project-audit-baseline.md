@@ -64,6 +64,7 @@
 | A5.1 Gio 原始输入映射表 | [audit-a5.1-gio-raw-input-mapping.md](audit-a5.1-gio-raw-input-mapping.md) | Done | 2026-07-06 |
 | A5.2 EventTarget 分发顺序审查 | [audit-a5.2-eventtarget-dispatch-order.md](audit-a5.2-eventtarget-dispatch-order.md) | Done | 2026-07-06 |
 | A5.3 旧事件桥接审查 | [audit-a5.3-legacy-event-bridge.md](audit-a5.3-legacy-event-bridge.md) | Done | 2026-07-06 |
+| A5.4 PointerArea 影响范围审查 | [audit-a5.4-pointerarea-scope.md](audit-a5.4-pointerarea-scope.md) | Done | 2026-07-06 |
 
 ---
 
@@ -175,3 +176,8 @@
 - Input beforeinput/input/change 与旧 InputOnChange 桥接顺序
 - ScrollView wheel default action 与旧 ScrollOnChange 触发顺序
 - 旧 callback 防重复执行和可取消边界
+- PointerArea Gio tag 注册区域与 child layout dimensions 对齐
+- PointerAreaElement 声明式包装不额外扩大命中范围
+- PointerArea pass-through、disabled、captureOnPress 影响范围区分
+- event system testbench P2 Pointer/Wheel 手动验收入口
+- PointerArea 坐标级 hit rect 自动测试缺口识别
