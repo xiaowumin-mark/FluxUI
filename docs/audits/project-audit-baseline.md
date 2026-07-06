@@ -58,6 +58,7 @@
 | A3.4 hit area 和 layout area 对齐审查 | [audit-a3.4-hit-layout-area.md](audit-a3.4-hit-layout-area.md) | Done | 2026-07-06 |
 | A4.1 Decoration 合并规则审查 | [audit-a4.1-decoration-merge-rules.md](audit-a4.1-decoration-merge-rules.md) | Done | 2026-07-06 |
 | A4.2 交互态视觉来源审查 | [audit-a4.2-interaction-state-sources.md](audit-a4.2-interaction-state-sources.md) | Done | 2026-07-06 |
+| A4.3 ripple 和 state layer 审查 | [audit-a4.3-ripple-state-layer.md](audit-a4.3-ripple-state-layer.md) | Done | 2026-07-06 |
 
 ---
 
@@ -137,3 +138,9 @@
 - Material state layer 状态消费
 - focus indicator 状态消费
 - 状态来源重复计算风险识别
+- ripple primitive 绘制边界
+- state layer 混色和圆形绘制边界
+- ripple/state layer 绘制顺序
+- hover/pressed 触发条件
+- disabled 下交互反馈禁用
+- touch target 与 layout size 区分
