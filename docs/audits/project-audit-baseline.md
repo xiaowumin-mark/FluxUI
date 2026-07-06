@@ -63,6 +63,7 @@
 | A4.5 动画和布局隔离审查 | [audit-a4.5-animation-layout-isolation.md](audit-a4.5-animation-layout-isolation.md) | Done | 2026-07-06 |
 | A5.1 Gio 原始输入映射表 | [audit-a5.1-gio-raw-input-mapping.md](audit-a5.1-gio-raw-input-mapping.md) | Done | 2026-07-06 |
 | A5.2 EventTarget 分发顺序审查 | [audit-a5.2-eventtarget-dispatch-order.md](audit-a5.2-eventtarget-dispatch-order.md) | Done | 2026-07-06 |
+| A5.3 旧事件桥接审查 | [audit-a5.3-legacy-event-bridge.md](audit-a5.3-legacy-event-bridge.md) | Done | 2026-07-06 |
 
 ---
 
@@ -170,3 +171,7 @@
 - listener priority、once、passive、stop、preventDefault 语义
 - target path、portal、boundary 路径改写语义
 - runtime keyboard default action 与 widget-local default action 分层
+- Button/Pressable/ClickArea 旧 OnClick 与新 click 事件桥接顺序
+- Input beforeinput/input/change 与旧 InputOnChange 桥接顺序
+- ScrollView wheel default action 与旧 ScrollOnChange 触发顺序
+- 旧 callback 防重复执行和可取消边界
