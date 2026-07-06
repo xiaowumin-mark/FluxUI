@@ -67,6 +67,7 @@
 | A5.4 PointerArea 影响范围审查 | [audit-a5.4-pointerarea-scope.md](audit-a5.4-pointerarea-scope.md) | Done | 2026-07-06 |
 | A5.5 default action 可取消性矩阵 | [audit-a5.5-default-action-cancelability.md](audit-a5.5-default-action-cancelability.md) | Done | 2026-07-06 |
 | A6.1 ScrollView 和 ListView offset 审查 | [audit-a6.1-scroll-offset.md](audit-a6.1-scroll-offset.md) | Done | 2026-07-06 |
+| A6.2 wheel 分发和父子滚动审查 | [audit-a6.2-wheel-nested-scroll.md](audit-a6.2-wheel-nested-scroll.md) | Done | 2026-07-06 |
 
 ---
 
@@ -193,3 +194,10 @@
 - 旧 ScrollOnChange 长期显示 0 的原因定位
 - ScrollRef 命令消费与 offset clamp
 - ListView Gio Position 和 reach-end 边界
+- wheel target 注册区域和轴向过滤
+- ScrollView wheel default action 和 PreventDefault gate
+- 父子滚动命中优先级和横纵轴传递
+- Input、Slider、DragSource wheel 截停边界
+- Select/Menu/ListView 选项滚动入口
+- docs content scroll 与代码块/表格嵌套滚动入口
+- 剩余 delta 未建模风险识别
