@@ -108,6 +108,7 @@
 | A12.2 大组件树 benchmark 设计 | [audit-a12.2-large-component-tree-benchmark.md](audit-a12.2-large-component-tree-benchmark.md) | Done | 2026-07-07 |
 | A12.3 diagnostics 能力审查 | [audit-a12.3-diagnostics-capability.md](audit-a12.3-diagnostics-capability.md) | Done | 2026-07-07 |
 | A13.1 clickable 和交互态冗余审查 | [audit-a13.1-clickable-interaction-state-redundancy.md](audit-a13.1-clickable-interaction-state-redundancy.md) | Done | 2026-07-07 |
+| A13.2 overlay 逻辑冗余审查 | [audit-a13.2-overlay-logic-redundancy.md](audit-a13.2-overlay-logic-redundancy.md) | Done | 2026-07-07 |
 
 ---
 
@@ -373,3 +374,6 @@
 - clickable 和交互态冗余清单
 - hover/pressed/focused/ripple 逻辑 helper 收敛候选
 - Button、Pressable、Checkbox、Switch、Tabs、Select option 暂不收敛边界
+- overlay outside click、portal、animation、focus restore 冗余清单
+- Dialog/Popup、Select/DropdownMenu、Menu submenu、Tooltip、Toast/Snackbar overlay helper 收敛候选
+- modal、anchored、deferred、hover、timed overlay 暂不压扁边界
