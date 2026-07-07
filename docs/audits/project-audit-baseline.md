@@ -88,6 +88,7 @@
 | A9.2 controlled value 和内部状态审查 | [audit-a9.2-controlled-value-internal-state.md](audit-a9.2-controlled-value-internal-state.md) | Done | 2026-07-07 |
 | A9.3 OnChange 触发条件审查 | [audit-a9.3-onchange-trigger-conditions.md](audit-a9.3-onchange-trigger-conditions.md) | Done | 2026-07-07 |
 | A10.1 基础交互控件族审查 | [audit-a10.1-basic-interactive-controls.md](audit-a10.1-basic-interactive-controls.md) | Done | 2026-07-07 |
+| A10.2 表单选择控件族审查 | [audit-a10.2-form-selection-controls.md](audit-a10.2-form-selection-controls.md) | Done | 2026-07-07 |
 
 ---
 
@@ -296,3 +297,8 @@
 - IconButton/FAB 直接旧 onClick 与新事件缺口
 - 基础交互控件 pressed/focus/ripple/disabled 矩阵
 - runtime focus target 与 Gio clickable focus 差异
+- Checkbox/Switch click 和 keyboard 默认切换可取消性
+- RadioGroup 当前项 no-op 与 Ref SetValue 边界
+- Select trigger/option/popup/Ref 矩阵
+- Select outside press 与 Ref 命令不可取消路径
+- 表单选择控件 controlled value 与内部 open state 分层
