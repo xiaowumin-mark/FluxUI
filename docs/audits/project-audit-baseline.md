@@ -97,6 +97,7 @@
 | A10.8 容器和装饰控件族审查 | [audit-a10.8-container-decoration-controls.md](audit-a10.8-container-decoration-controls.md) | Done | 2026-07-07 |
 | A11.1 docs browser 组合场景审查 | [audit-a11.1-docs-browser-composition.md](audit-a11.1-docs-browser-composition.md) | Done | 2026-07-07 |
 | A11.2 component_lab 审查 | [audit-a11.2-component-lab.md](audit-a11.2-component-lab.md) | Done | 2026-07-07 |
+| A11.3 event_system_testbench 审查 | [audit-a11.3-event-system-testbench.md](audit-a11.3-event-system-testbench.md) | Done | 2026-07-07 |
 
 ---
 
@@ -342,3 +343,6 @@
 - component_lab 主题、样式、cursor、hover、布局和 overlay smoke 入口
 - component_lab 顶层虚拟化、perf diagnostics 和 idle redraw 自动基线
 - component_lab CL-01 到 CL-17 视觉与交互手动验收表
+- event_system_testbench P0-P7 操作说明、预期结果和复验点
+- P1 EventTarget 分发、P3 Focus/Keyboard、P5 默认行为可取消性的手工判定口径
+- event_system_testbench 历史问题与 R1-R5 修复记录的复验边界
