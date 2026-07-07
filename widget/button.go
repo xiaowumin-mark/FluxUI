@@ -168,32 +168,21 @@ func ButtonLoadingIndicator(indicator Widget) ButtonOption {
 
 func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
-	if b.config.disabled || b.config.loading {
-		event.RegisterFocusTarget(ctx, event.FocusDisabled(true))
-	} else {
-		event.RegisterFocusTarget(ctx, event.FocusActivate(func(ctx *internal.Context) {
-			b.config.dispatcher.DispatchClickEvent(ctx, nil)
-		}))
-	}
+	disabled := b.config.disabled || b.config.loading
+	registerClickableFocusAction(ctx, disabled, b.config.dispatcher.Click)
 	if b.config.ref != nil {
 		b.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		commands := b.config.ref.drainCommands()
-		if !b.config.disabled && !b.config.loading {
+		if !disabled {
 			for range commands {
-				b.config.dispatcher.DispatchClickEvent(ctx, nil)
+				runClickableDefaultAction(ctx, nil, false, b.config.dispatcher.Click)
 			}
 		}
 	}
 	interaction := event.InteractionSnapshot{}
-	if !b.config.disabled && !b.config.loading {
-		for {
-			click, ok := clickable.ClickedEvent(ctx)
-			if !ok {
-				break
-			}
-			b.config.dispatcher.DispatchClickEvent(ctx, click)
-		}
-		interaction = clickable.Snapshot(ctx, true)
+	if !disabled {
+		drainClickableDefaultAction(ctx, clickable, false, b.config.dispatcher.Click)
+		interaction = clickableInteractionSnapshot(ctx, clickable, false, true)
 		if changed, hovering := clickable.HoverChangedWithSnapshot(ctx, interaction.Hovered); changed {
 			b.config.dispatcher.DispatchHover(ctx, hovering)
 		}

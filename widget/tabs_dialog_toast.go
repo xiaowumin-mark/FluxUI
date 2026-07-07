@@ -236,13 +236,13 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		tab := layoutWidgetFunc(func(tabCtx *internal.Context) layout.Dimensions {
 			clickable := event.UseClickable(tabCtx)
 			disabled := item.Disabled
-			for !disabled && clickable.Clicked(tabCtx) {
+			drainClickableDefaultAction(tabCtx, clickable, disabled, func(actionCtx *internal.Context) {
 				activeKey = item.Key
 				if t.config.onChange != nil {
-					t.config.onChange(tabCtx, item.Key)
+					t.config.onChange(actionCtx, item.Key)
 				}
-			}
-			snapshot := clickable.Snapshot(tabCtx, !disabled)
+			})
+			snapshot := clickableInteractionSnapshot(tabCtx, clickable, disabled, !disabled)
 			txtColor := normalText
 			if active {
 				txtColor = activeText

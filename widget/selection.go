@@ -155,28 +155,15 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 					r.config.onChange(actionCtx, item.Value)
 				}
 			}
-			if r.config.disabled {
-				event.RegisterFocusTarget(rowCtx, event.FocusDisabled(true))
-			} else {
-				event.RegisterFocusTarget(rowCtx, event.FocusActivate(func(ctx *internal.Context) {
-					dispatchClickDefault(ctx, nil, func() { activate(ctx) })
-				}))
-			}
-			if !r.config.disabled {
-				for {
-					click, ok := clickable.ClickedEvent(rowCtx)
-					if !ok {
-						break
-					}
-					dispatchClickDefault(rowCtx, click, func() { activate(rowCtx) })
-				}
-			}
+			registerClickableFocusAction(rowCtx, r.config.disabled, activate)
+			drainClickableDefaultAction(rowCtx, clickable, r.config.disabled, activate)
+			interaction := clickableInteractionSnapshot(rowCtx, clickable, r.config.disabled, false)
 
 			itemLabelColor := labelColor
-			if !r.config.disabled && clickable.Hovered() {
+			if !r.config.disabled && interaction.Hovered {
 				itemLabelColor = style.StateLayer(itemLabelColor, mainColor, style.StateLayerHoverOpacity)
 			}
-			duration, easing := md3InteractionTiming(rowCtx, clickable.Hovered(), clickable.Pressed(), false, r.config.disabled)
+			duration, easing := md3InteractionTiming(rowCtx, interaction.Hovered, interaction.Pressed, false, r.config.disabled)
 			itemLabelColor = md3AnimateColor(rowCtx, "radio-label", itemLabelColor, duration, easing)
 
 			content := func(contentCtx *internal.Context) image.Point {
@@ -190,8 +177,8 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 							Color:           mainColor,
 							CheckedProgress: checkedProgress,
 							Disabled:        r.config.disabled,
-							Hovered:         clickable.Hovered(),
-							Pressed:         clickable.Pressed(),
+							Hovered:         interaction.Hovered,
+							Pressed:         interaction.Pressed,
 						})
 						return gioLayout.Dimensions{Size: size}
 					}),
@@ -215,7 +202,7 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			)
 			target := func(targetCtx *internal.Context) image.Point {
 				if hasAnyDecoration(r.config.decoration) {
-					active := resolveDecorationState(deco, clickable.Hovered(), clickable.Pressed(), r.config.disabled)
+					active := resolveDecorationState(deco, interaction.Hovered, interaction.Pressed, r.config.disabled)
 					visual := md3AnimateDecoration(targetCtx, "radio-decoration", stripStateDecoration(active), duration, easing)
 					return layoutDecorationShell(targetCtx.Child(0), visual, content).Size
 				}
@@ -229,7 +216,7 @@ func (r *radioGroupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				controlSize := selectionControlSizePx(rowCtx, r.config.size, 20)
 				return image.Pt(controlSize/2, size.Y/2)
 			}, func() float32 {
-				return materialStateLayerOpacity(rowCtx, clickable.Hovered(), clickable.Pressed())
+				return materialStateLayerOpacity(rowCtx, interaction.Hovered, interaction.Pressed)
 			}, target)
 		})
 
@@ -562,32 +549,19 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 					event.RequestFocus(fieldCtx)
 				}
 			}
-			if disabled {
-				event.RegisterFocusTarget(rowCtx, event.FocusDisabled(true))
-			} else {
-				event.RegisterFocusTarget(rowCtx, event.FocusActivate(func(ctx *internal.Context) {
-					dispatchClickDefault(ctx, nil, func() { activate(ctx) })
-				}))
-			}
-			if !disabled {
-				for {
-					click, ok := clickable.ClickedEvent(rowCtx)
-					if !ok {
-						break
-					}
-					dispatchClickDefault(rowCtx, click, func() { activate(rowCtx) })
-				}
-			}
+			registerClickableFocusAction(rowCtx, disabled, activate)
+			drainClickableDefaultAction(rowCtx, clickable, disabled, activate)
+			interaction := clickableInteractionSnapshot(rowCtx, clickable, disabled, true)
 
 			cs := rowCtx.Theme().Colors
 			bg := color.NRGBA{}
 			if isActive {
 				bg = cs.SecondaryContainer
 			}
-			if opacity := materialAnimatedStateLayerOpacity(rowCtx, clickable.Hovered(), clickable.Pressed(), disabled); opacity > 0 {
+			if opacity := materialAnimatedStateLayerOpacity(rowCtx, interaction.Hovered, interaction.Pressed, disabled); opacity > 0 {
 				bg = style.StateLayer(bg, cs.Primary, opacity)
 			}
-			duration, easing := md3InteractionTiming(rowCtx, clickable.Hovered(), clickable.Pressed(), clickable.Focused(rowCtx), disabled)
+			duration, easing := md3InteractionTiming(rowCtx, interaction.Hovered, interaction.Pressed, interaction.Focused, disabled)
 			bg = md3AnimateColor(rowCtx, "select-row-bg", bg, duration, easing)
 			fg := cs.OnSurface
 			if isActive {
@@ -646,7 +620,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			md3DrawFocusIndicator(rowCtx, size, internal.FocusIndicatorSpec{
 				Color:  cs.Primary,
 				Radius: rowCtx.Theme().Shapes.ExtraSmall,
-			}, clickable.Focused(rowCtx), disabled)
+			}, interaction.Focused, disabled)
 			return layout.Dimensions{Size: size}
 		})
 		row = expandWidth(row)
@@ -769,25 +743,12 @@ func (s *selectWidget[T]) layoutSelectField(ctx *internal.Context, valueLabel st
 			s.config.onOpen(actionCtx, state.opened)
 		}
 	}
-	if s.config.disabled {
-		event.RegisterFocusTarget(ctx, event.FocusDisabled(true))
-	} else {
-		event.RegisterFocusTarget(ctx, event.FocusActivate(func(ctx *internal.Context) {
-			dispatchClickDefault(ctx, nil, func() { activate(ctx) })
-		}))
-	}
-	if !s.config.disabled {
-		for {
-			click, ok := clickable.ClickedEvent(ctx)
-			if !ok {
-				break
-			}
-			dispatchClickDefault(ctx, click, func() { activate(ctx) })
-		}
-	}
+	registerClickableFocusAction(ctx, s.config.disabled, activate)
+	drainClickableDefaultAction(ctx, clickable, s.config.disabled, activate)
+	interaction := clickableInteractionSnapshot(ctx, clickable, s.config.disabled, true)
 
 	cs := ctx.Theme().Colors
-	focused := state.opened || clickable.Focused(ctx)
+	focused := state.opened || interaction.Focused
 	errored := s.config.error
 	textColor := cs.OnSurface
 	supportColor := cs.OnSurfaceVariant
@@ -819,7 +780,7 @@ func (s *selectWidget[T]) layoutSelectField(ctx *internal.Context, valueLabel st
 		indicatorColor = style.DisabledContent(cs.OnSurface)
 	}
 
-	duration, easing := md3InteractionTiming(ctx, clickable.Hovered(), clickable.Pressed(), focused, s.config.disabled)
+	duration, easing := md3InteractionTiming(ctx, interaction.Hovered, interaction.Pressed, focused, s.config.disabled)
 	textColor = md3AnimateColor(ctx, "select-text", textColor, duration, easing)
 	labelColor = md3AnimateColor(ctx, "select-label", labelColor, duration, easing)
 	arrowColor = md3AnimateColor(ctx, "select-arrow-color", arrowColor, duration, easing)

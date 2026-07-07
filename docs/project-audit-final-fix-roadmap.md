@@ -153,6 +153,17 @@
 - 不合并 Button surface、Switch thumb/track、Tabs indicator、Select field visual。
 - 单组件接入失败时回退原手写 loop。
 
+### P4 实施记录（2026-07-07）
+
+- 审查依据：以 `docs/audits/project-audit-baseline.md` 为索引，复核 A1.4、A4.2、A5.2、A5.3、A5.5、A7.3、A9.2、A9.3、A10.1、A10.2、A13.1、A13.4 的 click/default action、keyboard activation、旧回调桥接、Ref、Select/Tabs 风险记录，并对照 `COMPONENT_DEVELOPMENT_GUIDE.md`、`CODE_STYLE_GUIDE.md`、`FEATURE_INTEGRATION_CHECKLIST.md`。
+- 代码产物：`widget/event_defaults.go` 增加 `drainClickableDefaultAction`、`registerClickableFocusAction`、`clickableInteractionSnapshot` 和内部 `runClickableDefaultAction`，保留 `dispatchClickDefault` 兼容旧调用；Button、Pressable、ClickArea、Checkbox、Switch、RadioGroup、Select trigger/option 的 pointer click、Enter/Space keyboard activation 和 interaction snapshot 逐步接入 helper。
+- 语义边界：disabled/loading 仍在组件入口提前阻断，不通过 `PreventDefault` 表达；旧 `OnClick`、`OnChange`、状态切换和默认行为仍只在 cancelable click 被允许后执行；Button surface、Switch thumb/track、Tabs indicator、Select field visual 未合并到通用 helper；IconButton/FAB 不在本阶段验收清单内，未扩大范围。
+- Tabs 边界：Tabs pointer click 接入 `drainClickableDefaultAction`，让 click listener 的 `PreventDefault` 能阻止 active 切换；未新增 Tabs focus target 或 Enter/Space activation，避免改变 A7.3 已记录的键盘语义缺口和既有 indicator 布局。
+- 回归入口：`widget/interactive_layout_test.go` 新增 `TestClickablePreventDefaultBlocksPointerDefaultActions`，覆盖 Button、Pressable、Checkbox、Switch、RadioGroup、Select trigger、Select option、Tabs 的 `PreventDefault` 反例；新增 `TestTabsPointerClickStillActivatesWithoutPreventDefault` 和 `TestPressableKeyboardActivationUsesCancelableClick`，覆盖 Tabs 正常指针切换和 Pressable keyboard activation 的 cancelable click 路径。
+- 验证：定向 `go test ./widget -run "Test(ClickablePreventDefaultBlocksPointerDefaultActions|TabsPointerClickStillActivatesWithoutPreventDefault|PressableKeyboardActivationUsesCancelableClick)$"` 通过；`go test ./widget ./event` 通过；`go test ./internal ./ui` 通过；`go test ./examples/event_system_testbench ./examples/component_lab ./examples/docs_browser` 通过；`go test ./examples/basic_components ./examples/material3_showcase` 通过；gopls diagnostics 对本轮修改文件无报错。
+- 关联性检查：未改变公开 option/ref 签名，未新增跨包依赖，未改 Ref 调用路径的 cancelable 语义；Select/DropdownMenu outside close、focus restore、scroll 策略仍沿用 P3/P2 结果；event diagnostics 默认路径和 layout/hit size 不因 helper 接入扩大。
+- 回滚策略：如单个组件接入 helper 后暴露顺序回退，可按 Button、Pressable/ClickArea、Checkbox/Switch、RadioGroup、Select、Tabs 的粒度回退到原手写 click loop；保留新增测试作为顺序合同。若 Tabs active 切换出现兼容问题，可先仅移除 Tabs 的 helper 接入，不影响其他 clickable 组件。
+
 ## P5：状态、Ref、OnChange、文本输入修复
 
 ### 范围

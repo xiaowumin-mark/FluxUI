@@ -83,6 +83,29 @@ func (h *interactionFrameHarness) key(ev key.Event) {
 	h.router.Queue(ev)
 }
 
+func (h *interactionFrameHarness) pointer(ev pointer.Event) {
+	h.router.Queue(ev)
+}
+
+func (h *interactionFrameHarness) click(w Widget, x, y int) {
+	h.layout(w)
+	h.pointer(pointer.Event{
+		Kind:      pointer.Press,
+		Source:    pointer.Mouse,
+		PointerID: 1,
+		Buttons:   pointer.ButtonPrimary,
+		Position:  f32.Pt(float32(x), float32(y)),
+	})
+	h.layout(w)
+	h.pointer(pointer.Event{
+		Kind:      pointer.Release,
+		Source:    pointer.Mouse,
+		PointerID: 1,
+		Position:  f32.Pt(float32(x), float32(y)),
+	})
+	h.layout(w)
+}
+
 type captureContextWidget struct {
 	child Widget
 	ctx   **internal.Context
@@ -96,6 +119,20 @@ func (w captureContextWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return layout.Dimensions{}
 	}
 	return w.child.Layout(ctx)
+}
+
+type preventClickDefaultWidget struct {
+	child Widget
+}
+
+func (w preventClickDefaultWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	fluxevent.On(ctx, fluxevent.Click, func(_ *internal.Context, ev *internal.Event) {
+		ev.PreventDefault()
+	})
+	if w.child == nil {
+		return layout.Dimensions{}
+	}
+	return w.child.Layout(ctx.Child(0))
 }
 
 type testFocusTargetWidget struct {
@@ -205,6 +242,159 @@ func TestContainerDecorationOnHoverIsChangeOnly(t *testing.T) {
 	h.layout(w)
 	if hoverCalls != 1 {
 		t.Fatalf("container hover calls=%d, want one change-only callback", hoverCalls)
+	}
+}
+
+func TestClickablePreventDefaultBlocksPointerDefaultActions(t *testing.T) {
+	t.Run("button legacy OnClick", func(t *testing.T) {
+		calls := 0
+		w := preventClickDefaultWidget{child: Button(Text("Button"), OnClick(func(*internal.Context) {
+			calls++
+		}))}
+		newInteractionFrameHarness(image.Pt(240, 120)).click(w, 24, 20)
+		if calls != 0 {
+			t.Fatalf("button OnClick calls = %d, want 0", calls)
+		}
+	})
+
+	t.Run("pressable legacy onClick", func(t *testing.T) {
+		calls := 0
+		w := preventClickDefaultWidget{child: Pressable(Spacer(100, 48), func(*internal.Context) {
+			calls++
+		})}
+		newInteractionFrameHarness(image.Pt(240, 120)).click(w, 24, 20)
+		if calls != 0 {
+			t.Fatalf("pressable onClick calls = %d, want 0", calls)
+		}
+	})
+
+	t.Run("checkbox onChange", func(t *testing.T) {
+		calls := 0
+		w := preventClickDefaultWidget{child: Checkbox("Check", false, CheckboxOnChange(func(*internal.Context, bool) {
+			calls++
+		}))}
+		newInteractionFrameHarness(image.Pt(240, 120)).click(w, 16, 16)
+		if calls != 0 {
+			t.Fatalf("checkbox onChange calls = %d, want 0", calls)
+		}
+	})
+
+	t.Run("switch onChange", func(t *testing.T) {
+		calls := 0
+		w := preventClickDefaultWidget{child: Switch(false, SwitchOnChange(func(*internal.Context, bool) {
+			calls++
+		}))}
+		newInteractionFrameHarness(image.Pt(240, 120)).click(w, 20, 16)
+		if calls != 0 {
+			t.Fatalf("switch onChange calls = %d, want 0", calls)
+		}
+	})
+
+	t.Run("radio group onChange", func(t *testing.T) {
+		calls := 0
+		w := preventClickDefaultWidget{child: RadioGroup("a",
+			[]RadioItem{{Label: "A", Value: "a"}, {Label: "B", Value: "b"}},
+			RadioGroupOnChange(func(*internal.Context, string) {
+				calls++
+			}),
+		)}
+		newInteractionFrameHarness(image.Pt(240, 160)).click(w, 16, 64)
+		if calls != 0 {
+			t.Fatalf("radio onChange calls = %d, want 0", calls)
+		}
+	})
+
+	t.Run("select trigger open", func(t *testing.T) {
+		openCalls := 0
+		w := preventClickDefaultWidget{child: Select("one",
+			[]SelectOptionItem[string]{{Label: "One", Value: "one"}, {Label: "Two", Value: "two"}},
+			SelectOnOpenChange[string](func(*internal.Context, bool) {
+				openCalls++
+			}),
+		)}
+		newInteractionFrameHarness(image.Pt(320, 180)).click(w, 24, 24)
+		if openCalls != 0 {
+			t.Fatalf("select open calls = %d, want 0", openCalls)
+		}
+	})
+
+	t.Run("select option onChange and close", func(t *testing.T) {
+		ref := NewSelectRef[string]()
+		ref.Open()
+		changeCalls := 0
+		closeCalls := 0
+		w := preventClickDefaultWidget{child: Select("one",
+			[]SelectOptionItem[string]{{Label: "One", Value: "one"}, {Label: "Two", Value: "two"}},
+			SelectAttachRef(ref),
+			SelectOnChange(func(*internal.Context, string) {
+				changeCalls++
+			}),
+			SelectOnOpenChange[string](func(_ *internal.Context, opened bool) {
+				if !opened {
+					closeCalls++
+				}
+			}),
+		)}
+		newInteractionFrameHarness(image.Pt(320, 220)).click(w, 24, 104)
+		if changeCalls != 0 {
+			t.Fatalf("select option change calls = %d, want 0", changeCalls)
+		}
+		if closeCalls != 0 {
+			t.Fatalf("select option close calls = %d, want 0", closeCalls)
+		}
+	})
+
+	t.Run("tabs onChange", func(t *testing.T) {
+		calls := 0
+		w := preventClickDefaultWidget{child: Tabs("one",
+			[]TabItem{{Key: "one", Label: "One"}, {Key: "two", Label: "Two"}},
+			TabsOnChange(func(*internal.Context, string) {
+				calls++
+			}),
+		)}
+		newInteractionFrameHarness(image.Pt(240, 120)).click(w, 180, 24)
+		if calls != 0 {
+			t.Fatalf("tabs onChange calls = %d, want 0", calls)
+		}
+	})
+}
+
+func TestTabsPointerClickStillActivatesWithoutPreventDefault(t *testing.T) {
+	active := "one"
+	w := Tabs(active,
+		[]TabItem{{Key: "one", Label: "One"}, {Key: "two", Label: "Two"}},
+		TabsOnChange(func(_ *internal.Context, key string) {
+			active = key
+		}),
+	)
+	newInteractionFrameHarness(image.Pt(240, 120)).click(w, 180, 24)
+	if active != "two" {
+		t.Fatalf("tabs active after click = %q, want two", active)
+	}
+}
+
+func TestPressableKeyboardActivationUsesCancelableClick(t *testing.T) {
+	calls := 0
+	var pressableCtx *internal.Context
+	w := preventClickDefaultWidget{child: captureContextWidget{
+		ctx: &pressableCtx,
+		child: Pressable(Spacer(100, 48), func(*internal.Context) {
+			calls++
+		}),
+	}}
+	h := newInteractionFrameHarness(image.Pt(240, 120))
+	h.layout(w)
+	if pressableCtx == nil {
+		t.Fatal("pressable context was not captured")
+	}
+	if !h.rt.RequestFocus(pressableCtx, pressableCtx.PathID()) {
+		t.Fatal("failed to focus pressable")
+	}
+	h.layout(w)
+	h.key(key.Event{Name: key.NameEnter, State: key.Press})
+	h.layout(w)
+	if calls != 0 {
+		t.Fatalf("pressable keyboard activation calls = %d, want 0 after click PreventDefault", calls)
 	}
 }
 

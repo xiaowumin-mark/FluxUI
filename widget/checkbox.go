@@ -91,13 +91,7 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			c.config.onChange(actionCtx, next)
 		}
 	}
-	if c.config.disabled {
-		event.RegisterFocusTarget(ctx, event.FocusDisabled(true))
-	} else {
-		event.RegisterFocusTarget(ctx, event.FocusActivate(func(ctx *internal.Context) {
-			dispatchClickDefault(ctx, nil, func() { activate(ctx) })
-		}))
-	}
+	registerClickableFocusAction(ctx, c.config.disabled, activate)
 	if c.config.ref != nil {
 		c.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for _, cmd := range c.config.ref.drainCommands() {
@@ -118,14 +112,8 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 	interaction := event.InteractionSnapshot{}
 	if !c.config.disabled {
-		for {
-			click, ok := clickable.ClickedEvent(ctx)
-			if !ok {
-				break
-			}
-			dispatchClickDefault(ctx, click, func() { activate(ctx) })
-		}
-		interaction = clickable.Snapshot(ctx, true)
+		drainClickableDefaultAction(ctx, clickable, false, activate)
+		interaction = clickableInteractionSnapshot(ctx, clickable, false, true)
 	}
 
 	cs := ctx.Theme().Colors

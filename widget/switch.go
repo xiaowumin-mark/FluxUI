@@ -154,13 +154,7 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			s.config.onChange(actionCtx, next)
 		}
 	}
-	if s.config.disabled {
-		event.RegisterFocusTarget(ctx, event.FocusDisabled(true))
-	} else {
-		event.RegisterFocusTarget(ctx, event.FocusActivate(func(ctx *internal.Context) {
-			dispatchClickDefault(ctx, nil, func() { activate(ctx) })
-		}))
-	}
+	registerClickableFocusAction(ctx, s.config.disabled, activate)
 	if s.config.ref != nil {
 		s.config.ref.bindInvalidator(redrawInvalidator(ctx))
 		for _, cmd := range s.config.ref.drainCommands() {
@@ -181,14 +175,8 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 	interaction := event.InteractionSnapshot{}
 	if !s.config.disabled {
-		for {
-			click, ok := clickable.ClickedEvent(ctx)
-			if !ok {
-				break
-			}
-			dispatchClickDefault(ctx, click, func() { activate(ctx) })
-		}
-		interaction = clickable.Snapshot(ctx, true)
+		drainClickableDefaultAction(ctx, clickable, false, activate)
+		interaction = clickableInteractionSnapshot(ctx, clickable, false, true)
 	}
 
 	cs := ctx.Theme().Colors
