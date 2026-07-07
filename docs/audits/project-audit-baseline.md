@@ -76,6 +76,12 @@
 | A7.4 文本输入事件审查 | [audit-a7.4-text-input-events.md](audit-a7.4-text-input-events.md) | Done | 2026-07-07 |
 | A7.5 IME 和 submit 审查 | [audit-a7.5-ime-submit.md](audit-a7.5-ime-submit.md) | Done | 2026-07-07 |
 
+## Batch 4：复杂边界和组件族
+
+| 任务 | 文件 | 状态 | 日期 |
+| --- | --- | --- | --- |
+| A8.1 Overlay 挂载模型审查 | [audit-a8.1-overlay-mount-model.md](audit-a8.1-overlay-mount-model.md) | Done | 2026-07-07 |
+
 ---
 
 ## 关联能力总览
@@ -243,3 +249,9 @@
 - TextField Enter submit Gio SubmitEvent 边界
 - InputEvent/KeyboardEvent IsComposing 未桥接风险
 - runtime Enter 默认激活与 TextField submit 分层
+- Dialog/Popup global-local mount API 与父约束边界
+- Dialog portal stop boundary 与 Popup portal-only 差异
+- Menu/DropdownMenu/Select 本地 op.Defer popup 挂载
+- Tooltip child-local overlay 边界
+- Toast/Snackbar anchored overlay 生命周期
+- overlay z-order 依赖 Stack/op.Defer 顺序
