@@ -93,6 +93,7 @@
 | A10.4 滚动集合控件族审查 | [audit-a10.4-scroll-collection-controls.md](audit-a10.4-scroll-collection-controls.md) | Done | 2026-07-07 |
 | A10.5 数值交互控件族审查 | [audit-a10.5-numeric-interaction-controls.md](audit-a10.5-numeric-interaction-controls.md) | Done | 2026-07-07 |
 | A10.6 Overlay 控件族审查 | [audit-a10.6-overlay-controls.md](audit-a10.6-overlay-controls.md) | Done | 2026-07-07 |
+| A10.7 拖放控件族审查 | [audit-a10.7-drag-drop-controls.md](audit-a10.7-drag-drop-controls.md) | Done | 2026-07-07 |
 
 ---
 
@@ -324,3 +325,7 @@
 - Menu/DropdownMenu/Tooltip/Toast/Snackbar overlay 组件族矩阵
 - DropdownMenu protected rect outside press 与普通 Menu 无 open 状态边界
 - overlay focus trap、restore focus、Escape 默认关闭缺口
+- DragSource/DropTarget payload、operation 和 Gio transfer 边界
+- 拖放控件 hit area 与 child layout size 对齐
+- 拖放组件不注册 wheel 的父级纵向滚动边界
+- dragover/drop default action gate 与 payload 读取先后顺序
