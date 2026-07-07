@@ -98,6 +98,7 @@
 | A11.1 docs browser 组合场景审查 | [audit-a11.1-docs-browser-composition.md](audit-a11.1-docs-browser-composition.md) | Done | 2026-07-07 |
 | A11.2 component_lab 审查 | [audit-a11.2-component-lab.md](audit-a11.2-component-lab.md) | Done | 2026-07-07 |
 | A11.3 event_system_testbench 审查 | [audit-a11.3-event-system-testbench.md](audit-a11.3-event-system-testbench.md) | Done | 2026-07-07 |
+| A11.4 示例覆盖矩阵 | [audit-a11.4-example-coverage-matrix.md](audit-a11.4-example-coverage-matrix.md) | Done | 2026-07-07 |
 
 ---
 
@@ -346,3 +347,6 @@
 - event_system_testbench P0-P7 操作说明、预期结果和复验点
 - P1 EventTarget 分发、P3 Focus/Keyboard、P5 默认行为可取消性的手工判定口径
 - event_system_testbench 历史问题与 R1-R5 修复记录的复验边界
+- advanced_components、drag_drop_showcase、form_validation、horizontal_scroll、virtual_scroll 示例覆盖矩阵
+- 示例到控件族、底层能力和核心能力真实入口的映射
+- 示例 README 与 RunElement 入口实现漂移风险识别
