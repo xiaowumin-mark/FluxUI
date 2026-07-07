@@ -85,6 +85,7 @@
 | A8.3 outside click 关闭规则审查 | [audit-a8.3-outside-click-close-rules.md](audit-a8.3-outside-click-close-rules.md) | Done | 2026-07-07 |
 | A8.4 overlay focus 和 Escape 审查 | [audit-a8.4-overlay-focus-escape.md](audit-a8.4-overlay-focus-escape.md) | Done | 2026-07-07 |
 | A9.1 Ref 命令生命周期审查 | [audit-a9.1-ref-command-lifecycle.md](audit-a9.1-ref-command-lifecycle.md) | Done | 2026-07-07 |
+| A9.2 controlled value 和内部状态审查 | [audit-a9.2-controlled-value-internal-state.md](audit-a9.2-controlled-value-internal-state.md) | Done | 2026-07-07 |
 
 ---
 
@@ -277,3 +278,9 @@
 - disabled/loading 下 Ref 命令 drain 后丢弃边界
 - 未挂载/条件隐藏期间 Ref 命令保留和重新绑定消费风险
 - Dialog/Popup/Select 受控入参与 Ref 命令覆盖边界
+- Input/TextField controlled 判定依赖 `InputOnChange`
+- Select/RadioGroup/Tabs 外部 value 与本帧 local current 值边界
+- Checkbox/Switch 同帧多次 toggle 不累积风险
+- Slider pressed 期间内部 progress 与外部 value 覆盖优先级
+- SearchBar 继承 TextField 受控语义边界
+- controlled value、内部 state、Ref/交互写入、OnChange 优先级矩阵
