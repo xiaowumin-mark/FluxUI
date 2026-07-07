@@ -74,6 +74,7 @@
 | A7.2 键盘事件和 shortcut 边界审查 | [audit-a7.2-keyboard-shortcut-boundary.md](audit-a7.2-keyboard-shortcut-boundary.md) | Done | 2026-07-06 |
 | A7.3 键盘默认行为审查 | [audit-a7.3-keyboard-default-actions.md](audit-a7.3-keyboard-default-actions.md) | Done | 2026-07-07 |
 | A7.4 文本输入事件审查 | [audit-a7.4-text-input-events.md](audit-a7.4-text-input-events.md) | Done | 2026-07-07 |
+| A7.5 IME 和 submit 审查 | [audit-a7.5-ime-submit.md](audit-a7.5-ime-submit.md) | Done | 2026-07-07 |
 
 ---
 
@@ -238,3 +239,7 @@
 - 用户输入、粘贴、删除、撤销/重做 best-effort 来源识别
 - SearchBarInputOptions 高级文本事件转发边界
 - composition synthetic 入口与真实 IME 自动桥接缺口
+- IME compositionstart/update/end synthetic 顺序
+- TextField Enter submit Gio SubmitEvent 边界
+- InputEvent/KeyboardEvent IsComposing 未桥接风险
+- runtime Enter 默认激活与 TextField submit 分层
