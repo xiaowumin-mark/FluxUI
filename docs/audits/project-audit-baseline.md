@@ -106,6 +106,7 @@
 | A11.4 示例覆盖矩阵 | [audit-a11.4-example-coverage-matrix.md](audit-a11.4-example-coverage-matrix.md) | Done | 2026-07-07 |
 | A12.1 高频事件 benchmark 设计 | [audit-a12.1-high-frequency-event-benchmark.md](audit-a12.1-high-frequency-event-benchmark.md) | Done | 2026-07-07 |
 | A12.2 大组件树 benchmark 设计 | [audit-a12.2-large-component-tree-benchmark.md](audit-a12.2-large-component-tree-benchmark.md) | Done | 2026-07-07 |
+| A12.3 diagnostics 能力审查 | [audit-a12.3-diagnostics-capability.md](audit-a12.3-diagnostics-capability.md) | Done | 2026-07-07 |
 
 ---
 
@@ -365,3 +366,6 @@
 - `internal/perf` 大树 benchmark 与 `FrameStats` 指标口径
 - 大列表虚拟化 visible/culled 成本测量入口
 - 大表格、真实 card grid、registration-only 对照 benchmark 缺口识别
+- runtime/event/perf diagnostics 当前可见字段审查
+- event path、target、defaultPrevented、redraw reason 输出边界
+- 谁注册事件、谁取消默认行为、谁触发 redraw 的诊断字段缺口清单
