@@ -95,10 +95,16 @@
 | A10.6 Overlay 控件族审查 | [audit-a10.6-overlay-controls.md](audit-a10.6-overlay-controls.md) | Done | 2026-07-07 |
 | A10.7 拖放控件族审查 | [audit-a10.7-drag-drop-controls.md](audit-a10.7-drag-drop-controls.md) | Done | 2026-07-07 |
 | A10.8 容器和装饰控件族审查 | [audit-a10.8-container-decoration-controls.md](audit-a10.8-container-decoration-controls.md) | Done | 2026-07-07 |
+
+## Batch 5：示例、性能和冗余收敛
+
+| 任务 | 文件 | 状态 | 日期 |
+| --- | --- | --- | --- |
 | A11.1 docs browser 组合场景审查 | [audit-a11.1-docs-browser-composition.md](audit-a11.1-docs-browser-composition.md) | Done | 2026-07-07 |
 | A11.2 component_lab 审查 | [audit-a11.2-component-lab.md](audit-a11.2-component-lab.md) | Done | 2026-07-07 |
 | A11.3 event_system_testbench 审查 | [audit-a11.3-event-system-testbench.md](audit-a11.3-event-system-testbench.md) | Done | 2026-07-07 |
 | A11.4 示例覆盖矩阵 | [audit-a11.4-example-coverage-matrix.md](audit-a11.4-example-coverage-matrix.md) | Done | 2026-07-07 |
+| A12.1 高频事件 benchmark 设计 | [audit-a12.1-high-frequency-event-benchmark.md](audit-a12.1-high-frequency-event-benchmark.md) | Done | 2026-07-07 |
 
 ---
 
@@ -350,3 +356,7 @@
 - advanced_components、drag_drop_showcase、form_validation、horizontal_scroll、virtual_scroll 示例覆盖矩阵
 - 示例到控件族、底层能力和核心能力真实入口的映射
 - 示例 README 与 RunElement 入口实现漂移风险识别
+- pointer move、wheel、hover、scroll 高频事件 benchmark 设计
+- PointerArea 和 internal/perf 现有 benchmark 入口识别
+- 高频输入 `allocs/op`、`input-ns/frame`、`hover-changes/frame` 预算口径
+- ScrollView/ListView wheel 端到端 benchmark 缺口识别
