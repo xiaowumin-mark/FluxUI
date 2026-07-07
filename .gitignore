@@ -21,3 +21,4 @@ saga.db-wal
 /build
 /out
 /.tmp
+/.codegraph

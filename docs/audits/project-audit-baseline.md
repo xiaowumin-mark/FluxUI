@@ -81,6 +81,7 @@
 | 任务 | 文件 | 状态 | 日期 |
 | --- | --- | --- | --- |
 | A8.1 Overlay 挂载模型审查 | [audit-a8.1-overlay-mount-model.md](audit-a8.1-overlay-mount-model.md) | Done | 2026-07-07 |
+| A8.2 Portal event path 审查 | [audit-a8.2-portal-event-path.md](audit-a8.2-portal-event-path.md) | Done | 2026-07-07 |
 
 ---
 
@@ -255,3 +256,7 @@
 - Tooltip child-local overlay 边界
 - Toast/Snackbar anchored overlay 生命周期
 - overlay z-order 依赖 Stack/op.Defer 顺序
+- portal registration owner path 规则
+- modal boundary event path 截断规则
+- Popup portal-only 冒泡规则
+- Dialog modal portal + stop boundary 规则
