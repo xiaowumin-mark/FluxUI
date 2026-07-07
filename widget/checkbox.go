@@ -84,12 +84,19 @@ func CheckboxDecoration(d style.Decoration) CheckboxOption {
 }
 
 func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	currentValue := c.value
 	clickable := event.UseClickable(ctx)
-	activate := func(actionCtx *internal.Context) {
-		next := !c.value
+	setCurrentValue := func(actionCtx *internal.Context, next bool) {
+		if next == currentValue {
+			return
+		}
+		currentValue = next
 		if c.config.onChange != nil {
 			c.config.onChange(actionCtx, next)
 		}
+	}
+	activate := func(actionCtx *internal.Context) {
+		setCurrentValue(actionCtx, !currentValue)
 	}
 	registerClickableFocusAction(ctx, c.config.disabled, activate)
 	if c.config.ref != nil {
@@ -98,15 +105,11 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			if c.config.disabled {
 				continue
 			}
-			next := c.value
 			switch cmd.kind {
 			case boolCmdSet:
-				next = cmd.value
+				setCurrentValue(ctx, cmd.value)
 			case boolCmdToggle:
-				next = !c.value
-			}
-			if next != c.value && c.config.onChange != nil {
-				c.config.onChange(ctx, next)
+				setCurrentValue(ctx, !currentValue)
 			}
 		}
 	}
@@ -131,8 +134,8 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	checkColor = md3AnimateColor(ctx, "checkbox-color", checkColor, duration, easing)
 
 	boxWidget := layoutWidgetFunc(func(childCtx *internal.Context) layout.Dimensions {
-		checkedProgress := md3SelectionProgress(childCtx, c.value)
-		size := childCtx.LayoutCheckbox(nil, c.value, internal.CheckboxSpec{
+		checkedProgress := md3SelectionProgress(childCtx, currentValue)
+		size := childCtx.LayoutCheckbox(nil, currentValue, internal.CheckboxSpec{
 			Size:            c.config.size,
 			Color:           checkColor,
 			CheckedProgress: checkedProgress,

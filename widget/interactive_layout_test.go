@@ -335,7 +335,7 @@ func TestClickablePreventDefaultBlocksPointerDefaultActions(t *testing.T) {
 				}
 			}),
 		)}
-		newInteractionFrameHarness(image.Pt(320, 220)).click(w, 24, 104)
+		newInteractionFrameHarness(image.Pt(320, 220)).click(w, 24, 80)
 		if changeCalls != 0 {
 			t.Fatalf("select option change calls = %d, want 0", changeCalls)
 		}
@@ -371,6 +371,172 @@ func TestTabsPointerClickStillActivatesWithoutPreventDefault(t *testing.T) {
 	if active != "two" {
 		t.Fatalf("tabs active after click = %q, want two", active)
 	}
+}
+
+func TestSelectionControlsDoNotReportUnchangedCurrentItem(t *testing.T) {
+	t.Run("select current option activation", func(t *testing.T) {
+		changeCalls := 0
+		closeCalls := 0
+		current := "one"
+		state := &selectState{opened: true}
+		w := &selectWidget[string]{
+			value: "one",
+			options: []SelectOptionItem[string]{
+				{Label: "One", Value: "one"},
+				{Label: "Two", Value: "two"},
+			},
+			config: selectConfig[string]{
+				onChange: func(*internal.Context, string) {
+					changeCalls++
+				},
+				onOpen: func(_ *internal.Context, opened bool) {
+					if !opened {
+						closeCalls++
+					}
+				},
+			},
+		}
+
+		w.activateOptionValue(nil, state, nil, &current, "one")
+		if changeCalls != 0 {
+			t.Fatalf("select current option change calls = %d, want 0", changeCalls)
+		}
+		if closeCalls != 1 {
+			t.Fatalf("select current option close calls = %d, want 1", closeCalls)
+		}
+		if current != "one" || state.opened {
+			t.Fatalf("select current=%q opened=%t, want one and closed", current, state.opened)
+		}
+
+		state.opened = true
+		w.activateOptionValue(nil, state, nil, &current, "two")
+		if changeCalls != 1 {
+			t.Fatalf("select changed option change calls = %d, want 1", changeCalls)
+		}
+		if closeCalls != 2 {
+			t.Fatalf("select changed option close calls = %d, want 2", closeCalls)
+		}
+		if current != "two" || state.opened {
+			t.Fatalf("select current=%q opened=%t, want two and closed", current, state.opened)
+		}
+	})
+
+	t.Run("select current option click", func(t *testing.T) {
+		ref := NewSelectRef[string]()
+		ref.Open()
+		changeCalls := 0
+		w := Select("one",
+			[]SelectOptionItem[string]{{Label: "One", Value: "one"}, {Label: "Two", Value: "two"}},
+			SelectAttachRef(ref),
+			SelectOnChange(func(*internal.Context, string) {
+				changeCalls++
+			}),
+		)
+		newInteractionFrameHarness(image.Pt(320, 220)).click(w, 24, 80)
+		if changeCalls != 0 {
+			t.Fatalf("select current option change calls = %d, want 0", changeCalls)
+		}
+	})
+
+	t.Run("tabs current tab", func(t *testing.T) {
+		calls := 0
+		active := "one"
+		w := Tabs(active,
+			[]TabItem{{Key: "one", Label: "One"}, {Key: "two", Label: "Two"}},
+			TabsOnChange(func(_ *internal.Context, key string) {
+				calls++
+				active = key
+			}),
+		)
+		newInteractionFrameHarness(image.Pt(240, 120)).click(w, 24, 24)
+		if calls != 0 {
+			t.Fatalf("tabs current tab change calls = %d, want 0", calls)
+		}
+		if active != "one" {
+			t.Fatalf("tabs active after current click = %q, want one", active)
+		}
+	})
+}
+
+func TestSameFrameRefCommandsAccumulate(t *testing.T) {
+	t.Run("checkbox toggles", func(t *testing.T) {
+		ref := NewCheckboxRef()
+		ref.Toggle()
+		ref.Toggle()
+		var changes []bool
+
+		rt := internal.NewRuntime(nil)
+		rt.BeginFrame()
+		ctx := newInteractiveLayoutTestContext(rt)
+		Checkbox("ok", false,
+			CheckboxAttachRef(ref),
+			CheckboxOnChange(func(_ *internal.Context, checked bool) {
+				changes = append(changes, checked)
+			}),
+		).Layout(ctx)
+		rt.EndFrame()
+
+		if len(changes) != 2 || changes[0] != true || changes[1] != false {
+			t.Fatalf("checkbox ref changes = %v, want [true false]", changes)
+		}
+	})
+
+	t.Run("switch toggles", func(t *testing.T) {
+		ref := NewSwitchRef()
+		ref.Toggle()
+		ref.Toggle()
+		var changes []bool
+
+		rt := internal.NewRuntime(nil)
+		rt.BeginFrame()
+		ctx := newInteractiveLayoutTestContext(rt)
+		Switch(false,
+			SwitchAttachRef(ref),
+			SwitchOnChange(func(_ *internal.Context, checked bool) {
+				changes = append(changes, checked)
+			}),
+		).Layout(ctx)
+		rt.EndFrame()
+
+		if len(changes) != 2 || changes[0] != true || changes[1] != false {
+			t.Fatalf("switch ref changes = %v, want [true false]", changes)
+		}
+	})
+
+	t.Run("slider set and steps", func(t *testing.T) {
+		ref := NewSliderRef()
+		ref.SetValue(10)
+		ref.StepBy(5)
+		ref.StepBy(-2)
+		changeCalls := 0
+
+		rt := internal.NewRuntime(nil)
+		rt.BeginFrame()
+		ctx := newInteractiveLayoutTestContext(rt).Scope("slider")
+		Slider(0,
+			SliderAttachRef(ref),
+			SliderOnChange(func(*internal.Context, float32) {
+				changeCalls++
+			}),
+		).Layout(ctx)
+		value, ok := ctx.PersistentValueKey(internal.MemoryKey{Path: ctx.PathID(), Namespace: "slider", Slot: 0})
+		rt.EndFrame()
+		if !ok {
+			t.Fatal("slider state was not recorded")
+		}
+		state, ok := value.(*sliderState)
+		if !ok {
+			t.Fatalf("slider state type = %T, want *sliderState", value)
+		}
+
+		got := applySliderStep(100*state.end, 0, 100, 1)
+		if got != 13 {
+			t.Fatalf("slider ref value = %v, want 13", got)
+		}
+		if changeCalls != 0 {
+			t.Fatalf("slider ref change calls = %d, want 0", changeCalls)
+		}
+	})
 }
 
 func TestPressableKeyboardActivationUsesCancelableClick(t *testing.T) {

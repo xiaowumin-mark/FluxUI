@@ -237,6 +237,9 @@ func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			clickable := event.UseClickable(tabCtx)
 			disabled := item.Disabled
 			drainClickableDefaultAction(tabCtx, clickable, disabled, func(actionCtx *internal.Context) {
+				if item.Key == activeKey {
+					return
+				}
 				activeKey = item.Key
 				if t.config.onChange != nil {
 					t.config.onChange(actionCtx, item.Key)

@@ -62,6 +62,56 @@ func TestInputRefDispatchesProgrammaticInputEvents(t *testing.T) {
 	}
 }
 
+func TestInputRefSameValueDoesNotDispatchProgrammaticChange(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	defer rt.Dispose()
+
+	ref := NewInputRef()
+	var beforeEvents []fluxevent.InputEvent
+	var inputEvents []fluxevent.InputEvent
+	var changes []string
+	var ops op.Ops
+
+	render := func(frame int) {
+		ops.Reset()
+		gtx := gioLayout.Context{
+			Constraints: gioLayout.Exact(image.Pt(180, 56)),
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Now:         time.Date(2026, 7, 4, 12, 0, 0, 0, time.UTC).Add(time.Duration(frame) * 16 * time.Millisecond),
+			Ops:         &ops,
+		}
+		rt.BeginFrame()
+		ctx := internal.NewContext(gtx, rt).Scope("input")
+		TextField("42",
+			InputAttachRef(ref),
+			InputOnBeforeInput(func(ctx *internal.Context, ev *fluxevent.InputEvent) {
+				beforeEvents = append(beforeEvents, *ev)
+			}),
+			InputOnInputEvent(func(ctx *internal.Context, ev *fluxevent.InputEvent) {
+				inputEvents = append(inputEvents, *ev)
+			}),
+			InputOnChange(func(ctx *internal.Context, value string) {
+				changes = append(changes, value)
+			}),
+		).Layout(ctx)
+		rt.EndFrame()
+	}
+
+	render(0)
+	ref.SetText("42")
+	render(1)
+
+	if len(beforeEvents) != 0 {
+		t.Fatalf("same-value beforeinput events = %d, want 0", len(beforeEvents))
+	}
+	if len(inputEvents) != 0 {
+		t.Fatalf("same-value input events = %d, want 0", len(inputEvents))
+	}
+	if len(changes) != 0 {
+		t.Fatalf("same-value legacy changes = %v, want none", changes)
+	}
+}
+
 func TestInputBeforeInputCancelRollsBackUserEdit(t *testing.T) {
 	rt := internal.NewRuntime(nil)
 	defer rt.Dispose()

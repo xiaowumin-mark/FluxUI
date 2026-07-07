@@ -573,12 +573,18 @@ func (t *inputWidget) commitProgrammaticInput(ctx *internal.Context, state *inpu
 		return
 	}
 	previous := state.syncedValue
+	if next == previous {
+		return
+	}
 	before := t.newInputEvent(ctx, fluxevent.BeforeInput, previous, next, data, inputType, fluxevent.InputSourceProgrammatic, false, nil, false)
 	if !t.dispatchInputEvent(ctx, before) {
 		return
 	}
 	editor.SetText(next)
 	value := editor.Text()
+	if value == previous {
+		return
+	}
 	if value != next {
 		_, data = inputTextDiff(previous, value)
 	}
@@ -590,6 +596,9 @@ func (t *inputWidget) commitUserInput(ctx *internal.Context, state *inputState, 
 		return
 	}
 	previous := state.syncedValue
+	if value == previous {
+		return
+	}
 	mutation := state.classifyUserInput(previous, value)
 	before := t.newInputEvent(ctx, fluxevent.BeforeInput, previous, value, mutation.data, mutation.inputType, mutation.source, true, native, true)
 	if !t.dispatchInputEvent(ctx, before) {
@@ -601,6 +610,9 @@ func (t *inputWidget) commitUserInput(ctx *internal.Context, state *inputState, 
 }
 
 func (t *inputWidget) finishInputMutation(ctx *internal.Context, state *inputState, previous string, value string, data string, inputType string, source fluxevent.InputSource, bestEffort bool, native any) {
+	if value == previous {
+		return
+	}
 	state.syncedValue = value
 	state.recordInputHistory(value, source)
 

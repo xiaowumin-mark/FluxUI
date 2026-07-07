@@ -147,12 +147,19 @@ func SwitchIconFontFamily(family string) SwitchOption {
 }
 
 func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	currentValue := s.value
 	clickable := event.UseClickable(ctx)
-	activate := func(actionCtx *internal.Context) {
-		next := !s.value
+	setCurrentValue := func(actionCtx *internal.Context, next bool) {
+		if next == currentValue {
+			return
+		}
+		currentValue = next
 		if s.config.onChange != nil {
 			s.config.onChange(actionCtx, next)
 		}
+	}
+	activate := func(actionCtx *internal.Context) {
+		setCurrentValue(actionCtx, !currentValue)
 	}
 	registerClickableFocusAction(ctx, s.config.disabled, activate)
 	if s.config.ref != nil {
@@ -161,15 +168,11 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			if s.config.disabled {
 				continue
 			}
-			next := s.value
 			switch cmd.kind {
 			case boolCmdSet:
-				next = cmd.value
+				setCurrentValue(ctx, cmd.value)
 			case boolCmdToggle:
-				next = !s.value
-			}
-			if next != s.value && s.config.onChange != nil {
-				s.config.onChange(ctx, next)
+				setCurrentValue(ctx, !currentValue)
 			}
 		}
 	}
@@ -188,7 +191,7 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		trackBorderColor = color.NRGBA{}
 		trackBorderWidth = 0
 	}
-	if s.value {
+	if currentValue {
 		if s.config.hasColor {
 			trackColor = s.config.color
 		} else {
@@ -199,7 +202,7 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	thumbColor := cs.Outline
-	if s.value {
+	if currentValue {
 		thumbColor = cs.OnPrimary
 	}
 	if s.config.hasThumbColor {
@@ -215,15 +218,15 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if s.config.disabled {
 		duration = 0
 	}
-	checkedProgress := boolProgress(s.value)
+	checkedProgress := boolProgress(currentValue)
 	pressedProgress := float32(0)
 	if !s.config.disabled {
-		checkedProgress = md3SwitchSelectionProgress(ctx, s.value)
+		checkedProgress = md3SwitchSelectionProgress(ctx, currentValue)
 		pressedProgress = md3SwitchPressedProgress(ctx, interaction.Pressed)
 	}
-	iconText, iconFamily := s.resolveThumbIcon(ctx)
+	iconText, iconFamily := s.resolveThumbIcon(ctx, currentValue)
 	iconColor := cs.OnPrimaryContainer
-	if s.value {
+	if currentValue {
 		iconColor = cs.Primary
 	}
 	if s.config.disabled {
@@ -236,7 +239,7 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 	if !s.config.disabled && !s.config.hasThumbColor {
 		if interaction.Hovered || interaction.Pressed {
-			if s.value {
+			if currentValue {
 				thumbColor = cs.PrimaryContainer
 			} else {
 				thumbColor = cs.OnSurfaceVariant
@@ -246,7 +249,7 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	trackColor = md3AnimateColorRetained(ctx, "switch-track", trackColor, colorDuration, colorEasing)
 	thumbColor = md3AnimateColorRetained(ctx, "switch-thumb", thumbColor, colorDuration, colorEasing)
 	content := func(contentCtx *internal.Context) image.Point {
-		return contentCtx.LayoutSwitch(nil, s.value, internal.SwitchSpec{
+		return contentCtx.LayoutSwitch(nil, currentValue, internal.SwitchSpec{
 			Width:               s.config.width,
 			Height:              s.config.height,
 			TrackColor:          trackColor,
@@ -279,7 +282,7 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		return content(targetCtx.Child(0))
 	}
 	stateLayerColor := trackColor
-	if !s.value {
+	if !currentValue {
 		stateLayerColor = thumbColor
 	}
 	return layoutStateLayerTouchTarget(ctx, clickable.Handle(), s.config.disabled, internal.RippleSpec{
@@ -293,9 +296,9 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}, target)
 }
 
-func (s *switchWidget) resolveThumbIcon(ctx *internal.Context) (text string, family string) {
+func (s *switchWidget) resolveThumbIcon(ctx *internal.Context, checked bool) (text string, family string) {
 	name := s.config.uncheckedIcon
-	if s.value {
+	if checked {
 		name = s.config.checkedIcon
 	}
 	name = strings.TrimSpace(name)

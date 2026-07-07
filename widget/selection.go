@@ -537,17 +537,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 			clickable := event.UseClickable(rowCtx)
 			disabled := s.config.disabled || item.Disabled
 			activate := func(actionCtx *internal.Context) {
-				currentValue = item.Value
-				if s.config.onChange != nil {
-					s.config.onChange(actionCtx, item.Value)
-				}
-				if state.opened {
-					state.opened = false
-					if s.config.onOpen != nil {
-						s.config.onOpen(actionCtx, false)
-					}
-					event.RequestFocus(fieldCtx)
-				}
+				s.activateOptionValue(actionCtx, state, fieldCtx, &currentValue, item.Value)
 			}
 			registerClickableFocusAction(rowCtx, disabled, activate)
 			drainClickableDefaultAction(rowCtx, clickable, disabled, activate)
@@ -732,6 +722,27 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	op.Defer(ctx.Gtx.Ops, deferCall)
 
 	return toggleDims
+}
+
+func (s *selectWidget[T]) activateOptionValue(actionCtx *internal.Context, state *selectState, fieldCtx *internal.Context, currentValue *T, next T) {
+	if currentValue == nil {
+		return
+	}
+	if next != *currentValue {
+		*currentValue = next
+		if s.config.onChange != nil {
+			s.config.onChange(actionCtx, next)
+		}
+	}
+	if state != nil && state.opened {
+		state.opened = false
+		if s.config.onOpen != nil {
+			s.config.onOpen(actionCtx, false)
+		}
+		if fieldCtx != nil {
+			event.RequestFocus(fieldCtx)
+		}
+	}
 }
 
 func (s *selectWidget[T]) layoutSelectField(ctx *internal.Context, valueLabel string, hasValue bool, state *selectState) layout.Dimensions {

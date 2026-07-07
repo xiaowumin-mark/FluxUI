@@ -184,6 +184,17 @@
 - 先补 diff/gate 和测试，不改变公开 option/ref 签名。
 - 真实 IME 桥接若不稳定，先保留 best-effort 并在文档中明确限制。
 
+### P5 实施记录（2026-07-07）
+
+- 审计依据：复核 `audit-a7.4-text-input-events.md`、`audit-a7.5-ime-submit.md`、`audit-a9.1-ref-command-lifecycle.md`、`audit-a9.2-controlled-value-internal-state.md`、`audit-a9.3-onchange-trigger-conditions.md`、`audit-a10.2-form-selection-controls.md`、`audit-a10.3-text-input-controls.md`、`audit-a10.5-numeric-interaction-controls.md`、`audit-a13.4-final-fix-candidate-ranking.md` 与 `audit-a11.4-example-coverage-matrix.md`，并按组件开发指南、代码风格指南和功能集成检查表约束执行。
+- 代码落点：`widget/input.go` 为 programmatic/user mutation 增加真实 diff gate，同值 `InputRef.SetText` 和异常同值 user change 不再派发文本事件；过滤后未变值只保留可取消的 `beforeinput` 尝试，不再派发 `input`/`change`/`InputOnChange`；受 Gio 公共 IME API 限制，真实 IME composition 仍按 A7.5 记录为 best-effort，`Submit` 不伪造 composing 状态。
+- 状态与 Ref：`widget/checkbox.go`、`widget/switch.go` 改为以本帧 `currentValue` 串行消费 Ref/用户默认动作，`Toggle`/`SetChecked` 同帧多命令按顺序累计并只对真实变化调用 `OnChange`；`widget/slider.go` 保持现有 Ref 顺序消费且 Ref 不作为 `OnChange` 来源，通过回归测试锁定。
+- 选择控件：`widget/selection.go` 将 Select option 默认动作收敛到内部 `activateOptionValue`，重复选择当前值不触发 `SelectOnChange`，但仍保留关闭弹层/恢复焦点默认动作；`widget/tabs_dialog_toast.go` 对当前 active tab 点击增加 same-key gate，不再重复触发 `TabsOnChange`。
+- 回归覆盖：新增 `TestInputRefSameValueDoesNotDispatchProgrammaticChange`、`TestSelectionControlsDoNotReportUnchangedCurrentItem`、`TestSameFrameRefCommandsAccumulate`，覆盖 Input/TextField programmatic source、Select/Tabs 当前项、Checkbox/Switch/Slider 同帧 Ref 命令和 Slider Ref 非 `OnChange` 来源。
+- 验证：`gofmt` 已执行；`gopls go_diagnostics` 对修改文件无诊断；`go test ./widget` 通过；`go test ./examples/form_validation` 构建通过（该目录无测试文件）。本轮未修改 `go.mod`；`go_vulncheck ./...` 仍报告现有 Go 1.25.1 标准库与间接依赖风险，未引入新的依赖风险。
+- 集成检查：未改变公开 option/ref 签名；保持 controlled value 外部回灌模型，Ref 只在组件布局帧内消费；事件默认动作仍经过 P4 click gate；SearchBar 继续复用 TextField/inputWidget 的 source 与 diff 规则。
+- 回滚边界：如 programmatic 文本事件 gate 需要回退，可仅撤销 `input.go` diff gate 与对应测试；如选择/布尔控件同帧累计策略需回退，可按 `selection.go`、`tabs_dialog_toast.go`、`checkbox.go`、`switch.go` 分组件退回，不需要整体 revert。
+
 ## P6：layout、hit、style 收尾
 
 ### 范围
