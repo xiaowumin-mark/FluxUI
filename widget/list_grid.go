@@ -54,6 +54,15 @@ type scrollState struct {
 	lastAutoKey any
 }
 
+type wheelPolicy struct {
+	axis gioLayout.Axis
+}
+
+type wheelPolicyDecision struct {
+	delta   float32
+	handled bool
+}
+
 // ScrollView 创建滚动容器。
 func ScrollView(child Widget, opts ...ScrollOption) Widget {
 	cfg := scrollConfig{
@@ -296,18 +305,8 @@ func (s *scrollWidget) processWheelEvents(ctx *internal.Context, state *scrollSt
 	if ctx == nil || state == nil || state.wheelTag == nil {
 		return
 	}
-	const scrollLimit = 1 << 30
-	filter := pointer.Filter{
-		Target: state.wheelTag,
-		Kinds:  pointer.Scroll,
-	}
-	if state.list.Axis == gioLayout.Horizontal {
-		filter.ScrollX = pointer.ScrollRange{Min: -scrollLimit, Max: scrollLimit}
-		filter.ScrollY = pointer.ScrollRange{Min: 0, Max: 0}
-	} else {
-		filter.ScrollX = pointer.ScrollRange{Min: 0, Max: 0}
-		filter.ScrollY = pointer.ScrollRange{Min: -scrollLimit, Max: scrollLimit}
-	}
+	policy := wheelPolicy{axis: state.list.Axis}
+	filter := policy.filter(state.wheelTag)
 	for {
 		raw, ok := ctx.Gtx.Event(filter)
 		if !ok {
@@ -321,22 +320,19 @@ func (s *scrollWidget) processWheelEvents(ctx *internal.Context, state *scrollSt
 		if !fluxevent.DispatchWheelEvent(ctx, ctx.PathID(), &wheel) {
 			continue
 		}
-		s.applyWheelDefault(ctx, state, &wheel)
+		s.applyWheelDefault(ctx, state, policy, &wheel)
 	}
 }
 
-func (s *scrollWidget) applyWheelDefault(ctx *internal.Context, state *scrollState, wheel *fluxevent.WheelEvent) {
+func (s *scrollWidget) applyWheelDefault(ctx *internal.Context, state *scrollState, policy wheelPolicy, wheel *fluxevent.WheelEvent) {
 	if ctx == nil || state == nil || wheel == nil {
 		return
 	}
-	delta := wheel.DeltaY
-	if state.list.Axis == gioLayout.Horizontal {
-		delta = wheel.DeltaX
-	}
-	if delta == 0 {
+	decision := policy.decide(wheel)
+	if !decision.handled || decision.delta == 0 {
 		return
 	}
-	state.wheelLeft += delta
+	state.wheelLeft += decision.delta
 	pixels := int(state.wheelLeft)
 	state.wheelLeft -= float32(pixels)
 	if pixels == 0 {
@@ -345,6 +341,38 @@ func (s *scrollWidget) applyWheelDefault(ctx *internal.Context, state *scrollSta
 	state.list.Position.Offset += pixels
 	state.list.Position.BeforeEnd = true
 	ctx.RequestFrameRedrawReason("input.scrollview.wheel")
+}
+
+func (p wheelPolicy) filter(target any) pointer.Filter {
+	const scrollLimit = 1 << 30
+	filter := pointer.Filter{
+		Target: target,
+		Kinds:  pointer.Scroll,
+	}
+	if p.axis == gioLayout.Horizontal {
+		filter.ScrollX = pointer.ScrollRange{Min: -scrollLimit, Max: scrollLimit}
+		filter.ScrollY = pointer.ScrollRange{Min: 0, Max: 0}
+		return filter
+	}
+	filter.ScrollX = pointer.ScrollRange{Min: 0, Max: 0}
+	filter.ScrollY = pointer.ScrollRange{Min: -scrollLimit, Max: scrollLimit}
+	return filter
+}
+
+func (p wheelPolicy) decide(wheel *fluxevent.WheelEvent) wheelPolicyDecision {
+	if wheel == nil {
+		return wheelPolicyDecision{}
+	}
+	if p.axis == gioLayout.Horizontal {
+		if wheel.DeltaX != 0 {
+			return wheelPolicyDecision{delta: wheel.DeltaX, handled: true}
+		}
+		return wheelPolicyDecision{}
+	}
+	if wheel.DeltaY != 0 {
+		return wheelPolicyDecision{delta: wheel.DeltaY, handled: true}
+	}
+	return wheelPolicyDecision{}
 }
 
 func scrollViewMaxOffset(contentMajor, viewportMajor int) int {

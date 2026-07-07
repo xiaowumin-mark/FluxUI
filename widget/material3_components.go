@@ -806,6 +806,7 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
 	event.RegisterFocusTarget(ctx, event.FocusActivate(func(ctx *internal.Context) {
 		dispatchClickDefault(ctx, nil, func() {
+			event.RequestFocus(ctx)
 			open = !open
 			if d.config.onOpenChange != nil {
 				d.config.onOpenChange(ctx, open)
@@ -818,6 +819,7 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			break
 		}
 		dispatchClickDefault(ctx, click, func() {
+			event.RequestFocus(ctx)
 			open = !open
 			if d.config.onOpenChange != nil {
 				d.config.onOpenChange(ctx, open)
@@ -893,6 +895,9 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		if d.config.onOpenChange != nil {
 			d.config.onOpenChange(selectCtx, false)
 		}
+		if !menuCfg.skipRestoreFocus {
+			event.RequestFocus(ctx)
+		}
 	}
 	menu := (&menuWidget{items: d.items, config: menuCfg})
 
@@ -916,14 +921,26 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		offsetX += triggerDims.X - popupSize.X
 	}
 	offsetY := md3PopupOffsetY(triggerDims.Y, popupSize.Y, placement) + ctx.Gtx.Dp(safeDp(menuCfg.yOffset))
-	if open && d.config.onOpenChange != nil && !menuCfg.stayOpenOnOutsideClick {
-		origin := ctx.Position()
-		triggerRect := image.Rectangle{Min: origin, Max: origin.Add(triggerDims)}
-		popupOrigin := origin.Add(image.Point{X: offsetX, Y: offsetY})
-		popupRect := image.Rectangle{Min: popupOrigin, Max: popupOrigin.Add(popupSize)}
-		md3DismissOnOutsidePress(ctx, state.outsideTag, []image.Rectangle{triggerRect, popupRect}, func(dismissCtx *internal.Context) {
-			d.config.onOpenChange(dismissCtx, false)
+	if open && d.config.onOpenChange != nil {
+		if !menuCfg.stayOpenOnOutsideClick {
+			origin := ctx.Position()
+			triggerRect := image.Rectangle{Min: origin, Max: origin.Add(triggerDims)}
+			popupOrigin := origin.Add(image.Point{X: offsetX, Y: offsetY})
+			popupRect := image.Rectangle{Min: popupOrigin, Max: popupOrigin.Add(popupSize)}
+			md3DismissOnOutsidePress(ctx, state.outsideTag, []image.Rectangle{triggerRect, popupRect}, func(dismissCtx *internal.Context) {
+				d.config.onOpenChange(dismissCtx, false)
+				if !menuCfg.skipRestoreFocus {
+					md3ClearFocusIfInside(dismissCtx, ctx.PathID())
+				}
+			})
+		}
+		md3RegisterEscapeClose(ctx, func(escapeCtx *internal.Context) {
+			d.config.onOpenChange(escapeCtx, false)
+			if !menuCfg.skipRestoreFocus {
+				event.RequestFocus(ctx)
+			}
 		})
+		md3ProcessOverlayKeyboardEvents(ctx)
 	}
 	offset := op.Offset(image.Point{
 		X: offsetX,

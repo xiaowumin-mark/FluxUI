@@ -524,7 +524,8 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	label, currentIndex := s.resolveCurrentLabel(currentValue)
-	toggleDims := s.layoutSelectField(ctx.Child(0), label, currentIndex >= 0, state)
+	fieldCtx := ctx.Child(0)
+	toggleDims := s.layoutSelectField(fieldCtx, label, currentIndex >= 0, state)
 	popupProgress, popupVisible := md3OverlayProgress(
 		ctx,
 		"select-popup",
@@ -558,6 +559,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 					if s.config.onOpen != nil {
 						s.config.onOpen(actionCtx, false)
 					}
+					event.RequestFocus(fieldCtx)
 				}
 			}
 			if disabled {
@@ -735,8 +737,19 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 				if s.config.onOpen != nil {
 					s.config.onOpen(dismissCtx, false)
 				}
+				md3ClearFocusIfInside(dismissCtx, ctx.PathID())
 			}
 		})
+		md3RegisterEscapeClose(ctx, func(escapeCtx *internal.Context) {
+			if state.opened {
+				state.opened = false
+				if s.config.onOpen != nil {
+					s.config.onOpen(escapeCtx, false)
+				}
+				event.RequestFocus(fieldCtx)
+			}
+		})
+		md3ProcessOverlayKeyboardEvents(ctx)
 	}
 	offset := op.Offset(offsetPoint).Push(ctx.Gtx.Ops)
 	popupCall.Add(ctx.Gtx.Ops)
@@ -750,6 +763,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 func (s *selectWidget[T]) layoutSelectField(ctx *internal.Context, valueLabel string, hasValue bool, state *selectState) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
 	activate := func(actionCtx *internal.Context) {
+		event.RequestFocus(ctx)
 		state.opened = !state.opened
 		if s.config.onOpen != nil {
 			s.config.onOpen(actionCtx, state.opened)

@@ -768,8 +768,10 @@ type dialogWidget struct {
 }
 
 type dialogState struct {
-	wasOpen        bool
-	visibleWasOpen bool
+	wasOpen         bool
+	visibleWasOpen  bool
+	restoreFocus    internal.PathID
+	hasRestoreFocus bool
 }
 
 // Dialog 创建对话框。
@@ -964,6 +966,27 @@ func DialogMaskAlpha(alpha uint8) DialogOption {
 	return DialogMaskColor(color.NRGBA{A: alpha})
 }
 
+func dialogRememberRestoreFocus(ctx *internal.Context, state *dialogState) {
+	if ctx == nil || ctx.Runtime() == nil || state == nil {
+		return
+	}
+	state.restoreFocus = ctx.Runtime().FocusedTarget()
+	state.hasRestoreFocus = true
+}
+
+func dialogRestoreFocus(ctx *internal.Context, state *dialogState) {
+	if ctx == nil || ctx.Runtime() == nil || state == nil || !state.hasRestoreFocus {
+		return
+	}
+	target := state.restoreFocus
+	state.restoreFocus = 0
+	state.hasRestoreFocus = false
+	if target != 0 && ctx.Runtime().RequestFocus(ctx, target) {
+		return
+	}
+	ctx.Runtime().BlurFocus(ctx, 0)
+}
+
 func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	open := d.open
 	if d.config.ref != nil {
@@ -981,24 +1004,23 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 
 	state := dialogStateFor(ctx)
-	if d.config.onOpenChange != nil && state.wasOpen != open {
-		if open && d.config.onOpen != nil {
-			d.config.onOpen(ctx)
+	if state.wasOpen != open {
+		if open {
+			dialogRememberRestoreFocus(ctx, state)
+			if d.config.onOpen != nil {
+				d.config.onOpen(ctx)
+			}
 		}
 		if !open && d.config.onClose != nil {
 			d.config.onClose(ctx)
 		}
-		state.wasOpen = open
-		d.config.onOpenChange(ctx, open)
-	}
-	if d.config.onOpenChange == nil && state.wasOpen != open {
-		if open && d.config.onOpen != nil {
-			d.config.onOpen(ctx)
-		}
-		if !open && d.config.onClose != nil {
-			d.config.onClose(ctx)
+		if !open {
+			dialogRestoreFocus(ctx, state)
 		}
 		state.wasOpen = open
+		if d.config.onOpenChange != nil {
+			d.config.onOpenChange(ctx, open)
+		}
 	}
 	enterDuration := 500 * time.Millisecond
 	exitDuration := 150 * time.Millisecond
@@ -1101,10 +1123,38 @@ func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		portalCtx := overlayCtx.Scope("dialog-portal")
 		event.RegisterPortal(portalCtx, owner)
 		event.RegisterBoundary(portalCtx, event.BoundaryStopPropagation())
+		if open {
+			event.OnKeyDown(portalCtx, func(keyCtx *internal.Context, ev *event.KeyboardEvent) {
+				if keyCtx == nil || keyCtx.Runtime() == nil || ev == nil || ev.DefaultPrevented {
+					return
+				}
+				switch ev.Key {
+				case "Tab":
+					ev.PreventDefault()
+					direction := internal.FocusForward
+					if ev.Modifiers.Shift {
+						direction = internal.FocusBackward
+					}
+					keyCtx.Runtime().MoveFocusWithin(keyCtx, portalCtx.PathID(), direction)
+				case "Escape":
+					ev.PreventDefault()
+					if d.config.onOpenChange != nil {
+						if d.config.onCancelOnly != nil {
+							d.config.onCancelOnly(keyCtx)
+						}
+						d.config.onOpenChange(keyCtx, false)
+					}
+				}
+			})
+		}
 		panel := modalPanelInputShield(d.materialPanel(panelDeco, sections, overlayProgress))
 		size := layoutMaterialDialogTransition(portalCtx, overlayProgress, d.config.quick, func(transitionCtx *internal.Context) image.Point {
 			return panel.Layout(transitionCtx.Child(0)).Size
 		})
+		if open {
+			md3EnsureFocusWithin(portalCtx)
+			md3ProcessOverlayKeyboardEvents(portalCtx)
+		}
 		return layout.Dimensions{Size: size}
 	}), gioLayout.Center)
 

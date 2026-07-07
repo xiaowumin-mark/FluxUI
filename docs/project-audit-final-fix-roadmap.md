@@ -92,6 +92,17 @@
 - 保留 `ScrollView` 原 pixel-offset 路径和 `ListView/GridView` Gio list 路径。
 - 新策略先通过内部 adapter 接入，异常时按组件回退。
 
+### P2 实施记录（2026-07-07）
+
+- 审查依据：以 `docs/audits/project-audit-baseline.md` 为索引，复核 A3.2、A3.3、A3.4、A5.5、A6.1、A6.2、A6.3、A6.4、A8.3、A10.4、A11.1、A11.4、A12.1、A13.3、A13.4 的滚动、命中、default action、docs browser 和示例风险记录，并对照 `COMPONENT_DEVELOPMENT_GUIDE.md`、`CODE_STYLE_GUIDE.md`、`FEATURE_INTEGRATION_CHECKLIST.md`。
+- 代码产物：`ScrollView` wheel 处理收敛到内部 `wheelPolicy` adapter，统一 `pointer.Filter`、主轴 delta 判定和 default action gate；横向容器仍只接收 Gio `Scroll.X`，纵向容器仍只接收 Gio `Scroll.Y`，避免横向代码块、表格、tabs、chips 误吞普通纵向滚动；`wheel.PreventDefault()` 只阻止本次 wheel default scroll，不影响 `ScrollRef`、scrollbar、auto-to-end 等非 wheel 位置来源。
+- 模型边界：保留 `ScrollView` pixel-offset 路径和 `ListView/GridView` Gio `layout.List.Position` 路径，不把 `ScrollRef` 或 `ScrollOnChange` 扩展到虚拟列表；同轴触边后的父级剩余 delta chaining 仍不在本轮建模，当前策略是主轴内 clamp、交叉轴通过严格 filter 透传给父级。
+- shift-wheel / touchpad 策略：本轮不把 `Shift+DeltaY` 强转为横向滚动，因为 Gio `pointer.Filter` 当前不能按 modifier 条件接收 wheel；强行打开横向容器的 Y filter 会让 `TestVerticalWheelOverHorizontalScrollViewScrollsOuter` 回退。触控板横向能力以 Gio 后端明确提供 `Scroll.X` 为准，双轴输入中的交叉轴不由 `ScrollView` 转换为另一轴。
+- 回归入口：`widget/list_grid_test.go` 新增 `TestScrollViewWheelPreventDefaultBlocksOnlyWheelDefaultAction`、`TestVerticalScrollViewClickAfterScrollUsesUpdatedVisualPosition`、`TestListViewClickAfterScrollUsesUpdatedVisibleItem`；既有 `TestHorizontalScrollViewRequiresHorizontalWheelDelta`、`TestVerticalWheelOverHorizontalScrollViewScrollsOuter`、嵌套滚动、虚拟化测试继续覆盖横向/纵向互不污染和 Gio list 可见窗口。
+- 验证：定向 `go test ./widget -run "Test(ScrollViewWheel|HorizontalScrollView|VerticalScrollView|VerticalWheelOverHorizontal|NestedScroll|ListViewWheel|ListViewClickAfterScroll|ListViewVirtualization|GridViewVirtualization)"` 通过；`go test ./event ./internal ./ui ./widget` 通过；`go test ./examples/horizontal_scroll ./examples/virtual_scroll ./examples/docs_browser` 通过；gopls diagnostics 对本轮修改文件无报错。
+- 关联性检查：未新增跨包依赖，未改变公开 `ScrollOption`、`ScrollRef`、`ScrollOnChange` 签名和回调顺序；diagnostics 默认路径未增加事件历史；Select/DropdownMenu protected rect 仍由当前帧 field/popup rect 计算，内部 ListView 滚动命中由新增 Gio list click-after-scroll 回归覆盖基础路径，outside close/focus 仍留在 P3。
+- 回滚策略：如 `wheelPolicy` adapter 引发平台 wheel 路由异常，可回退 `processWheelEvents` / `applyWheelDefault` 到原手写轴向 filter；新增测试保留为回归口径。若未来要支持 modifier-aware shift-wheel 或同轴剩余 delta chaining，应先补新的 Gio 路由能力验证和父子 scroll chain 测试，再按组件接入。
+
 ## P3：overlay 与 focus 规则修复
 
 ### 范围
@@ -112,6 +123,16 @@
 
 - focus trap、Escape close、restore focus 分开接入。
 - outside click 保留原 mask/protected rect 路径，统一 helper 只包裹判定，不吞掉组件差异。
+
+### P3 实施记录（2026-07-07）
+
+- 审查依据：以 `docs/audits/project-audit-baseline.md` 为索引，复核 A7.1、A7.2、A7.3、A8.1、A8.2、A8.3、A8.4、A10.2、A10.6、A13.2、A13.4 的 overlay mount、portal path、outside press、focus target、keyboard default、Escape 和最终候选风险记录，并对照 `COMPONENT_DEVELOPMENT_GUIDE.md`、`CODE_STYLE_GUIDE.md`、`FEATURE_INTEGRATION_CHECKLIST.md`。
+- 代码产物：`internal.Runtime` 增加 `MoveFocusWithin`，按当前帧 tab order 和 event path 将焦点限制在指定 scope 内；`Dialog` 在 portal boundary 内接入 Tab focus trap、Escape cancel close、打开前 focus 记录和关闭后 restore/clear；新增 `widget/overlay_focus.go` 作为 overlay 键盘事件与 focus 小 helper；`Select` 和 `DropdownMenu` 在保留原 trigger/popup protected rect outside press 路径的前提下补充 Escape close、trigger/field focus restore 和 outside dismiss 后的明确清空。
+- 语义边界：`Popup` 仍只注册 portal 到 owner，不默认注册 `BoundaryStopPropagation`、focus trap 或 Escape close；`Tooltip`、`Toast`、`Snackbar` 未接入 modal close/focus trap，继续保持 hover/timed overlay 语义。
+- 回归入口：`event/keyboard_test.go` 新增 scope 内 focus wrap/进入测试；`widget/interactive_layout_test.go` 新增 Dialog Tab/Shift+Tab/Escape/restore focus、Select Escape restore field、DropdownMenu Escape restore trigger 测试；既有 modal 内部 press 与 outside mask close 测试继续覆盖 Dialog/Popup 指针路径。
+- 验证：`go test ./event ./widget` 通过；`go test ./event ./internal ./ui ./widget` 通过；gopls diagnostics 对本轮修改文件无报错。`go_vulncheck ./...` 仅报告当前 Go 1.25.1 标准库及间接图像/系统包的既有漏洞项，本轮未新增或更新依赖。
+- 关联性检查：未改变公开 `DialogOption`、`PopupOption`、`SelectOption`、`DropdownMenuOption` 签名；Dialog 的 mask click 仍走原 `fillWidget` 路径，Select/DropdownMenu outside press 仍走 `md3DismissOnOutsidePress` 和 protected rect 判定；新增 helper 只处理键盘 close/focus，不吞掉组件差异；Input/Gio editor focus、IME、ScrollView/ListView 滚动策略不在本轮扩展。
+- 回滚策略：如 Dialog focus trap 异常，可先移除 portal `OnKeyDown` 的 Tab 分支并保留 restore focus；如 Escape close 异常，可单独移除 `md3RegisterEscapeClose` / Dialog Escape 分支；如 Select/DropdownMenu outside dismiss 与 focus 恢复冲突，可回退各自的 `RequestFocus` / `md3ClearFocusIfInside` 调用，保留原 protected rect outside press 判定。
 
 ## P4：clickable 和 default action 收敛
 

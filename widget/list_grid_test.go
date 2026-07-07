@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	fluxevent "github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 
@@ -221,6 +222,74 @@ func TestScrollViewWheelScrollsContent(t *testing.T) {
 	}
 }
 
+func TestScrollViewWheelPreventDefaultBlocksOnlyWheelDefaultAction(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	defer rt.Dispose()
+
+	var router input.Router
+	var ops op.Ops
+	now := time.Unix(0, 0)
+	changes := 0
+	lastY := float32(0)
+	ref := NewScrollRef()
+	rows := make([]Widget, 20)
+	for i := range rows {
+		rows[i] = layoutWidgetFunc(func(*internal.Context) layout.Dimensions {
+			return layout.Dimensions{Size: image.Pt(200, 24)}
+		})
+	}
+	scroll := ScrollView(
+		Column(rows...),
+		ScrollBarVisible(false),
+		ScrollAttachRef(ref),
+		ScrollOnChange(func(_ *internal.Context, _, y float32) {
+			changes++
+			lastY = y
+		}),
+	)
+	w := layoutWidgetFunc(func(ctx *internal.Context) layout.Dimensions {
+		fluxevent.OnWheel(ctx, func(_ *internal.Context, ev *fluxevent.WheelEvent) {
+			ev.PreventDefault()
+		})
+		return scroll.Layout(ctx)
+	})
+
+	render := func(frame int, events ...gioEvent.Event) {
+		for _, ev := range events {
+			router.Queue(ev)
+		}
+		ops.Reset()
+		gtx := gioLayout.Context{
+			Ops:         &ops,
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Now:         now.Add(time.Duration(frame) * 16 * time.Millisecond),
+			Constraints: gioLayout.Exact(image.Pt(220, 72)),
+			Source:      router.Source(),
+		}
+		rt.BeginFrame()
+		w.Layout(internal.NewContext(gtx, rt))
+		rt.EndFrame()
+		router.Frame(&ops)
+	}
+
+	render(0)
+	render(1, pointer.Event{
+		Kind:     pointer.Scroll,
+		Source:   pointer.Mouse,
+		Position: f32.Pt(20, 20),
+		Scroll:   f32.Pt(0, 48),
+	})
+	if changes != 0 || lastY != 0 {
+		t.Fatalf("prevented wheel changed scroll position, changes=%d y=%0.3f", changes, lastY)
+	}
+
+	ref.ScrollToOffset(96)
+	render(2)
+	if changes == 0 || lastY <= 0 {
+		t.Fatalf("preventDefault blocked non-wheel ref scroll, changes=%d y=%0.3f", changes, lastY)
+	}
+}
+
 func TestHorizontalScrollViewRequiresHorizontalWheelDelta(t *testing.T) {
 	rt := internal.NewRuntime(nil)
 	defer rt.Dispose()
@@ -337,6 +406,70 @@ func TestHorizontalScrollViewScrollsOverClickableChild(t *testing.T) {
 
 	if changes == 0 {
 		t.Fatal("horizontal scrollview did not scroll when wheel was over clickable child")
+	}
+}
+
+func TestVerticalScrollViewClickAfterScrollUsesUpdatedVisualPosition(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	defer rt.Dispose()
+
+	var router input.Router
+	var ops op.Ops
+	now := time.Unix(0, 0)
+	clicked := -1
+	items := make([]Widget, 5)
+	for i := range items {
+		index := i
+		items[i] = ClickArea(Spacer(80, 40), func(*internal.Context) {
+			clicked = index
+		})
+	}
+	w := ScrollView(
+		Column(items...),
+		ScrollBarVisible(false),
+	)
+
+	render := func(frame int, events ...gioEvent.Event) {
+		for _, ev := range events {
+			router.Queue(ev)
+		}
+		ops.Reset()
+		gtx := gioLayout.Context{
+			Ops:         &ops,
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Now:         now.Add(time.Duration(frame) * 16 * time.Millisecond),
+			Constraints: gioLayout.Exact(image.Pt(120, 48)),
+			Source:      router.Source(),
+		}
+		rt.BeginFrame()
+		w.Layout(internal.NewContext(gtx, rt))
+		rt.EndFrame()
+		router.Frame(&ops)
+	}
+
+	render(0)
+	render(1, pointer.Event{
+		Kind:     pointer.Scroll,
+		Source:   pointer.Mouse,
+		Position: f32.Pt(20, 20),
+		Scroll:   f32.Pt(0, 90),
+	})
+	render(2, pointer.Event{
+		Kind:      pointer.Press,
+		Source:    pointer.Mouse,
+		PointerID: 1,
+		Buttons:   pointer.ButtonPrimary,
+		Position:  f32.Pt(20, 20),
+	})
+	render(3, pointer.Event{
+		Kind:      pointer.Release,
+		Source:    pointer.Mouse,
+		PointerID: 1,
+		Position:  f32.Pt(20, 20),
+	})
+
+	if clicked != 2 {
+		t.Fatalf("clicked item after vertical scroll = %d, want 2", clicked)
 	}
 }
 
@@ -528,6 +661,67 @@ func TestListViewWheelScrollsContent(t *testing.T) {
 
 	if !reachedEnd {
 		t.Fatal("listview did not reach end after wheel scroll")
+	}
+}
+
+func TestListViewClickAfterScrollUsesUpdatedVisibleItem(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	defer rt.Dispose()
+
+	var router input.Router
+	var ops op.Ops
+	now := time.Unix(0, 0)
+	clicked := -1
+	w := ListView(
+		40,
+		func(_ *internal.Context, index int) Widget {
+			return ClickArea(Spacer(200, 40), func(*internal.Context) {
+				clicked = index
+			})
+		},
+	)
+
+	render := func(frame int, events ...gioEvent.Event) {
+		for _, ev := range events {
+			router.Queue(ev)
+		}
+		ops.Reset()
+		gtx := gioLayout.Context{
+			Ops:         &ops,
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Now:         now.Add(time.Duration(frame) * 16 * time.Millisecond),
+			Constraints: gioLayout.Exact(image.Pt(220, 80)),
+			Source:      router.Source(),
+		}
+		rt.BeginFrame()
+		w.Layout(internal.NewContext(gtx, rt))
+		rt.EndFrame()
+		router.Frame(&ops)
+	}
+
+	render(0)
+	render(1, pointer.Event{
+		Kind:     pointer.Scroll,
+		Source:   pointer.Mouse,
+		Position: f32.Pt(20, 20),
+		Scroll:   f32.Pt(0, 90),
+	})
+	render(2, pointer.Event{
+		Kind:      pointer.Press,
+		Source:    pointer.Mouse,
+		PointerID: 1,
+		Buttons:   pointer.ButtonPrimary,
+		Position:  f32.Pt(20, 20),
+	})
+	render(3, pointer.Event{
+		Kind:      pointer.Release,
+		Source:    pointer.Mouse,
+		PointerID: 1,
+		Position:  f32.Pt(20, 20),
+	})
+
+	if clicked != 2 {
+		t.Fatalf("clicked list item after scroll = %d, want 2", clicked)
 	}
 }
 

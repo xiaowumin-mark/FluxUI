@@ -6,11 +6,14 @@ import (
 	"testing"
 	"time"
 
+	fluxevent "github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
 
 	"gioui.org/f32"
 	"gioui.org/io/input"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/io/system"
 	gioLayout "gioui.org/layout"
@@ -74,6 +77,42 @@ func (h *interactionFrameHarness) layout(w Widget) internal.InteractionFrameStat
 
 func (h *interactionFrameHarness) move(x, y int) {
 	h.rt.QueuePointerMove(image.Pt(x, y))
+}
+
+func (h *interactionFrameHarness) key(ev key.Event) {
+	h.router.Queue(ev)
+}
+
+type captureContextWidget struct {
+	child Widget
+	ctx   **internal.Context
+}
+
+func (w captureContextWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	if w.ctx != nil {
+		*w.ctx = ctx
+	}
+	if w.child == nil {
+		return layout.Dimensions{}
+	}
+	return w.child.Layout(ctx)
+}
+
+type testFocusTargetWidget struct {
+	id   *internal.PathID
+	size image.Point
+}
+
+func (w testFocusTargetWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	fluxevent.RegisterFocusTarget(ctx)
+	if w.id != nil {
+		*w.id = ctx.PathID()
+	}
+	size := w.size
+	if size.X <= 0 || size.Y <= 0 {
+		size = image.Pt(48, 32)
+	}
+	return layout.Dimensions{Size: size}
 }
 
 func TestHoverCallbacksAreChangeOnlyForSameTargetMoves(t *testing.T) {
@@ -435,6 +474,157 @@ func TestModalInternalPressDoesNotCloseMaskClosableOverlay(t *testing.T) {
 				t.Fatalf("outside mask press did not close %s", tc.name)
 			}
 		})
+	}
+}
+
+func TestDialogFocusTrapEscapeAndRestoreFocus(t *testing.T) {
+	h := newInteractionFrameHarness(image.Pt(640, 480))
+	open := false
+	closeCalls := 0
+	var outsideID, firstID, secondID internal.PathID
+
+	render := func() Widget {
+		return Stack(
+			testFocusTargetWidget{id: &outsideID, size: image.Pt(80, 40)},
+			Dialog(
+				open,
+				Row(
+					testFocusTargetWidget{id: &firstID, size: image.Pt(80, 40)},
+					testFocusTargetWidget{id: &secondID, size: image.Pt(80, 40)},
+				),
+				DialogQuick(true),
+				DialogOnOpenChange(func(_ *internal.Context, next bool) {
+					open = next
+					if !next {
+						closeCalls++
+					}
+				}),
+			),
+		)
+	}
+
+	h.layout(render())
+	if !h.rt.RequestFocus(nil, outsideID) {
+		t.Fatal("failed to focus outside target before opening dialog")
+	}
+	open = true
+	h.layout(render())
+	if got := h.rt.FocusedTarget(); got != firstID {
+		t.Fatalf("dialog initial focus = %v, want first panel target %v", got, firstID)
+	}
+
+	h.key(key.Event{Name: key.NameTab, State: key.Press})
+	h.layout(render())
+	if got := h.rt.FocusedTarget(); got != secondID {
+		t.Fatalf("dialog Tab focus = %v, want second panel target %v", got, secondID)
+	}
+
+	h.key(key.Event{Name: key.NameTab, State: key.Press})
+	h.layout(render())
+	if got := h.rt.FocusedTarget(); got != firstID {
+		t.Fatalf("dialog Tab wrap focus = %v, want first panel target %v", got, firstID)
+	}
+
+	h.key(key.Event{Name: key.NameTab, State: key.Press, Modifiers: key.ModShift})
+	h.layout(render())
+	if got := h.rt.FocusedTarget(); got != secondID {
+		t.Fatalf("dialog Shift+Tab wrap focus = %v, want second panel target %v", got, secondID)
+	}
+
+	h.key(key.Event{Name: key.NameEscape, State: key.Press})
+	h.layout(render())
+	if open {
+		t.Fatal("dialog Escape did not request close")
+	}
+	if closeCalls != 1 {
+		t.Fatalf("dialog close calls = %d, want 1", closeCalls)
+	}
+	h.layout(render())
+	if got := h.rt.FocusedTarget(); got != outsideID {
+		t.Fatalf("dialog restored focus = %v, want outside target %v", got, outsideID)
+	}
+}
+
+func TestSelectEscapeClosesAndRestoresFieldFocus(t *testing.T) {
+	h := newInteractionFrameHarness(image.Pt(320, 240))
+	ref := NewSelectRef[string]()
+	options := []SelectOptionItem[string]{
+		{Label: "One", Value: "one"},
+		{Label: "Two", Value: "two"},
+	}
+	var selectCtx *internal.Context
+	openChanges := []bool{}
+	render := func() Widget {
+		return captureContextWidget{
+			ctx: &selectCtx,
+			child: Select(
+				"one",
+				options,
+				SelectAttachRef(ref),
+				SelectOnOpenChange[string](func(_ *internal.Context, opened bool) {
+					openChanges = append(openChanges, opened)
+				}),
+			),
+		}
+	}
+
+	ref.Open()
+	h.layout(render())
+	fieldID := selectCtx.Child(0).PathID()
+	if !h.rt.RequestFocus(selectCtx, fieldID) {
+		t.Fatal("failed to focus select field")
+	}
+	h.layout(render())
+	h.key(key.Event{Name: key.NameEscape, State: key.Press})
+	h.layout(render())
+
+	if len(openChanges) == 0 || openChanges[len(openChanges)-1] {
+		t.Fatalf("select open changes = %v, want final false", openChanges)
+	}
+	if got := h.rt.FocusedTarget(); got != fieldID {
+		t.Fatalf("select Escape restored focus = %v, want field %v", got, fieldID)
+	}
+}
+
+func TestDropdownMenuEscapeClosesAndRestoresTriggerFocus(t *testing.T) {
+	h := newInteractionFrameHarness(image.Pt(320, 240))
+	open := true
+	closeCalls := 0
+	var menuCtx *internal.Context
+	render := func() Widget {
+		return captureContextWidget{
+			ctx: &menuCtx,
+			child: DropdownMenu(
+				open,
+				Text("Menu"),
+				[]MenuItem{{Key: "one", Label: "One"}, {Key: "two", Label: "Two"}},
+				DropdownMenuOnOpenChange(func(_ *internal.Context, next bool) {
+					open = next
+					if !next {
+						closeCalls++
+					}
+				}),
+			),
+		}
+	}
+
+	h.layout(render())
+	triggerID := menuCtx.PathID()
+	if !h.rt.RequestFocus(menuCtx, triggerID) {
+		t.Fatal("failed to focus dropdown trigger")
+	}
+	h.layout(render())
+	h.key(key.Event{Name: key.NameEscape, State: key.Press})
+	h.layout(render())
+
+	if open {
+		t.Fatal("dropdown Escape did not request close")
+	}
+	if closeCalls != 1 {
+		t.Fatalf("dropdown close calls = %d, want 1", closeCalls)
+	}
+	if got := h.rt.FocusedTarget(); got != triggerID {
+		t.Fatalf("dropdown Escape restored focus = %v, want trigger %v", got, triggerID)
 	}
 }
 

@@ -33,6 +33,14 @@ ScrollView 用于承载超出可视区的内容。常见于文档区、表单区
 - 外部主动控制滚动位置时，使用 `ScrollAttachRef` 绑定 `ScrollRef`，命令会在后续 frame 中由 ScrollView 消费。
 - 消息流、日志流等需要自动贴底的场景建议配合 `ScrollAutoToEndKey`，只在数据版本变化时触发滚到底部。
 
+## Wheel 和命中规则
+
+- `ScrollView` 是单主轴滚动容器。纵向容器只消费 Gio `Scroll.Y`，横向容器只消费 Gio `Scroll.X`。
+- 普通纵向滚轮不会触发横向 `ScrollView`，因此代码块、表格、tabs、chips 等横向区域不会截停父级文档纵向滚动。
+- `wheel.PreventDefault()` 只阻止本次 wheel 默认滚动；`ScrollRef`、滚动条拖动和 auto-to-end 等非 wheel 来源仍可更新滚动位置。
+- 横向触控板滚动依赖后端提供明确的 `Scroll.X`。当前不会把 `Shift+Scroll.Y` 转换成横向滚动，也不会建模同轴触边后的父级剩余 delta。
+- 滚动后下一帧会按最新 offset 重建子树位置和输入区域；不移动鼠标时，当前屏幕坐标点击应命中新的可见目标。
+
 ## Lifecycle / React-style Element
 
 - `ScrollViewElement` 已可在 `RunElement` root 下直接使用。

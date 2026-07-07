@@ -564,6 +564,41 @@ func (r *Runtime) MoveFocus(ctx *Context, direction FocusDirection) bool {
 	return r.RequestFocus(ctx, order[next])
 }
 
+// MoveFocusWithin moves focus through the current frame's tab order, limited to
+// targets whose event path contains scope.
+func (r *Runtime) MoveFocusWithin(ctx *Context, scope PathID, direction FocusDirection) bool {
+	if r == nil {
+		return false
+	}
+	order := r.sortedFocusOrderWithin(scope)
+	if len(order) == 0 {
+		return false
+	}
+	current := normalizeOptionalPathID(r.events.focusTarget)
+	index := -1
+	for i, target := range order {
+		if target == current {
+			index = i
+			break
+		}
+	}
+	var next int
+	if direction == FocusBackward {
+		if index < 0 {
+			next = len(order) - 1
+		} else {
+			next = (index - 1 + len(order)) % len(order)
+		}
+	} else {
+		if index < 0 {
+			next = 0
+		} else {
+			next = (index + 1) % len(order)
+		}
+	}
+	return r.RequestFocus(ctx, order[next])
+}
+
 // EventPathContains reports whether ancestor is in target's current event path.
 func (r *Runtime) EventPathContains(target, ancestor PathID) bool {
 	if r == nil {
@@ -861,6 +896,21 @@ func (r *Runtime) sortedFocusOrder() []PathID {
 	out := make([]PathID, len(entries))
 	for i, entry := range entries {
 		out[i] = entry.Target
+	}
+	return out
+}
+
+func (r *Runtime) sortedFocusOrderWithin(scope PathID) []PathID {
+	order := r.sortedFocusOrder()
+	if len(order) == 0 {
+		return nil
+	}
+	scope = normalizePathID(scope)
+	out := make([]PathID, 0, len(order))
+	for _, target := range order {
+		if r.EventPathContains(target, scope) {
+			out = append(out, target)
+		}
 	}
 	return out
 }

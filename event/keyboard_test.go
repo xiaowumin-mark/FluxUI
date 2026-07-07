@@ -112,6 +112,62 @@ func TestKeyDownCanCancelActivationAndFocusMove(t *testing.T) {
 	}
 }
 
+func TestMoveFocusWithinScopeDoesNotLeaveScope(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	rt.BeginFrame()
+	root := internal.NewContext(gioLayout.Context{}, rt)
+	outside := root.Scope("outside")
+	scope := root.Scope("dialog")
+	first := scope.Scope("first")
+	second := scope.Scope("second")
+	t.Cleanup(rt.EndFrame)
+
+	RegisterFocusTarget(outside)
+	RegisterFocusTarget(first)
+	RegisterFocusTarget(second)
+
+	if !RequestFocus(first) {
+		t.Fatal("focus request failed")
+	}
+	if !rt.MoveFocusWithin(root, scope.PathID(), FocusForward) {
+		t.Fatal("MoveFocusWithin forward returned false")
+	}
+	if FocusedTarget(root) != second.PathID() {
+		t.Fatalf("focus after scoped forward = %v, want %v", FocusedTarget(root), second.PathID())
+	}
+	if !rt.MoveFocusWithin(root, scope.PathID(), FocusForward) {
+		t.Fatal("MoveFocusWithin wrap returned false")
+	}
+	if FocusedTarget(root) != first.PathID() {
+		t.Fatalf("focus after scoped wrap = %v, want %v", FocusedTarget(root), first.PathID())
+	}
+	if !rt.MoveFocusWithin(root, scope.PathID(), FocusBackward) {
+		t.Fatal("MoveFocusWithin backward returned false")
+	}
+	if FocusedTarget(root) != second.PathID() {
+		t.Fatalf("focus after scoped backward = %v, want %v", FocusedTarget(root), second.PathID())
+	}
+
+	if !RequestFocus(outside) {
+		t.Fatal("outside focus request failed")
+	}
+	if !rt.MoveFocusWithin(root, scope.PathID(), FocusForward) {
+		t.Fatal("MoveFocusWithin from outside returned false")
+	}
+	if FocusedTarget(root) != first.PathID() {
+		t.Fatalf("focus entering scope = %v, want %v", FocusedTarget(root), first.PathID())
+	}
+	if !RequestFocus(outside) {
+		t.Fatal("outside refocus request failed")
+	}
+	if !rt.MoveFocusWithin(root, scope.PathID(), FocusBackward) {
+		t.Fatal("MoveFocusWithin backward from outside returned false")
+	}
+	if FocusedTarget(root) != second.PathID() {
+		t.Fatalf("focus backward entering scope = %v, want %v", FocusedTarget(root), second.PathID())
+	}
+}
+
 func TestLocalShortcutOnlyFiresInsideFocusedScope(t *testing.T) {
 	rt := internal.NewRuntime(nil)
 	rt.BeginFrame()
