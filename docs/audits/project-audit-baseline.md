@@ -95,6 +95,7 @@
 | A10.6 Overlay 控件族审查 | [audit-a10.6-overlay-controls.md](audit-a10.6-overlay-controls.md) | Done | 2026-07-07 |
 | A10.7 拖放控件族审查 | [audit-a10.7-drag-drop-controls.md](audit-a10.7-drag-drop-controls.md) | Done | 2026-07-07 |
 | A10.8 容器和装饰控件族审查 | [audit-a10.8-container-decoration-controls.md](audit-a10.8-container-decoration-controls.md) | Done | 2026-07-07 |
+| A11.1 docs browser 组合场景审查 | [audit-a11.1-docs-browser-composition.md](audit-a11.1-docs-browser-composition.md) | Done | 2026-07-07 |
 
 ---
 
@@ -334,3 +335,6 @@
 - ContainerDecoration margin、padding、shadow 与事件命中边界
 - Card bounded ripple overlay 与非 Button wrapper 边界
 - 容器装饰 state decoration 不自动扩区的验收入口
+- docs browser 左栏、右栏、搜索、分类 chips、代码块、表格和示例弹窗组合验收入口
+- docs browser 横向区域与主文档纵向滚动互不污染的手动回归基线
+- docs browser 示例弹窗打开、内部交互、遮罩关闭和重开行为验收表
