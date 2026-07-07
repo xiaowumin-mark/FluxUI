@@ -90,6 +90,7 @@
 | A10.1 基础交互控件族审查 | [audit-a10.1-basic-interactive-controls.md](audit-a10.1-basic-interactive-controls.md) | Done | 2026-07-07 |
 | A10.2 表单选择控件族审查 | [audit-a10.2-form-selection-controls.md](audit-a10.2-form-selection-controls.md) | Done | 2026-07-07 |
 | A10.3 文本输入控件族审查 | [audit-a10.3-text-input-controls.md](audit-a10.3-text-input-controls.md) | Done | 2026-07-07 |
+| A10.4 滚动集合控件族审查 | [audit-a10.4-scroll-collection-controls.md](audit-a10.4-scroll-collection-controls.md) | Done | 2026-07-07 |
 
 ---
 
@@ -308,3 +309,8 @@
 - 输入控件不注册 FluxUI wheel listener 的父级滚动边界
 - Gio Editor focus 与 runtime focus 分离在文本控件族中的验收入口
 - IME composition 真实桥接缺口与 submit 风险
+- ScrollView/ListView/Grid/GridView/Tabs/chips row 滚动集合矩阵
+- ScrollView FluxUI wheel/default action/ScrollRef 职责边界
+- ListView/GridView Gio list 虚拟化与 reach-end 边界
+- TabsScrollable 继承横向 ScrollView 轴过滤和命中刷新
+- chips row 组合责任与普通 Row 溢出风险
