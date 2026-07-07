@@ -87,6 +87,7 @@
 | A9.1 Ref 命令生命周期审查 | [audit-a9.1-ref-command-lifecycle.md](audit-a9.1-ref-command-lifecycle.md) | Done | 2026-07-07 |
 | A9.2 controlled value 和内部状态审查 | [audit-a9.2-controlled-value-internal-state.md](audit-a9.2-controlled-value-internal-state.md) | Done | 2026-07-07 |
 | A9.3 OnChange 触发条件审查 | [audit-a9.3-onchange-trigger-conditions.md](audit-a9.3-onchange-trigger-conditions.md) | Done | 2026-07-07 |
+| A10.1 基础交互控件族审查 | [audit-a10.1-basic-interactive-controls.md](audit-a10.1-basic-interactive-controls.md) | Done | 2026-07-07 |
 
 ---
 
@@ -290,3 +291,8 @@
 - Checkbox/Switch 同帧多 toggle 重复 next 风险
 - Slider 用户拖动和 Ref 设置 OnChange 触发差异
 - ScrollView position diff 触发 ScrollOnChange 规则
+- Button/Pressable/ClickArea 新旧 click 事件桥接边界
+- Button 旧 OnHover 与 hover snapshot 变化过滤
+- IconButton/FAB 直接旧 onClick 与新事件缺口
+- 基础交互控件 pressed/focus/ripple/disabled 矩阵
+- runtime focus target 与 Gio clickable focus 差异
