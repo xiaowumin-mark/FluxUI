@@ -110,6 +110,7 @@
 | A13.1 clickable 和交互态冗余审查 | [audit-a13.1-clickable-interaction-state-redundancy.md](audit-a13.1-clickable-interaction-state-redundancy.md) | Done | 2026-07-07 |
 | A13.2 overlay 逻辑冗余审查 | [audit-a13.2-overlay-logic-redundancy.md](audit-a13.2-overlay-logic-redundancy.md) | Done | 2026-07-07 |
 | A13.3 滚动和 hit-test 冗余审查 | [audit-a13.3-scroll-hit-test-redundancy.md](audit-a13.3-scroll-hit-test-redundancy.md) | Done | 2026-07-07 |
+| A13.4 最终修复候选排序 | [audit-a13.4-final-fix-candidate-ranking.md](audit-a13.4-final-fix-candidate-ranking.md) | Done | 2026-07-07 |
 
 ---
 
@@ -382,3 +383,8 @@
 - offset、wheel、axis、hit refresh 冗余清单
 - scrollModel、virtualScrollModel、wheelPolicy、hitRefreshContract 收敛候选
 - Select menu 和 Tabs horizontal scroll 的滚动命中刷新风险
+- 最终修复候选 F-01 到 F-08 排序
+- 滚动 wheel/default action/hit refresh 最高优先级修复入口
+- overlay focus/Escape/outside click 第二优先级修复入口
+- clickable default action、controlled/Ref/OnChange、diagnostics、IME/text input、hit/visual/style、示例/benchmark 分组推进顺序
+- 每个修复候选的影响范围、依赖任务、验收示例和回滚策略
