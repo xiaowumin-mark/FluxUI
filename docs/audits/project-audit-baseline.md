@@ -83,6 +83,7 @@
 | A8.1 Overlay 挂载模型审查 | [audit-a8.1-overlay-mount-model.md](audit-a8.1-overlay-mount-model.md) | Done | 2026-07-07 |
 | A8.2 Portal event path 审查 | [audit-a8.2-portal-event-path.md](audit-a8.2-portal-event-path.md) | Done | 2026-07-07 |
 | A8.3 outside click 关闭规则审查 | [audit-a8.3-outside-click-close-rules.md](audit-a8.3-outside-click-close-rules.md) | Done | 2026-07-07 |
+| A8.4 overlay focus 和 Escape 审查 | [audit-a8.4-overlay-focus-escape.md](audit-a8.4-overlay-focus-escape.md) | Done | 2026-07-07 |
 
 ---
 
@@ -265,3 +266,8 @@
 - DropdownMenu/Select protected rect outside press 规则
 - Menu 无独立 outside click 关闭边界
 - 内部选择关闭与外部误关闭区分
+- overlay 打开时 focus、关闭时 restore、Escape 捕获矩阵
+- KeyboardScope 局部 Escape 处理入口
+- Dialog/Popup modal 事件边界与 focus trap 缺口
+- Menu/Select focus restore 配置入口和实现差异
+- Escape 默认关闭行为缺口识别
