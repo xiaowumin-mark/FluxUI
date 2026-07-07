@@ -109,6 +109,7 @@
 | A12.3 diagnostics 能力审查 | [audit-a12.3-diagnostics-capability.md](audit-a12.3-diagnostics-capability.md) | Done | 2026-07-07 |
 | A13.1 clickable 和交互态冗余审查 | [audit-a13.1-clickable-interaction-state-redundancy.md](audit-a13.1-clickable-interaction-state-redundancy.md) | Done | 2026-07-07 |
 | A13.2 overlay 逻辑冗余审查 | [audit-a13.2-overlay-logic-redundancy.md](audit-a13.2-overlay-logic-redundancy.md) | Done | 2026-07-07 |
+| A13.3 滚动和 hit-test 冗余审查 | [audit-a13.3-scroll-hit-test-redundancy.md](audit-a13.3-scroll-hit-test-redundancy.md) | Done | 2026-07-07 |
 
 ---
 
@@ -377,3 +378,7 @@
 - overlay outside click、portal、animation、focus restore 冗余清单
 - Dialog/Popup、Select/DropdownMenu、Menu submenu、Tooltip、Toast/Snackbar overlay helper 收敛候选
 - modal、anchored、deferred、hover、timed overlay 暂不压扁边界
+- ScrollView pixel-offset 与 ListView/GridView virtual list position 双模型边界
+- offset、wheel、axis、hit refresh 冗余清单
+- scrollModel、virtualScrollModel、wheelPolicy、hitRefreshContract 收敛候选
+- Select menu 和 Tabs horizontal scroll 的滚动命中刷新风险
