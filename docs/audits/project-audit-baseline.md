@@ -84,6 +84,7 @@
 | A8.2 Portal event path 审查 | [audit-a8.2-portal-event-path.md](audit-a8.2-portal-event-path.md) | Done | 2026-07-07 |
 | A8.3 outside click 关闭规则审查 | [audit-a8.3-outside-click-close-rules.md](audit-a8.3-outside-click-close-rules.md) | Done | 2026-07-07 |
 | A8.4 overlay focus 和 Escape 审查 | [audit-a8.4-overlay-focus-escape.md](audit-a8.4-overlay-focus-escape.md) | Done | 2026-07-07 |
+| A9.1 Ref 命令生命周期审查 | [audit-a9.1-ref-command-lifecycle.md](audit-a9.1-ref-command-lifecycle.md) | Done | 2026-07-07 |
 
 ---
 
@@ -271,3 +272,8 @@
 - Dialog/Popup modal 事件边界与 focus trap 缺口
 - Menu/Select focus restore 配置入口和实现差异
 - Escape 默认关闭行为缺口识别
+- Ref 命令入队、redraw invalidator 和布局期消费规则
+- ButtonRef/InputRef/ScrollRef/SliderRef/SelectRef/DialogRef/PopupRef 生效时机矩阵
+- disabled/loading 下 Ref 命令 drain 后丢弃边界
+- 未挂载/条件隐藏期间 Ref 命令保留和重新绑定消费风险
+- Dialog/Popup/Select 受控入参与 Ref 命令覆盖边界
