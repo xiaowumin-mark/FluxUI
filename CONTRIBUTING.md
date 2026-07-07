@@ -24,6 +24,9 @@ make test
 - `ui` 是唯一对外入口，不破坏模块边界
 - 新技术能力先在 `ui` 层暴露，底层按依赖方向放置
 - 新增能力需补充示例和文档
+- 组件实现需遵循 `COMPONENT_DEVELOPMENT_GUIDE.md`
+- 代码风格需遵循 `CODE_STYLE_GUIDE.md`
+- 功能完成后需执行 `FEATURE_INTEGRATION_CHECKLIST.md` 的关联性检查
 
 ## Pull Request 要求
 
@@ -31,3 +34,4 @@ make test
 2. 添加对应测试
 3. 补充示例（`examples/`）或文档（`docs/widgets/`）
 4. 运行 `make test` 确保全部通过
+5. 在 PR 描述中说明关联组件、未覆盖风险和回滚策略
