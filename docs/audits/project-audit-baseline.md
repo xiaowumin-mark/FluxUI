@@ -72,6 +72,7 @@
 | A6.4 滚动后命中刷新审查 | [audit-a6.4-scroll-hit-refresh.md](audit-a6.4-scroll-hit-refresh.md) | Done | 2026-07-06 |
 | A7.1 Focus target 注册审查 | [audit-a7.1-focus-target-registration.md](audit-a7.1-focus-target-registration.md) | Done | 2026-07-06 |
 | A7.2 键盘事件和 shortcut 边界审查 | [audit-a7.2-keyboard-shortcut-boundary.md](audit-a7.2-keyboard-shortcut-boundary.md) | Done | 2026-07-06 |
+| A7.3 键盘默认行为审查 | [audit-a7.3-keyboard-default-actions.md](audit-a7.3-keyboard-default-actions.md) | Done | 2026-07-07 |
 
 ---
 
@@ -226,3 +227,8 @@
 - OnShortcut 局部快捷键 scope 匹配和排序
 - shortcut 与 runtime keyboard default action 顺序
 - system global shortcut 与组件树 shortcut 分层边界
+- Enter/Space runtime focus activation 默认行为
+- Tab focus move 与 keyboard `PreventDefault` gate
+- Button/Select/Menu/RadioGroup/Checkbox/Switch 键盘激活入口
+- Escape 和 Arrow keys 默认行为缺口
+- keyboard default 与合成 click default 双层可取消边界
