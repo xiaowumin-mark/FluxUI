@@ -96,6 +96,7 @@
 | A10.7 拖放控件族审查 | [audit-a10.7-drag-drop-controls.md](audit-a10.7-drag-drop-controls.md) | Done | 2026-07-07 |
 | A10.8 容器和装饰控件族审查 | [audit-a10.8-container-decoration-controls.md](audit-a10.8-container-decoration-controls.md) | Done | 2026-07-07 |
 | A11.1 docs browser 组合场景审查 | [audit-a11.1-docs-browser-composition.md](audit-a11.1-docs-browser-composition.md) | Done | 2026-07-07 |
+| A11.2 component_lab 审查 | [audit-a11.2-component-lab.md](audit-a11.2-component-lab.md) | Done | 2026-07-07 |
 
 ---
 
@@ -338,3 +339,6 @@
 - docs browser 左栏、右栏、搜索、分类 chips、代码块、表格和示例弹窗组合验收入口
 - docs browser 横向区域与主文档纵向滚动互不污染的手动回归基线
 - docs browser 示例弹窗打开、内部交互、遮罩关闭和重开行为验收表
+- component_lab 主题、样式、cursor、hover、布局和 overlay smoke 入口
+- component_lab 顶层虚拟化、perf diagnostics 和 idle redraw 自动基线
+- component_lab CL-01 到 CL-17 视觉与交互手动验收表
