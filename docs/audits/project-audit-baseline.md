@@ -105,6 +105,7 @@
 | A11.3 event_system_testbench 审查 | [audit-a11.3-event-system-testbench.md](audit-a11.3-event-system-testbench.md) | Done | 2026-07-07 |
 | A11.4 示例覆盖矩阵 | [audit-a11.4-example-coverage-matrix.md](audit-a11.4-example-coverage-matrix.md) | Done | 2026-07-07 |
 | A12.1 高频事件 benchmark 设计 | [audit-a12.1-high-frequency-event-benchmark.md](audit-a12.1-high-frequency-event-benchmark.md) | Done | 2026-07-07 |
+| A12.2 大组件树 benchmark 设计 | [audit-a12.2-large-component-tree-benchmark.md](audit-a12.2-large-component-tree-benchmark.md) | Done | 2026-07-07 |
 
 ---
 
@@ -360,3 +361,7 @@
 - PointerArea 和 internal/perf 现有 benchmark 入口识别
 - 高频输入 `allocs/op`、`input-ns/frame`、`hover-changes/frame` 预算口径
 - ScrollView/ListView wheel 端到端 benchmark 缺口识别
+- 大组件树 layout、paint、event registration benchmark 设计
+- `internal/perf` 大树 benchmark 与 `FrameStats` 指标口径
+- 大列表虚拟化 visible/culled 成本测量入口
+- 大表格、真实 card grid、registration-only 对照 benchmark 缺口识别
