@@ -86,6 +86,7 @@
 | A8.4 overlay focus 和 Escape 审查 | [audit-a8.4-overlay-focus-escape.md](audit-a8.4-overlay-focus-escape.md) | Done | 2026-07-07 |
 | A9.1 Ref 命令生命周期审查 | [audit-a9.1-ref-command-lifecycle.md](audit-a9.1-ref-command-lifecycle.md) | Done | 2026-07-07 |
 | A9.2 controlled value 和内部状态审查 | [audit-a9.2-controlled-value-internal-state.md](audit-a9.2-controlled-value-internal-state.md) | Done | 2026-07-07 |
+| A9.3 OnChange 触发条件审查 | [audit-a9.3-onchange-trigger-conditions.md](audit-a9.3-onchange-trigger-conditions.md) | Done | 2026-07-07 |
 
 ---
 
@@ -284,3 +285,8 @@
 - Slider pressed 期间内部 progress 与外部 value 覆盖优先级
 - SearchBar 继承 TextField 受控语义边界
 - controlled value、内部 state、Ref/交互写入、OnChange 优先级矩阵
+- InputRef programmatic mutation 与外部 value 重渲染回调差异
+- Select/Tabs 当前项重复选择触发旧 OnChange 风险
+- Checkbox/Switch 同帧多 toggle 重复 next 风险
+- Slider 用户拖动和 Ref 设置 OnChange 触发差异
+- ScrollView position diff 触发 ScrollOnChange 规则
