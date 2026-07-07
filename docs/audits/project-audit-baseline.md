@@ -91,6 +91,7 @@
 | A10.2 表单选择控件族审查 | [audit-a10.2-form-selection-controls.md](audit-a10.2-form-selection-controls.md) | Done | 2026-07-07 |
 | A10.3 文本输入控件族审查 | [audit-a10.3-text-input-controls.md](audit-a10.3-text-input-controls.md) | Done | 2026-07-07 |
 | A10.4 滚动集合控件族审查 | [audit-a10.4-scroll-collection-controls.md](audit-a10.4-scroll-collection-controls.md) | Done | 2026-07-07 |
+| A10.5 数值交互控件族审查 | [audit-a10.5-numeric-interaction-controls.md](audit-a10.5-numeric-interaction-controls.md) | Done | 2026-07-07 |
 
 ---
 
@@ -314,3 +315,7 @@
 - ListView/GridView Gio list 虚拟化与 reach-end 边界
 - TabsScrollable 继承横向 ScrollView 轴过滤和命中刷新
 - chips row 组合责任与普通 Row 溢出风险
+- Slider/RangeSlider pointer drag、capture、value clamp 矩阵
+- Slider 不注册 wheel 的父级滚动 pass-through 边界
+- Slider 键盘 step 缺口和 SliderRef StepBy 命令边界
+- Progress 族只读 visual indicator 与 animation redraw 边界
