@@ -92,6 +92,7 @@
 | A10.3 文本输入控件族审查 | [audit-a10.3-text-input-controls.md](audit-a10.3-text-input-controls.md) | Done | 2026-07-07 |
 | A10.4 滚动集合控件族审查 | [audit-a10.4-scroll-collection-controls.md](audit-a10.4-scroll-collection-controls.md) | Done | 2026-07-07 |
 | A10.5 数值交互控件族审查 | [audit-a10.5-numeric-interaction-controls.md](audit-a10.5-numeric-interaction-controls.md) | Done | 2026-07-07 |
+| A10.6 Overlay 控件族审查 | [audit-a10.6-overlay-controls.md](audit-a10.6-overlay-controls.md) | Done | 2026-07-07 |
 
 ---
 
@@ -319,3 +320,7 @@
 - Slider 不注册 wheel 的父级滚动 pass-through 边界
 - Slider 键盘 step 缺口和 SliderRef StepBy 命令边界
 - Progress 族只读 visual indicator 与 animation redraw 边界
+- Dialog/Popup portal、modal、mask close 和 animation 边界
+- Menu/DropdownMenu/Tooltip/Toast/Snackbar overlay 组件族矩阵
+- DropdownMenu protected rect outside press 与普通 Menu 无 open 状态边界
+- overlay focus trap、restore focus、Escape 默认关闭缺口
