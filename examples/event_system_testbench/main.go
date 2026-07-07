@@ -970,14 +970,15 @@ func architectureProbe(th *ui.Theme, title, subtitle string, eventType ui.EventT
 }
 
 func diagnosticsPanel(th *ui.Theme, addLog func(string)) ui.Element {
-	return section(th, "P7 性能、诊断和文档教学入口", "本 example 在 main 中启用了 EnablePerfDiagnostics(true) 和 LogEvents(true)。GUI 日志显示业务侧观察结果，控制台输出底层事件路径、listener 耗时、取消状态和默认行为结果。", ui.ColumnElement(
+	return section(th, "P1/P7 性能、诊断和回归入口", "本 example 在 main 中启用了 EnablePerfDiagnostics(true) 和 LogEvents(true)。GUI 日志显示业务侧观察结果，控制台输出 registry 数量、事件路径、取消位置、portal/boundary 改写和 redraw 来源。", ui.ColumnElement(
 		ui.TextElement("测试建议：", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 		ui.TextElement("• 在 Pointer 区域高速拖动，观察 coalesced move 与控制台事件诊断。", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
-		ui.TextElement("• 在 P1 区域开启 PreventDefault / StopPropagation，对比日志顺序和 defaultAllowed。", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+		ui.TextElement("• 在 P1 区域开启 PreventDefault / StopPropagation，对比 target、phase、path 和 defaultAllowed。", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+		ui.TextElement("• 在 P6 区域切换 EventBoundary / EventPortal，对比 pathRewrite 的 stop、redirect 和 portal 记录。", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		ui.TextElement("• 在 P5 区域开启阻止 click/wheel，验证核心组件默认行为是否可取消。", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		ui.VSpacerElement(8),
 		ui.OutlinedButtonElement(ui.TextElement("写入一条诊断标记"), ui.OnClick(func(ctx *ui.Context) {
-			addLog("P7：手动诊断标记，控制台应同时有 click 事件诊断")
+			addLog("P1：手动诊断标记，控制台应同时有 click 事件诊断")
 		})),
 	))
 }

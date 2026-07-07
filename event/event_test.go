@@ -64,6 +64,18 @@ func TestEventDiagnosticsRecordPathDurationAndCancellation(t *testing.T) {
 	if stats.Events.ListenerDuration <= 0 {
 		t.Fatalf("listener duration = %s, want > 0", stats.Events.ListenerDuration)
 	}
+	if stats.Events.TargetsRegistered != 3 || stats.Events.ListenersRegistered != 2 {
+		t.Fatalf("registry diagnostics targets/listeners = %d/%d, want 3/2", stats.Events.TargetsRegistered, stats.Events.ListenersRegistered)
+	}
+	if stats.Events.LastPreventDefaultTarget != "root/0/child" || stats.Events.LastPreventDefaultPhase != "target" {
+		t.Fatalf("preventDefault diagnostics = %q/%q, want child/target", stats.Events.LastPreventDefaultTarget, stats.Events.LastPreventDefaultPhase)
+	}
+	if stats.Events.LastStopTarget != "root/0/child" || stats.Events.LastStopPhase != "target" {
+		t.Fatalf("stop diagnostics = %q/%q, want child/target", stats.Events.LastStopTarget, stats.Events.LastStopPhase)
+	}
+	if !stats.Events.LastDefaultPrevented || !stats.Events.LastPropagationStopped || stats.Events.LastDefaultAllowed {
+		t.Fatalf("last dispatch flags = prevented:%t stopped:%t allowed:%t, want true/true/false", stats.Events.LastDefaultPrevented, stats.Events.LastPropagationStopped, stats.Events.LastDefaultAllowed)
+	}
 
 	line := logs.String()
 	for _, want := range []string{
@@ -74,6 +86,10 @@ func TestEventDiagnosticsRecordPathDurationAndCancellation(t *testing.T) {
 		`default_prevented=true`,
 		`propagation_stopped=true`,
 		`default_allowed=false`,
+		`prevent_default_target="root/0/child"`,
+		`prevent_default_phase="target"`,
+		`stop_target="root/0/child"`,
+		`stop_phase="target"`,
 	} {
 		if !strings.Contains(line, want) {
 			t.Fatalf("event log missing %q in %s", want, line)
@@ -84,8 +100,12 @@ func TestEventDiagnosticsRecordPathDurationAndCancellation(t *testing.T) {
 	for _, want := range []string{
 		"event_dispatches=1",
 		"event_listeners=2",
+		"event_targets=3",
+		"event_registered_listeners=2",
 		"event_default_prevented=1",
 		`event_last_type="click"`,
+		`event_last_prevent_default_target="root/0/child"`,
+		`event_last_stop_target="root/0/child"`,
 	} {
 		if !strings.Contains(formatted, want) {
 			t.Fatalf("frame stats missing %q in %s", want, formatted)
@@ -128,6 +148,89 @@ func TestEventDiagnosticsClassifyPointerWheelKeyboardFocus(t *testing.T) {
 	}
 	if stats.Events.FocusEvents != 2 || stats.Interaction.FocusEvents != 2 {
 		t.Fatalf("focus diagnostics = events:%d interaction:%d, want 2/2", stats.Events.FocusEvents, stats.Interaction.FocusEvents)
+	}
+	if stats.Events.FocusTargetsRegistered != 1 {
+		t.Fatalf("focus target diagnostics = %d, want 1", stats.Events.FocusTargetsRegistered)
+	}
+	if stats.Events.LastType == "" || stats.Events.LastTarget == "" || stats.Events.LastPath == "" {
+		t.Fatalf("last dispatch diagnostics missing type/target/path: %#v", stats.Events)
+	}
+}
+
+func TestEventDiagnosticsPathRewriteSummary(t *testing.T) {
+	var logs bytes.Buffer
+	rt := internal.NewRuntime(nil)
+	rt.SetPerfDiagnostics(internal.PerfDiagnostics{
+		Enabled:   true,
+		LogEvents: true,
+		Writer:    &logs,
+	})
+	rt.BeginFrame()
+	root := internal.NewContext(gioLayout.Context{}, rt)
+	owner := root.Child(0)
+	eventType := Type("app:rewrite")
+
+	portal := root.Child(1)
+	RegisterPortal(portal, owner.PathID())
+	insidePortal := portal.Child(0)
+	portalEvent := NewCustomEvent(eventType, nil)
+	DispatchEvent(root, insidePortal.PathID(), &portalEvent)
+
+	boundary := root.Child(2)
+	RegisterBoundary(boundary)
+	insideBoundary := boundary.Child(0)
+	stopEvent := NewCustomEvent(eventType, nil)
+	DispatchEvent(root, insideBoundary.PathID(), &stopEvent)
+
+	redirectTarget := root.Child(3)
+	redirectBoundary := root.Child(4)
+	RegisterBoundary(redirectBoundary, BoundaryRedirectTo(redirectTarget.PathID()))
+	insideRedirect := redirectBoundary.Child(0)
+	redirectEvent := NewCustomEvent(eventType, nil)
+	DispatchEvent(root, insideRedirect.PathID(), &redirectEvent)
+	rt.EndFrame()
+
+	line := logs.String()
+	for _, want := range []string{
+		`path_rewrite="portal:root/1->root/0"`,
+		`path_rewrite="boundary-stop:root/2"`,
+		`path_rewrite="boundary-redirect:root/4->root/3"`,
+	} {
+		if !strings.Contains(line, want) {
+			t.Fatalf("event rewrite log missing %q in %s", want, line)
+		}
+	}
+
+	stats := rt.LastFrameStats()
+	if stats.Events.LastPathRewrite != "boundary-redirect:root/4->root/3" {
+		t.Fatalf("last path rewrite = %q, want redirect summary", stats.Events.LastPathRewrite)
+	}
+}
+
+func TestRedrawDiagnosticsRecordSourceAndOwnerPath(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	rt.SetPerfDiagnostics(internal.PerfDiagnostics{Enabled: true})
+	rt.BeginFrame()
+	root := internal.NewContext(gioLayout.Context{}, rt)
+	owner := root.Child(0)
+
+	owner.RequestRedrawReason("test.redraw")
+	rt.EndFrame()
+
+	stats := rt.LastFrameStats()
+	if got := stats.ReasonCounts["test.redraw"]; got != 1 {
+		t.Fatalf("reason count = %d, want 1", got)
+	}
+	if len(stats.RedrawReasons) != 1 {
+		t.Fatalf("redraw reasons = %#v, want one record", stats.RedrawReasons)
+	}
+	record := stats.RedrawReasons[0]
+	if record.Reason != "test.redraw" || record.Source != "context" || record.OwnerPath != "root/0" || record.Count != 1 {
+		t.Fatalf("redraw record = %#v, want context root/0 test.redraw", record)
+	}
+	formatted := internal.FormatFrameStats(stats)
+	if !strings.Contains(formatted, `redraw=test.redraw@context@root/0`) {
+		t.Fatalf("formatted redraw diagnostics missing owner in %s", formatted)
 	}
 }
 

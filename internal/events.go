@@ -80,12 +80,24 @@ type Event struct {
 	propagationStopped          bool
 	immediatePropagationStopped bool
 	currentPassiveListener      bool
+	preventDefaultTarget        PathID
+	preventDefaultPhase         EventPhase
+	passivePreventDefaultTarget PathID
+	passivePreventDefaultPhase  EventPhase
+	propagationStopTarget       PathID
+	propagationStopPhase        EventPhase
+	immediateStopTarget         PathID
+	immediateStopPhase          EventPhase
 }
 
 // StopPropagation prevents the event from reaching further targets.
 func (e *Event) StopPropagation() {
 	if e == nil {
 		return
+	}
+	if e.propagationStopTarget == 0 {
+		e.propagationStopTarget = e.CurrentTarget
+		e.propagationStopPhase = e.Phase
 	}
 	e.propagationStopped = true
 }
@@ -95,14 +107,33 @@ func (e *Event) StopImmediatePropagation() {
 	if e == nil {
 		return
 	}
+	if e.propagationStopTarget == 0 {
+		e.propagationStopTarget = e.CurrentTarget
+		e.propagationStopPhase = e.Phase
+	}
+	if e.immediateStopTarget == 0 {
+		e.immediateStopTarget = e.CurrentTarget
+		e.immediateStopPhase = e.Phase
+	}
 	e.immediatePropagationStopped = true
 	e.propagationStopped = true
 }
 
 // PreventDefault cancels the event default action when the event is cancelable.
 func (e *Event) PreventDefault() bool {
-	if e == nil || !e.Cancelable || e.currentPassiveListener {
+	if e == nil || !e.Cancelable {
 		return false
+	}
+	if e.currentPassiveListener {
+		if e.passivePreventDefaultTarget == 0 {
+			e.passivePreventDefaultTarget = e.CurrentTarget
+			e.passivePreventDefaultPhase = e.Phase
+		}
+		return false
+	}
+	if e.preventDefaultTarget == 0 {
+		e.preventDefaultTarget = e.CurrentTarget
+		e.preventDefaultPhase = e.Phase
 	}
 	e.DefaultPrevented = true
 	return true
@@ -299,15 +330,35 @@ func (r *Runtime) beginEventFrame() {
 }
 
 func (r *Runtime) endEventFrame() {
-	if r == nil || r.events.focusTarget == 0 {
+	if r == nil {
 		return
 	}
-	target := normalizeOptionalPathID(r.events.focusTarget)
-	entry := r.events.focusTargets[target]
-	if entry != nil && entry.focusable() {
-		return
+	if r.events.focusTarget != 0 {
+		target := normalizeOptionalPathID(r.events.focusTarget)
+		entry := r.events.focusTargets[target]
+		if entry == nil || !entry.focusable() {
+			r.changeFocus(r.events.focusContext, target, 0)
+		}
 	}
-	r.changeFocus(r.events.focusContext, target, 0)
+	if r.perf.enabled.Load() {
+		targets, listeners, focusTargets, shortcuts := r.eventRegistryCounts()
+		r.recordEventRegistryCounts(targets, listeners, focusTargets, shortcuts)
+	}
+}
+
+func (r *Runtime) eventRegistryCounts() (targets, listeners, focusTargets, shortcuts int64) {
+	if r == nil {
+		return 0, 0, 0, 0
+	}
+	targets = int64(len(r.events.targets))
+	for _, entries := range r.events.listeners {
+		listeners += int64(len(entries))
+	}
+	focusTargets = int64(len(r.events.focusTargets))
+	for _, entries := range r.events.shortcuts {
+		shortcuts += int64(len(entries))
+	}
+	return targets, listeners, focusTargets, shortcuts
 }
 
 // RegisterEventTarget records an active target in the current frame.

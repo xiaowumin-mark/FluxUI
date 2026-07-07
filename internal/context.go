@@ -217,7 +217,11 @@ func (c *Context) RequestRedrawReason(reason string) {
 	if c == nil || c.runtime == nil {
 		return
 	}
-	c.runtime.RequestRedrawReason(reason)
+	if reason == "" {
+		reason = "RequestRedraw"
+	}
+	c.runtime.recordRedrawReason(reason, "context", c.pathID)
+	c.runtime.requestRedraw()
 }
 
 // RequestFrameRedraw 请求 frame 驱动的下一帧刷新。
@@ -453,7 +457,7 @@ func (c *Context) WindowInvalidate() bool {
 	ctrl := c.runtime.WindowController()
 	ok := ctrl != nil && ctrl.Invalidate()
 	if ok {
-		c.runtime.RecordRedrawReason("WindowInvalidate")
+		c.runtime.recordRedrawReason("WindowInvalidate", "window", c.pathID)
 	}
 	return ok
 }

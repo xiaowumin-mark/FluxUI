@@ -62,6 +62,15 @@
 - 任何 diagnostics 字段不得成为组件逻辑依赖。
 - 诊断开关默认关闭，禁止在默认路径保留大容量 event history。
 
+### P1 实施记录（2026-07-07）
+
+- 审查依据：以 `docs/audits/project-audit-baseline.md` 为索引，复核 A2.3、A2.4、A5.2、A5.5、A7.1、A7.2、A8.2、A11.2、A11.3、A12.1、A12.3、A13.4 的事件、diagnostics、组件入口和风险记录，并对照 `COMPONENT_DEVELOPMENT_GUIDE.md`、`CODE_STYLE_GUIDE.md`、`FEATURE_INTEGRATION_CHECKLIST.md`。
+- 代码产物：`internal.FrameStats` 增加 registry 计数、last dispatch 取消/停止/路径改写字段和结构化 redraw reason；`Event` 内部记录 PreventDefault/StopPropagation 调用 target 与 phase；`Context.RequestRedrawReason`、`WindowInvalidate` 和 widget redraw invalidator 记录 reason、source、owner path。
+- 回归入口：`event/event_test.go` 覆盖 registry 数量、last target/path、default prevented、stop propagation、passive prevent、portal/boundary path rewrite 和 redraw owner path；`examples/event_system_testbench` 的诊断面板指向 P1/P3/P5/P6 事件路径和取消结果；`examples/component_lab` 保留 idle redraw、slider cursor、hover/pressed 与 overlay smoke 入口。
+- 验证：`go test ./event` 通过；`go test ./event ./internal ./ui ./widget` 通过；gopls diagnostics 对本轮修改文件无报错。
+- 关联性约束：新增字段只由 diagnostics/perf 统计写入和测试读取，组件逻辑不依赖 diagnostics；诊断仍由 `EnablePerfDiagnostics` / `WithPerfDiagnostics` 默认关闭控制，默认路径不保留大容量 event history。
+- 回滚策略：若 P2-P6 后续接入暴露性能或行为回退，可先回退 structured last-dispatch/redraw 字段和 testbench 文案，保留不改变行为的 registry 计数；若 registry 计数成本异常，可仅在 diagnostics enabled 时延迟统计。
+
 ## P2：滚动与命中核心修复
 
 ### 范围
