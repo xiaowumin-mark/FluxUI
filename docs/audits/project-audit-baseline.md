@@ -73,6 +73,7 @@
 | A7.1 Focus target 注册审查 | [audit-a7.1-focus-target-registration.md](audit-a7.1-focus-target-registration.md) | Done | 2026-07-06 |
 | A7.2 键盘事件和 shortcut 边界审查 | [audit-a7.2-keyboard-shortcut-boundary.md](audit-a7.2-keyboard-shortcut-boundary.md) | Done | 2026-07-06 |
 | A7.3 键盘默认行为审查 | [audit-a7.3-keyboard-default-actions.md](audit-a7.3-keyboard-default-actions.md) | Done | 2026-07-07 |
+| A7.4 文本输入事件审查 | [audit-a7.4-text-input-events.md](audit-a7.4-text-input-events.md) | Done | 2026-07-07 |
 
 ---
 
@@ -232,3 +233,8 @@
 - Button/Select/Menu/RadioGroup/Checkbox/Switch 键盘激活入口
 - Escape 和 Arrow keys 默认行为缺口
 - keyboard default 与合成 click default 双层可取消边界
+- TextField beforeinput/input/change/submit 事件顺序
+- InputRef SetText/Append/Clear programmatic source
+- 用户输入、粘贴、删除、撤销/重做 best-effort 来源识别
+- SearchBarInputOptions 高级文本事件转发边界
+- composition synthetic 入口与真实 IME 自动桥接缺口
