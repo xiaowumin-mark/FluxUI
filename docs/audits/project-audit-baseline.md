@@ -82,6 +82,7 @@
 | --- | --- | --- | --- |
 | A8.1 Overlay 挂载模型审查 | [audit-a8.1-overlay-mount-model.md](audit-a8.1-overlay-mount-model.md) | Done | 2026-07-07 |
 | A8.2 Portal event path 审查 | [audit-a8.2-portal-event-path.md](audit-a8.2-portal-event-path.md) | Done | 2026-07-07 |
+| A8.3 outside click 关闭规则审查 | [audit-a8.3-outside-click-close-rules.md](audit-a8.3-outside-click-close-rules.md) | Done | 2026-07-07 |
 
 ---
 
@@ -260,3 +261,7 @@
 - modal boundary event path 截断规则
 - Popup portal-only 冒泡规则
 - Dialog modal portal + stop boundary 规则
+- Dialog/Popup maskClosable 遮罩关闭规则
+- DropdownMenu/Select protected rect outside press 规则
+- Menu 无独立 outside click 关闭边界
+- 内部选择关闭与外部误关闭区分
