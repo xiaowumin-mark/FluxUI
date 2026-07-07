@@ -89,6 +89,7 @@
 | A9.3 OnChange 触发条件审查 | [audit-a9.3-onchange-trigger-conditions.md](audit-a9.3-onchange-trigger-conditions.md) | Done | 2026-07-07 |
 | A10.1 基础交互控件族审查 | [audit-a10.1-basic-interactive-controls.md](audit-a10.1-basic-interactive-controls.md) | Done | 2026-07-07 |
 | A10.2 表单选择控件族审查 | [audit-a10.2-form-selection-controls.md](audit-a10.2-form-selection-controls.md) | Done | 2026-07-07 |
+| A10.3 文本输入控件族审查 | [audit-a10.3-text-input-controls.md](audit-a10.3-text-input-controls.md) | Done | 2026-07-07 |
 
 ---
 
@@ -302,3 +303,8 @@
 - Select trigger/option/popup/Ref 矩阵
 - Select outside press 与 Ref 命令不可取消路径
 - 表单选择控件 controlled value 与内部 open state 分层
+- Input/TextField/SearchBar editor、focus、keyboard、IME、wheel pass-through 矩阵
+- SearchBar 组合式 TextField 语义继承
+- 输入控件不注册 FluxUI wheel listener 的父级滚动边界
+- Gio Editor focus 与 runtime focus 分离在文本控件族中的验收入口
+- IME composition 真实桥接缺口与 submit 风险
