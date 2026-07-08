@@ -878,13 +878,16 @@ func (c *Context) LayoutClickArea(clickable *ClickableState, child func(*Context
 	if child == nil {
 		return image.Point{}
 	}
+	originalConstraints := c.Gtx.Constraints
+	inputGtx := c.Gtx
+	inputGtx.Constraints.Min = image.Point{}
 	if clickable == nil {
-		return child(c.sameScope(c.Gtx))
+		return originalConstraints.Constrain(child(c.sameScope(inputGtx)))
 	}
 
 	inputDone := c.startFrameSection(PerfInput, 1)
 	popPass := c.pushPointerPassThrough(c.Gtx.Ops)
-	dims := clickable.raw().Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
+	dims := clickable.raw().Layout(inputGtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
 		next := c.sameScope(gtx)
 		return gioLayout.Dimensions{Size: child(next)}
 	})
@@ -894,7 +897,7 @@ func (c *Context) LayoutClickArea(clickable *ClickableState, child func(*Context
 	if inputDone != nil {
 		inputDone()
 	}
-	return dims.Size
+	return originalConstraints.Constrain(dims.Size)
 }
 
 // LayoutInput 绘制输入框。

@@ -210,6 +210,16 @@
 - Container decoration 不扩大交互区域。
 - component_lab 中单个控件不会污染整窗 cursor。
 
+### P6 实施记录（2026-07-08）
+
+- 审计依据：以 `docs/audits/project-audit-baseline.md` 为索引，复核 A3.4、A4.1、A4.2、A4.3、A4.4、A5.4、A10.8、A11.2、A13.4 的 layout/hit、decoration merge、interaction state、ripple/state layer、cursor 和 component_lab 风险记录，并对照 `COMPONENT_DEVELOPMENT_GUIDE.md`、`CODE_STYLE_GUIDE.md`、`FEATURE_INTEGRATION_CHECKLIST.md`。
+- 代码产物：`PointerArea` 使用放松 `Constraints.Min` 后的 child 尺寸注册 pointer hit rect，同时返回按父约束收束后的布局尺寸，避免父级 exact/min 约束把空白区变成 pointer 区；`LayoutClickArea` 的输入注册改为放松 Min 后测量，Pressable/ClickArea 默认只命中真实 child 区域；`LayoutRippleArea`/`LayoutRippleOverlayArea` 放松 Y 方向 inherited min，避免 ripple/click target 被整窗或整行高度放大，同时保留 Tabs equal-width 的 X 方向分配。
+- 组件边界：ContainerDecoration/Card 继续以 surface 内容区注册交互，不把 margin、shadow 或 sibling 空白纳入 click；Tabs item 的 ripple/click target 不再逃逸到 item row 外部；ripple/state layer 仍只按 child size 绘制，不参与布局扩张；cursor 路径未新增全局状态，继续由 slider track 区域回归锁定。
+- decoration/state：新增回归锁定 `resolveDecorationState` 和 `withDefaultStates`，确认 hover/pressed/disabled/focused 分支在合并和默认态补齐时不会被丢弃。
+- 回归入口：`widget/pointer_area_test.go` 覆盖 exact 父约束下 PointerArea 空白区不触发 move；`widget/interactive_layout_test.go` 覆盖 Pressable、ContainerDecoration margin/shadow、ElevatedCard shadow/sibling、Tabs row 外空白点击；`widget/utils_test.go` 覆盖 decoration state 分支保留；既有 `TestSliderPointerCursorIsClippedToTrack` 作为 cursor 不污染整窗的自动化入口。
+- 验证：`gofmt` 已执行；`gopls go_diagnostics` 对本轮修改文件无诊断；定向 `go test ./widget -run "Test(PointerAreaHitRectUsesRelaxedChildSize|PressableHitRectUsesChildSizeUnderExactParent|ContainerDecorationMarginAndSiblingBlankDoNotClick|CardRippleHitStaysInsideSurface|TabsPointerClickDoesNotEscapeItemRow|SliderPointerCursorIsClippedToTrack|ResolveDecorationStatePreservesInactiveStateBranches|WithDefaultStatesKeepsExplicitStateDecoration)$"` 通过；`go test ./widget` 通过；`go test ./event ./internal ./ui ./widget` 通过。`go_vulncheck ./...` 仍报告现有 Go 1.25.1 标准库与间接 `golang.org/x/image`、`golang.org/x/sys` 风险，本轮未修改依赖。
+- 回滚策略：如放松 `LayoutClickArea` 的 Min 影响到少数组件的显式整宽命中，可优先在对应组件内部用 `FixedWidth`/`expandWidth` 包裹 child 或回退该组件调用点，不需要恢复全局旧行为；如 ripple Y 方向收窄影响特定控件的整高交互，可按 `LayoutRippleArea` 与 `LayoutRippleOverlayArea` 分开回退，并保留 P6 空白区反例测试作为准入基线。
+
 ## P7：示例、benchmark 和文档收敛
 
 ### 范围

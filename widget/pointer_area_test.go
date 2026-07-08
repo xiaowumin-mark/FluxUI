@@ -7,6 +7,7 @@ import (
 
 	fluxevent "github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/layout"
 
 	"gioui.org/f32"
 	gioEvent "gioui.org/io/event"
@@ -181,6 +182,60 @@ func TestPointerAreaCoalescesMovesToLatestSample(t *testing.T) {
 	}
 	if got := moves[0].CoalescedSamples(); len(got) != 2 || got[0].Position != f32.Pt(10, 20) || got[1].Position != f32.Pt(30, 40) {
 		t.Fatalf("coalesced samples = %+v, want two samples ending at (30,40)", got)
+	}
+}
+
+func TestPointerAreaHitRectUsesRelaxedChildSize(t *testing.T) {
+	rt := internal.NewRuntime(nil)
+	defer rt.Dispose()
+
+	var router input.Router
+	var ops op.Ops
+	baseTime := time.Date(2026, 7, 8, 12, 0, 0, 0, time.UTC)
+	moves := 0
+
+	w := PointerArea(
+		Spacer(40, 30),
+		PointerOnMove(func(ctx *internal.Context, ev *fluxevent.PointerEvent) {
+			moves++
+		}),
+	)
+
+	render := func(frame int, events ...gioEvent.Event) layout.Dimensions {
+		for _, ev := range events {
+			router.Queue(ev)
+		}
+
+		ops.Reset()
+		gtx := gioLayout.Context{
+			Constraints: gioLayout.Exact(image.Pt(160, 120)),
+			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Now:         baseTime.Add(time.Duration(frame) * 16 * time.Millisecond),
+			Source:      router.Source(),
+			Ops:         &ops,
+		}
+
+		rt.BeginFrame()
+		ctx := internal.NewContext(gtx, rt)
+		dims := w.Layout(ctx.Scope("pointer-area"))
+		rt.EndFrame()
+		router.Frame(&ops)
+		return dims
+	}
+
+	dims := render(0)
+	if dims.Size != (image.Pt(160, 120)) {
+		t.Fatalf("layout size = %v, want parent exact size", dims.Size)
+	}
+
+	render(1, pointerAreaPointer(pointer.Move, pointer.ButtonPrimary, 3, 100, 80, 16*time.Millisecond, 0))
+	if moves != 0 {
+		t.Fatalf("outside relaxed child hit rect moves = %d, want 0", moves)
+	}
+
+	render(2, pointerAreaPointer(pointer.Move, pointer.ButtonPrimary, 3, 20, 20, 32*time.Millisecond, 0))
+	if moves != 1 {
+		t.Fatalf("inside relaxed child hit rect moves = %d, want 1", moves)
 	}
 }
 

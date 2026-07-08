@@ -112,14 +112,17 @@ func (c *Context) LayoutRippleArea(clickable *ClickableState, spec RippleSpec, c
 	if child == nil {
 		return image.Point{}
 	}
+	originalConstraints := c.Gtx.Constraints
+	inputGtx := c.Gtx
+	inputGtx.Constraints.Min.Y = 0
 	if clickable == nil {
-		return child(c.sameScope(c.Gtx))
+		return originalConstraints.Constrain(child(c.sameScope(inputGtx)))
 	}
 	clickable.BindRuntime(c.Runtime())
 
 	inputDone := c.startFrameSection(PerfInput, 1)
 	popPass := c.pushPointerPassThrough(c.Gtx.Ops)
-	dims := clickable.raw().Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
+	dims := clickable.raw().Layout(inputGtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
 		next := c.sameScope(gtx)
 		recorded := op.Record(gtx.Ops)
 		size := child(next)
@@ -134,7 +137,7 @@ func (c *Context) LayoutRippleArea(clickable *ClickableState, spec RippleSpec, c
 	if inputDone != nil {
 		inputDone()
 	}
-	return dims.Size
+	return originalConstraints.Constrain(dims.Size)
 }
 
 // LayoutRippleOverlayArea registers a click target and draws bounded ripple
@@ -145,14 +148,17 @@ func (c *Context) LayoutRippleOverlayArea(clickable *ClickableState, spec Ripple
 	if child == nil {
 		return image.Point{}
 	}
+	originalConstraints := c.Gtx.Constraints
+	inputGtx := c.Gtx
+	inputGtx.Constraints.Min.Y = 0
 	if clickable == nil {
-		return child(c.sameScope(c.Gtx))
+		return originalConstraints.Constrain(child(c.sameScope(inputGtx)))
 	}
 	clickable.BindRuntime(c.Runtime())
 
 	inputDone := c.startFrameSection(PerfInput, 1)
 	popPass := c.pushPointerPassThrough(c.Gtx.Ops)
-	dims := clickable.raw().Layout(c.Gtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
+	dims := clickable.raw().Layout(inputGtx, func(gtx gioLayout.Context) gioLayout.Dimensions {
 		next := c.sameScope(gtx)
 		recorded := op.Record(gtx.Ops)
 		size := child(next)
@@ -167,7 +173,7 @@ func (c *Context) LayoutRippleOverlayArea(clickable *ClickableState, spec Ripple
 	if inputDone != nil {
 		inputDone()
 	}
-	return dims.Size
+	return originalConstraints.Constrain(dims.Size)
 }
 
 func (c *Context) drawRipplePress(press widget.Press, bounds, center image.Point, col color.NRGBA, opacity float32) {

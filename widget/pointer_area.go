@@ -157,18 +157,25 @@ func (w *pointerAreaWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if w.child == nil {
 		return layout.Dimensions{}
 	}
+	childDims := w.layoutChild(ctx)
+	size := ctx.Gtx.Constraints.Constrain(childDims.Size)
 	if w.config.disabled {
-		return w.child.Layout(ctx.Child(0))
+		return layout.Dimensions{Size: size}
 	}
 
 	state := pointerAreaStateFor(ctx)
 	registerPointerAreaListeners(ctx, w.config)
 
-	childDims := w.child.Layout(ctx.Child(0))
 	registerPointerArea(ctx, state, childDims.Size, w.config)
 	processPointerAreaEvents(ctx, state, w.config)
 
-	return childDims
+	return layout.Dimensions{Size: size}
+}
+
+func (w *pointerAreaWidget) layoutChild(ctx *internal.Context) layout.Dimensions {
+	childCtx := *ctx
+	childCtx.Gtx.Constraints.Min = image.Point{}
+	return w.child.Layout(childCtx.Child(0))
 }
 
 func pointerAreaStateFor(ctx *internal.Context) *pointerAreaState {

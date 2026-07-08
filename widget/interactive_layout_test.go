@@ -199,6 +199,24 @@ func TestBlankAreaMovesDoNotTriggerHoverTarget(t *testing.T) {
 	}
 }
 
+func TestPressableHitRectUsesChildSizeUnderExactParent(t *testing.T) {
+	calls := 0
+	w := Pressable(Spacer(40, 30), func(*internal.Context) {
+		calls++
+	})
+	h := newInteractionFrameHarness(image.Pt(160, 120))
+
+	h.click(w, 100, 80)
+	if calls != 0 {
+		t.Fatalf("pressable outside child calls = %d, want 0", calls)
+	}
+
+	h.click(w, 20, 20)
+	if calls != 1 {
+		t.Fatalf("pressable inside child calls = %d, want 1", calls)
+	}
+}
+
 func TestPointerMoveCoalescingUsesLatestPosition(t *testing.T) {
 	hoverCalls := 0
 	w := Button(Text("Hover"), OnHover(func(_ *internal.Context, _ bool) {
@@ -242,6 +260,79 @@ func TestContainerDecorationOnHoverIsChangeOnly(t *testing.T) {
 	h.layout(w)
 	if hoverCalls != 1 {
 		t.Fatalf("container hover calls=%d, want one change-only callback", hoverCalls)
+	}
+}
+
+func TestContainerDecorationMarginAndSiblingBlankDoNotClick(t *testing.T) {
+	calls := 0
+	deco := style.Decoration{}.
+		WithBg(color.NRGBA{R: 20, G: 30, B: 40, A: 255}).
+		WithPad(style.All(10)).
+		WithMargin(style.All(20)).
+		WithShadow(style.BoxShadow{OffsetX: 0, OffsetY: 0, Blur: 16, Color: color.NRGBA{A: 128}})
+	w := Row(
+		ContainerDecoration(deco, Spacer(40, 20), ContainerDecorationOnClick(func(*internal.Context) {
+			calls++
+		})),
+		Spacer(100, 80),
+	)
+	h := newInteractionFrameHarness(image.Pt(240, 120))
+
+	h.click(w, 10, 30)
+	if calls != 0 {
+		t.Fatalf("container margin click calls = %d, want 0", calls)
+	}
+
+	h.click(w, 90, 30)
+	if calls != 0 {
+		t.Fatalf("container right margin/shadow click calls = %d, want 0", calls)
+	}
+
+	h.click(w, 25, 25)
+	if calls != 1 {
+		t.Fatalf("container surface click calls = %d, want 1", calls)
+	}
+}
+
+func TestCardRippleHitStaysInsideSurface(t *testing.T) {
+	calls := 0
+	w := Row(
+		ElevatedCard(Spacer(40, 30), CardOnClick(func(*internal.Context) {
+			calls++
+		})),
+		Spacer(100, 80),
+	)
+	h := newInteractionFrameHarness(image.Pt(240, 120))
+
+	h.click(w, 70, 20)
+	if calls != 0 {
+		t.Fatalf("card shadow/sibling click calls = %d, want 0", calls)
+	}
+
+	h.click(w, 20, 20)
+	if calls != 1 {
+		t.Fatalf("card surface click calls = %d, want 1", calls)
+	}
+}
+
+func TestTabsPointerClickDoesNotEscapeItemRow(t *testing.T) {
+	active := "one"
+	w := Tabs(active,
+		[]TabItem{{Key: "one", Label: "One"}, {Key: "two", Label: "Two"}},
+		TabsOnChange(func(_ *internal.Context, key string) {
+			active = key
+		}),
+	)
+	h := newInteractionFrameHarness(image.Pt(240, 120))
+
+	h.click(w, 180, 100)
+	if active != "one" {
+		t.Fatalf("tabs active after row-external click = %q, want one", active)
+	}
+
+	h.click(w, 180, 24)
+	if active != "two" {
+		t.Fatalf("tabs active after item click = %q, want two", active)
 	}
 }
 

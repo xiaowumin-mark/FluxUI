@@ -1,6 +1,7 @@
 package widget
 
 import (
+	"image/color"
 	"testing"
 	"time"
 
@@ -184,5 +185,72 @@ func TestMD3SwitchRetainedAnimationsIdleWithoutBookkeeping(t *testing.T) {
 	}
 	if len(stats.Reasons) != 0 {
 		t.Fatalf("idle retained switch animations requested redraw reasons=%v, want none", stats.Reasons)
+	}
+}
+
+func TestResolveDecorationStatePreservesInactiveStateBranches(t *testing.T) {
+	baseBg := color.NRGBA{R: 1, G: 2, B: 3, A: 255}
+	hoverBg := color.NRGBA{R: 4, G: 5, B: 6, A: 255}
+	pressedBg := color.NRGBA{R: 7, G: 8, B: 9, A: 255}
+	disabledBg := color.NRGBA{R: 10, G: 11, B: 12, A: 255}
+	focusBg := color.NRGBA{R: 13, G: 14, B: 15, A: 255}
+
+	base := style.Decoration{}.
+		WithBg(baseBg).
+		WithHover(style.Decoration{}.WithBg(hoverBg)).
+		WithPressed(style.Decoration{}.WithBg(pressedBg)).
+		WithDisabled(style.Decoration{}.WithBg(disabledBg)).
+		WithFocused(style.Decoration{}.WithBg(focusBg))
+
+	hovered := resolveDecorationState(base, true, false, false)
+	if hovered.Background == nil || *hovered.Background != hoverBg {
+		t.Fatalf("hover background = %v, want %v", hovered.Background, hoverBg)
+	}
+	if hovered.Disabled == nil || hovered.Focused == nil {
+		t.Fatal("hover merge dropped disabled or focused state branch")
+	}
+
+	pressed := resolveDecorationState(base, true, true, false)
+	if pressed.Background == nil || *pressed.Background != pressedBg {
+		t.Fatalf("pressed background = %v, want %v", pressed.Background, pressedBg)
+	}
+	if pressed.Disabled == nil || pressed.Focused == nil {
+		t.Fatal("pressed merge dropped disabled or focused state branch")
+	}
+
+	disabled := resolveDecorationState(base, true, true, true)
+	if disabled.Background == nil || *disabled.Background != disabledBg {
+		t.Fatalf("disabled background = %v, want %v", disabled.Background, disabledBg)
+	}
+	if disabled.Hover == nil || disabled.Pressed == nil || disabled.Focused == nil {
+		t.Fatal("disabled merge dropped hover, pressed, or focused state branch")
+	}
+}
+
+func TestWithDefaultStatesKeepsExplicitStateDecoration(t *testing.T) {
+	normalBg := color.NRGBA{R: 1, A: 255}
+	explicitHoverBg := color.NRGBA{G: 2, A: 255}
+	defaultHoverBg := color.NRGBA{B: 3, A: 255}
+	defaultPressedBg := color.NRGBA{R: 4, A: 255}
+	defaultDisabledBg := color.NRGBA{G: 5, A: 255}
+
+	base := style.Decoration{}.
+		WithBg(normalBg).
+		WithHover(style.Decoration{}.WithBg(explicitHoverBg))
+	merged := withDefaultStates(
+		base,
+		style.Decoration{}.WithBg(defaultHoverBg),
+		style.Decoration{}.WithBg(defaultPressedBg),
+		style.Decoration{}.WithBg(defaultDisabledBg),
+	)
+
+	if merged.Hover == nil || merged.Hover.Background == nil || *merged.Hover.Background != explicitHoverBg {
+		t.Fatalf("explicit hover was overwritten: %#v", merged.Hover)
+	}
+	if merged.Pressed == nil || merged.Pressed.Background == nil || *merged.Pressed.Background != defaultPressedBg {
+		t.Fatalf("default pressed missing: %#v", merged.Pressed)
+	}
+	if merged.Disabled == nil || merged.Disabled.Background == nil || *merged.Disabled.Background != defaultDisabledBg {
+		t.Fatalf("default disabled missing: %#v", merged.Disabled)
 	}
 }
