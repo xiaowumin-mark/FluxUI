@@ -108,7 +108,7 @@ func docsSystemLogPanel(title string, lines []string, th *ui.Theme, height float
 	items := make([]ui.Element, 0, len(lines)+1)
 	items = append(items, ui.TextElement(title, ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)))
 	if len(lines) == 0 {
-		lines = []string{"No events yet."}
+		lines = []string{"暂无事件。"}
 	}
 	for _, line := range lines {
 		items = append(items,

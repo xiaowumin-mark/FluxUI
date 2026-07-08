@@ -54,7 +54,7 @@ func docsThemeControls(seed docsStringState, dark docsBoolState, th *ui.Theme) u
 	return ui.ContainerDecorationElement(
 		ui.Bg(th.Colors.SurfaceContainer).WithPad(ui.All(10)).WithRad(8),
 		ui.ColumnElement(
-			ui.TextElement("Theme", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.TextElement("主题", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			ui.VSpacerElement(8),
 			ui.SelectElement[string](
 				seed.Value(),
@@ -65,7 +65,7 @@ func docsThemeControls(seed docsStringState, dark docsBoolState, th *ui.Theme) u
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.TextElement("Dark", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+				ui.TextElement("深色", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 				ui.HSpacerElement(8),
 				ui.SwitchElement(
 					dark.Value(),

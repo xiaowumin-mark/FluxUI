@@ -48,7 +48,7 @@ func docsAPIIndexRow(api string, copyStatus docsStringState, th *ui.Theme) ui.El
 				ui.ExpandedElement(ui.TextElement(api, ui.TextSize(12), ui.TextColor(th.Colors.OnSurface))),
 				ui.HSpacerElement(8),
 				ui.TextButtonElement(
-					ui.TextElement("Copy", ui.TextSize(11)),
+					ui.TextElement("复制", ui.TextSize(11)),
 					ui.ButtonPadding(ui.Symmetric(3, 7)),
 					ui.OnClick(func(ctx *ui.Context) {
 						copyDocsAPI(api, copyStatus)
@@ -100,9 +100,9 @@ func copyDocsAPIs(apis []string, copyStatus docsStringState) {
 
 func apiCountLabel(count int) string {
 	if count == 1 {
-		return "1 API"
+		return "1 个 API"
 	}
-	return itoa(count) + " APIs"
+	return itoa(count) + " 个 API"
 }
 
 func itoa(v int) string {

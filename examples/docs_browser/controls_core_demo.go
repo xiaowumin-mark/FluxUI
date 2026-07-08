@@ -18,7 +18,7 @@ func docsButtonDemo(buttonCount docsIntState) ui.Element {
 		return ui.FixedWidthElement(
 			680,
 			ui.ColumnElement(
-				ui.TextElement("MD3 button variants", ui.TextSize(14), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement("MD3 按钮变体", ui.TextSize(14), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(10),
 				ui.RowElement(
 					ui.PaddingElement(ui.Insets{Right: 8}, ui.FilledButtonElement(
@@ -57,7 +57,7 @@ func docsButtonDemo(buttonCount docsIntState) ui.Element {
 						ref.Current.Click()
 					}),
 					ui.ExpandedElement(ui.SpacerElement(0, 0)),
-					ui.TextElement(fmt.Sprintf("clicks = %d hovered = %t", buttonCount.Value(), hovered.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
+					ui.TextElement(fmt.Sprintf("点击 = %d 悬停 = %t", buttonCount.Value(), hovered.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
 				),
 			),
 		)
@@ -82,20 +82,20 @@ func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 		return ui.FixedWidthElement(
 			680,
 			ui.ColumnElement(
-				ui.TextElement("Controlled input variants", ui.TextSize(14), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement("受控输入变体", ui.TextSize(14), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(10),
 				ui.RowElement(
 					ui.ExpandedElement(
 						ui.OutlinedTextFieldElement(
 							inputValue.Value(),
-							ui.InputLabel("Username"),
+							ui.InputLabel("用户名"),
 							ui.InputPlaceholder("name@example.com"),
 							ui.InputSingleLine(true),
 							ui.InputMaxLen(32),
 							ui.InputCounter(true),
 							ui.InputLeading(ui.Icon("person")),
 							ui.InputTrailing(ui.Icon("mail")),
-							ui.InputSupportingText("Floating label, icons and counter"),
+							ui.InputSupportingText("浮动标签、图标与计数器"),
 							ui.InputFontFamily("Segoe UI"),
 							ui.InputAttachRef(ref.Current),
 							ui.InputOnFocus(func(ctx *ui.Context, focused bool) {
@@ -127,27 +127,27 @@ func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 				),
 				ui.VSpacerElement(10),
 				ui.RowElement(
-					docsDemoControlButton("SetText", func(ctx *ui.Context) {
+					docsDemoControlButton("设置文本", func(ctx *ui.Context) {
 						inputValue.Set("FluxUI")
 						ref.Current.SetText("FluxUI")
 					}),
 					ui.HSpacerElement(8),
-					docsDemoControlButton("Append", func(ctx *ui.Context) {
+					docsDemoControlButton("追加", func(ctx *ui.Context) {
 						inputValue.Set(inputValue.Value() + "!")
 						ref.Current.Append("!")
 					}),
 					ui.HSpacerElement(8),
-					docsDemoControlButton("Clear", func(ctx *ui.Context) {
+					docsDemoControlButton("清除", func(ctx *ui.Context) {
 						inputValue.Set("")
 						ref.Current.Clear()
 					}),
 					ui.HSpacerElement(8),
-					docsDemoControlButton("Focus", func(ctx *ui.Context) {
+					docsDemoControlButton("聚焦", func(ctx *ui.Context) {
 						focusState.Set("focused")
 						ref.Current.Focus()
 					}),
 					ui.HSpacerElement(8),
-					docsDemoControlButton("Blur", func(ctx *ui.Context) {
+					docsDemoControlButton("失焦", func(ctx *ui.Context) {
 						focusState.Set("blurred")
 						ref.Current.Blur()
 					}),
@@ -157,7 +157,7 @@ func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 					ui.ExpandedElement(
 						ui.TextFieldElement(
 							"secret",
-							ui.InputLabel("Password"),
+							ui.InputLabel("密码"),
 							ui.InputPassword(true),
 							ui.InputSingleLine(true),
 							ui.InputLeading(ui.Icon("lock")),
@@ -168,7 +168,7 @@ func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 					ui.ExpandedElement(
 						ui.TextFieldElement(
 							"disabled",
-							ui.InputLabel("Disabled"),
+							ui.InputLabel("已禁用"),
 							ui.InputDisabled(true),
 						),
 					),
@@ -178,11 +178,11 @@ func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 					ui.ExpandedElement(
 						ui.OutlinedTextFieldElement(
 							"Draft",
-							ui.InputLabel("Title"),
+							ui.InputLabel("标题"),
 							ui.InputMaxLen(10),
 							ui.InputCounter(true),
 							ui.InputError(true),
-							ui.InputErrorText("Use 10 characters or less"),
+							ui.InputErrorText("使用 10 个字符或更少"),
 							ui.InputRequired(true),
 						),
 					),
@@ -190,15 +190,15 @@ func docsTextFieldDemo(inputValue docsStringState) ui.Element {
 					ui.ExpandedElement(
 						ui.OutlinedTextFieldElement(
 							"Multiline value",
-							ui.InputLabel("Notes"),
+							ui.InputLabel("备注"),
 							ui.InputSingleLine(false),
 							ui.InputRows(3),
-							ui.InputSupportingText("Textarea field"),
+							ui.InputSupportingText("多行文本字段"),
 						),
 					),
 				),
 				ui.VSpacerElement(8),
-				ui.TextElement("value = "+inputValue.Value()+" | "+focusState.Value(), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
+				ui.TextElement("值 = "+inputValue.Value()+" | "+focusState.Value(), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			),
 		)
 	})
@@ -217,21 +217,21 @@ func docsCardDemo(buttonCount docsIntState) ui.Element {
 		return ui.FixedWidthElement(
 			720,
 			ui.ColumnElement(
-				ui.TextElement("MD3 card variants", ui.TextSize(14), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement("MD3 卡片变体", ui.TextSize(14), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(10),
 				ui.RowElement(
-					ui.ExpandedElement(docsCardVariant("Filled", "Default surface card.", th, ui.FilledCardElement, click, ui.CardAttachRef(ref.Current))),
+					ui.ExpandedElement(docsCardVariant("Filled", "默认 Surface 卡片。", th, ui.FilledCardElement, click, ui.CardAttachRef(ref.Current))),
 					ui.HSpacerElement(10),
-					ui.ExpandedElement(docsCardVariant("Elevated", "Adds tonal elevation.", th, ui.ElevatedCardElement, click, ui.CardShadow(2))),
+					ui.ExpandedElement(docsCardVariant("Elevated", "添加暮色海拔。", th, ui.ElevatedCardElement, click, ui.CardShadow(2))),
 					ui.HSpacerElement(10),
-					ui.ExpandedElement(docsCardVariant("Outlined", "Uses outline boundary.", th, ui.OutlinedCardElement, click, ui.CardBorder(th.Colors.Primary, 1))),
+					ui.ExpandedElement(docsCardVariant("Outlined", "使用轮廓边界。", th, ui.OutlinedCardElement, click, ui.CardBorder(th.Colors.Primary, 1))),
 				),
 				ui.VSpacerElement(10),
 				ui.RowElement(
 					ui.ExpandedElement(
 						docsCardVariant(
-							"Custom options",
-							"Padding, radius, background, border, shadow, decoration.",
+							"自定义选项",
+							"内边距、圆角、背景、边框、阴影、装饰。",
 							th,
 							ui.CardElement,
 							click,
@@ -250,7 +250,7 @@ func docsCardDemo(buttonCount docsIntState) ui.Element {
 					}),
 				),
 				ui.VSpacerElement(8),
-				ui.TextElement(fmt.Sprintf("card clicks = %d", buttonCount.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
+				ui.TextElement(fmt.Sprintf("卡片点击 = %d", buttonCount.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			),
 		)
 	})

@@ -9,15 +9,15 @@ import (
 
 func docsMenuDemo(menuOpen docsBoolState, menuValue docsStringState, th *ui.Theme) ui.Element {
 	items := []ui.MenuItem{
-		{Key: "copy", Label: "Copy", Leading: ui.Icon("content_copy")},
-		{Key: "share", Label: "Share", Leading: ui.Icon("share")},
-		{Key: "archive", Label: "Archive", Leading: ui.Icon("archive"), Children: []ui.MenuItem{
-			{Key: "archive-today", Label: "Today"},
-			{Key: "archive-week", Label: "This week"},
-			{Key: "archive-custom", Label: "Custom date", Leading: ui.Icon("calendar_month")},
+		{Key: "copy", Label: "复制", Leading: ui.Icon("content_copy")},
+		{Key: "share", Label: "分享", Leading: ui.Icon("share")},
+		{Key: "archive", Label: "归档", Leading: ui.Icon("archive"), Children: []ui.MenuItem{
+			{Key: "archive-today", Label: "今天"},
+			{Key: "archive-week", Label: "本周"},
+			{Key: "archive-custom", Label: "自定义日期", Leading: ui.Icon("calendar_month")},
 		}},
 		{Divider: true},
-		{Key: "delete", Label: "Delete", Disabled: true},
+		{Key: "delete", Label: "删除", Disabled: true},
 	}
 	return ui.FixedWidthElement(
 		520,
@@ -27,7 +27,7 @@ func docsMenuDemo(menuOpen docsBoolState, menuValue docsStringState, th *ui.Them
 					menuOpen.Value(),
 					ui.ContainerDecorationElement(
 						ui.Bg(th.Colors.Surface).WithPad(ui.Symmetric(10, 16)).WithRad(th.Shapes.ExtraSmall).WithBorder(ui.Border{Width: 1, Color: th.Colors.Outline}),
-						ui.TextElement("Open menu", ui.TextColor(th.Colors.OnSurface)),
+						ui.TextElement("打开菜单", ui.TextColor(th.Colors.OnSurface)),
 					),
 					items,
 					ui.DropdownMenuSelectedKey(menuValue.Value()),
@@ -77,18 +77,18 @@ func docsTabsDemo(value docsStringState) ui.Element {
 		}
 		scrollingActive := ui.UseState(ctx, "scroll-keyboard-0")
 		items := []ui.TabItem{
-			{Key: "overview", Label: "Keyboard", Icon: ui.Icon("keyboard")},
-			{Key: "api", Label: "Guitar", Icon: ui.Icon("tune")},
-			{Key: "example", Label: "Drums", Icon: ui.Icon("graphic_eq")},
-			{Key: "notes", Label: "Bass", Icon: ui.Icon("speaker")},
-			{Key: "saxophone", Label: "Saxophone", Icon: ui.Icon("nightlife"), Disabled: true},
+			{Key: "overview", Label: "键盘", Icon: ui.Icon("keyboard")},
+			{Key: "api", Label: "吉他", Icon: ui.Icon("tune")},
+			{Key: "example", Label: "鼓", Icon: ui.Icon("graphic_eq")},
+			{Key: "notes", Label: "贝斯", Icon: ui.Icon("speaker")},
+			{Key: "saxophone", Label: "萨克斯", Icon: ui.Icon("nightlife"), Disabled: true},
 		}
 		scrollingBase := []ui.TabItem{
-			{Key: "keyboard", Label: "Keyboard", Icon: ui.Icon("keyboard")},
-			{Key: "guitar", Label: "Guitar", Icon: ui.Icon("tune")},
-			{Key: "drums", Label: "Drums", Icon: ui.Icon("graphic_eq")},
-			{Key: "bass", Label: "Bass", Icon: ui.Icon("speaker")},
-			{Key: "saxophone", Label: "Saxophone", Icon: ui.Icon("nightlife")},
+			{Key: "keyboard", Label: "键盘", Icon: ui.Icon("keyboard")},
+			{Key: "guitar", Label: "吉他", Icon: ui.Icon("tune")},
+			{Key: "drums", Label: "鼓", Icon: ui.Icon("graphic_eq")},
+			{Key: "bass", Label: "贝斯", Icon: ui.Icon("speaker")},
+			{Key: "saxophone", Label: "萨克斯", Icon: ui.Icon("nightlife")},
 		}
 		scrollingItems := make([]ui.TabItem, 0, len(scrollingBase)*3)
 		for i := 0; i < 3; i++ {
@@ -103,7 +103,7 @@ func docsTabsDemo(value docsStringState) ui.Element {
 		return ui.FixedWidthElement(
 			520,
 			ui.ColumnElement(
-				ui.TextElement("Primary full width", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement("主色全宽", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 				ui.TabsElement(
 					value.Value(),
 					items,
@@ -114,7 +114,7 @@ func docsTabsDemo(value docsStringState) ui.Element {
 					}),
 				),
 				ui.VSpacerElement(10),
-				ui.TextElement("Scrolling tabs", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement("可滚动标签", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 				ui.TabsElement(
 					scrollingActive.Value(),
 					scrollingItems,
@@ -124,14 +124,14 @@ func docsTabsDemo(value docsStringState) ui.Element {
 					}),
 				),
 				ui.VSpacerElement(10),
-				ui.TextElement("Secondary full width", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement("次要色全宽", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 				ui.TabsElement(
 					value.Value(),
 					[]ui.TabItem{
-						{Key: "overview", Label: "Travel", Icon: ui.Icon("flight")},
-						{Key: "api", Label: "Hotel", Icon: ui.Icon("hotel")},
-						{Key: "example", Label: "Activities", Icon: ui.Icon("hiking")},
-						{Key: "notes", Label: "Food", Icon: ui.Icon("restaurant")},
+						{Key: "overview", Label: "旅行", Icon: ui.Icon("flight")},
+						{Key: "api", Label: "酒店", Icon: ui.Icon("hotel")},
+						{Key: "example", Label: "活动", Icon: ui.Icon("hiking")},
+						{Key: "notes", Label: "美食", Icon: ui.Icon("restaurant")},
 					},
 					ui.TabsSecondary(true),
 					ui.TabsInlineIcon(true),
@@ -146,12 +146,12 @@ func docsTabsDemo(value docsStringState) ui.Element {
 				ui.PaddingElement(
 					ui.Insets{Top: 8},
 					ui.RowElement(
-						docsDemoControlButton("Set API", func(ctx *ui.Context) {
+						docsDemoControlButton("设置 API", func(ctx *ui.Context) {
 							value.Set("api")
 							ref.Current.SetActive("api")
 						}),
 						ui.HSpacerElement(8),
-						ui.TextElement("Current tab: "+value.Value(), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
+						ui.TextElement("当前标签："+value.Value(), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
 					),
 				),
 			),
@@ -170,12 +170,12 @@ func docsDialogDemo(open docsBoolState) ui.Element {
 			ui.FillWidthElement(
 				ui.ColumnElement(
 					ui.RowElement(
-						docsDemoControlButton("Open dialog", func(ctx *ui.Context) {
+						docsDemoControlButton("打开 Dialog", func(ctx *ui.Context) {
 							open.Set(true)
 							ref.Current.Open()
 						}),
 						ui.HSpacerElement(8),
-						docsDemoControlButton("Toggle ref", func(ctx *ui.Context) {
+						docsDemoControlButton("切换引用", func(ctx *ui.Context) {
 							open.Set(!open.Value())
 							ref.Current.Toggle()
 						}),
@@ -198,11 +198,11 @@ func docsDialogDemo(open docsBoolState) ui.Element {
 				ui.DialogGlobalOverlay(true),
 				ui.DialogMaskColor(ui.NRGBA(15, 23, 42, 82)),
 				ui.DialogActions(
-					ui.TextButton(ui.Text("Dismiss"), ui.OnClick(func(ctx *ui.Context) {
+					ui.TextButton(ui.Text("关闭"), ui.OnClick(func(ctx *ui.Context) {
 						open.Set(false)
 						ref.Current.Close()
 					})),
-					ui.TextButton(ui.Text("Apply"), ui.OnClick(func(ctx *ui.Context) {
+					ui.TextButton(ui.Text("应用"), ui.OnClick(func(ctx *ui.Context) {
 						open.Set(false)
 						ref.Current.Close()
 					})),
@@ -230,7 +230,7 @@ func docsPopupDemo(open docsBoolState) ui.Element {
 			ui.FillWidthElement(
 				ui.ColumnElement(
 					ui.RowElement(
-						docsDemoControlButton("Open Popup", func(ctx *ui.Context) {
+						docsDemoControlButton("打开 Popup", func(ctx *ui.Context) {
 							open.Set(true)
 							ref.Current.Open()
 						}),
@@ -242,21 +242,21 @@ func docsPopupDemo(open docsBoolState) ui.Element {
 					),
 					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.TextElement("Popup content is fully custom and can use ref commands.", ui.TextSize(13)),
+						ui.TextElement("Popup 内容完全自定义，可使用引用命令。", ui.TextSize(13)),
 					),
 				),
 			),
 			ui.PopupElement(
 				open.Value(),
 				ui.ColumnElement(
-					ui.TextElement("Custom popup content", ui.TextSize(16)),
+					ui.TextElement("自定义 Popup 内容", ui.TextSize(16)),
 					ui.PaddingElement(
 						ui.Insets{Top: 8},
-						ui.TextElement("Any Element tree can be placed here.", ui.TextSize(13)),
+						ui.TextElement("任何 Element 树都可以放在这里。", ui.TextSize(13)),
 					),
 					ui.PaddingElement(
 						ui.Insets{Top: 12},
-						docsDemoControlButton("Close", func(ctx *ui.Context) {
+						docsDemoControlButton("关闭", func(ctx *ui.Context) {
 							open.Set(false)
 							ref.Current.Close()
 						}),
@@ -279,11 +279,11 @@ func docsToastDemo(message docsStringState) ui.Element {
 	layers = append(layers,
 		ui.FillWidthElement(
 			ui.RowElement(
-				docsDemoControlButton("Show success Toast", func(ctx *ui.Context) {
-					message.Set("Saved changes")
+				docsDemoControlButton("显示成功 Toast", func(ctx *ui.Context) {
+					message.Set("已保存更改")
 				}),
 				ui.HSpacerElement(8),
-				ui.TextElement("Toast uses duration, position, action, decoration, and close callback.", ui.TextSize(12)),
+				ui.TextElement("Toast 使用持续时间、位置、动作、装饰和关闭回调。", ui.TextSize(12)),
 			),
 		),
 	)
@@ -316,15 +316,15 @@ func docsSnackbarDemo(serial docsIntState, message docsStringState, actionCount 
 				ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(16)).WithRad(th.Shapes.Medium),
 				ui.ColumnElement(
 					ui.FilledButtonElement(
-						ui.TextElement("Show snackbar"),
+						ui.TextElement("显示 Snackbar"),
 						ui.OnClick(func(ctx *ui.Context) {
 							serial.Set(serial.Value() + 1)
-							message.Set("Draft archived")
+							message.Set("草稿已归档")
 						}),
 					),
 					ui.PaddingElement(
 						ui.Insets{Top: 10},
-						ui.TextElement(fmt.Sprintf("Action clicks: %d", actionCount.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
+						ui.TextElement(fmt.Sprintf("动作点击：%d", actionCount.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
 					),
 				),
 			),
@@ -336,7 +336,7 @@ func docsSnackbarDemo(serial docsIntState, message docsStringState, actionCount 
 				fmt.Sprintf("snackbar-%d", serial.Value()),
 				ui.SnackbarElement(
 					message.Value(),
-					ui.SnackbarAction("Undo", func(ctx *ui.Context) {
+					ui.SnackbarAction("撤销", func(ctx *ui.Context) {
 						actionCount.Set(actionCount.Value() + 1)
 						message.Set("")
 					}),
@@ -351,16 +351,16 @@ func docsSnackbarDemo(serial docsIntState, message docsStringState, actionCount 
 func docsTooltipDemo() ui.Element {
 	return ui.RowElement(
 		ui.TooltipElement(
-			"Tooltip text",
-			ui.FilledTonalButtonElement(ui.TextElement("Hover me")),
+			"Tooltip 文本",
+			ui.FilledTonalButtonElement(ui.TextElement("悬停我")),
 			ui.TooltipOffset(8),
 			ui.TooltipTextColor(ui.NRGBA(255, 255, 255, 255)),
 			ui.TooltipDecoration(ui.Bg(ui.NRGBA(15, 23, 42, 245)).WithPad(ui.Symmetric(6, 10)).WithRad(8)),
 		),
 		ui.HSpacerElement(12),
 		ui.TooltipElement(
-			"Disabled tooltip",
-			ui.OutlinedButtonElement(ui.TextElement("Disabled")),
+			"已禁用 Tooltip",
+			ui.OutlinedButtonElement(ui.TextElement("已禁用")),
 			ui.TooltipDisabled(true),
 		),
 	)

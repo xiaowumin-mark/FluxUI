@@ -42,7 +42,7 @@ func buildDocsSystemAPIDemo(ctx *ui.Context, status docsStringState, th *ui.Them
 		return ui.ScrollViewElement(ui.ColumnElement(
 			ui.TextElement("System API", ui.TextSize(16), ui.TextColor(th.Colors.OnSurface)),
 			ui.VSpacerElement(8),
-			ui.TextElement("Probe capabilities first, then try the live sections below.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.TextElement("首先探测能力，然后尝试下方的实时演示。", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			ui.VSpacerElement(12),
 			docsSystemCapabilityGrid(probe.Value(), th),
 			ui.VSpacerElement(14),
@@ -69,7 +69,7 @@ func buildDocsSystemAPIDemo(ctx *ui.Context, status docsStringState, th *ui.Them
 			docsSystemRegistrationSection(th),
 			ui.VSpacerElement(14),
 			ui.RowElement(
-				systemActionButton("Copy probe", false, func(actionCtx *ui.Context) {
+				systemActionButton("复制探测结果", false, func(actionCtx *ui.Context) {
 					copySystemProbe(status, probe.Value())
 				}),
 			),
@@ -108,7 +108,7 @@ func systemCapabilityCard(label string, cap system.Capability, probe docsSystemP
 	fg := th.Colors.OnSurfaceVariant
 	stateText := string(availability.Status)
 	if probe.Loading {
-		stateText = "probing"
+		stateText = "探测中"
 	}
 	if supported {
 		bg = th.Colors.PrimaryContainer
@@ -144,10 +144,10 @@ func copySystemProbe(status docsStringState, probe docsSystemProbeState) {
 	}
 	text := systemProbeSummary(probe)
 	if err := system.WriteClipboardText(context.Background(), text); err != nil {
-		status.Set("Copy probe failed: " + err.Error())
+		status.Set("复制探测结果失败：" + err.Error())
 		return
 	}
-	status.Set("Copied capability probe to clipboard.")
+	status.Set("已将能力探测结果复制到剪贴板。")
 }
 
 func systemProbeSummary(probe docsSystemProbeState) string {

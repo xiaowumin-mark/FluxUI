@@ -22,7 +22,7 @@ type docsDragDropStateHandle interface {
 
 func defaultDocsDragDropState() docsDragDropState {
 	return docsDragDropState{
-		Events: []string{"ready: drag text, files, JSON, or custom MIME into a target"},
+		Events: []string{"就绪：将文本、文件、JSON 或自定义 MIME 拖入目标区域"},
 	}
 }
 
@@ -47,24 +47,24 @@ func buildDocsDragDropDemo(ctx *ui.Context, state docsDragDropStateHandle, th *u
 func docsDragSourcePanel(state docsDragDropStateHandle, th *ui.Theme) ui.Element {
 	sampleFile := docsDragSampleFile()
 	return ui.ColumnElement(
-		ui.TextElement("Sources", ui.TextSize(15), ui.TextColor(th.Colors.OnSurface)),
+		ui.TextElement("源", ui.TextSize(15), ui.TextColor(th.Colors.OnSurface)),
 		ui.VSpacerElement(8),
 		docsDragSourceCard(
-			"Text",
-			"text/plain + custom preview",
+			"文本",
+			"text/plain + 自定义预览",
 			th,
 			ui.NRGBA(239, 246, 255, 255),
 			ui.NRGBA(37, 99, 235, 255),
 			ui.DragSourceText("FluxUI docs payload"),
 			ui.DragSourceOperations(ui.DragOperationCopy),
-			ui.DragSourcePreview(docsDragPreview("Text payload")),
+			ui.DragSourcePreview(docsDragPreview("文本载荷")),
 			ui.DragSourceOnEvent(func(ctx *ui.Context, event ui.DragSourceEvent) {
 				recordDocsDragEvent(state, event)
 			}),
 		),
 		ui.VSpacerElement(8),
 		docsDragSourceCard(
-			"File URI",
+			"文件 URI",
 			filepath.Base(sampleFile),
 			th,
 			ui.NRGBA(240, 253, 244, 255),
@@ -93,7 +93,7 @@ func docsDragSourcePanel(state docsDragDropStateHandle, th *ui.Theme) ui.Element
 		),
 		ui.VSpacerElement(8),
 		docsDragSourceCard(
-			"Payloads",
+			"载荷",
 			"application/x-fluxui-doc",
 			th,
 			ui.NRGBA(250, 245, 255, 255),
@@ -109,7 +109,7 @@ func docsDragSourcePanel(state docsDragDropStateHandle, th *ui.Theme) ui.Element
 		),
 		ui.VSpacerElement(8),
 		docsDragSourceCard(
-			"Disabled",
+			"已禁用",
 			"DragSourceDisabled(true)",
 			th,
 			ui.NRGBA(248, 250, 252, 255),
@@ -122,10 +122,10 @@ func docsDragSourcePanel(state docsDragDropStateHandle, th *ui.Theme) ui.Element
 
 func docsDropTargetPanel(state docsDragDropStateHandle, current docsDragDropState, th *ui.Theme) ui.Element {
 	return ui.ColumnElement(
-		ui.TextElement("Targets", ui.TextSize(15), ui.TextColor(th.Colors.OnSurface)),
+		ui.TextElement("目标", ui.TextSize(15), ui.TextColor(th.Colors.OnSurface)),
 		ui.VSpacerElement(8),
 		docsDropTargetCard(
-			"Accept text, files, JSON, custom MIME",
+			"接受文本、文件、JSON、自定义 MIME",
 			current.MainActive,
 			th,
 			func(ctx *ui.Context, event ui.DropEvent) {
@@ -148,7 +148,7 @@ func docsDropTargetPanel(state docsDragDropStateHandle, current docsDragDropStat
 		),
 		ui.VSpacerElement(8),
 		docsDropTargetCard(
-			"Small maxBytes target",
+			"小 maxBytes 目标",
 			current.SmallActive,
 			th,
 			func(ctx *ui.Context, event ui.DropEvent) {
@@ -167,7 +167,7 @@ func docsDropTargetPanel(state docsDragDropStateHandle, current docsDragDropStat
 		ui.VSpacerElement(8),
 		ui.DropTargetElement(
 			docsPanelCard(
-				"Disabled target",
+				"已禁用目标",
 				"DropTargetDisabled(true)",
 				false,
 				th,
@@ -195,7 +195,7 @@ func docsDropTargetCard(title string, active bool, th *ui.Theme, onDrop func(ctx
 		accent = ui.NRGBA(2, 132, 199, 255)
 	}
 	return ui.DropTargetElement(
-		docsPanelCard(title, "active state + error callback", active, th, bg, accent),
+		docsPanelCard(title, "活跃状态 + 错误回调", active, th, bg, accent),
 		onDrop,
 		opts...,
 	)
@@ -250,9 +250,9 @@ func docsDragDropEventLog(events []string, th *ui.Theme) ui.Element {
 	}
 
 	items := make([]ui.Element, 0, len(events)+1)
-	items = append(items, ui.TextElement("Events", ui.TextSize(15), ui.TextColor(textColor)))
+	items = append(items, ui.TextElement("事件", ui.TextSize(15), ui.TextColor(textColor)))
 	if len(events) == 0 {
-		events = []string{"ready"}
+		events = []string{"就绪"}
 	}
 	for _, event := range events {
 		items = append(items,
@@ -276,9 +276,9 @@ func recordDocsTargetActive(state docsDragDropStateHandle, mainTarget bool, even
 	} else {
 		next.SmallActive = event.Active
 	}
-	label := "target inactive"
+	label := "目标非活跃"
 	if event.Active {
-		label = "target active: " + strings.Join(event.Types, ", ")
+		label = "目标活跃：" + strings.Join(event.Types, ", ")
 	}
 	next.Events = prependDocsDragDropEvent(next.Events, label)
 	state.Set(next)
@@ -289,7 +289,7 @@ func recordDocsDragRequest(state docsDragDropStateHandle, event ui.DragSourceEve
 }
 
 func recordDocsDragEvent(state docsDragDropStateHandle, event ui.DragSourceEvent) {
-	label := fmt.Sprintf("source %s op=%s", docsDragSourceEventLabel(event.Kind), event.Operation)
+	label := fmt.Sprintf("源 %s 操作=%s", docsDragSourceEventLabel(event.Kind), event.Operation)
 	if event.Type != "" {
 		label += " type=" + event.Type
 	}
@@ -305,13 +305,13 @@ func recordDocsDragEvent(state docsDragDropStateHandle, event ui.DragSourceEvent
 func docsDragSourceEventLabel(kind ui.DragSourceEventKind) string {
 	switch kind {
 	case ui.DragSourceEventStarted:
-		return "started"
+		return "已开始"
 	case ui.DragSourceEventRequested:
-		return "requested"
+		return "已请求"
 	case ui.DragSourceEventCompleted:
-		return "completed"
+		return "已完成"
 	case ui.DragSourceEventCancelled:
-		return "cancelled"
+		return "已取消"
 	default:
 		return string(kind)
 	}

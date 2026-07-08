@@ -46,7 +46,7 @@ type docsDemoState struct {
 
 func buildDocsDemo(ctx *ui.Context, doc *widgetDoc, state docsDemoState) ui.Element {
 	if doc == nil {
-		return ui.TextElement("No demo available")
+		return ui.TextElement("没有可用演示")
 	}
 
 	demoID := doc.Meta.Example.ID
@@ -193,6 +193,6 @@ func buildDocsDemo(ctx *ui.Context, doc *widgetDoc, state docsDemoState) ui.Elem
 			return buildDocsHooksLifecycleDemo(demoCtx, state.HookDemoCount, state.HookDemoShowChild, state.HookDemoLogs)
 		}))
 	default:
-		return ui.TextElement("This document has no executable demo configured.")
+		return ui.TextElement("此文档未配置可执行演示。")
 	}
 }

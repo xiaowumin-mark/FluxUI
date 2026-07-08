@@ -12,7 +12,7 @@ import (
 func docsSystemEventsSection(th *ui.Theme) ui.Element {
 	return ui.ComponentElement(func(sectionCtx *ui.Context) ui.Element {
 		watching := ui.UseState(sectionCtx, false)
-		log := ui.UseState(sectionCtx, []string{"System events are best-effort and driver dependent."})
+		log := ui.UseState(sectionCtx, []string{"系统事件为尽力而为且取决于驱动。"})
 		disabled := !system.Supports(system.CapabilitySystemEvents)
 
 		ui.UseEffectWithDeps(sectionCtx, []any{watching.Value()}, func() func() {
@@ -68,24 +68,24 @@ func docsSystemEventsSection(th *ui.Theme) ui.Element {
 						next := !watching.Value()
 						watching.Set(next)
 						if !next {
-							log.Set([]string{"Listening stopped."})
+							log.Set([]string{"监听已停止。"})
 						} else {
-							log.Set([]string{"Listening started."})
+							log.Set([]string{"监听已开始。"})
 						}
 					}),
 				),
 				ui.HSpacerElement(8),
 				ui.OutlinedButtonElement(
-					ui.TextElement("Clear log", ui.TextSize(12)),
+					ui.TextElement("清除日志", ui.TextSize(12)),
 					ui.Disabled(disabled),
 					ui.ButtonPadding(ui.Symmetric(6, 10)),
 					ui.OnClick(func(ctx *ui.Context) {
-						log.Set([]string{"Log cleared."})
+						log.Set([]string{"日志已清除。"})
 					}),
 				),
 			),
 			ui.VSpacerElement(8),
-			ui.TextElement("Kinds: display, DPI, theme, settings, power, session.", ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.TextElement("类型：显示、DPI、主题、设置、电源、会话。", ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			ui.VSpacerElement(8),
 			ui.ContainerDecorationElement(
 				ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(10)).WithRad(8),
@@ -111,14 +111,14 @@ func formatDocsSystemEvent(ev system.SystemEvent) string {
 
 func eventListenLabel(watching bool) string {
 	if watching {
-		return "Stop listening"
+		return "停止监听"
 	}
-	return "Start listening"
+	return "开始监听"
 }
 
 func renderDocsSystemEventLog(lines []string, th *ui.Theme) []ui.Element {
 	if len(lines) == 0 {
-		lines = []string{"No events yet."}
+		lines = []string{"暂无事件。"}
 	}
 	els := make([]ui.Element, 0, len(lines))
 	for _, line := range lines {

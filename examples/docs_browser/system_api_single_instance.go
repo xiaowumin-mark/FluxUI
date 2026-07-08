@@ -14,8 +14,8 @@ const docsSystemSingleInstanceID = "com.fluxui.docs_browser.demo"
 
 func docsSystemSingleInstanceSection(th *ui.Theme) ui.Element {
 	return ui.ComponentElement(func(sectionCtx *ui.Context) ui.Element {
-		status := ui.UseState(sectionCtx, "Acquire primary, then simulate a second launch.")
-		events := ui.UseState(sectionCtx, []string{"No secondary launches yet."})
+		status := ui.UseState(sectionCtx, "获取主实例，然后模拟第二次启动。")
+		events := ui.UseState(sectionCtx, []string{"暂无二次启动。"})
 		instance := ui.UseState[*system.SingleInstance](sectionCtx, nil)
 		disabled := !system.Supports(system.CapabilitySingleInstance)
 
@@ -31,16 +31,16 @@ func docsSystemSingleInstanceSection(th *ui.Theme) ui.Element {
 		})
 
 		acquired := current != nil
-		summary := "Primary instance is not acquired."
+		summary := "主实例尚未获取。"
 		if acquired {
-			summary = "Primary instance is active for " + docsSystemSingleInstanceID + "."
+			summary = "主实例已激活：" + docsSystemSingleInstanceID + "。"
 		}
 
 		return docsSystemSection("Single Instance API", ui.ColumnElement(
 			ui.TextElement(summary, ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Acquire primary", status, disabled || acquired, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("获取主实例", status, disabled || acquired, func(ctx *ui.Context) string {
 					acquiredInstance, err := system.AcquireSingleInstance(context.Background(),
 						system.SingleInstanceID(docsSystemSingleInstanceID),
 						system.SingleInstanceOnSecondLaunch(func(event system.SingleInstanceEvent) {
@@ -49,15 +49,15 @@ func docsSystemSingleInstanceSection(th *ui.Theme) ui.Element {
 					)
 					if err != nil {
 						if system.IsAlreadyRunning(err) {
-							return "Another primary instance is already running."
+							return "另一个主实例已在运行。"
 						}
-						return "Acquire primary failed: " + err.Error()
+						return "获取主实例失败：" + err.Error()
 					}
 					instance.Set(acquiredInstance)
-					return "Primary instance acquired."
+					return "主实例已获取。"
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Simulate second launch", status, disabled || !acquired, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("模拟第二次启动", status, disabled || !acquired, func(ctx *ui.Context) string {
 					secondary, err := system.AcquireSingleInstance(context.Background(),
 						system.SingleInstanceID(docsSystemSingleInstanceID),
 						system.SingleInstanceArgs("--from=docs-browser", "--second-launch"),
@@ -67,29 +67,29 @@ func docsSystemSingleInstanceSection(th *ui.Theme) ui.Element {
 						_ = secondary.Close()
 					}
 					if system.IsAlreadyRunning(err) {
-						return "Secondary launch forwarded to the primary instance."
+						return "二次启动已转发到主实例。"
 					}
 					if err != nil {
-						return "Secondary launch failed: " + err.Error()
+						return "二次启动失败：" + err.Error()
 					}
-					return "Unexpectedly acquired primary from secondary simulation."
+					return "从二次模拟中意外获取了主实例。"
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Release primary", status, disabled || !acquired, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("释放主实例", status, disabled || !acquired, func(ctx *ui.Context) string {
 					current := instance.Value()
 					if current == nil {
-						return "No primary instance to release."
+						return "没有可释放的主实例。"
 					}
 					err := current.Close()
 					instance.Set(nil)
 					if err != nil && !system.IsClosed(err) {
-						return "Release primary failed: " + err.Error()
+						return "释放主实例失败：" + err.Error()
 					}
-					return "Primary instance released."
+					return "主实例已释放。"
 				})),
 			),
 			ui.VSpacerElement(8),
-			docsSystemLogPanel("Second launch events", events.Value(), th, 112),
+			docsSystemLogPanel("二次启动事件", events.Value(), th, 112),
 			ui.VSpacerElement(8),
 			ui.TextElement(status.Value(), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		), th)

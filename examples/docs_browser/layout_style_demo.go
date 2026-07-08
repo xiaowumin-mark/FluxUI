@@ -33,9 +33,9 @@ func docsRowDemo() ui.Element {
 
 func docsColumnDemo() ui.Element {
 	return ui.ColumnElement(
-		docsColorBlock("First row", ui.NRGBA(30, 136, 229, 255)),
-		ui.PaddingElement(ui.Insets{Top: 8}, docsColorBlock("Second row", ui.NRGBA(67, 160, 71, 255))),
-		ui.PaddingElement(ui.Insets{Top: 8}, docsColorBlock("Expanded area", ui.NRGBA(245, 124, 0, 255))),
+		docsColorBlock("第一行", ui.NRGBA(30, 136, 229, 255)),
+		ui.PaddingElement(ui.Insets{Top: 8}, docsColorBlock("第二行", ui.NRGBA(67, 160, 71, 255))),
+		ui.PaddingElement(ui.Insets{Top: 8}, docsColorBlock("扩展区域", ui.NRGBA(245, 124, 0, 255))),
 	)
 }
 
@@ -54,11 +54,11 @@ func docsStackDemo() ui.Element {
 					ui.Insets{Left: 12, Top: 12},
 					ui.ContainerElement(
 						ui.Style{Background: ui.NRGBA(30, 136, 229, 255), Padding: ui.All(6), Radius: 6},
-						ui.TextElement("Layer 1", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
+						ui.TextElement("图层 1", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
 					),
 				),
 				ui.CenterElement(
-					ui.TextElement("Center Layer", ui.TextColor(ui.NRGBA(15, 23, 42, 255)), ui.TextSize(14)),
+					ui.TextElement("居中图层", ui.TextColor(ui.NRGBA(15, 23, 42, 255)), ui.TextSize(14)),
 				),
 			),
 		),
@@ -71,7 +71,7 @@ func docsCenterDemo() ui.Element {
 		ui.FillElement(
 			ui.ContainerElement(
 				ui.Style{Background: ui.NRGBA(240, 244, 248, 255), Radius: 8},
-				ui.CenterElement(ui.TextElement("Centered content", ui.TextSize(14))),
+				ui.CenterElement(ui.TextElement("居中内容", ui.TextSize(14))),
 			),
 		),
 	)
@@ -86,9 +86,9 @@ func docsContainerDemo() ui.Element {
 				Margin:     ui.Only(0, 0, 8, 0),
 				Radius:     10,
 			},
-			ui.TextElement("Container: background + padding + margin + radius", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
+			ui.TextElement("容器：背景 + 内边距 + 外边距 + 圆角", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
 		),
-		ui.TextElement("Style uses All and Only insets.", ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
+		ui.TextElement("样式使用 All 和 Only 内边距。", ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255))),
 	)
 }
 
@@ -113,8 +113,8 @@ func docsDecorationDemo(active docsBoolState, th *ui.Theme) ui.Element {
 				ui.ContainerDecorationElement(
 					base,
 					ui.ColumnElement(
-						ui.TextElement("Decoration card", ui.TextSize(16), ui.TextColor(th.TextColor)),
-						ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("Click to toggle border and elevation.", ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255)))),
+						ui.TextElement("Decoration 卡片", ui.TextSize(16), ui.TextColor(th.TextColor)),
+						ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("点击切换边框和海拔。", ui.TextSize(12), ui.TextColor(ui.NRGBA(71, 85, 105, 255)))),
 						ui.PaddingElement(ui.Insets{Top: 8}, docsDecorationStateDots(th)),
 						ui.PaddingElement(ui.Insets{Top: 10}, docsDecorationEventSample(th)),
 					),
@@ -127,20 +127,20 @@ func docsDecorationDemo(active docsBoolState, th *ui.Theme) ui.Element {
 
 func docsStyleShowcaseDemo(th *ui.Theme) ui.Element {
 	items := []ui.Element{
-		docsStyleShowcaseCard("Background + Padding", ui.Bg(th.Colors.PrimaryContainer).WithPad(ui.All(14)).WithRad(14), th.Colors.OnPrimaryContainer),
-		docsStyleShowcaseCard("Margin + Border", ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(14)).WithMargin(ui.All(6)).WithRad(14).WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}), th.Colors.OnSurface),
-		docsStyleShowcaseCard("Corner: bevel", ui.Bg(th.Colors.SecondaryContainer).WithPad(ui.All(14)).WithRad(22).WithCornerShape(ui.CornerBevel), th.Colors.OnSecondaryContainer),
-		docsStyleShowcaseCard("Corner: notch", ui.Bg(th.Colors.TertiaryContainer).WithPad(ui.All(14)).WithRad(22).WithCornerShape(ui.CornerNotch), th.Colors.OnTertiaryContainer),
-		docsStyleShowcaseCard("Corner: scoop", ui.Bg(th.Colors.PrimaryContainer).WithPad(ui.All(14)).WithRad(22).WithCornerShape(ui.CornerScoop), th.Colors.OnPrimaryContainer),
-		docsStyleShowcaseCard("Corner: squircle", ui.Bg(th.Colors.SecondaryContainer).WithPad(ui.All(14)).WithRad(22).WithCornerShape(ui.CornerSquircle), th.Colors.OnSecondaryContainer),
-		docsStyleShowcaseCard("Per-corner shapes", ui.Bg(th.Colors.SurfaceContainerHigh).WithPad(ui.All(14)).WithRad(22).WithCornerShapes(ui.CornerSquircle, ui.CornerBevel, ui.CornerScoop, ui.CornerNotch).WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}), th.Colors.OnSurface),
-		docsStyleShowcaseCard("Opacity", ui.Bg(th.Colors.ErrorContainer).WithPad(ui.All(14)).WithRad(14).WithOpacity(0.72), th.Colors.OnErrorContainer),
-		docsStyleShowcaseCard("Circle clip", ui.Circle().Merge(ui.Bg(th.Colors.Tertiary)).WithPad(ui.All(18)), th.Colors.OnTertiary),
-		docsStyleShowcaseCard("Elevation shadow", ui.Bg(th.Colors.SurfaceContainer).WithPad(ui.All(14)).WithRad(18).Merge(ui.Elevation(3)), th.Colors.OnSurface),
-		docsStyleShowcaseCard("Linear gradient", ui.LinearGrad(image.Point{}, image.Pt(220, 110), th.Colors.Primary, th.Colors.Tertiary).WithPad(ui.All(14)).WithRad(18), th.Colors.OnPrimary),
+		docsStyleShowcaseCard("背景 + 内边距", ui.Bg(th.Colors.PrimaryContainer).WithPad(ui.All(14)).WithRad(14), th.Colors.OnPrimaryContainer),
+		docsStyleShowcaseCard("外边距 + 边框", ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(14)).WithMargin(ui.All(6)).WithRad(14).WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}), th.Colors.OnSurface),
+		docsStyleShowcaseCard("圆角：bevel", ui.Bg(th.Colors.SecondaryContainer).WithPad(ui.All(14)).WithRad(22).WithCornerShape(ui.CornerBevel), th.Colors.OnSecondaryContainer),
+		docsStyleShowcaseCard("圆角：notch", ui.Bg(th.Colors.TertiaryContainer).WithPad(ui.All(14)).WithRad(22).WithCornerShape(ui.CornerNotch), th.Colors.OnTertiaryContainer),
+		docsStyleShowcaseCard("圆角：scoop", ui.Bg(th.Colors.PrimaryContainer).WithPad(ui.All(14)).WithRad(22).WithCornerShape(ui.CornerScoop), th.Colors.OnPrimaryContainer),
+		docsStyleShowcaseCard("圆角：squircle", ui.Bg(th.Colors.SecondaryContainer).WithPad(ui.All(14)).WithRad(22).WithCornerShape(ui.CornerSquircle), th.Colors.OnSecondaryContainer),
+		docsStyleShowcaseCard("每角独立形状", ui.Bg(th.Colors.SurfaceContainerHigh).WithPad(ui.All(14)).WithRad(22).WithCornerShapes(ui.CornerSquircle, ui.CornerBevel, ui.CornerScoop, ui.CornerNotch).WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}), th.Colors.OnSurface),
+		docsStyleShowcaseCard("不透明度", ui.Bg(th.Colors.ErrorContainer).WithPad(ui.All(14)).WithRad(14).WithOpacity(0.72), th.Colors.OnErrorContainer),
+		docsStyleShowcaseCard("圆形裁剪", ui.Circle().Merge(ui.Bg(th.Colors.Tertiary)).WithPad(ui.All(18)), th.Colors.OnTertiary),
+		docsStyleShowcaseCard("海拔阴影", ui.Bg(th.Colors.SurfaceContainer).WithPad(ui.All(14)).WithRad(18).Merge(ui.Elevation(3)), th.Colors.OnSurface),
+		docsStyleShowcaseCard("线性渐变", ui.LinearGrad(image.Point{}, image.Pt(220, 110), th.Colors.Primary, th.Colors.Tertiary).WithPad(ui.All(14)).WithRad(18), th.Colors.OnPrimary),
 		docsStyleShowcaseCard("Transform", ui.Bg(th.Colors.SecondaryContainer).WithPad(ui.All(14)).WithRad(14).Merge(ui.TransformDeco(-4, 1.04, 1.04, 6, 2, ui.TransformCenter)), th.Colors.OnSecondaryContainer),
-		docsStyleShowcaseCard("Hover / Pressed", ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(14)).WithRad(14).WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}).WithHover(ui.Bg(th.Colors.PrimaryContainer)).WithPressed(ui.Bg(th.Colors.SecondaryContainer)), th.Colors.OnSurface),
-		docsStyleShowcaseCard("Disabled", ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(14)).WithRad(14).WithDisabled(ui.Opacity(0.38)), th.Colors.OnSurfaceVariant),
+		docsStyleShowcaseCard("悬停 / 按下", ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(14)).WithRad(14).WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}).WithHover(ui.Bg(th.Colors.PrimaryContainer)).WithPressed(ui.Bg(th.Colors.SecondaryContainer)), th.Colors.OnSurface),
+		docsStyleShowcaseCard("已禁用", ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.All(14)).WithRad(14).WithDisabled(ui.Opacity(0.38)), th.Colors.OnSurfaceVariant),
 	}
 	rows := make([]ui.Element, 0, (len(items)+1)/2)
 	for i := 0; i < len(items); i += 2 {
@@ -173,7 +173,7 @@ func docsDecorationEventSample(th *ui.Theme) ui.Element {
 			WithPad(ui.Symmetric(6, 8)).
 			WithRad(8).
 			WithDisabled(ui.Opacity(0.5)),
-		ui.TextElement("Disabled event target", ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
+		ui.TextElement("已禁用事件目标", ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		ui.ContainerDecorationDisabled(true),
 		ui.OnDecoClick(func(ctx *ui.Context) {}),
 		ui.OnDecoHoverEnter(func(ctx *ui.Context) {}),
@@ -195,7 +195,7 @@ func docsInsetsDemo() ui.Element {
 			ui.Bg(ui.NRGBA(240, 253, 244, 255)).WithRad(12),
 			ui.PaddingElement(
 				ui.LeftRight(20),
-				ui.TextElement("LeftRight(20) + TopBottom available for focused spacing", ui.TextColor(ui.NRGBA(22, 101, 52, 255))),
+				ui.TextElement("LeftRight(20) + TopBottom 可用于精确间距", ui.TextColor(ui.NRGBA(22, 101, 52, 255))),
 			),
 		),
 	)
@@ -221,7 +221,7 @@ func docsShadowDemo() ui.Element {
 						WithMargin(ui.All(8)).
 						WithRad(16).
 						Merge(ui.Elevation(3)),
-					ui.TextElement("Elevation(3) card"),
+					ui.TextElement("Elevation(3) 卡片"),
 				),
 			),
 			ui.FixedWidthElement(
@@ -232,7 +232,7 @@ func docsShadowDemo() ui.Element {
 						WithMargin(ui.All(8)).
 						WithRad(16).
 						Merge(ui.Shadow(0, 10, 26, ui.NRGBA(15, 23, 42, 60))),
-					ui.TextElement("Custom Shadow"),
+					ui.TextElement("自定义 Shadow"),
 				),
 			),
 		),
@@ -247,7 +247,7 @@ func docsGradientDemo() ui.Element {
 			ui.NRGBA(14, 165, 233, 255),
 			ui.NRGBA(34, 197, 94, 255),
 		).WithPad(ui.All(18)).WithRad(18),
-		ui.TextElement("LinearGrad background", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(16)),
+		ui.TextElement("LinearGrad 背景", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(16)),
 	)
 }
 
@@ -301,21 +301,21 @@ func docsImageFillDemo() ui.Element {
 		ui.Bg(ui.NRGBA(15, 23, 42, 255)).WithPad(ui.All(16)).WithRad(14),
 		ui.ColumnElement(
 			ui.TextElement("ImageBg(img, ImageFillCover)", ui.TextColor(ui.NRGBA(255, 255, 255, 255))),
-			ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("LoadImage, DecodeImageFile, and DecodeImageURL feed ImageBg after async loading.", ui.TextSize(12), ui.TextColor(ui.NRGBA(203, 213, 225, 255)))),
-			ui.PaddingElement(ui.Insets{Top: 8}, ui.TextElement(fmt.Sprintf("fit modes: %d cover / %d contain", ui.ImageFillCover, ui.ImageFillContain), ui.TextSize(11), ui.TextColor(ui.NRGBA(148, 163, 184, 255)))),
+			ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("LoadImage、DecodeImageFile 和 DecodeImageURL 在异步加载后为 ImageBg 提供数据。", ui.TextSize(12), ui.TextColor(ui.NRGBA(203, 213, 225, 255)))),
+			ui.PaddingElement(ui.Insets{Top: 8}, ui.TextElement(fmt.Sprintf("适应模式：%d cover / %d contain", ui.ImageFillCover, ui.ImageFillContain), ui.TextSize(11), ui.TextColor(ui.NRGBA(148, 163, 184, 255)))),
 		),
 	)
 }
 
 func docsThemeDemo(dark docsBoolState) ui.Element {
 	localTheme := ui.NewTheme(ui.LightColors())
-	label := "Local light theme"
+	label := "局部亮色主题"
 	if dark.Value() {
 		localTheme = ui.NewTheme(ui.DarkColors())
-		label = "Local dark theme"
+		label = "局部暗色主题"
 	}
 	return ui.ColumnElement(
-		ui.ButtonElement(ui.TextElement("Toggle local theme"), ui.OnClick(func(ctx *ui.Context) {
+		ui.ButtonElement(ui.TextElement("切换局部主题"), ui.OnClick(func(ctx *ui.Context) {
 			dark.Set(!dark.Value())
 		})),
 		ui.PaddingElement(
@@ -333,20 +333,20 @@ func docsThemeDemo(dark docsBoolState) ui.Element {
 
 func docsColorSchemeDemo(th *ui.Theme) ui.Element {
 	return ui.RowElement(
-		ui.ContainerDecorationElement(ui.Bg(th.Primary).WithPad(ui.All(10)).WithRad(8), ui.TextElement("Primary", ui.TextColor(th.TextOnPrimary))),
-		ui.PaddingElement(ui.Insets{Left: 8}, ui.ContainerDecorationElement(ui.Bg(th.Colors.Warning).WithPad(ui.All(10)).WithRad(8), ui.TextElement("Warning", ui.TextColor(th.Colors.OnWarning)))),
-		ui.PaddingElement(ui.Insets{Left: 8}, ui.ContainerDecorationElement(ui.Bg(th.Colors.Success).WithPad(ui.All(10)).WithRad(8), ui.TextElement("Success", ui.TextColor(th.Colors.OnSuccess)))),
+		ui.ContainerDecorationElement(ui.Bg(th.Primary).WithPad(ui.All(10)).WithRad(8), ui.TextElement("主色", ui.TextColor(th.TextOnPrimary))),
+		ui.PaddingElement(ui.Insets{Left: 8}, ui.ContainerDecorationElement(ui.Bg(th.Colors.Warning).WithPad(ui.All(10)).WithRad(8), ui.TextElement("警告", ui.TextColor(th.Colors.OnWarning)))),
+		ui.PaddingElement(ui.Insets{Left: 8}, ui.ContainerDecorationElement(ui.Bg(th.Colors.Success).WithPad(ui.All(10)).WithRad(8), ui.TextElement("成功", ui.TextColor(th.Colors.OnSuccess)))),
 		ui.PaddingElement(ui.Insets{Left: 8}, ui.ContainerDecorationElement(ui.Circle().Merge(ui.Bg(th.Colors.Tertiary)).WithPad(ui.All(10)), ui.TextElement("T", ui.TextColor(th.Colors.OnTertiary)))),
 	)
 }
 
 func docsGettingStartedDemo(count docsIntState, th *ui.Theme) ui.Element {
 	return ui.ColumnElement(
-		ui.TextElement("Hello FluxUI", ui.TextSize(18)),
-		ui.PaddingElement(ui.Insets{Top: 8}, ui.ButtonElement(ui.TextElement("count +1"), ui.OnClick(func(ctx *ui.Context) {
+		ui.TextElement("你好 FluxUI", ui.TextSize(18)),
+		ui.PaddingElement(ui.Insets{Top: 8}, ui.ButtonElement(ui.TextElement("计数 +1"), ui.OnClick(func(ctx *ui.Context) {
 			count.Set(count.Value() + 1)
 		}))),
-		ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement(fmt.Sprintf("count = %d", count.Value()), ui.TextColor(th.Primary))),
+		ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement(fmt.Sprintf("计数 = %d", count.Value()), ui.TextColor(th.Primary))),
 	)
 }
 
@@ -358,21 +358,21 @@ func docsPaddingDemo() ui.Element {
 		},
 		ui.PaddingElement(
 			ui.All(16),
-			ui.TextElement("Padding: this area has 16dp inset"),
+			ui.TextElement("内边距：此区域有 16dp 内缩"),
 		),
 	)
 }
 
 func docsSpacerDemo() ui.Element {
 	return ui.RowElement(
-		ui.TextElement("Left"),
+		ui.TextElement("左"),
 		ui.HSpacerElement(24),
-		ui.TextElement("Right"),
+		ui.TextElement("右"),
 		ui.HSpacerElement(24),
 		ui.ColumnElement(
-			ui.TextElement("Top"),
+			ui.TextElement("上"),
 			ui.VSpacerElement(8),
-			ui.TextElement("Bottom"),
+			ui.TextElement("下"),
 		),
 	)
 }
@@ -382,18 +382,18 @@ func docsDividerDemo() ui.Element {
 		ui.FixedWidthElement(
 			220,
 			ui.ColumnElement(
-				ui.TextElement("First section"),
+				ui.TextElement("第一部分"),
 				ui.DividerElement(ui.DividerThickness(1), ui.DividerColor(ui.NRGBA(176, 190, 197, 255)), ui.DividerMargin(ui.Insets{Top: 8, Bottom: 8})),
-				ui.TextElement("Second section"),
+				ui.TextElement("第二部分"),
 			),
 		),
 		ui.HSpacerElement(18),
 		ui.FixedHeightElement(
 			70,
 			ui.RowElement(
-				ui.TextElement("Left"),
+				ui.TextElement("左"),
 				ui.DividerElement(ui.DividerVertical(true), ui.DividerThickness(2), ui.DividerLength(56), ui.DividerMargin(ui.LeftRight(10))),
-				ui.TextElement("Right"),
+				ui.TextElement("右"),
 			),
 		),
 	)

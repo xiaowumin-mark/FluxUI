@@ -42,9 +42,9 @@ type docsSystemRegistrationTargets struct {
 
 func docsSystemRegistrationSection(th *ui.Theme) ui.Element {
 	return ui.ComponentElement(func(sectionCtx *ui.Context) ui.Element {
-		status := ui.UseState(sectionCtx, "Registration writes current-user entries. Use cleanup after testing.")
+		status := ui.UseState(sectionCtx, "注册写入当前用户条目。测试后请使用清理。")
 		state := ui.UseState(sectionCtx, docsSystemRegistrationDemoState{})
-		events := ui.UseState(sectionCtx, []string{"No Toast activations yet."})
+		events := ui.UseState(sectionCtx, []string{"暂无 Toast 激活。"})
 		activator := ui.UseState[*system.ToastActivator](sectionCtx, nil)
 		registrationDisabled := !system.Supports(system.CapabilitySystemRegistration)
 
@@ -67,9 +67,9 @@ func docsSystemRegistrationSection(th *ui.Theme) ui.Element {
 		displayState := current
 		displayState.ToastActivatorRunning = currentActivator != nil
 
-		targetText := "Executable unavailable: " + docsSystemErrorText(targetErr)
+		targetText := "可执行文件不可用：" + docsSystemErrorText(targetErr)
 		if targetErr == nil {
-			targetText = "Executable: " + targets.Executable
+			targetText = "可执行文件：" + targets.Executable
 		}
 
 		return docsSystemSection("System Registration API", ui.ColumnElement(
@@ -78,159 +78,159 @@ func docsSystemRegistrationSection(th *ui.Theme) ui.Element {
 			ui.TextElement(formatDocsSystemRegistrationState(displayState), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Register protocol", status, registrationDisabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("注册协议", status, registrationDisabled, func(ctx *ui.Context) string {
 					if err := system.RegisterProtocolHandler(context.Background(), docsSystemRegistrationScheme, targets.ProtocolCommand,
 						system.RegistrationDisplayName("FluxUI Docs Browser Demo"),
 						system.RegistrationIcon(targets.Icon),
 					); err != nil {
-						return "Register protocol failed: " + err.Error()
+						return "注册协议失败：" + err.Error()
 					}
 					next := state.Value()
 					next.ProtocolHandler = true
 					state.Set(next)
-					return "Registered protocol handler: " + docsSystemRegistrationScheme + "://"
+					return "已注册协议处理器：" + docsSystemRegistrationScheme + "://"
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Register file type", status, registrationDisabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("注册文件类型", status, registrationDisabled, func(ctx *ui.Context) string {
 					if err := system.RegisterFileAssociation(context.Background(), docsSystemRegistrationExtension, docsSystemRegistrationProgID, targets.FileAssociationCommand,
 						system.RegistrationDisplayName("FluxUI Docs Browser Demo Document"),
 						system.RegistrationIcon(targets.Icon),
 					); err != nil {
-						return "Register file type failed: " + err.Error()
+						return "注册文件类型失败：" + err.Error()
 					}
 					next := state.Value()
 					next.FileAssociation = true
 					state.Set(next)
-					return "Registered file association: " + docsSystemRegistrationExtension
+					return "已注册文件关联：" + docsSystemRegistrationExtension
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Register startup", status, registrationDisabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("注册自启动", status, registrationDisabled, func(ctx *ui.Context) string {
 					if err := system.RegisterStartupTask(context.Background(), docsSystemRegistrationStartupName, targets.StartupCommand); err != nil {
-						return "Register startup failed: " + err.Error()
+						return "注册自启动失败：" + err.Error()
 					}
 					next := state.Value()
 					next.StartupTask = true
 					state.Set(next)
-					return "Registered current-user startup task."
+					return "已注册当前用户自启动任务。"
 				})),
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Unregister protocol", status, registrationDisabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("注销协议", status, registrationDisabled, func(ctx *ui.Context) string {
 					if err := system.UnregisterProtocolHandler(context.Background(), docsSystemRegistrationScheme); err != nil {
-						return "Unregister protocol failed: " + err.Error()
+						return "注销协议失败：" + err.Error()
 					}
 					next := state.Value()
 					next.ProtocolHandler = false
 					state.Set(next)
-					return "Protocol handler removed."
+					return "协议处理器已移除。"
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Unregister file type", status, registrationDisabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("注销文件类型", status, registrationDisabled, func(ctx *ui.Context) string {
 					if err := system.UnregisterFileAssociation(context.Background(), docsSystemRegistrationExtension, docsSystemRegistrationProgID); err != nil {
-						return "Unregister file type failed: " + err.Error()
+						return "注销文件类型失败：" + err.Error()
 					}
 					next := state.Value()
 					next.FileAssociation = false
 					state.Set(next)
-					return "File association removed."
+					return "文件关联已移除。"
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Unregister startup", status, registrationDisabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("注销自启动", status, registrationDisabled, func(ctx *ui.Context) string {
 					if err := system.UnregisterStartupTask(context.Background(), docsSystemRegistrationStartupName); err != nil {
-						return "Unregister startup failed: " + err.Error()
+						return "注销自启动失败：" + err.Error()
 					}
 					next := state.Value()
 					next.StartupTask = false
 					state.Set(next)
-					return "Startup task removed."
+					return "自启动任务已移除。"
 				})),
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Register Toast shortcut", status, registrationDisabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("注册 Toast 快捷方式", status, registrationDisabled, func(ctx *ui.Context) string {
 					if err := system.RegisterToastShortcut(context.Background(), docsSystemToastAppID, docsSystemToastShortcutName, targets.Executable,
 						system.ToastShortcutArguments("--fluxui-docs-startup"),
 						system.ToastShortcutIcon(targets.Icon),
 						system.ToastShortcutActivatorCLSID(docsSystemToastActivatorCLSID),
 					); err != nil {
-						return "Register Toast shortcut failed: " + err.Error()
+						return "注册 Toast 快捷方式失败：" + err.Error()
 					}
 					next := state.Value()
 					next.ToastShortcut = true
 					state.Set(next)
-					return "Toast shortcut registered for AppUserModelID " + docsSystemToastAppID + "."
+					return "Toast 快捷方式已注册，AppUserModelID：" + docsSystemToastAppID + "。"
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Register Toast activator", status, registrationDisabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("注册 Toast 激活器", status, registrationDisabled, func(ctx *ui.Context) string {
 					if err := system.RegisterToastActivator(context.Background(), docsSystemToastActivatorCLSID, targets.ToastActivatorCommand); err != nil {
-						return "Register Toast activator failed: " + err.Error()
+						return "注册 Toast 激活器失败：" + err.Error()
 					}
 					next := state.Value()
 					next.ToastActivator = true
 					state.Set(next)
-					return "Toast activator LocalServer registered."
+					return "Toast 激活器 LocalServer 已注册。"
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Start Toast activator", status, !system.Supports(system.CapabilityNotification) || currentActivator != nil, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("启动 Toast 激活器", status, !system.Supports(system.CapabilityNotification) || currentActivator != nil, func(ctx *ui.Context) string {
 					started, err := system.StartToastActivator(context.Background(), docsSystemToastActivatorCLSID, func(event system.ToastActivationEvent) {
 						events.Set(docsSystemPrependLog(events.Value(), formatDocsSystemToastActivationEvent(event), 8))
 					})
 					if err != nil {
-						return "Start Toast activator failed: " + err.Error()
+						return "启动 Toast 激活器失败：" + err.Error()
 					}
 					activator.Set(started)
 					next := state.Value()
 					next.ToastActivatorRunning = true
 					state.Set(next)
-					return "Toast activator started in this process."
+					return "Toast 激活器已在此进程中启动。"
 				})),
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Unregister Toast shortcut", status, registrationDisabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("注销 Toast 快捷方式", status, registrationDisabled, func(ctx *ui.Context) string {
 					if err := system.UnregisterToastShortcut(context.Background(), docsSystemToastShortcutName); err != nil {
-						return "Unregister Toast shortcut failed: " + err.Error()
+						return "注销 Toast 快捷方式失败：" + err.Error()
 					}
 					next := state.Value()
 					next.ToastShortcut = false
 					state.Set(next)
-					return "Toast shortcut removed."
+					return "Toast 快捷方式已移除。"
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Unregister Toast activator", status, registrationDisabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("注销 Toast 激活器", status, registrationDisabled, func(ctx *ui.Context) string {
 					if err := system.UnregisterToastActivator(context.Background(), docsSystemToastActivatorCLSID); err != nil {
-						return "Unregister Toast activator failed: " + err.Error()
+						return "注销 Toast 激活器失败：" + err.Error()
 					}
 					next := state.Value()
 					next.ToastActivator = false
 					state.Set(next)
-					return "Toast activator registration removed."
+					return "Toast 激活器注册已移除。"
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Stop Toast activator", status, currentActivator == nil, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("停止 Toast 激活器", status, currentActivator == nil, func(ctx *ui.Context) string {
 					current := activator.Value()
 					if current == nil {
-						return "Toast activator is not running."
+						return "Toast 激活器未运行。"
 					}
 					if err := current.Close(); err != nil {
-						return "Stop Toast activator failed: " + err.Error()
+						return "停止 Toast 激活器失败：" + err.Error()
 					}
 					activator.Set(nil)
 					next := state.Value()
 					next.ToastActivatorRunning = false
 					state.Set(next)
-					return "Toast activator stopped."
+					return "Toast 激活器已停止。"
 				})),
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Cleanup all", status, registrationDisabled && currentActivator == nil, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("清理全部", status, registrationDisabled && currentActivator == nil, func(ctx *ui.Context) string {
 					return cleanupDocsSystemRegistrationDemo(state, activator)
 				})),
 			),
 			ui.VSpacerElement(8),
-			docsSystemLogPanel("Toast activation events", events.Value(), th, 98),
+			docsSystemLogPanel("Toast 激活事件", events.Value(), th, 98),
 			ui.VSpacerElement(8),
 			ui.TextElement(status.Value(), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		), th)
@@ -330,9 +330,9 @@ func cleanupDocsSystemRegistrationDemo(state interface {
 
 	state.Set(docsSystemRegistrationDemoState{})
 	if len(failures) > 0 {
-		return "Cleanup completed with errors: " + strings.Join(failures, "; ")
+		return "清理完成但存在错误：" + strings.Join(failures, "; ")
 	}
-	return "All demo registration entries removed."
+	return "所有演示注册条目已移除。"
 }
 
 func docsSystemErrorText(err error) string {

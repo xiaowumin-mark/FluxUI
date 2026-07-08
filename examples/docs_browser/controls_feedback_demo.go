@@ -28,7 +28,7 @@ func docsPressableDemo(clickCount docsIntState) ui.Element {
 		return ui.FixedWidthElement(
 			520,
 			ui.ColumnElement(
-				ui.TextElement(fmt.Sprintf("Click count: %d", clickCount.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement(fmt.Sprintf("点击次数：%d", clickCount.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(8),
 				ui.PressableElement(
 					ui.FillWidthElement(
@@ -38,7 +38,7 @@ func docsPressableDemo(clickCount docsIntState) ui.Element {
 								WithRad(8).
 								WithHover(ui.Bg(th.Colors.PrimaryContainer)).
 								WithPressed(ui.Bg(th.Colors.TertiaryContainer)),
-							ui.TextElement(fmt.Sprintf("PressableElement hovered=%t pressed=%t", hovered.Value(), pressed.Value()), ui.TextColor(th.Colors.OnSecondaryContainer)),
+							ui.TextElement(fmt.Sprintf("PressableElement 悬停=%t 按下=%t", hovered.Value(), pressed.Value()), ui.TextColor(th.Colors.OnSecondaryContainer)),
 							ui.OnDecoHover(func(ctx *ui.Context, value bool) {
 								hovered.Set(value)
 							}),
@@ -65,7 +65,7 @@ func docsPressableDemo(clickCount docsIntState) ui.Element {
 								WithPad(ui.Symmetric(6, 10)).
 								WithRad(8).
 								WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}),
-							ui.TextElement("ClickArea compatibility", ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
+							ui.TextElement("ClickArea 兼容性", ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
 						),
 						func(ctx *ui.Context) {
 							clickCount.Set(clickCount.Value() + 1)
@@ -80,12 +80,12 @@ func docsPressableDemo(clickCount docsIntState) ui.Element {
 
 func docsTextDemo(th *ui.Theme) ui.Element {
 	return ui.ColumnElement(
-		ui.TextElement("Default text"),
-		ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("Large text", ui.TextSize(20))),
-		ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("Primary color text", ui.TextColor(th.Primary))),
-		ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("Title scale with explicit line height", ui.TextType(th.Types.TitleMedium), ui.TextLineHeight(26))),
-		ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("Scoped font family", ui.TextFont(ui.FontFamily("Segoe UI")))),
-		ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("Centered semibold text", ui.TextAlign(ui.AlignCenter), ui.TextFontWeight(ui.FontWeightSemiBold))),
+		ui.TextElement("默认文本"),
+		ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("大号文本", ui.TextSize(20))),
+		ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("主色文本", ui.TextColor(th.Primary))),
+		ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("标题缩放与显式行高", ui.TextType(th.Types.TitleMedium), ui.TextLineHeight(26))),
+		ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("作用域字体族", ui.TextFont(ui.FontFamily("Segoe UI")))),
+		ui.PaddingElement(ui.Insets{Top: 6}, ui.TextElement("居中半粗体文本", ui.TextAlign(ui.AlignCenter), ui.TextFontWeight(ui.FontWeightSemiBold))),
 	)
 }
 

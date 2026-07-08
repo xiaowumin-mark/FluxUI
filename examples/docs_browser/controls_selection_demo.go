@@ -17,7 +17,7 @@ func docsCheckboxDemo(checked docsBoolState) ui.Element {
 			360,
 			ui.ColumnElement(
 				ui.CheckboxElement(
-					"Enable feature",
+					"启用功能",
 					checked.Value(),
 					ui.CheckboxSize(22),
 					ui.CheckboxColor(th.Colors.Primary),
@@ -29,18 +29,18 @@ func docsCheckboxDemo(checked docsBoolState) ui.Element {
 				),
 				ui.VSpacerElement(8),
 				ui.RowElement(
-					docsDemoControlButton("Toggle ref", func(ctx *ui.Context) {
+					docsDemoControlButton("切换引用", func(ctx *ui.Context) {
 						checked.Set(!checked.Value())
 						ref.Current.Toggle()
 					}),
 					ui.HSpacerElement(8),
-					docsDemoControlButton("Set checked", func(ctx *ui.Context) {
+					docsDemoControlButton("设置为选中", func(ctx *ui.Context) {
 						checked.Set(true)
 						ref.Current.SetChecked(true)
 					}),
 				),
 				ui.VSpacerElement(8),
-				ui.CheckboxElement("Disabled option", true, ui.CheckboxDisabled(true)),
+				ui.CheckboxElement("已禁用选项", true, ui.CheckboxDisabled(true)),
 			),
 		)
 	})
@@ -72,7 +72,7 @@ func docsSwitchDemo(checked docsBoolState) ui.Element {
 					),
 					ui.PaddingElement(
 						ui.Insets{Left: 10, Top: 5},
-						ui.TextElement(fmt.Sprintf("State: %v", checked.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
+						ui.TextElement(fmt.Sprintf("状态：%v", checked.Value()), ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 					),
 				),
 				ui.VSpacerElement(8),
@@ -82,7 +82,7 @@ func docsSwitchDemo(checked docsBoolState) ui.Element {
 						ref.Current.Toggle()
 					}),
 					ui.HSpacerElement(8),
-					docsDemoControlButton("Off", func(ctx *ui.Context) {
+					docsDemoControlButton("关闭", func(ctx *ui.Context) {
 						checked.Set(false)
 						ref.Current.SetChecked(false)
 					}),
@@ -111,9 +111,9 @@ func docsSliderDemo(value docsFloat32State) ui.Element {
 		return ui.FixedWidthElement(
 			480,
 			ui.ColumnElement(
-				ui.TextElement("Single point sliders", ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement("单点滑块", ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(8),
-				ui.TextElement("Continuous", ui.TextType(th.Types.BodyMedium)),
+				ui.TextElement("连续", ui.TextType(th.Types.BodyMedium)),
 				ui.SliderElement(
 					value.Value(),
 					ui.SliderMin(0),
@@ -125,35 +125,35 @@ func docsSliderDemo(value docsFloat32State) ui.Element {
 					}),
 				),
 				ui.VSpacerElement(10),
-				ui.TextElement("Labeled", ui.TextType(th.Types.BodyMedium)),
+				ui.TextElement("带标签", ui.TextType(th.Types.BodyMedium)),
 				ui.SliderElement(value.Value(), ui.SliderLabeled(true), ui.SliderOnChange(func(ctx *ui.Context, next float32) { value.Set(next) })),
 				ui.VSpacerElement(10),
-				ui.TextElement("Tick marks", ui.TextType(th.Types.BodyMedium)),
+				ui.TextElement("刻度标记", ui.TextType(th.Types.BodyMedium)),
 				ui.SliderElement(tickValue.Value(), ui.SliderStep(10), ui.SliderTicks(true), ui.SliderOnChange(func(ctx *ui.Context, next float32) { tickValue.Set(next) })),
 				ui.VSpacerElement(18),
-				ui.TextElement("Range sliders", ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement("范围滑块", ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(8),
-				ui.TextElement("Range", ui.TextType(th.Types.BodyMedium)),
+				ui.TextElement("范围", ui.TextType(th.Types.BodyMedium)),
 				ui.RangeSliderElement(rangeStart.Value(), rangeEnd.Value(), ui.SliderOnRangeChange(func(ctx *ui.Context, start, end float32) {
 					rangeStart.Set(start)
 					rangeEnd.Set(end)
 				})),
 				ui.VSpacerElement(10),
-				ui.TextElement("Labeled", ui.TextType(th.Types.BodyMedium)),
+				ui.TextElement("带标签", ui.TextType(th.Types.BodyMedium)),
 				ui.RangeSliderElement(rangeStart.Value(), rangeEnd.Value(), ui.SliderLabeled(true), ui.SliderOnRangeChange(func(ctx *ui.Context, start, end float32) {
 					rangeStart.Set(start)
 					rangeEnd.Set(end)
 				})),
 				ui.VSpacerElement(10),
-				ui.TextElement("Tick marks", ui.TextType(th.Types.BodyMedium)),
+				ui.TextElement("刻度标记", ui.TextType(th.Types.BodyMedium)),
 				ui.RangeSliderElement(tickRangeStart.Value(), tickRangeEnd.Value(), ui.SliderStep(10), ui.SliderTicks(true), ui.SliderOnRangeChange(func(ctx *ui.Context, start, end float32) {
 					tickRangeStart.Set(start)
 					tickRangeEnd.Set(end)
 				})),
 				ui.VSpacerElement(18),
-				ui.TextElement("Custom styling", ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement("自定义样式", ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(8),
-				ui.TextElement("Custom styles", ui.TextType(th.Types.BodyMedium)),
+				ui.TextElement("自定义样式", ui.TextType(th.Types.BodyMedium)),
 				ui.RangeSliderElement(
 					customStart.Value(),
 					customEnd.Value(),
@@ -170,21 +170,21 @@ func docsSliderDemo(value docsFloat32State) ui.Element {
 				),
 				ui.VSpacerElement(10),
 				ui.RowElement(
-					docsDemoControlButton("Step +10", func(ctx *ui.Context) {
+					docsDemoControlButton("前进 10", func(ctx *ui.Context) {
 						next := minFloat32(100, value.Value()+10)
 						value.Set(next)
 						ref.Current.StepBy(10)
 					}),
 					ui.HSpacerElement(8),
-					docsDemoControlButton("Set 50", func(ctx *ui.Context) {
+					docsDemoControlButton("设置为 50", func(ctx *ui.Context) {
 						value.Set(50)
 						ref.Current.SetValue(50)
 					}),
 					ui.HSpacerElement(8),
-					ui.TextElement(fmt.Sprintf("value = %.1f", value.Value()), ui.TextSize(13)),
+					ui.TextElement(fmt.Sprintf("值 = %.1f", value.Value()), ui.TextSize(13)),
 				),
 				ui.VSpacerElement(8),
-				ui.RowElement(ui.SliderElement(40, ui.SliderDisabled(true), ui.SliderWidth(240)), ui.HSpacerElement(12), ui.TextElement("disabled", ui.TextType(th.Types.BodySmall))),
+				ui.RowElement(ui.SliderElement(40, ui.SliderDisabled(true), ui.SliderWidth(240)), ui.HSpacerElement(12), ui.TextElement("已禁用", ui.TextType(th.Types.BodySmall))),
 			),
 		)
 	})
@@ -198,9 +198,9 @@ func docsRadioGroupDemo(value docsStringState) ui.Element {
 			ref.Current = ui.NewRadioGroupRef()
 		}
 		items := []ui.RadioItem{
-			{Label: "Layout", Value: "layout"},
-			{Label: "Input", Value: "input"},
-			{Label: "Feedback", Value: "feedback"},
+			{Label: "布局", Value: "layout"},
+			{Label: "输入", Value: "input"},
+			{Label: "反馈", Value: "feedback"},
 		}
 		return ui.FixedWidthElement(
 			430,
@@ -219,7 +219,7 @@ func docsRadioGroupDemo(value docsStringState) ui.Element {
 				),
 				ui.VSpacerElement(10),
 				ui.RowElement(
-					docsDemoControlButton("Set input", func(ctx *ui.Context) {
+					docsDemoControlButton("设置输入", func(ctx *ui.Context) {
 						value.Set("input")
 						ref.Current.SetValue("input")
 					}),
@@ -241,10 +241,10 @@ func docsSelectDemo(value docsStringState) ui.Element {
 			ref.Current = ui.NewSelectRef[string]()
 		}
 		options := []ui.SelectOptionItem[string]{
-			{Label: "Apple", Value: "apple", Leading: ui.Icon("nutrition")},
-			{Label: "Apricot", Value: "apricot", Leading: ui.Icon("eco")},
-			{Label: "Tomato", Value: "tomato", Disabled: true},
-			{Label: "Cucumber", Value: "cucumber"},
+			{Label: "苹果", Value: "apple", Leading: ui.Icon("nutrition")},
+			{Label: "杏子", Value: "apricot", Leading: ui.Icon("eco")},
+			{Label: "番茄", Value: "tomato", Disabled: true},
+			{Label: "黄瓜", Value: "cucumber"},
 		}
 		return ui.FixedWidthElement(
 			480,
@@ -252,9 +252,9 @@ func docsSelectDemo(value docsStringState) ui.Element {
 				ui.OutlinedSelectElement(
 					value.Value(),
 					options,
-					ui.SelectLabel[string]("Outlined select"),
-					ui.SelectPlaceholder[string]("Choose fruit"),
-					ui.SelectSupportingText[string]("Material 3 outlined field"),
+					ui.SelectLabel[string]("Outlined Select"),
+					ui.SelectPlaceholder[string]("选择水果"),
+					ui.SelectSupportingText[string]("Material 3 Outlined 字段"),
 					ui.SelectLeading[string](ui.Icon("restaurant")),
 					ui.SelectSearchable[string](true),
 					ui.SelectMaxHeight[string](180),
@@ -274,22 +274,22 @@ func docsSelectDemo(value docsStringState) ui.Element {
 				ui.FilledSelectElement(
 					"apricot",
 					options,
-					ui.SelectLabel[string]("Filled select"),
-					ui.SelectSupportingText[string]("Filled variant with active indicator"),
+					ui.SelectLabel[string]("Filled Select"),
+					ui.SelectSupportingText[string]("Filled 变体，带活跃指示器"),
 					ui.SelectMaxHeight[string](180),
 				),
 				ui.VSpacerElement(12),
 				ui.RowElement(
-					docsDemoControlButton("Open", func(ctx *ui.Context) {
+					docsDemoControlButton("打开", func(ctx *ui.Context) {
 						openState.Set("open")
 						ref.Current.Open()
 					}),
 					ui.HSpacerElement(8),
-					docsDemoControlButton("Toggle", func(ctx *ui.Context) {
+					docsDemoControlButton("切换", func(ctx *ui.Context) {
 						ref.Current.Toggle()
 					}),
 					ui.HSpacerElement(8),
-					docsDemoControlButton("Set apricot", func(ctx *ui.Context) {
+					docsDemoControlButton("设置杏子", func(ctx *ui.Context) {
 						value.Set("apricot")
 						ref.Current.SetValue("apricot")
 					}),
@@ -298,9 +298,9 @@ func docsSelectDemo(value docsStringState) ui.Element {
 				),
 				ui.VSpacerElement(8),
 				ui.RowElement(
-					ui.ExpandedElement(ui.SelectElement("apple", options, ui.SelectDisabled[string](true), ui.SelectLabel[string]("Disabled"))),
+					ui.ExpandedElement(ui.SelectElement("apple", options, ui.SelectDisabled[string](true), ui.SelectLabel[string]("已禁用"))),
 					ui.HSpacerElement(12),
-					ui.ExpandedElement(ui.SelectElement("", options, ui.SelectLabel[string]("Error"), ui.SelectError[string](true), ui.SelectErrorText[string]("Choose a value"), ui.SelectRequired[string](true))),
+					ui.ExpandedElement(ui.SelectElement("", options, ui.SelectLabel[string]("错误"), ui.SelectError[string](true), ui.SelectErrorText[string]("选择一个值"), ui.SelectRequired[string](true))),
 				),
 			),
 		)

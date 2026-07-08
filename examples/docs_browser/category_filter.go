@@ -37,7 +37,7 @@ func docsCategoryCounts(docs []widgetDoc) map[string]int {
 func normalizedDocsCategory(category string) string {
 	category = strings.TrimSpace(category)
 	if category == "" {
-		return "Uncategorized"
+		return "未分类"
 	}
 	return category
 }

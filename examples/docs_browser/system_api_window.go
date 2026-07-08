@@ -11,11 +11,11 @@ import (
 
 func docsSystemWindowSection(th *ui.Theme) ui.Element {
 	return ui.ComponentElement(func(sectionCtx *ui.Context) ui.Element {
-		status := ui.UseState(sectionCtx, "Window controls act on the current docs browser window.")
+		status := ui.UseState(sectionCtx, "窗口控件作用于当前文档浏览器窗口。")
 		titleSeq := ui.UseState(sectionCtx, 0)
 		hiddenPolicy := ui.UseState(sectionCtx, ui.WindowHiddenMemoryReleaseTransient)
 		closeGuard := ui.UseState(sectionCtx, false)
-		eventLog := ui.UseState(sectionCtx, []string{"No window events observed yet."})
+		eventLog := ui.UseState(sectionCtx, []string{"尚未观察到窗口事件。"})
 		windowSub := ui.UseState[*ui.WindowEventSubscription](sectionCtx, nil)
 
 		currentSub := windowSub.Value()
@@ -57,9 +57,9 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 
 		disabled := !hasHandle
 		summary := docsSystemWindowSummary(windowState, nativeHandle, nativeOK)
-		hiddenLabel := "Hidden memory: release transient"
+		hiddenLabel := "隐藏内存：释放瞬态"
 		if hiddenPolicy.Value() == ui.WindowHiddenMemoryKeepRenderingState {
-			hiddenLabel = "Hidden memory: keep rendering state"
+			hiddenLabel = "隐藏内存：保持渲染状态"
 		}
 		subscriptionActive := currentSub != nil
 
@@ -76,56 +76,56 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 			ui.TextElement(summary, ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(button("Title +1", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("标题 +1", func(ctx *ui.Context) {
 					next := titleSeq.Value() + 1
 					titleSeq.Set(next)
 					if !ui.WindowSetTitle(ctx, fmt.Sprintf("FluxUI Docs #%d", next)) {
-						status.Set("Window title update failed.")
+						status.Set("窗口标题更新失败。")
 						return
 					}
-					status.Set(fmt.Sprintf("Title updated to #%d.", next))
+					status.Set(fmt.Sprintf("标题已更新为 #%d。", next))
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(button("Move to 48,48", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("移动到 48,48", func(ctx *ui.Context) {
 					if !ui.WindowSetPosition(ctx, 48, 48) {
-						status.Set("Window position update failed.")
+						status.Set("窗口位置更新失败。")
 						return
 					}
-					status.Set("Window moved to 48,48.")
+					status.Set("窗口已移动到 48,48。")
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(button("Resize 760x520", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("调整为 760x520", func(ctx *ui.Context) {
 					if !ui.WindowSetSize(ctx, 760, 520) {
-						status.Set("Window size update failed.")
+						status.Set("窗口大小更新失败。")
 						return
 					}
-					status.Set("Window resized to 760x520.")
+					status.Set("窗口已调整为 760x520。")
 				})),
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(button("Center", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("居中", func(ctx *ui.Context) {
 					if !ui.WindowCenter(ctx) {
-						status.Set("Window center failed.")
+						status.Set("窗口居中失败。")
 						return
 					}
-					status.Set("Window centered.")
+					status.Set("窗口已居中。")
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(button("Focus", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("聚焦", func(ctx *ui.Context) {
 					if !ui.WindowRequestFocus(ctx) {
-						status.Set("Window focus request failed.")
+						status.Set("窗口聚焦请求失败。")
 						return
 					}
-					status.Set("Requested window focus.")
+					status.Set("已请求窗口聚焦。")
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(button("Raise", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("提升", func(ctx *ui.Context) {
 					if !ui.WindowRaise(ctx) {
-						status.Set("Window raise failed.")
+						status.Set("窗口提升失败。")
 						return
 					}
-					status.Set("Requested window raise.")
+					status.Set("已请求窗口提升。")
 				})),
 			),
 			ui.VSpacerElement(8),
@@ -133,31 +133,31 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 				ui.ExpandedElement(button(topmostLabel(windowState.AlwaysOnTop), func(ctx *ui.Context) {
 					next := !windowState.AlwaysOnTop
 					if !ui.WindowSetAlwaysOnTop(ctx, next) {
-						status.Set("Window topmost update failed.")
+						status.Set("窗口置顶更新失败。")
 						return
 					}
-					status.Set(fmt.Sprintf("Always-on-top set to %v.", next))
+					status.Set(fmt.Sprintf("置顶已设置为 %v。", next))
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(button("Hide 3s", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("隐藏 3 秒", func(ctx *ui.Context) {
 					if !ui.WindowHide(ctx) {
-						status.Set("Window hide failed.")
+						status.Set("窗口隐藏失败。")
 						return
 					}
-					status.Set("Window hidden for 3 seconds.")
+					status.Set("窗口已隐藏，持续 3 秒。")
 					go func(h ui.WindowHandle) {
 						time.Sleep(3 * time.Second)
 						_ = h.Show()
-						status.Set("Window restored after hide.")
+						status.Set("窗口已恢复显示。")
 					}(handle)
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(button("Fullscreen", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("全屏", func(ctx *ui.Context) {
 					if !ui.WindowFullscreen(ctx) {
-						status.Set("Window fullscreen failed.")
+						status.Set("窗口全屏失败。")
 						return
 					}
-					status.Set("Window fullscreen requested.")
+					status.Set("已请求窗口全屏。")
 				})),
 			),
 			ui.VSpacerElement(8),
@@ -165,57 +165,57 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 				ui.ExpandedElement(button(resizableLabel(windowState.Resizable), func(ctx *ui.Context) {
 					next := !windowState.Resizable
 					if !ui.WindowSetResizable(ctx, next) {
-						status.Set("Window resizable update failed.")
+						status.Set("窗口调整大小更新失败。")
 						return
 					}
-					status.Set(fmt.Sprintf("Resizable set to %v.", next))
+					status.Set(fmt.Sprintf("调整大小已设置为 %v。", next))
 				})),
 				ui.HSpacerElement(8),
 				ui.ExpandedElement(button(decoratedLabel(windowState.Decorated), func(ctx *ui.Context) {
 					next := !windowState.Decorated
 					if !ui.WindowSetDecorated(ctx, next) {
-						status.Set("Window decoration update failed.")
+						status.Set("窗口边框装饰更新失败。")
 						return
 					}
-					status.Set(fmt.Sprintf("Decorated set to %v.", next))
+					status.Set(fmt.Sprintf("边框装饰已设置为 %v。", next))
 				})),
 				ui.HSpacerElement(8),
 				ui.ExpandedElement(button(docsSystemWindowMinMaxLabel(windowState), func(ctx *ui.Context) {
 					if docsSystemWindowHasMaxSize(windowState) {
 						if !ui.WindowSetMaxSize(ctx, 0, 0) {
-							status.Set("Window max size clear failed.")
+							status.Set("清除窗口最大尺寸失败。")
 							return
 						}
-						status.Set("Window max size cleared; maximize and Snap Flyout are available again.")
+						status.Set("窗口最大尺寸已清除；最大化与 Snap Flyout 恢复可用。")
 						return
 					}
 					if !ui.WindowSetMinSize(ctx, 640, 420) {
-						status.Set("Window min size update failed.")
+						status.Set("窗口最小尺寸更新失败。")
 						return
 					}
 					if !ui.WindowSetMaxSize(ctx, 1200, 900) {
-						status.Set("Window max size update failed.")
+						status.Set("窗口最大尺寸更新失败。")
 						return
 					}
-					status.Set("Window min/max set to 640x420 / 1200x900.")
+					status.Set("窗口最小/最大已设置为 640x420 / 1200x900。")
 				})),
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(button("Modern frame", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("Modern 边框", func(ctx *ui.Context) {
 					if !ui.WindowSetWindowsFrameStyle(ctx, ui.WindowsFrameStyle{
 						Mode:   ui.WindowsFrameHidden,
 						Shadow: true,
 						Corner: ui.WindowsCornerRound,
 						Border: ui.WindowsFrameBorderHidden,
 					}) {
-						status.Set("Windows frame update failed.")
+						status.Set("Windows 边框更新失败。")
 						return
 					}
-					status.Set("Windows frame hidden; drag strip is active.")
+					status.Set("Windows 边框已隐藏；拖拽条已激活。")
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(button("Modern border", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("Modern 描边", func(ctx *ui.Context) {
 					if !ui.WindowSetWindowsFrameStyle(ctx, ui.WindowsFrameStyle{
 						Mode:        ui.WindowsFrameHidden,
 						Shadow:      true,
@@ -223,13 +223,13 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 						Border:      ui.WindowsFrameBorderColor,
 						BorderColor: ui.NRGBA(59, 130, 246, 255),
 					}) {
-						status.Set("Windows frame border update failed.")
+						status.Set("Windows 边框描边更新失败。")
 						return
 					}
-					status.Set("Modern border enabled without restoring the native Win32 frame.")
+					status.Set("Modern 描边已启用，同时不恢复原生 Win32 边框。")
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(button("Probe chrome", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("探测 Chrome", func(ctx *ui.Context) {
 					status.Set(formatDocsWindowsChromeAvailability(ui.ProbeWindowsChrome()))
 				})),
 			),
@@ -237,58 +237,58 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 			ui.WindowDragAreaElement(
 				ui.ContainerDecorationElement(
 					ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.Symmetric(8, 10)).WithRad(8),
-					ui.TextElement("Drag this strip after hiding the Windows frame.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+					ui.TextElement("隐藏 Windows 边框后可拖拽此区域。", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 				),
 			),
 			ui.VSpacerElement(8),
 			docsSystemSnapFlyoutRow(windowState, status, th),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(button("Start drag", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("开始拖拽", func(ctx *ui.Context) {
 					if !ui.WindowStartDragMove(ctx) {
-						status.Set("StartDragMove failed; use it from a pointer press or drag strip.")
+						status.Set("StartDragMove 失败；请从指针按下或拖拽条使用。")
 						return
 					}
-					status.Set("StartDragMove requested.")
+					status.Set("已请求 StartDragMove。")
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(ui.TextElement("Background material, native transparency, and window background color are deferred.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant))),
+				ui.ExpandedElement(ui.TextElement("背景材质、原生透明度和窗口背景色稍后添加。", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant))),
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
 				ui.ExpandedElement(button(closeGuardLabel(closeGuard.Value()), func(ctx *ui.Context) {
 					if !hasHandle {
-						status.Set("Window handle unavailable.")
+						status.Set("窗口句柄不可用。")
 						return
 					}
 					if closeGuard.Value() {
 						if !handle.SetCloseRequestedHandler(nil) {
-							status.Set("Clear close guard failed.")
+							status.Set("清除关闭守卫失败。")
 							return
 						}
 						closeGuard.Set(false)
-						status.Set("Close guard cleared.")
+						status.Set("关闭守卫已清除。")
 						return
 					}
 					if !handle.SetCloseRequestedHandler(func(request ui.WindowCloseRequest) bool {
-						eventLog.Set(docsSystemPrependLog(eventLog.Value(), "close requested and cancelled by docs guard", 8))
+						eventLog.Set(docsSystemPrependLog(eventLog.Value(), "关闭请求已被文档守卫取消", 8))
 						return false
 					}) {
-						status.Set("Install close guard failed.")
+						status.Set("安装关闭守卫失败。")
 						return
 					}
 					closeGuard.Set(true)
-					status.Set("Close guard installed; click again to clear before closing.")
+					status.Set("关闭守卫已安装；再次点击以清除，然后才能关闭。")
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(button("Poll events", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("轮询事件", func(ctx *ui.Context) {
 					if !hasHandle {
-						status.Set("Window handle unavailable.")
+						status.Set("窗口句柄不可用。")
 						return
 					}
 					events := handle.PollEvents()
 					if len(events) == 0 {
-						status.Set("No queued window events.")
+						status.Set("没有排队的窗口事件。")
 						return
 					}
 					lines := eventLog.Value()
@@ -296,18 +296,18 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 						lines = docsSystemPrependLog(lines, formatDocsWindowEvent("poll", event), 8)
 					}
 					eventLog.Set(lines)
-					status.Set(fmt.Sprintf("Polled %d window events.", len(events)))
+					status.Set(fmt.Sprintf("已轮询 %d 个窗口事件。", len(events)))
 				})),
 				ui.HSpacerElement(8),
 				ui.ExpandedElement(button(windowSubscribeLabel(subscriptionActive), func(ctx *ui.Context) {
 					if !hasHandle {
-						status.Set("Window handle unavailable.")
+						status.Set("窗口句柄不可用。")
 						return
 					}
 					if current := windowSub.Value(); current != nil {
 						_ = current.Close()
 						windowSub.Set(nil)
-						status.Set("Window event subscription stopped.")
+						status.Set("窗口事件订阅已停止。")
 						return
 					}
 					sub, ok := handle.SubscribeEvents(
@@ -319,43 +319,43 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 						ui.WindowEventClosed,
 					)
 					if !ok {
-						status.Set("Window event subscription failed.")
+						status.Set("窗口事件订阅失败。")
 						return
 					}
 					windowSub.Set(sub)
-					status.Set("Window event subscription started.")
+					status.Set("窗口事件订阅已开始。")
 				})),
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(button("Restore", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("还原", func(ctx *ui.Context) {
 					if !ui.WindowRestore(ctx) {
-						status.Set("Window restore failed.")
+						status.Set("窗口还原失败。")
 						return
 					}
-					status.Set("Window restore requested.")
+					status.Set("已请求窗口还原。")
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(button("Minimize", func(ctx *ui.Context) {
+				ui.ExpandedElement(button("最小化", func(ctx *ui.Context) {
 					if !ui.WindowMinimize(ctx) {
-						status.Set("Window minimize failed.")
+						status.Set("窗口最小化失败。")
 						return
 					}
-					status.Set("Window minimize requested.")
+					status.Set("已请求窗口最小化。")
 				})),
 				ui.HSpacerElement(8),
 				ui.ExpandedElement(button(hiddenLabel, func(ctx *ui.Context) {
 					next := toggleHiddenMemoryPolicy(hiddenPolicy.Value())
 					if !ui.WindowSetHiddenMemoryPolicy(ctx, next) {
-						status.Set("Hidden memory policy update failed.")
+						status.Set("隐藏内存策略更新失败。")
 						return
 					}
 					hiddenPolicy.Set(next)
-					status.Set("Hidden memory policy updated.")
+					status.Set("隐藏内存策略已更新。")
 				})),
 			),
 			ui.VSpacerElement(8),
-			docsSystemLogPanel("Window events", eventLog.Value(), th, 92),
+			docsSystemLogPanel("窗口事件", eventLog.Value(), th, 92),
 			ui.VSpacerElement(8),
 			ui.TextElement(status.Value(), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		), th)
@@ -365,9 +365,9 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 func docsSystemSnapFlyoutRow(state ui.WindowState, status docsStringState, th *ui.Theme) ui.Element {
 	return ui.RowElement(
 		ui.ExpandedElement(ui.ColumnElement(
-			ui.TextElement("Windows Snap Flyout button", ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
+			ui.TextElement("Windows Snap Flyout 按钮", ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
 			ui.VSpacerElement(4),
-			ui.TextElement("Hover this icon on Windows 11 to let the OS show Snap Layouts; click toggles maximize/restore.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.TextElement("在 Windows 11 上将鼠标悬停于此图标上可让 OS 显示 Snap Layouts；点击切换最大化/还原。", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		)),
 		ui.HSpacerElement(8),
 		docsSystemWindowMaximizeButton(state, status, th),
@@ -398,17 +398,17 @@ func docsSystemWindowMaximizeButton(state ui.WindowState, status docsStringState
 				ui.IconButtonOnClick(func(ctx *ui.Context) {
 					if state.Maximized {
 						if !ui.WindowRestore(ctx) {
-							status.Set("Window restore failed.")
+							status.Set("窗口还原失败。")
 							return
 						}
-						status.Set("Window restore requested from Snap Flyout button.")
+						status.Set("已通过 Snap Flyout 按钮请求窗口还原。")
 						return
 					}
 					if !ui.WindowMaximize(ctx) {
-						status.Set("Window maximize failed.")
+						status.Set("窗口最大化失败。")
 						return
 					}
-					status.Set("Window maximize requested from Snap Flyout button.")
+					status.Set("已通过 Snap Flyout 按钮请求窗口最大化。")
 				}),
 			),
 			ui.WindowMaximizeButtonDisabled(disabled),
@@ -438,9 +438,9 @@ func docsSystemWindowHasMaxSize(state ui.WindowState) bool {
 
 func docsSystemWindowMinMaxLabel(state ui.WindowState) string {
 	if docsSystemWindowHasMaxSize(state) {
-		return "Clear max size"
+		return "清除最大尺寸"
 	}
-	return "Set min/max"
+	return "设置最小/最大"
 }
 
 func docsSystemWindowSummary(state ui.WindowState, nativeHandle uintptr, nativeOK bool) string {
@@ -513,35 +513,35 @@ func toggleHiddenMemoryPolicy(policy ui.WindowHiddenMemoryPolicy) ui.WindowHidde
 
 func topmostLabel(always bool) string {
 	if always {
-		return "Turn off topmost"
+		return "关闭置顶"
 	}
-	return "Turn on topmost"
+	return "开启置顶"
 }
 
 func resizableLabel(resizable bool) string {
 	if resizable {
-		return "Disable resize"
+		return "禁用调整大小"
 	}
-	return "Enable resize"
+	return "启用调整大小"
 }
 
 func decoratedLabel(decorated bool) string {
 	if decorated {
-		return "Hide frame"
+		return "隐藏边框"
 	}
-	return "Show frame"
+	return "显示边框"
 }
 
 func closeGuardLabel(enabled bool) string {
 	if enabled {
-		return "Clear close guard"
+		return "清除关闭守卫"
 	}
-	return "Install close guard"
+	return "安装关闭守卫"
 }
 
 func windowSubscribeLabel(active bool) string {
 	if active {
-		return "Stop subscription"
+		return "停止订阅"
 	}
-	return "Subscribe events"
+	return "订阅事件"
 }

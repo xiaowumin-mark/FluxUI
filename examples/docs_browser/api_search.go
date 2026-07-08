@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -57,7 +58,7 @@ func docsAPISearchSummary(docs []widgetDoc, keyword string, selectedDocID docsSt
 	rows := make([]ui.Element, 0, len(matches)+4)
 	rows = append(rows,
 		ui.RowElement(
-			ui.TextElement("API matches", ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
+			ui.TextElement("API 匹配", ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
 			ui.ExpandedElement(ui.SpacerElement(0, 0)),
 			ui.ContainerDecorationElement(
 				ui.Bg(th.Colors.PrimaryContainer).WithPad(ui.Symmetric(2, 7)).WithRad(6),
@@ -69,7 +70,7 @@ func docsAPISearchSummary(docs []widgetDoc, keyword string, selectedDocID docsSt
 
 	if total == 0 {
 		rows = append(rows,
-			ui.TextElement("No API signatures match this search.", ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.TextElement("没有 API 签名匹配此搜索。", ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		)
 		return docsAPISearchSummaryFrame(rows, th)
 	}
@@ -82,7 +83,7 @@ func docsAPISearchSummary(docs []widgetDoc, keyword string, selectedDocID docsSt
 			ui.PaddingElement(
 				ui.Insets{Top: 3},
 				ui.TextElement(
-					"Showing first "+itoa(len(matches))+" of "+itoa(total)+" API matches.",
+					fmt.Sprintf("显示 %d 个 API 匹配中的前 %d 个。", total, len(matches)),
 					ui.TextSize(10),
 					ui.TextColor(th.Colors.OnSurfaceVariant),
 				),

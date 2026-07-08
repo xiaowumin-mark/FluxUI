@@ -17,7 +17,7 @@ func docsBrowserApp(ctx *ui.Context, runtimeState *docsRuntimeState) ui.Element 
 	th := docsBrowserTheme(themeSeed.Value(), themeDark.Value())
 	markdownCopyStatus := ui.UseState(ctx, "")
 	apiCopyStatus := ui.UseState(ctx, "")
-	systemDemoStatus := ui.UseState(ctx, "Ready. System actions run only when you click a button.")
+	systemDemoStatus := ui.UseState(ctx, "就绪。系统操作仅在点击按钮时执行。")
 	buttonCount := ui.UseState(ctx, 0)
 	inputValue := ui.UseState(ctx, "FluxUI")
 	checkboxValue := ui.UseState(ctx, true)
@@ -54,7 +54,7 @@ func docsBrowserApp(ctx *ui.Context, runtimeState *docsRuntimeState) ui.Element 
 	hookDemoLogs := ui.UseState(ctx, []string{})
 	routerDemoAllowSettings := ui.UseState(ctx, true)
 	routerDemoUserID := ui.UseState(ctx, "u1001")
-	routerDemoLog := ui.UseState(ctx, "Router demo ready")
+	routerDemoLog := ui.UseState(ctx, "路由演示就绪")
 	dragDropDemoState := ui.UseState(ctx, defaultDocsDragDropState())
 
 	filteredDocs := filterDocsByCategory(filterDocs(docs, searchKeyword.Value()), categoryFilter.Value())

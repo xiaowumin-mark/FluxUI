@@ -32,5 +32,5 @@ func main() {
 		return docsBrowserApp(ctx, runtimeState)
 	}
 
-	_ = ui.RunElement(app, ui.Title("FluxUI Docs Browser"), ui.Size(1360, 880))
+	_ = ui.RunElement(app, ui.Title("FluxUI 文档浏览器"), ui.Size(1360, 880))
 }

@@ -15,9 +15,9 @@ type docsRuntimeTask struct {
 }
 
 var docsRuntimeTasks = []docsRuntimeTask{
-	{ID: "metadata", Label: "Parse metadata"},
-	{ID: "preview", Label: "Render preview"},
-	{ID: "copy", Label: "Copy code"},
+	{ID: "metadata", Label: "解析元数据"},
+	{ID: "preview", Label: "渲染预览"},
+	{ID: "copy", Label: "复制代码"},
 }
 
 func buildDocsHooksLifecycleDemo(demoCtx *ui.Context, count docsIntState, showChild docsBoolState, logs docsStringSliceState) ui.Element {
@@ -40,21 +40,21 @@ func buildDocsHooksLifecycleDemo(demoCtx *ui.Context, count docsIntState, showCh
 		return nil
 	})
 	ui.UseMount(demoCtx, func() func() {
-		appendDemoLog(logs.Value, logs.Set, "Demo mount")
+		appendDemoLog(logs.Value, logs.Set, "Demo 挂载")
 		return func() {
-			appendDemoLog(logs.Value, logs.Set, "Demo unmount")
+			appendDemoLog(logs.Value, logs.Set, "Demo 卸载")
 		}
 	})
 	ui.UseEffectWithDeps(demoCtx, []any{count.Value()}, func() func() {
-		appendDemoLog(logs.Value, logs.Set, fmt.Sprintf("count changed -> %d", count.Value()))
+		appendDemoLog(logs.Value, logs.Set, fmt.Sprintf("计数变更 -> %d", count.Value()))
 		return nil
 	})
 	ui.UseInterval(demoCtx, 30*time.Second, func() {
-		appendDemoLog(logs.Value, logs.Set, "interval tick")
+		appendDemoLog(logs.Value, logs.Set, "定时器滴答")
 	})
 
 	return ui.ColumnElement(
-		ui.TextElement("React-style runtime", ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
+		ui.TextElement("React 风格运行时", ui.TextType(th.Types.TitleMedium), ui.TextColor(th.Colors.OnSurface)),
 		ui.VSpacerElement(8),
 		docsRuntimeCountersCard(count, doubled, renderCount.Current, memoRuns.Current, increment, th),
 		ui.VSpacerElement(10),
@@ -90,19 +90,19 @@ func docsRuntimeCountersCard(
 		),
 		ui.VSpacerElement(8),
 		ui.RowElement(
-			docsRuntimeStat("count", fmt.Sprintf("%d", count.Value()), th),
+			docsRuntimeStat("计数", fmt.Sprintf("%d", count.Value()), th),
 			ui.HSpacerElement(8),
-			docsRuntimeStat("memo doubled", fmt.Sprintf("%d", doubled), th),
+			docsRuntimeStat("memo 加倍", fmt.Sprintf("%d", doubled), th),
 			ui.HSpacerElement(8),
-			docsRuntimeStat("renders", fmt.Sprintf("%d", renderCount), th),
+			docsRuntimeStat("渲染次数", fmt.Sprintf("%d", renderCount), th),
 			ui.HSpacerElement(8),
-			docsRuntimeStat("memo runs", fmt.Sprintf("%d", memoRuns), th),
+			docsRuntimeStat("memo 运行次数", fmt.Sprintf("%d", memoRuns), th),
 		),
 	))
 }
 
 func docsRuntimeAsyncCard(async *ui.AsyncHandle[string], th *ui.Theme) ui.Element {
-	status := "idle"
+	status := "空闲"
 	data := ""
 	if async != nil {
 		status = asyncStatusLabel(async.Status())
@@ -116,7 +116,7 @@ func docsRuntimeAsyncCard(async *ui.AsyncHandle[string], th *ui.Theme) ui.Elemen
 			ui.TextElement("UseAsync + UseInterval", ui.TextType(th.Types.LabelLarge), ui.TextColor(th.Colors.OnSurface)),
 			ui.ExpandedElement(ui.SpacerElement(0, 0)),
 			ui.TextButtonElement(
-				ui.TextElement("Run async"),
+				ui.TextElement("运行异步"),
 				ui.ButtonPadding(ui.Symmetric(5, 10)),
 				ui.OnClick(func(ctx *ui.Context) {
 					if async == nil {
@@ -124,13 +124,13 @@ func docsRuntimeAsyncCard(async *ui.AsyncHandle[string], th *ui.Theme) ui.Elemen
 					}
 					async.Run(func() (string, error) {
 						time.Sleep(250 * time.Millisecond)
-						return "metadata loaded", nil
+						return "元数据已加载", nil
 					})
 				}),
 			),
 			ui.HSpacerElement(6),
 			ui.TextButtonElement(
-				ui.TextElement("Reset"),
+				ui.TextElement("重置"),
 				ui.ButtonPadding(ui.Symmetric(5, 10)),
 				ui.OnClick(func(ctx *ui.Context) {
 					if async != nil {
@@ -141,25 +141,25 @@ func docsRuntimeAsyncCard(async *ui.AsyncHandle[string], th *ui.Theme) ui.Elemen
 		),
 		ui.VSpacerElement(8),
 		ui.RowElement(
-			docsRuntimeStat("status", status, th),
+			docsRuntimeStat("状态", status, th),
 			ui.HSpacerElement(8),
-			docsRuntimeStat("data", dataOrDash(data), th),
+			docsRuntimeStat("数据", dataOrDash(data), th),
 		),
 		ui.VSpacerElement(6),
-		ui.TextElement("UseInterval appends a lifecycle log tick while the component remains mounted.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+		ui.TextElement("UseInterval 在组件保持挂载时追加生命周期日志滴答。", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 	))
 }
 
 func asyncStatusLabel(status ui.AsyncStatus) string {
 	switch status {
 	case ui.AsyncLoading:
-		return "loading"
+		return "加载中"
 	case ui.AsyncSuccess:
-		return "success"
+		return "成功"
 	case ui.AsyncError:
-		return "error"
+		return "错误"
 	default:
-		return "idle"
+		return "空闲"
 	}
 }
 
@@ -172,13 +172,13 @@ func dataOrDash(value string) string {
 
 func docsRuntimeInputCard(alias docsStringState, th *ui.Theme) ui.Element {
 	return docsRuntimeSection(th, ui.ColumnElement(
-		ui.TextElement("Controlled TextFieldElement", ui.TextType(th.Types.LabelLarge), ui.TextColor(th.Colors.OnSurface)),
+		ui.TextElement("受控 TextFieldElement", ui.TextType(th.Types.LabelLarge), ui.TextColor(th.Colors.OnSurface)),
 		ui.VSpacerElement(8),
 		ui.FixedWidthElement(
 			320,
 			ui.TextFieldElement(
 				alias.Value(),
-				ui.InputPlaceholder("scope name"),
+				ui.InputPlaceholder("作用域名称"),
 				ui.InputSingleLine(true),
 				ui.InputOnChange(func(ctx *ui.Context, value string) {
 					alias.Set(value)
@@ -202,15 +202,15 @@ func docsRuntimeProviderCard(alias string, count int, th *ui.Theme) ui.Element {
 					ui.VSpacerElement(8),
 					ui.WithFontElement(
 						font,
-						ui.TextElement("scope = "+current, ui.TextSize(13), ui.TextColor(th.Colors.Primary)),
+						ui.TextElement("作用域 = "+current, ui.TextSize(13), ui.TextColor(th.Colors.Primary)),
 					),
 					ui.VSpacerElement(6),
 					ui.Fragment(
-						ui.TextElement("Fragment child A", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
-						ui.TextElement("Fragment child B", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+						ui.TextElement("Fragment 子元素 A", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+						ui.TextElement("Fragment 子元素 B", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 					),
 					ui.VSpacerElement(6),
-					ui.FromWidget(ui.Text("FromWidget bridge for legacy Widget code", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant))),
+					ui.FromWidget(ui.Text("FromWidget 桥接旧版 Widget 代码", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant))),
 				)
 			}),
 		),
@@ -219,7 +219,7 @@ func docsRuntimeProviderCard(alias string, count int, th *ui.Theme) ui.Element {
 
 func docsRuntimeKeyedList(th *ui.Theme) ui.Element {
 	return docsRuntimeSection(th, ui.ColumnElement(
-		ui.TextElement("Key + ComponentElement inside ListViewElement", ui.TextType(th.Types.LabelLarge), ui.TextColor(th.Colors.OnSurface)),
+		ui.TextElement("Key + ComponentElement 在 ListViewElement 中", ui.TextType(th.Types.LabelLarge), ui.TextColor(th.Colors.OnSurface)),
 		ui.VSpacerElement(8),
 		ui.FixedHeightElement(
 			118,
@@ -231,7 +231,7 @@ func docsRuntimeKeyedList(th *ui.Theme) ui.Element {
 						selected := ui.UseState(itemCtx, false)
 						label := task.Label
 						if selected.Value() {
-							label += " selected"
+							label += " 已选"
 						}
 						return ui.CardElement(
 							ui.RowElement(
@@ -257,7 +257,7 @@ func docsRuntimeLifecycleCard(showChild docsBoolState, logs docsStringSliceState
 			ui.TextElement("UseMount + UseEffectWithDeps + UseLifecycle", ui.TextType(th.Types.LabelLarge), ui.TextColor(th.Colors.OnSurface)),
 			ui.ExpandedElement(ui.SpacerElement(0, 0)),
 			ui.TextButtonElement(
-				ui.TextElement("Toggle child"),
+				ui.TextElement("切换子组件"),
 				ui.ButtonPadding(ui.Symmetric(5, 10)),
 				ui.OnClick(func(ctx *ui.Context) {
 					showChild.Set(!showChild.Value())
@@ -270,13 +270,13 @@ func docsRuntimeLifecycleCard(showChild docsBoolState, logs docsStringSliceState
 		content = append(content,
 			ui.Key("lifecycle-child", ui.ComponentElement(func(childCtx *ui.Context) ui.Element {
 				ui.UseLifecycle(childCtx, func() {
-					appendDemoLog(logs.Value, logs.Set, "Child mount")
+					appendDemoLog(logs.Value, logs.Set, "子组件挂载")
 				}, func() {
-					appendDemoLog(logs.Value, logs.Set, "Child unmount")
+					appendDemoLog(logs.Value, logs.Set, "子组件卸载")
 				})
 				return ui.ContainerDecorationElement(
 					ui.Bg(th.Colors.SecondaryContainer).WithPad(ui.All(8)).WithRad(8),
-					ui.TextElement("child component mounted", ui.TextSize(12), ui.TextColor(th.Colors.OnSecondaryContainer)),
+					ui.TextElement("子组件已挂载", ui.TextSize(12), ui.TextColor(th.Colors.OnSecondaryContainer)),
 				)
 			})),
 			ui.VSpacerElement(8),
@@ -289,7 +289,7 @@ func docsRuntimeLifecycleCard(showChild docsBoolState, logs docsStringSliceState
 func docsRuntimeLogLines(logs []string, th *ui.Theme) []ui.Element {
 	if len(logs) == 0 {
 		return []ui.Element{
-			ui.TextElement("No lifecycle events yet.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.TextElement("暂无生命周期事件。", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		}
 	}
 	out := make([]ui.Element, 0, len(logs))

@@ -29,9 +29,9 @@ func docsLeftPanel(
 	if sourceLabel == "" {
 		sourceLabel = docsSource
 	}
-	docCountText := fmt.Sprintf("Loaded %d docs (%s) · showing %d", len(docs), sourceLabel, len(filteredDocs))
+	docCountText := fmt.Sprintf("已加载 %d 篇文档 (%s) · 显示 %d 篇", len(docs), sourceLabel, len(filteredDocs))
 	if onlineLoading {
-		docCountText = "Local docs are unavailable; loading online docs..."
+		docCountText = "本地文档不可用；正在加载在线文档..."
 	}
 
 	return ui.FixedWidthElement(
@@ -42,7 +42,7 @@ func docsLeftPanel(
 				Padding:    ui.All(12),
 			},
 			ui.ColumnElement(
-				ui.TextElement("FluxUI Docs", ui.TextSize(18), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement("FluxUI 文档", ui.TextSize(18), ui.TextColor(th.Colors.OnSurface)),
 				ui.PaddingElement(
 					ui.Insets{Top: 8},
 					ui.TextElement(
@@ -55,7 +55,7 @@ func docsLeftPanel(
 					ui.Insets{Top: 10},
 					ui.SearchBarElement(
 						searchKeyword.Value(),
-						ui.SearchBarPlaceholder("Search docs / API"),
+						ui.SearchBarPlaceholder("搜索文档 / API"),
 						ui.SearchBarInputOptions(ui.InputSingleLine(true)),
 						ui.SearchBarOnChange(func(ctx *ui.Context, value string) {
 							searchKeyword.Set(value)
@@ -163,7 +163,7 @@ func docsLoadStatusMessage(onlineLoading bool, loadErr error, th *ui.Theme) ui.E
 		th = docsBrowserTheme(defaultDocsThemeSeed, false)
 	}
 	if onlineLoading {
-		msg := "Failed to read local docs; loading GitHub online docs..."
+		msg := "读取本地文档失败；正在加载 GitHub 在线文档..."
 		if loadErr != nil {
 			msg += " Reason: " + loadErr.Error()
 		}
@@ -182,7 +182,7 @@ func docsLoadStatusMessage(onlineLoading bool, loadErr error, th *ui.Theme) ui.E
 	return ui.PaddingElement(
 		ui.Insets{Top: 8},
 		ui.TextElement(
-			"Docs load warning: "+loadErr.Error(),
+			"文档加载警告："+loadErr.Error(),
 			ui.TextSize(11),
 			ui.TextColor(th.Colors.Error),
 		),

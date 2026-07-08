@@ -79,7 +79,7 @@ func renderMarkdownDocument(content string, th *ui.Theme, copyState docsStringSt
 		flushCode()
 	}
 	if len(widgets) == 0 {
-		return []ui.Element{ui.TextElement("No markdown content", ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant))}
+		return []ui.Element{ui.TextElement("没有 Markdown 内容", ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant))}
 	}
 	return widgets
 }
@@ -312,17 +312,17 @@ func markdownTableCellWidth(text string) float32 {
 
 func markdownCopyButton(label string, code string, copyState docsStringState) ui.Element {
 	return ui.TextButtonElement(
-		ui.TextElement("Copy", ui.TextSize(11)),
+		ui.TextElement("复制", ui.TextSize(11)),
 		ui.ButtonPadding(ui.Symmetric(4, 8)),
 		ui.OnClick(func(ctx *ui.Context) {
 			if copyState == nil {
 				return
 			}
 			if err := system.WriteClipboardText(context.Background(), code); err != nil {
-				copyState.Set("copy failed")
+				copyState.Set("复制失败")
 				return
 			}
-			copyState.Set(fmt.Sprintf("copied %s", label))
+			copyState.Set(fmt.Sprintf("已复制 %s", label))
 		}),
 	)
 }

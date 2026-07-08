@@ -13,15 +13,15 @@ type docsGridShowcaseItem struct {
 }
 
 var docsGridShowcaseItems = []docsGridShowcaseItem{
-	{ID: "input", Label: "Input", Tone: "primary"},
-	{ID: "layout", Label: "Layout", Tone: "secondary"},
-	{ID: "feedback", Label: "Feedback", Tone: "tertiary"},
-	{ID: "navigation", Label: "Navigation", Tone: "primary"},
+	{ID: "input", Label: "输入", Tone: "primary"},
+	{ID: "layout", Label: "布局", Tone: "secondary"},
+	{ID: "feedback", Label: "反馈", Tone: "tertiary"},
+	{ID: "navigation", Label: "导航", Tone: "primary"},
 	{ID: "theme", Label: "Theme", Tone: "secondary"},
 	{ID: "system", Label: "System API", Tone: "tertiary"},
 	{ID: "drag-drop", Label: "Drag/Drop", Tone: "primary"},
 	{ID: "hooks", Label: "Hooks", Tone: "secondary"},
-	{ID: "animation", Label: "Animation", Tone: "tertiary"},
+	{ID: "animation", Label: "动画", Tone: "tertiary"},
 	{ID: "clipboard", Label: "Clipboard", Tone: "primary"},
 	{ID: "tray", Label: "Tray", Tone: "secondary"},
 	{ID: "window", Label: "Window", Tone: "tertiary"},
@@ -39,11 +39,11 @@ func docsGridDemo(th *ui.Theme) ui.Element {
 		}
 
 		return ui.ColumnElement(
-			ui.TextElement("GridElement: fixed children", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
+			ui.TextElement("GridElement：固定子元素", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 			ui.VSpacerElement(8),
 			ui.GridElement(3, staticCells...),
 			ui.VSpacerElement(14),
-			ui.TextElement("GridViewElement: dynamic builder + responsive min width", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
+			ui.TextElement("GridViewElement：动态构建器 + 响应式最小宽度", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 			ui.VSpacerElement(8),
 			ui.FixedHeightElement(
 				190,
@@ -70,7 +70,7 @@ func docsGridDemo(th *ui.Theme) ui.Element {
 			),
 			ui.VSpacerElement(8),
 			ui.TextElement(
-				fmt.Sprintf("GridOnReachEnd callbacks: %d", reachEndCount.Value()),
+				fmt.Sprintf("GridOnReachEnd 回调：%d", reachEndCount.Value()),
 				ui.TextSize(12),
 				ui.TextColor(th.Colors.OnSurfaceVariant),
 			),
@@ -86,7 +86,7 @@ func docsGridStaticCell(index int, th *ui.Theme) ui.Element {
 			WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}),
 		ui.CenterElement(
 			ui.TextElement(
-				fmt.Sprintf("Cell %d", index),
+				fmt.Sprintf("单元格 %d", index),
 				ui.TextSize(12),
 				ui.TextColor(th.Colors.OnPrimaryContainer),
 			),

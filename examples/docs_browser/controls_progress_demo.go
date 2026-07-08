@@ -102,7 +102,7 @@ func docsProgressIndicatorsDemo(value docsFloat32State, th *ui.Theme) ui.Element
 			ui.PaddingElement(
 				ui.Insets{Top: 16},
 				ui.RowElement(
-					ui.FilledTonalButtonElement(ui.TextElement("Loading"), ui.ButtonLoading(true)),
+					ui.FilledTonalButtonElement(ui.TextElement("加载中"), ui.ButtonLoading(true)),
 					ui.HSpacerElement(12),
 					ui.IconButtonElement(ui.IconElement("sync"), ui.IconButtonLoading(true), ui.IconButtonForeground(th.Primary)),
 				),

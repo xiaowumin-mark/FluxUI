@@ -11,7 +11,7 @@ import (
 
 func docsSystemNotificationSection(th *ui.Theme) ui.Element {
 	return ui.ComponentElement(func(sectionCtx *ui.Context) ui.Element {
-		status := ui.UseState(sectionCtx, "Notifications can report click, dismiss, and action callbacks when supported.")
+		status := ui.UseState(sectionCtx, "通知可在支持时报告点击、关闭和操作回调。")
 		disabled := !system.Supports(system.CapabilityNotification)
 		iconPath := docsSystemNotificationIconPath()
 
@@ -27,8 +27,8 @@ func docsSystemNotificationSection(th *ui.Theme) ui.Element {
 				system.NotificationLaunchURI("https://github.com/xiaowumin-mark/FluxUI"),
 				system.NotificationTimeout(4*time.Second),
 				system.NotificationActions(
-					system.NotificationAction{ID: "open", Label: "Open FluxUI", URI: "https://github.com/xiaowumin-mark/FluxUI"},
-					system.NotificationAction{ID: "docs", Label: "Open docs", URI: "https://github.com/xiaowumin-mark/FluxUI/tree/main/docs"},
+					system.NotificationAction{ID: "open", Label: "打开 FluxUI", URI: "https://github.com/xiaowumin-mark/FluxUI"},
+					system.NotificationAction{ID: "docs", Label: "打开文档", URI: "https://github.com/xiaowumin-mark/FluxUI/tree/main/docs"},
 				),
 				system.NotificationOnClick(func(ev system.NotificationEvent) {
 					status.Set(formatDocsSystemNotificationEvent("clicked", ev))
@@ -41,9 +41,9 @@ func docsSystemNotificationSection(th *ui.Theme) ui.Element {
 				}),
 			)
 			if err != nil {
-				return "Notification failed: " + err.Error()
+				return "通知失败：" + err.Error()
 			}
-			return fmt.Sprintf("Notification sent: %s", title)
+			return fmt.Sprintf("通知已发送：%s", title)
 		}
 
 		sendBalloonNotification := func(title, body string, group string, kind system.NotificationKind) string {
@@ -63,62 +63,62 @@ func docsSystemNotificationSection(th *ui.Theme) ui.Element {
 				}),
 			)
 			if err != nil {
-				return "Balloon notification failed: " + err.Error()
+				return "Balloon 通知失败：" + err.Error()
 			}
-			return fmt.Sprintf("Balloon notification sent: %s", title)
+			return fmt.Sprintf("Balloon 通知已发送：%s", title)
 		}
 
 		return docsSystemSection("Notification API", ui.ColumnElement(
-			ui.TextElement("Icon path: "+docsSystemOptionalPathLabel(iconPath), ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.TextElement("图标路径："+docsSystemOptionalPathLabel(iconPath), ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Notify info", status, disabled, func(ctx *ui.Context) string {
-					return sendNotification(ctx, "FluxUI Docs", "This is a basic notification.", "docs-browser", system.NotificationInfo)
+				ui.ExpandedElement(docsSystemRunAsyncButton("通知 信息", status, disabled, func(ctx *ui.Context) string {
+					return sendNotification(ctx, "FluxUI 文档", "这是一条基本通知。", "docs-browser", system.NotificationInfo)
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Replace group", status, disabled, func(ctx *ui.Context) string {
-					return sendNotification(ctx, "FluxUI Docs", "This replaces the previous group notification.", "docs-browser", system.NotificationSuccess)
+				ui.ExpandedElement(docsSystemRunAsyncButton("替换分组", status, disabled, func(ctx *ui.Context) string {
+					return sendNotification(ctx, "FluxUI 文档", "这将替换之前的分组通知。", "docs-browser", system.NotificationSuccess)
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Cancel group", status, disabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("取消分组", status, disabled, func(ctx *ui.Context) string {
 					if err := system.CancelNotificationGroup(context.Background(), "docs-browser"); err != nil {
-						return "Cancel notification group failed: " + err.Error()
+						return "取消通知分组失败：" + err.Error()
 					}
-					return "Notification group canceled."
+					return "通知分组已取消。"
 				})),
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Probe Toast backend", status, disabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("探测 Toast 后端", status, disabled, func(ctx *ui.Context) string {
 					probe := system.ProbeNotificationBackend(context.Background(), system.NotificationBackendToast,
-						system.NotificationTitle("FluxUI Docs"),
-						system.NotificationBody("Probe backend"),
+						system.NotificationTitle("FluxUI 文档"),
+						system.NotificationBody("探测后端"),
 						system.NotificationAppID("FluxUI"),
 					)
 					return formatDocsSystemNotificationProbe(probe)
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Probe balloon", status, disabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("探测 balloon", status, disabled, func(ctx *ui.Context) string {
 					probe := system.ProbeNotificationBackend(context.Background(), system.NotificationBackendBalloon,
-						system.NotificationTitle("FluxUI Docs"),
-						system.NotificationBody("Probe balloon backend"),
+						system.NotificationTitle("FluxUI 文档"),
+						system.NotificationBody("探测 balloon 后端"),
 						system.NotificationIcon(iconPath),
 					)
 					return formatDocsSystemNotificationProbe(probe)
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Notify warning", status, disabled, func(ctx *ui.Context) string {
-					return sendNotification(ctx, "FluxUI Docs", "Warning notifications are supported by the active backend.", "docs-browser-warning", system.NotificationWarning)
+				ui.ExpandedElement(docsSystemRunAsyncButton("通知 警告", status, disabled, func(ctx *ui.Context) string {
+					return sendNotification(ctx, "FluxUI 文档", "当前后端支持警告通知。", "docs-browser-warning", system.NotificationWarning)
 				})),
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Notify balloon", status, disabled, func(ctx *ui.Context) string {
-					return sendBalloonNotification("FluxUI balloon", "This explicitly requests the balloon backend.", "docs-browser-balloon", system.NotificationInfo)
+				ui.ExpandedElement(docsSystemRunAsyncButton("通知 balloon", status, disabled, func(ctx *ui.Context) string {
+					return sendBalloonNotification("FluxUI balloon", "这显式请求 balloon 后端。", "docs-browser-balloon", system.NotificationInfo)
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Notify error", status, disabled, func(ctx *ui.Context) string {
-					return sendNotification(ctx, "FluxUI Docs", "Error style notification with timeout and actions.", "docs-browser-error", system.NotificationError)
+				ui.ExpandedElement(docsSystemRunAsyncButton("通知 错误", status, disabled, func(ctx *ui.Context) string {
+					return sendNotification(ctx, "FluxUI 文档", "带超时和操作按钮的错误样式通知。", "docs-browser-error", system.NotificationError)
 				})),
 			),
 			ui.VSpacerElement(8),
@@ -133,7 +133,7 @@ func docsSystemNotificationIconPath() string {
 
 func docsSystemOptionalPathLabel(path string) string {
 	if path == "" {
-		return "(default platform icon)"
+		return "(默认平台图标)"
 	}
 	return path
 }

@@ -25,7 +25,7 @@ func docsScrollViewDemo() ui.Element {
 						ui.Bg(themedRowColor(th, i)).
 							WithPad(ui.All(8)).
 							WithRad(7),
-						ui.TextElement(fmt.Sprintf("Log row %02d", i), ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
+						ui.TextElement(fmt.Sprintf("日志行 %02d", i), ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
 					),
 				),
 			)
@@ -57,22 +57,22 @@ func docsScrollViewDemo() ui.Element {
 				ui.FixedWidthElement(
 					260,
 					ui.ColumnElement(
-						docsScrollActionButton("Add row", func(ctx *ui.Context) {
+						docsScrollActionButton("添加行", func(ctx *ui.Context) {
 							lineCount.Set(lineCount.Value() + 1)
 						}),
 						ui.VSpacerElement(8),
-						docsScrollActionButton("Scroll top", func(ctx *ui.Context) {
+						docsScrollActionButton("滚动到顶部", func(ctx *ui.Context) {
 							scrollRef.Current.ScrollToTop()
 						}),
 						ui.VSpacerElement(8),
-						docsScrollActionButton("Scroll bottom", func(ctx *ui.Context) {
+						docsScrollActionButton("滚动到底部", func(ctx *ui.Context) {
 							scrollRef.Current.ScrollToBottom()
 						}),
 					),
 				),
 			),
 			ui.VSpacerElement(12),
-			ui.TextElement("Horizontal content", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
+			ui.TextElement("横向内容", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 			ui.VSpacerElement(6),
 			ui.FixedHeightElement(
 				78,
@@ -107,7 +107,7 @@ func docsHorizontalScrollItems(th *ui.Theme) ui.Element {
 					ui.Bg(th.Colors.SecondaryContainer).
 						WithPad(ui.Symmetric(10, 16)).
 						WithRad(10),
-					ui.TextElement(fmt.Sprintf("Column %02d", i), ui.TextSize(12), ui.TextColor(th.Colors.OnSecondaryContainer)),
+					ui.TextElement(fmt.Sprintf("列 %02d", i), ui.TextSize(12), ui.TextColor(th.Colors.OnSecondaryContainer)),
 				),
 			),
 		)
@@ -119,7 +119,7 @@ func docsListViewDemo(reachEndCount docsIntState) ui.Element {
 	return ui.ComponentElement(func(ctx *ui.Context) ui.Element {
 		th := ui.UseTheme(ctx)
 		return ui.ColumnElement(
-			ui.TextElement("ListViewElement: virtualized vertical list", ui.TextSize(14), ui.TextColor(th.Colors.OnSurface)),
+			ui.TextElement("ListViewElement：虚拟化纵向列表", ui.TextSize(14), ui.TextColor(th.Colors.OnSurface)),
 			ui.VSpacerElement(8),
 			ui.FixedHeightElement(
 				190,
@@ -133,9 +133,9 @@ func docsListViewDemo(reachEndCount docsIntState) ui.Element {
 									WithPad(ui.Symmetric(8, 10)).
 									WithRad(7),
 								ui.RowElement(
-									ui.TextElement(fmt.Sprintf("List item #%02d", index), ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
+									ui.TextElement(fmt.Sprintf("列表项 #%02d", index), ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
 									ui.ExpandedElement(ui.SpacerElement(0, 0)),
-									ui.TextElement("stable key", ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
+									ui.TextElement("稳定键", ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
 								),
 							),
 						)
@@ -155,7 +155,7 @@ func docsListViewDemo(reachEndCount docsIntState) ui.Element {
 				),
 			),
 			ui.VSpacerElement(8),
-			ui.TextElement(fmt.Sprintf("Reach-end callbacks: %d", reachEndCount.Value()), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.TextElement(fmt.Sprintf("到达末尾回调：%d", reachEndCount.Value()), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			ui.VSpacerElement(12),
 			ui.TextElement("ListAxis(Horizontal)", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 			ui.VSpacerElement(6),
@@ -166,7 +166,7 @@ func docsListViewDemo(reachEndCount docsIntState) ui.Element {
 					func(ctx *ui.Context, index int) ui.Element {
 						return ui.ContainerDecorationElement(
 							ui.Bg(th.Colors.TertiaryContainer).WithPad(ui.Symmetric(8, 12)).WithRad(10),
-							ui.TextElement(fmt.Sprintf("Tag %02d", index+1), ui.TextSize(12), ui.TextColor(th.Colors.OnTertiaryContainer)),
+							ui.TextElement(fmt.Sprintf("标签 %02d", index+1), ui.TextSize(12), ui.TextColor(th.Colors.OnTertiaryContainer)),
 						)
 					},
 					ui.ListAxis(ui.Horizontal),

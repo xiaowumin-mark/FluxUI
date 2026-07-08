@@ -19,8 +19,8 @@ const docsSystemGlobalShortcutModifiers = system.GlobalShortcutControl | system.
 
 func docsSystemGlobalShortcutSection(th *ui.Theme) ui.Element {
 	return ui.ComponentElement(func(sectionCtx *ui.Context) ui.Element {
-		status := ui.UseState(sectionCtx, "Register a global shortcut, then press Ctrl+Alt+Shift+F12.")
-		events := ui.UseState(sectionCtx, []string{"No shortcut events yet."})
+		status := ui.UseState(sectionCtx, "注册全局快捷键，然后按 Ctrl+Alt+Shift+F12。")
+		events := ui.UseState(sectionCtx, []string{"暂无快捷键事件。"})
 		shortcut := ui.UseState[*system.GlobalShortcut](sectionCtx, nil)
 		disabled := !system.Supports(system.CapabilityGlobalShortcut)
 
@@ -44,7 +44,7 @@ func docsSystemGlobalShortcutSection(th *ui.Theme) ui.Element {
 			ui.TextElement(summary, ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Register shortcut", status, disabled || registered, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("注册快捷键", status, disabled || registered, func(ctx *ui.Context) string {
 					spec := system.GlobalShortcutSpec{
 						ID:        docsSystemGlobalShortcutID,
 						Key:       docsSystemGlobalShortcutKey,
@@ -58,27 +58,27 @@ func docsSystemGlobalShortcutSection(th *ui.Theme) ui.Element {
 						events.Set(docsSystemPrependLog(events.Value(), formatDocsSystemGlobalShortcutEvent(event), 8))
 					})
 					if err != nil {
-						return "Register shortcut failed: " + err.Error()
+						return "注册快捷键失败：" + err.Error()
 					}
 					shortcut.Set(handle)
-					return "Shortcut registered. Press Ctrl+Alt+Shift+F12 to trigger it."
+					return "快捷键已注册。按 Ctrl+Alt+Shift+F12 触发。"
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Unregister shortcut", status, disabled || !registered, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("注销快捷键", status, disabled || !registered, func(ctx *ui.Context) string {
 					current := shortcut.Value()
 					if current == nil {
-						return "No shortcut to unregister."
+						return "没有可注销的快捷键。"
 					}
 					err := current.Close()
 					shortcut.Set(nil)
 					if err != nil && !system.IsClosed(err) {
-						return "Unregister shortcut failed: " + err.Error()
+						return "注销快捷键失败：" + err.Error()
 					}
-					return "Shortcut unregistered."
+					return "快捷键已注销。"
 				})),
 			),
 			ui.VSpacerElement(8),
-			docsSystemLogPanel("Shortcut events", events.Value(), th, 98),
+			docsSystemLogPanel("快捷键事件", events.Value(), th, 98),
 			ui.VSpacerElement(8),
 			ui.TextElement(status.Value(), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		), th)

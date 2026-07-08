@@ -26,7 +26,7 @@ func docsRightPanelContent(
 	}
 	if buildDemo == nil {
 		buildDemo = func(*widgetDoc) ui.Element {
-			return ui.TextElement("No example configured")
+			return ui.TextElement("未配置示例")
 		}
 	}
 
@@ -79,7 +79,7 @@ func docsRightPanelContent(
 		),
 	)
 	if len(markdownContent) == 0 {
-		markdownContent = []ui.Element{ui.TextElement("No markdown content", ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant))}
+		markdownContent = []ui.Element{ui.TextElement("没有 Markdown 内容", ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant))}
 	}
 	for _, item := range markdownContent {
 		content = append(content, ui.PaddingElement(ui.Insets{Top: 8}, item))
@@ -115,9 +115,9 @@ func docsRightPanelEmptyState(th *ui.Theme) []ui.Element {
 				WithRad(12).
 				WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}),
 			ui.ColumnElement(
-				ui.TextElement("No matching docs", ui.TextSize(20), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement("未找到匹配的文档", ui.TextSize(20), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(8),
-				ui.TextElement("Try another keyword or category filter.", ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
+				ui.TextElement("请尝试其他关键词或分类筛选。", ui.TextSize(13), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			),
 		),
 	}

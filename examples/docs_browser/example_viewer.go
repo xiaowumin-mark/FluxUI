@@ -53,7 +53,7 @@ func docsExamplePopup(open bool, title string, exampleID string, demo ui.Element
 				ui.ColumnElement(
 					ui.TextElement(title, ui.TextSize(20), ui.TextColor(th.Colors.OnSurface)),
 					ui.VSpacerElement(4),
-					ui.TextElement("Example ID: "+exampleID, ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+					ui.TextElement("示例 ID："+exampleID, ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 				),
 				ui.ExpandedElement(ui.SpacerElement(0, 0)),
 				ui.TextButtonElement(

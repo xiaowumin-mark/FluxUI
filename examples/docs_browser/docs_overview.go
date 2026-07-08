@@ -108,18 +108,18 @@ func buildDocsOverviewDemo(th *ui.Theme) ui.Element {
 		th = docsBrowserTheme(defaultDocsThemeSeed, false)
 	}
 	return ui.ColumnElement(
-		ui.TextElement("FluxUI capability map", ui.TextSize(16), ui.TextColor(th.Colors.OnSurface)),
+		ui.TextElement("FluxUI 功能地图", ui.TextSize(16), ui.TextColor(th.Colors.OnSurface)),
 		ui.VSpacerElement(10),
 		ui.RowElement(
 			ui.ExpandedElement(docsOverviewCard("React-style", "RunElement, ComponentElement, hooks, context, refs", th.Colors.PrimaryContainer, th.Colors.OnPrimaryContainer)),
 			ui.HSpacerElement(10),
-			ui.ExpandedElement(docsOverviewCard("Material 3", "Seed themes, dark mode, shapes, typography, state layers", th.Colors.SecondaryContainer, th.Colors.OnSecondaryContainer)),
+			ui.ExpandedElement(docsOverviewCard("Material 3", "种子主题、深色模式、形状、排版、状态层", th.Colors.SecondaryContainer, th.Colors.OnSecondaryContainer)),
 		),
 		ui.VSpacerElement(10),
 		ui.RowElement(
-			ui.ExpandedElement(docsOverviewCard("Component catalog", "Inputs, feedback, navigation, layout, media, drag/drop", th.Colors.TertiaryContainer, th.Colors.OnTertiaryContainer)),
+			ui.ExpandedElement(docsOverviewCard("组件目录", "输入、反馈、导航、布局、媒体、拖拽/放置", th.Colors.TertiaryContainer, th.Colors.OnTertiaryContainer)),
 			ui.HSpacerElement(10),
-			ui.ExpandedElement(docsOverviewCard("System API", "Windows-first dialogs, tray, notifications, clipboard, window control", th.Colors.SurfaceContainerHigh, th.Colors.OnSurface)),
+			ui.ExpandedElement(docsOverviewCard("System API", "Windows 优先的对话框、托盘、通知、剪贴板、窗口控制", th.Colors.SurfaceContainerHigh, th.Colors.OnSurface)),
 		),
 		ui.VSpacerElement(12),
 		ui.ContainerDecorationElement(
@@ -128,9 +128,9 @@ func buildDocsOverviewDemo(th *ui.Theme) ui.Element {
 				WithRad(10).
 				WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}),
 			ui.ColumnElement(
-				ui.TextElement("How to use this browser", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
+				ui.TextElement("如何使用此浏览器", ui.TextSize(13), ui.TextColor(th.Colors.OnSurface)),
 				ui.VSpacerElement(6),
-				ui.TextElement("Search API signatures, filter by category, copy code blocks, and open examples in a standalone popup.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+				ui.TextElement("搜索 API 签名、按分类筛选、复制代码块、在独立弹窗中打开示例。", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			),
 		),
 	)

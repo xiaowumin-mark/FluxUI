@@ -11,7 +11,7 @@ import (
 
 func docsSystemMessageBoxSection(th *ui.Theme) ui.Element {
 	return ui.ComponentElement(func(sectionCtx *ui.Context) ui.Element {
-		status := ui.UseState(sectionCtx, "Message boxes are native and owner-bound.")
+		status := ui.UseState(sectionCtx, "消息框是原生且绑定到所有者的。")
 		disabled := !system.Supports(system.CapabilityMessageBox)
 		owner, ownerOK := ui.CurrentWindowNativeHandle(sectionCtx)
 
@@ -19,20 +19,20 @@ func docsSystemMessageBoxSection(th *ui.Theme) ui.Element {
 			ui.TextElement(docsSystemMessageBoxOwnerLabel(owner, ownerOK), ui.TextSize(11), ui.TextColor(th.Colors.OnSurfaceVariant)),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Info", status, disabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("信息", status, disabled, func(ctx *ui.Context) string {
 					result, err := ui.ShowMessageBoxContext(ctx, context.Background(),
-						system.MessageBoxTitle("FluxUI Docs"),
-						system.MessageBoxText("This is an info message box."),
+						system.MessageBoxTitle("FluxUI 文档"),
+						system.MessageBoxText("这是一条信息消息。"),
 						system.MessageBoxStyle(system.MessageBoxInfo),
 						system.MessageBoxButtonSet(system.MessageBoxOK),
 					)
 					return formatDocsSystemMessageBoxResult("Info", result, err)
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Question", status, disabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("询问", status, disabled, func(ctx *ui.Context) string {
 					result, err := ui.ShowMessageBoxContext(ctx, context.Background(),
-						system.MessageBoxTitle("Save changes"),
-						system.MessageBoxText("Do you want to save before closing?"),
+						system.MessageBoxTitle("保存更改"),
+						system.MessageBoxText("要在关闭前保存吗？"),
 						system.MessageBoxStyle(system.MessageBoxQuestion),
 						system.MessageBoxButtonSet(system.MessageBoxYesNoCancel),
 						system.MessageBoxDefaultButton(system.MessageBoxResultCancel),
@@ -40,10 +40,10 @@ func docsSystemMessageBoxSection(th *ui.Theme) ui.Element {
 					return formatDocsSystemMessageBoxResult("Question", result, err)
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Warning", status, disabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("警告", status, disabled, func(ctx *ui.Context) string {
 					result, err := ui.ShowMessageBoxContext(ctx, context.Background(),
-						system.MessageBoxTitle("Retry operation"),
-						system.MessageBoxText("The operation failed. Try again?"),
+						system.MessageBoxTitle("重试操作"),
+						system.MessageBoxText("操作失败。重试？"),
 						system.MessageBoxStyle(system.MessageBoxWarning),
 						system.MessageBoxButtonSet(system.MessageBoxRetryCancel),
 						system.MessageBoxDefaultButton(system.MessageBoxResultRetry),
@@ -53,27 +53,27 @@ func docsSystemMessageBoxSection(th *ui.Theme) ui.Element {
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Error", status, disabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("错误", status, disabled, func(ctx *ui.Context) string {
 					result, err := ui.ShowMessageBoxContext(ctx, context.Background(),
 						system.MessageBoxTitle("Error"),
-						system.MessageBoxText("This is an error message box."),
+						system.MessageBoxText("这是一条错误消息。"),
 						system.MessageBoxStyle(system.MessageBoxError),
 						system.MessageBoxButtonSet(system.MessageBoxOKCancel),
 					)
 					return formatDocsSystemMessageBoxResult("Error", result, err)
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Detailed", status, disabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("详细", status, disabled, func(ctx *ui.Context) string {
 					result, err := ui.ShowMessageBoxDetailedContext(ctx, context.Background(),
-						system.MessageBoxTitle("Detailed dialog"),
-						system.MessageBoxText("This dialog uses expandable details, verification, and custom buttons."),
-						system.MessageBoxDetails("Details are shown only when the platform supports task-dialog style dialogs."),
-						system.MessageBoxFooter("Footer text is also part of the detailed variant."),
-						system.MessageBoxVerification("Remember my selection", false),
+						system.MessageBoxTitle("详细对话框"),
+						system.MessageBoxText("此对话框使用了可展开详情、验证复选框和自定义按钮。"),
+						system.MessageBoxDetails("仅当平台支持任务对话框样式时，详情才会显示。"),
+						system.MessageBoxFooter("页脚文本也是详细变体的一部分。"),
+						system.MessageBoxVerification("记住我的选择", false),
 						system.MessageBoxCustomButtons(
-							system.MessageBoxButton{ID: "save", Label: "Save and close", Result: system.MessageBoxResultCustom},
-							system.MessageBoxButton{ID: "discard", Label: "Discard changes", Result: system.MessageBoxResultCustom},
-							system.MessageBoxButton{ID: "cancel", Label: "Cancel", Result: system.MessageBoxResultCancel},
+							system.MessageBoxButton{ID: "save", Label: "保存并关闭", Result: system.MessageBoxResultCustom},
+							system.MessageBoxButton{ID: "discard", Label: "放弃更改", Result: system.MessageBoxResultCustom},
+							system.MessageBoxButton{ID: "cancel", Label: "取消", Result: system.MessageBoxResultCancel},
 						),
 						system.MessageBoxDefaultButtonID("cancel"),
 						system.MessageBoxCommandLinks(true),
@@ -83,14 +83,14 @@ func docsSystemMessageBoxSection(th *ui.Theme) ui.Element {
 					return formatDocsSystemMessageBoxDetailedResult("Detailed", result, err)
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Auto cancel", status, disabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("自动取消", status, disabled, func(ctx *ui.Context) string {
 					callCtx, cancel := context.WithCancel(context.Background())
 					timer := time.AfterFunc(1500*time.Millisecond, cancel)
 					defer timer.Stop()
 					defer cancel()
 					result, err := ui.ShowMessageBoxContext(ctx, callCtx,
-						system.MessageBoxTitle("Auto cancel"),
-						system.MessageBoxText("This message box will close when the context is canceled."),
+						system.MessageBoxTitle("自动取消"),
+						system.MessageBoxText("当上下文被取消时，此消息框将关闭。"),
 						system.MessageBoxStyle(system.MessageBoxQuestion),
 						system.MessageBoxButtonSet(system.MessageBoxOKCancel),
 					)
@@ -99,25 +99,25 @@ func docsSystemMessageBoxSection(th *ui.Theme) ui.Element {
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
-				ui.ExpandedElement(docsSystemRunAsyncButton("Async info", status, disabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("异步信息", status, disabled, func(ctx *ui.Context) string {
 					response := <-ui.ShowMessageBoxAsyncContext(ctx, context.Background(),
-						system.MessageBoxTitle("Async message"),
-						system.MessageBoxText("This uses ui.ShowMessageBoxAsyncContext and reports through the response channel."),
+						system.MessageBoxTitle("异步消息"),
+						system.MessageBoxText("使用 ui.ShowMessageBoxAsyncContext 并通过响应通道报告。"),
 						system.MessageBoxStyle(system.MessageBoxInfo),
 						system.MessageBoxButtonSet(system.MessageBoxOKCancel),
 					)
 					return formatDocsSystemMessageBoxResult("Async info", response.Result, response.Err)
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("Async detailed", status, disabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("异步详细", status, disabled, func(ctx *ui.Context) string {
 					response := <-ui.ShowMessageBoxDetailedAsyncContext(ctx, context.Background(),
-						system.MessageBoxTitle("Async detailed"),
-						system.MessageBoxText("This uses the detailed async wrapper."),
-						system.MessageBoxDetails("The result channel carries button id and verification state when the platform supports them."),
-						system.MessageBoxVerification("Keep this setting", true),
+						system.MessageBoxTitle("异步详细"),
+						system.MessageBoxText("使用详细的异步包装器。"),
+						system.MessageBoxDetails("当平台支持时，结果通道携带按钮 ID 和验证状态。"),
+						system.MessageBoxVerification("保留此设置", true),
 						system.MessageBoxCustomButtons(
-							system.MessageBoxButton{ID: "apply", Label: "Apply", Result: system.MessageBoxResultCustom},
-							system.MessageBoxButton{ID: "cancel", Label: "Cancel", Result: system.MessageBoxResultCancel},
+							system.MessageBoxButton{ID: "apply", Label: "应用", Result: system.MessageBoxResultCustom},
+							system.MessageBoxButton{ID: "cancel", Label: "取消", Result: system.MessageBoxResultCancel},
 						),
 						system.MessageBoxDefaultButtonID("apply"),
 						system.MessageBoxCommandLinksNoIcon(true),
@@ -125,12 +125,12 @@ func docsSystemMessageBoxSection(th *ui.Theme) ui.Element {
 					return formatDocsSystemMessageBoxDetailedResult("Async detailed", response.Result, response.Err)
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(docsSystemRunAsyncButton("System owner", status, disabled, func(ctx *ui.Context) string {
+				ui.ExpandedElement(docsSystemRunAsyncButton("系统所有者", status, disabled, func(ctx *ui.Context) string {
 					owner, _ := ui.CurrentWindowNativeHandle(ctx)
 					result, err := system.ShowMessageBox(context.Background(),
 						system.MessageBoxOwner(owner),
-						system.MessageBoxTitle("Explicit owner"),
-						system.MessageBoxText("This direct system.ShowMessageBox call receives MessageBoxOwner explicitly."),
+						system.MessageBoxTitle("显式所有者"),
+						system.MessageBoxText("此直接 system.ShowMessageBox 调用显式接收 MessageBoxOwner。"),
 						system.MessageBoxButtonSet(system.MessageBoxOK),
 					)
 					return formatDocsSystemMessageBoxResult("System owner", result, err)
@@ -144,21 +144,21 @@ func docsSystemMessageBoxSection(th *ui.Theme) ui.Element {
 
 func docsSystemMessageBoxOwnerLabel(owner uintptr, ok bool) string {
 	if !ok || owner == 0 {
-		return "Native owner: unavailable; ui wrappers will fall back to ownerless message boxes."
+		return "原生所有者：不可用；UI 包装器将回退到无所有者消息框。"
 	}
-	return fmt.Sprintf("Native owner: 0x%X; ui wrappers inject this automatically, system.* calls can pass MessageBoxOwner explicitly.", owner)
+	return fmt.Sprintf("原生所有者：0x%X；UI 包装器自动注入此项，system.* 调用可显式传递 MessageBoxOwner。", owner)
 }
 
 func formatDocsSystemMessageBoxResult(label string, result system.MessageBoxResult, err error) string {
 	if err != nil {
-		return fmt.Sprintf("%s failed: %v", label, err)
+		return fmt.Sprintf("%s 失败：%v", label, err)
 	}
-	return fmt.Sprintf("%s result: %s", label, result)
+	return fmt.Sprintf("%s 结果：%s", label, result)
 }
 
 func formatDocsSystemMessageBoxDetailedResult(label string, result system.MessageBoxDetailedResult, err error) string {
 	if err != nil {
-		return fmt.Sprintf("%s failed: %v", label, err)
+		return fmt.Sprintf("%s 失败：%v", label, err)
 	}
-	return fmt.Sprintf("%s result: %s button=%q verification=%v", label, result.Result, result.ButtonID, result.VerificationChecked)
+	return fmt.Sprintf("%s 结果：%s 按钮=%q 验证=%v", label, result.Result, result.ButtonID, result.VerificationChecked)
 }
