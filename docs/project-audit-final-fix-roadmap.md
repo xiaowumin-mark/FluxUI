@@ -236,6 +236,17 @@
 - 每个可自动化稳定路径至少有一个测试或 benchmark。
 - README、docs browser 文档和示例入口不再漂移。
 
+### P7 实施记录（2026-07-08）
+
+- 审计依据：以 `docs/audits/project-audit-baseline.md` 为索引，复核 A11.1、A11.2、A11.3、A11.4、A12.1、A12.2、A12.3、A13.4 的 docs browser、component_lab、event_system_testbench、示例覆盖、benchmark 和最终候选风险记录，并对照 `COMPONENT_DEVELOPMENT_GUIDE.md`、`CODE_STYLE_GUIDE.md`、`FEATURE_INTEGRATION_CHECKLIST.md`。
+- 文档产物：`README.md` 增加 P7 回归重点入口和 benchmark smoke 命令；`examples/docs_browser/README.md`、`examples/component_lab/README.md`、`examples/event_system_testbench/README.md` 补充 P7 或 P0-P7 手工验收表；`examples/advanced_components/README.md`、`examples/form_validation/README.md`、`examples/virtual_scroll/README.md` 更新为当前 `RunElement` 入口说明；新增 `examples/horizontal_scroll/README.md`；`examples/drag_drop_showcase/README.md` 增加平台能力区分的拖放 smoke；`docs/examples-inventory.md` 同步示例 runtime 状态，消除 legacy 入口漂移。
+- 自动化产物：新增 `examples/docs_browser/p7_docs_test.go`，锁定五个 P7 重点示例的 `RunElement` 入口、README `go run` 命令、P7 smoke 编号和根 README / inventory 的回归入口；新增 `widget/scroll_bench_test.go`，提供 `BenchmarkWheelScrollViewVertical` 和 `BenchmarkHorizontalWheelDelta`，覆盖纵向 wheel offset 更新、横向 delta 消费和纵向 wheel 不误触发横向滚动的 benchmark 入口。
+- 手动入口矩阵：docs browser 覆盖文档页、搜索/API 摘要、分类 chips、代码块、表格和示例弹窗；component_lab 覆盖主题/密度、hover/pressed、cursor、overlay、集合滚动和 idle redraw；event_system_testbench 覆盖 P0-P7 操作步骤、预期结果和诊断观察口径；专项 examples 覆盖 advanced components、drag/drop、form validation、horizontal scroll、virtual scroll。
+- 验证：`gofmt` 已执行；`gopls go_diagnostics` 对新增 Go 文件无诊断；`go test ./examples/docs_browser`、`go test ./examples/component_lab`、`go test ./widget`、`go test ./examples/advanced_components ./examples/form_validation ./examples/horizontal_scroll ./examples/virtual_scroll ./examples/drag_drop_showcase` 通过；`go test ./widget -run '^$' -bench 'Benchmark(WheelScrollViewVertical|HorizontalWheelDelta)' -benchmem -benchtime=5x` 通过；`go test ./internal/perf -run '^$' -bench 'Benchmark(LayoutStaticTree|MouseMoveInteractiveTree|ListVirtualized|StaticSurfaceCache)' -benchmem -benchtime=3x` 通过。
+- 关联性检查：本轮不修改 runtime、event、layout、widget 行为和公开 API 签名；新增 benchmark 只在测试路径构造 ScrollView fixture，不改变 `ScrollRef` / `ScrollOnChange` 语义；文档 smoke 明确 GUI、clipboard、drag/drop 外部后端和真实 IME 仍有平台依赖，避免把环境差异误判为框架回归。
+- 仍保留风险：GUI 视觉结果、真实外部拖放、真实输入法组合和无剪贴板环境仍需要人工运行确认；短 benchtime benchmark 只证明入口可执行，不作为跨机器绝对性能预算；`go_vulncheck ./...` 在本会话开始时仍报告当前 Go 1.25.1 标准库与间接图像/系统包的既有公告，本轮未修改依赖。
+- 回滚策略：文档变更可按示例 README、根 README、inventory 和路线图分组回退；`examples/docs_browser/p7_docs_test.go` 可独立移除而不影响产品行为；`widget/scroll_bench_test.go` 仅新增 benchmark，可独立回退且不影响运行时路径。
+
 ## PR 准入规则
 
 | PR 类型 | 必须检查 | 建议测试 |

@@ -131,6 +131,19 @@ go run ./examples/horizontal_scroll
 go run ./examples/drag_drop_showcase
 ```
 
+P7 回归重点入口：
+
+| 入口 | 覆盖 |
+| --- | --- |
+| `go run ./examples/docs_browser` | 文档页、搜索、分类 chips、代码块、表格、示例弹窗 |
+| `go run ./examples/component_lab` | 样式、hover、cursor、overlay、idle redraw |
+| `go run ./examples/event_system_testbench` | P0-P7 事件、默认行为、诊断和高频输入手工验收 |
+| `go run ./examples/advanced_components` | Select、Dialog、Toast、ListView、ScrollView 综合场景 |
+| `go run ./examples/form_validation` | controlled input、程序化设置、提交验证 |
+| `go run ./examples/horizontal_scroll` | 横向滚动和轴向隔离 |
+| `go run ./examples/virtual_scroll` | 大列表和大网格虚拟化 |
+| `go run ./examples/drag_drop_showcase` | DragSource、DropTarget、payload 和平台能力探测 |
+
 ## 构建项目
 
 > 需要先安装gogio cmd `go install gioui.org/cmd/gogio@latest`
@@ -174,6 +187,14 @@ fluxui/
 
 ```bash
 go test ./...
+```
+
+P7 相关 smoke 和 benchmark 可单独运行：
+
+```bash
+go test ./examples/docs_browser ./examples/component_lab
+go test ./widget -run '^$' -bench 'Benchmark(WheelScrollViewVertical|HorizontalWheelDelta)' -benchmem
+go test ./internal/perf -run '^$' -bench 'Benchmark(LayoutStaticTree|MouseMoveInteractiveTree|ListVirtualized|StaticSurfaceCache)' -benchmem
 ```
 
 ## 贡献

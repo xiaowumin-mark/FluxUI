@@ -29,3 +29,13 @@ Every Markdown document with an `example.id` must have a matching case in `demo_
 - representative React-style APIs stay visible in the docs browser demo source, including `GridViewElement`, `ScrollHorizontal`, `ScrollAutoToEndKey`, `ListVirtualized`, hooks/context/router APIs, command refs such as `ButtonAttachRef`, `InputAttachRef`, `TabsAttachRef`, `DialogAttachRef`, and common MD3 variants/options such as filled/tonal/elevated buttons, outlined/filled text fields, filled/elevated/outlined cards, chip slots, menu sizing, navigation colors/alignment, search/badge/tooltip options, decoration events, drag/drop lifecycle constants, typography options, progress indeterminate/size states, and System API owner/window-event/notification-backend/tray-update paths.
 
 When adding a new docs example, prefer adding a small focused `*_demo.go` module and then registering it in `demo_registry.go`. Avoid putting new demo implementations directly into `docs_browser_app.go`.
+
+## P7 Smoke
+
+| Step | Operation | Expected result |
+| --- | --- | --- |
+| DB-01 | Run `go run ./examples/docs_browser`. | The left navigation, right document panel, default document, and theme controls render in the first viewport. |
+| DB-02 | Search for `button`, then clear the search and switch category chips. | Search results, API summary, selected document fallback, and category filtering stay in sync. |
+| DB-03 | Scroll the right document, then use horizontal input over code blocks, tables, and chips. | Main vertical scrolling and horizontal regions do not consume the wrong axis. |
+| DB-04 | Open a document example popup, interact inside it, close it by button and mask, then reopen. | Popup state is isolated from the right document list and outside click behavior remains predictable. |
+| DB-05 | Click code/API copy actions in an environment with and without clipboard access. | Copy success or failure is shown locally and does not change document selection or scroll state. |

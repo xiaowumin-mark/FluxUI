@@ -19,10 +19,10 @@ This document records the current role of each example after the React-style run
 | `examples/router` | Router compatibility showcase | Legacy `Run` / `Widget` | Keep | Comprehensive router demo and docs browser `router_basic` counterpart. |
 | `examples/docs_browser` | Docs runtime host | React-style `RunElement` | Keep | Owns Markdown loading, metadata parsing, search/category filters, MD3 theme switching, API index, inline and popup previews, runtime/grid coverage, System API demos, and online fallback. |
 | `examples/drag_drop_showcase` | Drag-and-drop API showcase | React-style `RunElement` | Keep | Demonstrates `DragSourceElement`, `DropTargetElement`, MIME payloads, lifecycle events, active/error callbacks, and conservative system probe output. |
-| `examples/form_validation` | Complex input workflow | Legacy `Run` / `Widget` | Keep | Compatibility note exists; wait for stable input host-state strategy. |
-| `examples/virtual_scroll` | Virtual list/grid performance reference | Legacy `Run` / `Widget` | Keep | Compatibility note exists; wait for list/grid lifecycle and identity strategy. |
+| `examples/form_validation` | Complex input workflow | React-style `RunElement` | Keep | P7 README now records controlled input, validation, and programmatic state smoke steps. |
+| `examples/virtual_scroll` | Virtual list/grid performance reference | React-style `RunElement` | Keep | P7 README now records large ListView/GridView smoke steps and virtual window expectations. |
 | `examples/team_workspace` | Business dashboard integration showcase | Legacy `Run` / `Widget` | Keep | Compatibility note exists; migrate only through a parallel React-style dashboard. |
-| `examples/advanced_components` | Higher-level component integration showcase | Legacy `Run` / `Widget` | Keep | Compatibility note exists; candidate for a future parallel React-style showcase. |
+| `examples/advanced_components` | Higher-level component integration showcase | React-style `RunElement` | Keep | P7 README now records Select/Dialog/Toast/ListView/ScrollView smoke steps. |
 | `examples/animation_showcase` | Animation lifecycle showcase | Legacy `Run` / `Widget` | Keep | Lifecycle note exists; wait for React-style animation lifecycle rules. |
 | `examples/vscode_layout` | IDE-style layout and menu showcase | Legacy `Run` / `Widget` | Keep | Compatibility note exists; wait for menu overlay and input host-state strategy. |
 | `examples/hooks_lifecycle` | Hook and lifecycle behavior demo | Legacy `Run` / `Widget` | Keep | Useful for runtime/lifecycle smoke testing. |
@@ -30,7 +30,7 @@ This document records the current role of each example after the React-style run
 | `examples/multi_window` | Multi-window feature demo | Legacy `Run` / `Widget` | Keep | Element multi-window entry points are not planned yet. |
 | `examples/fonts` | Font rendering demo | Legacy `Run` / `Widget` | Keep | Feature-specific smoke demo. |
 | `examples/theme_custom` | Theme customization demo | Legacy `Run` / `Widget` | Keep | Feature-specific smoke demo. |
-| `examples/horizontal_scroll` | Scroll behavior demo | Legacy `Run` / `Widget` | Keep | Useful scroll compatibility reference. |
+| `examples/horizontal_scroll` | Scroll behavior demo | React-style `RunElement` | Keep | P7 README now records horizontal-only scroll smoke steps and axis expectations. |
 | `examples/basic_components` | Broad basic widget demo | Legacy `Run` / `Widget` | Review later | Merge candidate; overlaps with widget docs and docs browser examples. |
 | `examples/layout` | Basic layout demo | Legacy `Run` / `Widget` | Review later | Merge candidate; overlaps with Batch 1 layout docs. |
 | `examples/state_management` | State demo | Legacy `Run` / `Widget` | Review later | Merge candidate or future React-style state comparison candidate. |

@@ -1,9 +1,22 @@
-# Advanced Components Compatibility Note
+# Advanced Components Example
 
-`examples/advanced_components` remains a legacy `Run` / `Widget` integration example during Batch 6 of the React-style docs rollout.
+`examples/advanced_components` is a React-style `RunElement` integration example.
 
-This example combines several higher-level controls in one compact showcase: `AppBar`, `Tabs`, `Select`, `Image`, `ListView`, `ScrollView`, `BottomNavigation`, `Dialog`, and `Toast`. It also tracks tab, navigation, select, scroll, reach-end, dialog, and toast state through the legacy `ui.State` path.
+## Run
 
-Do not rewrite this example in-place to `RunElement` during the docs rollout. Several controls used here still depend on host-state-heavy or lifecycle-heavy behavior, including select popup state, list reach-end callbacks, scroll offset updates, dialog mount/open state, and toast cleanup.
+```sh
+go run ./examples/advanced_components
+```
 
-Future migration should start as a parallel React-style advanced components showcase after these controls have stable Element API boundaries. The current legacy example should remain available as the compatibility reference for validating the existing integrated control path.
+## What It Covers
+
+This example combines higher-level controls in one compact showcase: `AppBar`, `Tabs`, `Select`, `Image`, `ListView`, `ScrollView`, `BottomNavigation`, `Dialog`, and `Toast`. It tracks tab, navigation, select, scroll, reach-end, dialog, and toast state through `ui.UseState`.
+
+## P7 Smoke
+
+| Step | Operation | Expected result |
+| --- | --- | --- |
+| AC-01 | Switch tabs and bottom navigation items. | Active state, indicator, and visible content update without layout jumps. |
+| AC-02 | Open `Select`, choose a different priority, then reopen it. | The popup closes after selection, the selected value persists, and toast state is updated once per real change. |
+| AC-03 | Scroll the main content and the embedded list to the end. | `ScrollOnChange` reports a non-zero y offset and the list reach-end counter can increment. |
+| AC-04 | Click the image and open/close the dialog through confirm, cancel, and mask close. | Toast/dialog lifecycle stays isolated from page layout and scroll state. |

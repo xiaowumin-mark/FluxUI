@@ -24,3 +24,12 @@ The example validates FluxUI widget-to-widget transfer through Gio `io/transfer`
 External drag-in depends on the operating system and desktop backend. External
 drag-out is not enabled by default; only expose that workflow when
 `system.ProbeDragAndDrop(ctx).SupportsExternalDragOut` reports true.
+
+## P7 Smoke
+
+| Step | Operation | Expected result |
+| --- | --- | --- |
+| DD-01 | Drag the text payload card to the drop target. | The target shows active feedback and records text payload details in the log. |
+| DD-02 | Drag the file URI payload card to the drop target. | The log records URI/path details when the backend exposes them. |
+| DD-03 | Drag the custom JSON payload card to the typed target. | The target accepts the custom MIME payload and records bytes/type information. |
+| DD-04 | Check the probe status before trying external drag-in/out. | Platform-dependent behavior is judged against `system.ProbeDragAndDrop`, not treated as a framework failure when unavailable. |

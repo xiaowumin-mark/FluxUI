@@ -1,9 +1,22 @@
-# Virtual Scroll Compatibility Note
+# Virtual Scroll Example
 
-`examples/virtual_scroll` remains a legacy `Run` / `Widget` integration example during Batch 5 of the React-style docs rollout.
+`examples/virtual_scroll` is a React-style `RunElement` example for high-volume list and grid rendering.
 
-This example intentionally stays on the legacy path because it exercises high-volume `ListView` and `GridView` behavior where scroll position, virtual row/window state, reach-end behavior, item identity, and column changes are still owned by the host/list widget layer.
+## Run
 
-Do not rewrite this example to `RunElement` until the Element APIs for virtual lists and grids have explicit lifecycle rules for host-state reuse, keyed item identity, and cleanup.
+```sh
+go run ./examples/virtual_scroll
+```
 
-The example is still useful as the compatibility reference for validating that the existing virtual scrolling path remains stable while docs add React-style strategy notes elsewhere.
+## What It Covers
+
+The example exercises high-volume `ListViewElement` and `GridViewElement` behavior with 50,000 list rows and 100,000 grid cells. It is the manual smoke entry for virtual window stability, item identity, tab switching, and grid sizing.
+
+## P7 Smoke
+
+| Step | Operation | Expected result |
+| --- | --- | --- |
+| VS-01 | Scroll the ListView tab quickly through a large range. | Visible item numbers remain continuous, with no blank or duplicated rows. |
+| VS-02 | Switch to the GridView tab and scroll. | Four columns remain stable, gap spacing stays consistent, and cell labels match their index. |
+| VS-03 | Switch between ListView and GridView repeatedly. | Active tab state changes cleanly and the app stays responsive. |
+| VS-04 | Resize the window modestly and repeat VS-01/VS-02. | Content remains accessible through scrolling without layout overflow. |
