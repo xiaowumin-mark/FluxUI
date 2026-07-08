@@ -53,7 +53,10 @@
     "WindowStartDragMove(ctx *Context) bool",
     "WindowSetMinSize(ctx *Context, width, height int) bool",
     "WindowSetMaxSize(ctx *Context, width, height int) bool",
-    "WindowDragAreaElement(child Element, opts ...WindowDragAreaOption) Element"
+    "WindowDragAreaElement(child Element, opts ...WindowDragAreaOption) Element",
+    "WindowMaximizeButton(child Widget, opts ...WindowMaximizeButtonOption) Widget",
+    "WindowMaximizeButtonElement(child Element, opts ...WindowMaximizeButtonOption) Element",
+    "WindowMaximizeButtonDisabled(disabled bool) WindowMaximizeButtonOption"
   ]
 }
 -->
@@ -239,6 +242,23 @@ ui.WindowSetWindowsFrameStyle(ctx, ui.WindowsFrameStyle{
 
 `WindowDragAreaElement(child)` 会把子组件区域注册为窗口拖动区；在隐藏系统 frame 后，建议把自定义标题栏的非交互区域包进去。Windows 下拖动区通过原生 `WM_NCHITTEST` / `HTCAPTION` 命中测试接入系统标题栏语义，最大化后的拖动还原、拖动继续、双击最大化/还原和 Snap 由系统处理；全屏、最小化、不可调整大小或最大尺寸受限时不会强行最大化。低层入口是 `WindowStartDragMove(ctx)` / `WindowHandle.StartDragMove()`，它需要在指针按下语境附近调用。
 
+`WindowMaximizeButtonElement(child)` 会把子组件区域标记为 Windows 原生最大化按钮命中区。调用方仍完全控制 `child` 的内容和样式；FluxUI 只负责在 Windows 自定义 chrome 下让该区域的 `WM_NCHITTEST` 返回 `HTMAXBUTTON`，并把非客户区指针/鼠标输入转发回 Gio，保证按钮 hover、pressed 和 click 视觉仍由 FluxUI 正常渲染。Windows 11 会在鼠标悬停该区域时显示系统 Snap Layouts flyout；点击行为建议仍由子按钮绑定 `WindowMaximize(ctx)` / `WindowRestore(ctx)`。
+
+示例使用内置 MD3 图标字体时，需要导入 `github.com/xiaowumin-mark/FluxUI/icons/md3`：
+
+```go
+ui.WindowMaximizeButtonElement(
+    ui.IconButtonElement(
+        ui.IconElement("crop_square", ui.IconUseFont(md3.ID)),
+        ui.IconButtonOnClick(func(ctx *ui.Context) {
+            ui.WindowMaximize(ctx)
+        }),
+    ),
+)
+```
+
+同一帧可以注册多个 `WindowMaximizeButtonElement`，例如标题栏一个、文档页示例一个；重叠时后布局的区域优先。`WindowMaximizeButtonDisabled(true)` 会保持 child 布局但关闭原生命中测试和 Gio `ActionMaximize` 区域。该能力只承诺 Windows Snap Flyout；非 Windows 平台不会弹出 Windows 布局选择框。
+
 `ProbeWindowsChrome()` 返回当前进程可用性快照。非 Windows 平台返回 unsupported；Windows 下当前只报告 frame style 与 drag move 支持状态。完整示例见 `examples/window_chrome_showcase`；`examples/window_showcase` 也包含一个小型控制面板。
 
 Windows app/exe should embed a Windows manifest with common-controls v6 and supportedOS entries when testing default native frame visuals; otherwise Windows may apply legacy compatibility metrics and the restored default frame can look like an old border. Even with the manifest, `WindowsFrameDefault` is still the OS-drawn Win32 non-client title bar, so its exact caption/button style is controlled by Windows and can look older than a custom Windows 11 title bar in some environments. For modern custom chrome, keep `WindowsFrameHidden`, draw the title bar with `WindowDragAreaElement`, and draw visible borders in FluxUI instead of restoring the native Win32 frame. `WindowsFrameDefault` is a compatibility escape hatch back to the system frame, not the recommended modern visual mode. `examples/window_chrome_showcase` includes a package-local `.syso` generated from its manifest.
@@ -406,6 +426,8 @@ go vet ./app ./internal ./ui
 - Windows 下 `SetAlwaysOnTop(true/false)` 能切换持续置顶，`Raise()` 只做一次性前置。
 - Windows 下 `Hide()` 可隐藏窗口，随后用保留的 `WindowHandle.Show()` 可显示回来。
 - Windows 下 `RequestFocus()`、`SetPosition()`、`SetResizable(false/true)` 和 `SetDecorated(false/true)` 行为符合预期。
+- Windows 11 下隐藏 frame 后，悬停 `WindowMaximizeButtonElement` 能弹出 Snap Layouts flyout；点击同一区域仍触发 FluxUI 子按钮的最大化/还原逻辑。
+- 在 docs browser 或其他滚动容器里放置 `WindowMaximizeButtonElement` 时，滚动到半遮挡或离开可视区域后，不应在不可见区域残留最大化命中测试。
 - 默认隐藏内存策略下，`Hide()` 后 `WindowState.RenderSuspended` 为 true，`Show()` 后恢复为 false。
 - `PollEvents()` 能收到并清空 size/focus/state/close_requested/closed 事件。
 - 多窗口 `ListWindows` 和 `GetWindow` 不串窗口。

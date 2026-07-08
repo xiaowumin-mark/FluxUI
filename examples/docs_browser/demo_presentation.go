@@ -34,10 +34,8 @@ func docsDemoPresentationFor(exampleID string) docsDemoPresentation {
 		presentation.Scroll = true
 	case "system_api_basic":
 		presentation.Height = 360
-		presentation.Scroll = true
 	case "event_system_basic":
 		presentation.Height = 440
-		presentation.Scroll = true
 	case "hooks_lifecycle_basic":
 		presentation.Height = 430
 		presentation.Scroll = true

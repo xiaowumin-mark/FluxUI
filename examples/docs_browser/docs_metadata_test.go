@@ -338,8 +338,8 @@ func TestDocsDemoPresentationRules(t *testing.T) {
 		"button_basic":       {Height: 230, Center: true},
 		"animation_basic":    {Height: 300, Scroll: true},
 		"material3_showcase": {Height: 440, Scroll: true},
-		"system_api_basic":   {Height: 360, Scroll: true},
-		"event_system_basic": {Height: 440, Scroll: true},
+		"system_api_basic":   {Height: 360},
+		"event_system_basic": {Height: 440},
 	}
 	for exampleID, want := range cases {
 		got := docsDemoPresentationFor(exampleID)
@@ -641,6 +641,8 @@ func TestDocsBrowserDemosUseRepresentativeReactAPIs(t *testing.T) {
 		"WindowSetWindowsFrameStyle(":         "WindowSetWindowsFrameStyle demo",
 		"WindowStartDragMove(":                "WindowStartDragMove demo",
 		"WindowDragAreaElement(":              "WindowDragAreaElement demo",
+		"WindowMaximizeButtonElement(":        "WindowMaximizeButtonElement Snap Flyout demo",
+		"WindowMaximizeButtonDisabled(":       "WindowMaximizeButtonDisabled demo",
 		"ProbeWindowsChrome(":                 "ProbeWindowsChrome demo",
 		".SetCloseRequestedHandler(":          "WindowHandle close-request guard demo",
 		".PollEvents(":                        "WindowHandle PollEvents demo",

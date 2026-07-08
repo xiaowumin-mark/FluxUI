@@ -58,6 +58,7 @@ type DragSourceEvent = widget.DragSourceEvent
 type DragSourceOption = widget.DragSourceOption
 
 type WindowDragAreaOption = widget.WindowDragAreaOption
+type WindowMaximizeButtonOption = widget.WindowMaximizeButtonOption
 
 // Context 是对外暴露的 frame 上下文。
 type Context = internal.Context
@@ -862,6 +863,14 @@ func WindowDragArea(child Widget, opts ...WindowDragAreaOption) Widget {
 
 func WindowDragAreaDisabled(disabled bool) WindowDragAreaOption {
 	return widget.WindowDragAreaDisabled(disabled)
+}
+
+func WindowMaximizeButton(child Widget, opts ...WindowMaximizeButtonOption) Widget {
+	return widget.WindowMaximizeButton(child, opts...)
+}
+
+func WindowMaximizeButtonDisabled(disabled bool) WindowMaximizeButtonOption {
+	return widget.WindowMaximizeButtonDisabled(disabled)
 }
 
 // ContainerDecorationOption 是装饰容器的可选配置项。

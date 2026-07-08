@@ -36,18 +36,34 @@ const (
 	nativeMFEnabled   = 0x0000
 	nativeMFGrayed    = 0x0001
 
-	nativeWMClose            = 0x0010
-	nativeWMNCHitTest        = 0x0084
-	nativeWMNCCalcSize       = 0x0083
-	nativeWMNCPaint          = 0x0085
-	nativeWMNCActivate       = 0x0086
-	nativeWMNCLButtonDown    = 0x00A1
-	nativeWMNCLDblClk        = 0x00A3
-	nativeWMNCUAHDrawCaption = 0x00AE
-	nativeWMNCUAHDrawFrame   = 0x00AF
-	nativeWMNCDestroy        = 0x0082
-	nativeHTClient           = 0x0001
-	nativeHTCaption          = 0x0002
+	nativeWMClose                 = 0x0010
+	nativeWMNCHitTest             = 0x0084
+	nativeWMNCCalcSize            = 0x0083
+	nativeWMNCPaint               = 0x0085
+	nativeWMNCActivate            = 0x0086
+	nativeWMMouseMove             = 0x0200
+	nativeWMLButtonDown           = 0x0201
+	nativeWMLButtonUp             = 0x0202
+	nativeWMNCMouseMove           = 0x00A0
+	nativeWMNCLButtonDown         = 0x00A1
+	nativeWMNCLButtonUp           = 0x00A2
+	nativeWMNCLDblClk             = 0x00A3
+	nativeWMNCUAHDrawCaption      = 0x00AE
+	nativeWMNCUAHDrawFrame        = 0x00AF
+	nativeWMNCDestroy             = 0x0082
+	nativeWMNCMouseLeave          = 0x02A2
+	nativeWMMouseLeave            = 0x02A3
+	nativeWMNCPointerUpdate       = 0x0241
+	nativeWMNCPointerDown         = 0x0242
+	nativeWMNCPointerUp           = 0x0243
+	nativeWMPointerUpdate         = 0x0245
+	nativeWMPointerDown           = 0x0246
+	nativeWMPointerUp             = 0x0247
+	nativeWMPointerCaptureChanged = 0x024C
+	nativeHTClient                = 0x0001
+	nativeHTCaption               = 0x0002
+	nativeHTMaxButton             = 0x0009
+	nativeMKLButton               = 0x0001
 
 	nativeRDWInvalidate  = 0x0001
 	nativeRDWAllChildren = 0x0080
@@ -61,6 +77,8 @@ const (
 	nativeDWMWATextColor              = 36
 	nativeDWMWAColorDefault           = 0xFFFFFFFF
 	nativeDWMWAColorNone              = 0xFFFFFFFE
+
+	nativeWMCancelMode = 0x001F
 )
 
 var (
@@ -84,12 +102,14 @@ var (
 	nativePostMessage      = nativeUser32.NewProc("PostMessageW")
 	nativeReleaseCapture   = nativeUser32.NewProc("ReleaseCapture")
 	nativeRedrawWindow     = nativeUser32.NewProc("RedrawWindow")
+	nativeClientToScreen   = nativeUser32.NewProc("ClientToScreen")
 	nativeScreenToClient   = nativeUser32.NewProc("ScreenToClient")
 	nativeShowWindowAsync  = nativeUser32.NewProc("ShowWindowAsync")
 
 	nativeDwm              = syscall.NewLazyDLL("dwmapi.dll")
 	nativeDwmSetWindowAttr = nativeDwm.NewProc("DwmSetWindowAttribute")
 	nativeDwmExtendFrame   = nativeDwm.NewProc("DwmExtendFrameIntoClientArea")
+	nativeDwmFlush         = nativeDwm.NewProc("DwmFlush")
 
 	nativeCloseHookCallback = syscall.NewCallback(nativeWindowProc)
 	nativeCloseHookMu       sync.RWMutex
@@ -182,13 +202,11 @@ func setNativeWindowFrameStyle(handle uintptr, style WindowsFrameStyle, resizabl
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 
-		styleChanged := false
 		styleValue, _, err := nativeGetWindowLong.Call(handle, nativeGWLStyle)
 		if styleValue != 0 || err == syscall.Errno(0) {
 			nextStyle := nativeWindowChromeStyle(styleValue, style.Mode, resizable, maximizeEnabled)
 			if nextStyle != styleValue {
 				nativeSetWindowLong.Call(handle, nativeGWLStyle, nextStyle)
-				styleChanged = true
 			}
 		}
 
@@ -200,19 +218,18 @@ func setNativeWindowFrameStyle(handle uintptr, style WindowsFrameStyle, resizabl
 		setDwmColorAttribute(handle, nativeDWMWATextColor, windowsFrameTextColor(style))
 		extendNativeFrame(handle, nativeFrameMargins(style))
 		setNativeMaximizeMenuEnabled(handle, maximizeEnabled)
-		if styleChanged {
-			nativeSetWindowPos.Call(
-				handle,
-				0,
-				0,
-				0,
-				0,
-				0,
-				nativeSWPNoMove|nativeSWPNoSize|nativeSWPNoZOrder|nativeSWPNoActivate|nativeSWPFrame|nativeSWPAsync,
-			)
-			nativeDrawMenuBar.Call(handle)
-			nativeRedrawWindow.Call(handle, 0, 0, nativeRDWInvalidate|nativeRDWFrame|nativeRDWAllChildren)
-		}
+		nativeSetWindowPos.Call(
+			handle,
+			0,
+			0,
+			0,
+			0,
+			0,
+			nativeSWPNoMove|nativeSWPNoSize|nativeSWPNoZOrder|nativeSWPNoActivate|nativeSWPFrame,
+		)
+		nativeDrawMenuBar.Call(handle)
+		nativeRedrawWindow.Call(handle, 0, 0, nativeRDWInvalidate|nativeRDWFrame|nativeRDWAllChildren)
+		flushNativeDwm()
 	}()
 	return true
 }
@@ -440,6 +457,14 @@ func extendNativeFrame(handle uintptr, margins nativeMargins) bool {
 	return true
 }
 
+func flushNativeDwm() bool {
+	if nativeDwmFlush.Find() != nil {
+		return false
+	}
+	nativeDwmFlush.Call()
+	return true
+}
+
 func installNativeWindowCloseHook(entry *windowEntry) bool {
 	if entry == nil {
 		return false
@@ -550,10 +575,88 @@ func nativeWindowProc(hwnd, msg, wparam, lparam uintptr) uintptr {
 
 	if msg == nativeWMNCHitTest {
 		result := nativeCallDefaultWindowProc(oldProc, hwnd, msg, wparam, lparam)
-		if result == nativeHTClient && nativeDragActionHitTest(entry, hwnd, lparam) {
-			return nativeHTCaption
+		if nativeMaximizeButtonHitTest(entry, hwnd, lparam) {
+			return nativeHTMaxButton
+		}
+		if result == nativeHTClient {
+			if nativeDragActionHitTest(entry, hwnd, lparam) {
+				return nativeHTCaption
+			}
 		}
 		return result
+	}
+
+	if msg == nativeWMNCPointerUpdate || msg == nativeWMNCMouseMove {
+		inside := nativeMaximizeButtonHitTest(entry, hwnd, lparam)
+		hit := wparam
+		if inside && msg == nativeWMNCMouseMove {
+			hit = nativeHTMaxButton
+		}
+		nativeForwardNonClientInputToGio(oldProc, hwnd, msg, hit, lparam)
+		result := nativeCallDefaultWindowProc(oldProc, hwnd, msg, hit, lparam)
+		if hit == nativeHTMaxButton || inside {
+			nativeInvalidateHiddenFrame(entry, hwnd)
+		}
+		return result
+	}
+
+	if msg == nativeWMMouseMove {
+		result := nativeCallDefaultWindowProc(oldProc, hwnd, msg, wparam, lparam)
+		if nativeMaximizeButtonClientHitTest(entry, hwnd, lparam) {
+			nativeForwardMaximizeClientHoverToNonClient(oldProc, hwnd, lparam)
+			nativeInvalidateHiddenFrame(entry, hwnd)
+		}
+		return result
+	}
+
+	if msg == nativeWMNCPointerDown || msg == nativeWMNCPointerUp {
+		inside := nativeMaximizeButtonHitTest(entry, hwnd, lparam)
+		active := nativeMaximizePointerDown(entry)
+		if inside || active {
+			if msg == nativeWMNCPointerDown {
+				nativeSetMaximizePointerDown(entry, true)
+				nativeSetMaximizeMouseDown(entry, false)
+			}
+			nativeForwardNonClientInputToGio(oldProc, hwnd, msg, wparam, lparam)
+			if msg == nativeWMNCPointerUp {
+				nativeSetMaximizePointerDown(entry, false)
+			}
+			nativeInvalidateHiddenFrame(entry, hwnd)
+			return 0
+		}
+	}
+
+	if wparam == nativeHTMaxButton {
+		switch msg {
+		case nativeWMNCLButtonDown:
+			nativeForwardNonClientInputToGio(oldProc, hwnd, msg, wparam, lparam)
+			if !nativeMaximizePointerDown(entry) {
+				nativeSetMaximizeMouseDown(entry, true)
+			}
+			return 0
+		case nativeWMNCLButtonUp:
+			nativeForwardNonClientInputToGio(oldProc, hwnd, msg, wparam, lparam)
+			activate := nativeMaximizeMouseDown(entry) && !nativeMaximizePointerDown(entry)
+			nativeSetMaximizeMouseDown(entry, false)
+			if activate && entry != nil {
+				entry.activateNativeMaximizeButton()
+			}
+			return 0
+		case nativeWMNCLDblClk:
+			return 0
+		}
+	}
+
+	if msg == nativeWMNCMouseLeave {
+		nativeForwardNonClientInputToGio(oldProc, hwnd, msg, wparam, lparam)
+		result := nativeCallDefaultWindowProc(oldProc, hwnd, msg, wparam, lparam)
+		nativeInvalidateHiddenFrame(entry, hwnd)
+		return result
+	}
+
+	if msg == nativeWMPointerUp || msg == nativeWMPointerCaptureChanged || msg == nativeWMCancelMode {
+		nativeSetMaximizePointerDown(entry, false)
+		nativeSetMaximizeMouseDown(entry, false)
 	}
 
 	if entry != nil && nativeHiddenFrame(entry) {
@@ -589,6 +692,130 @@ func nativeDragActionHitTest(entry *windowEntry, hwnd, lparam uintptr) bool {
 		return false
 	}
 	return entry.nativeActionMoveAt(int(pt.X), int(pt.Y))
+}
+
+func nativeMaximizeButtonHitTest(entry *windowEntry, hwnd, lparam uintptr) bool {
+	if entry == nil || hwnd == 0 {
+		return false
+	}
+	pt := nativePointFromLParam(lparam)
+	if ok, _, _ := nativeScreenToClient.Call(hwnd, uintptr(unsafe.Pointer(&pt))); ok == 0 {
+		return false
+	}
+	return entry.nativeMaximizeButtonAt(int(pt.X), int(pt.Y))
+}
+
+func nativeMaximizeButtonClientHitTest(entry *windowEntry, hwnd, lparam uintptr) bool {
+	if entry == nil || hwnd == 0 {
+		return false
+	}
+	pt := nativePointFromLParam(lparam)
+	return entry.nativeMaximizeButtonAt(int(pt.X), int(pt.Y))
+}
+
+func nativeForwardMaximizeClientHoverToNonClient(oldProc, hwnd, lparam uintptr) bool {
+	if oldProc == 0 || hwnd == 0 {
+		return false
+	}
+	pt := nativePointFromLParam(lparam)
+	if ok, _, _ := nativeClientToScreen.Call(hwnd, uintptr(unsafe.Pointer(&pt))); ok == 0 {
+		return false
+	}
+	nativeCallDefaultWindowProc(oldProc, hwnd, nativeWMNCMouseMove, nativeHTMaxButton, nativeLParamFromPoint(pt))
+	return true
+}
+
+func nativeForwardNonClientInputToGio(oldProc, hwnd, msg, wparam, lparam uintptr) bool {
+	if oldProc == 0 || hwnd == 0 {
+		return false
+	}
+	clientMsg, clientWParam, clientCoords, ok := nativeClientInputMessage(msg, wparam)
+	if !ok {
+		return false
+	}
+	clientLParam := lparam
+	if clientCoords {
+		pt := nativePointFromLParam(lparam)
+		if ok, _, _ := nativeScreenToClient.Call(hwnd, uintptr(unsafe.Pointer(&pt))); ok == 0 {
+			return false
+		}
+		clientLParam = nativeLParamFromPoint(pt)
+	}
+	nativeCallDefaultWindowProc(oldProc, hwnd, clientMsg, clientWParam, clientLParam)
+	return true
+}
+
+func nativeClientInputMessage(msg, wparam uintptr) (clientMsg, clientWParam uintptr, clientCoords bool, ok bool) {
+	switch msg {
+	case nativeWMNCPointerUpdate:
+		return nativeWMPointerUpdate, wparam, false, true
+	case nativeWMNCPointerDown:
+		return nativeWMPointerDown, wparam, false, true
+	case nativeWMNCPointerUp:
+		return nativeWMPointerUp, wparam, false, true
+	case nativeWMNCMouseMove:
+		return nativeWMMouseMove, 0, true, true
+	case nativeWMNCLButtonDown, nativeWMNCLDblClk:
+		return nativeWMLButtonDown, nativeMKLButton, true, true
+	case nativeWMNCLButtonUp:
+		return nativeWMLButtonUp, 0, true, true
+	case nativeWMNCMouseLeave:
+		return nativeWMMouseLeave, 0, true, true
+	default:
+		return 0, 0, false, false
+	}
+}
+
+func nativeMaximizePointerDown(entry *windowEntry) bool {
+	if entry == nil {
+		return false
+	}
+	entry.mu.RLock()
+	down := entry.nativeMaximizePointerDown
+	entry.mu.RUnlock()
+	return down
+}
+
+func nativeSetMaximizePointerDown(entry *windowEntry, down bool) {
+	if entry == nil {
+		return
+	}
+	entry.mu.Lock()
+	entry.nativeMaximizePointerDown = down
+	entry.mu.Unlock()
+}
+
+func nativeMaximizeMouseDown(entry *windowEntry) bool {
+	if entry == nil {
+		return false
+	}
+	entry.mu.RLock()
+	down := entry.nativeMaximizeMouseDown
+	entry.mu.RUnlock()
+	return down
+}
+
+func nativeSetMaximizeMouseDown(entry *windowEntry, down bool) {
+	if entry == nil {
+		return
+	}
+	entry.mu.Lock()
+	entry.nativeMaximizeMouseDown = down
+	entry.mu.Unlock()
+}
+
+func nativeLParamFromPoint(pt nativePoint) uintptr {
+	return uintptr(uint16(pt.X)) | uintptr(uint16(pt.Y))<<16
+}
+
+func nativeInvalidateHiddenFrame(entry *windowEntry, hwnd uintptr) {
+	if hwnd == 0 || entry == nil || !nativeHiddenFrame(entry) {
+		return
+	}
+	nativeRedrawWindow.Call(hwnd, 0, 0, nativeRDWInvalidate|nativeRDWFrame|nativeRDWAllChildren)
+	if entry.win != nil {
+		entry.win.Invalidate()
+	}
 }
 
 func nativePointFromLParam(lparam uintptr) nativePoint {

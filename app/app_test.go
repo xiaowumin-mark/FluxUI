@@ -174,6 +174,19 @@ func TestWindowSetMaxSizeBlocksFutureMaximize(t *testing.T) {
 	if state.MaxWidth != 900 || state.MaxHeight != 700 || state.Maximized {
 		t.Fatalf("unexpected constrained state: %#v", state)
 	}
+	if !handle.SetMaxSize(0, 0) {
+		t.Fatal("expected SetMaxSize(0, 0) to clear the max size")
+	}
+	if !handle.Maximize() {
+		t.Fatal("expected Maximize to succeed after clearing max size")
+	}
+	state, ok = handle.State()
+	if !ok {
+		t.Fatal("expected state for live window")
+	}
+	if state.MaxWidth != 0 || state.MaxHeight != 0 || !state.Maximized {
+		t.Fatalf("unexpected cleared max-size state: %#v", state)
+	}
 }
 
 func TestWindowMaximizeAvailabilityRequiresResizableWindow(t *testing.T) {
@@ -569,6 +582,9 @@ func TestWindowInvalidInputsAndClosedState(t *testing.T) {
 	}
 	if handle.SetMaxSize(100, 0) {
 		t.Fatal("expected invalid SetMaxSize to fail")
+	}
+	if handle.SetMaxSize(-1, -1) {
+		t.Fatal("expected negative SetMaxSize to fail")
 	}
 	if handle.SetHiddenMemoryPolicy(WindowHiddenMemoryPolicy(99)) {
 		t.Fatal("expected invalid SetHiddenMemoryPolicy to fail")

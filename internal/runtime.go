@@ -27,11 +27,13 @@ type Runtime struct {
 	activeFx    map[MemoryKey]struct{}
 	pendingFx   []func()
 
-	hookCounts           map[string]int
-	prevHookCounts       map[string]int
-	hookCountIDs         map[PathID]int
-	prevHookCountIDs     map[PathID]int
-	windowDragAreaActive bool
+	hookCounts               map[string]int
+	prevHookCounts           map[string]int
+	hookCountIDs             map[PathID]int
+	prevHookCountIDs         map[PathID]int
+	windowDragAreaActive     bool
+	nativeWindowActionRouter bool
+	nativeWindowActions      []NativeWindowActionRegion
 
 	// hookCounts and prevHookCounts enforce React's "Rules of Hooks":
 	// hooks must always be called in the same count and order every frame.
@@ -163,6 +165,8 @@ func (r *Runtime) BeginFrame() {
 	clear(r.activeFx)
 	r.pendingFx = r.pendingFx[:0]
 	r.windowDragAreaActive = false
+	r.nativeWindowActionRouter = false
+	r.nativeWindowActions = r.nativeWindowActions[:0]
 }
 
 // EndFrame runs queued effects, cleans up unmounted effects, and validates

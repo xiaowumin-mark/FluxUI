@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xiaowumin-mark/FluxUI/icons/md3"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
@@ -179,7 +180,15 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 					status.Set(fmt.Sprintf("Decorated set to %v.", next))
 				})),
 				ui.HSpacerElement(8),
-				ui.ExpandedElement(button("Set min/max", func(ctx *ui.Context) {
+				ui.ExpandedElement(button(docsSystemWindowMinMaxLabel(windowState), func(ctx *ui.Context) {
+					if docsSystemWindowHasMaxSize(windowState) {
+						if !ui.WindowSetMaxSize(ctx, 0, 0) {
+							status.Set("Window max size clear failed.")
+							return
+						}
+						status.Set("Window max size cleared; maximize and Snap Flyout are available again.")
+						return
+					}
 					if !ui.WindowSetMinSize(ctx, 640, 420) {
 						status.Set("Window min size update failed.")
 						return
@@ -190,13 +199,6 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 					}
 					status.Set("Window min/max set to 640x420 / 1200x900.")
 				})),
-			),
-			ui.VSpacerElement(8),
-			ui.WindowDragAreaElement(
-				ui.ContainerDecorationElement(
-					ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.Symmetric(8, 10)).WithRad(8),
-					ui.TextElement("Drag this strip after hiding the Windows frame.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
-				),
 			),
 			ui.VSpacerElement(8),
 			ui.RowElement(
@@ -231,6 +233,15 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 					status.Set(formatDocsWindowsChromeAvailability(ui.ProbeWindowsChrome()))
 				})),
 			),
+			ui.VSpacerElement(8),
+			ui.WindowDragAreaElement(
+				ui.ContainerDecorationElement(
+					ui.Bg(th.Colors.SurfaceContainerLow).WithPad(ui.Symmetric(8, 10)).WithRad(8),
+					ui.TextElement("Drag this strip after hiding the Windows frame.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+				),
+			),
+			ui.VSpacerElement(8),
+			docsSystemSnapFlyoutRow(windowState, status, th),
 			ui.VSpacerElement(8),
 			ui.RowElement(
 				ui.ExpandedElement(button("Start drag", func(ctx *ui.Context) {
@@ -349,6 +360,87 @@ func docsSystemWindowSection(th *ui.Theme) ui.Element {
 			ui.TextElement(status.Value(), ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		), th)
 	})
+}
+
+func docsSystemSnapFlyoutRow(state ui.WindowState, status docsStringState, th *ui.Theme) ui.Element {
+	return ui.RowElement(
+		ui.ExpandedElement(ui.ColumnElement(
+			ui.TextElement("Windows Snap Flyout button", ui.TextSize(12), ui.TextColor(th.Colors.OnSurface)),
+			ui.VSpacerElement(4),
+			ui.TextElement("Hover this icon on Windows 11 to let the OS show Snap Layouts; click toggles maximize/restore.", ui.TextSize(12), ui.TextColor(th.Colors.OnSurfaceVariant)),
+		)),
+		ui.HSpacerElement(8),
+		docsSystemWindowMaximizeButton(state, status, th),
+	)
+}
+
+func docsSystemWindowMaximizeButton(state ui.WindowState, status docsStringState, th *ui.Theme) ui.Element {
+	disabled := !docsSystemWindowMaximizeAvailable(state)
+	icon := "crop_square"
+	action := "maximize"
+	if state.Maximized {
+		icon = "filter_none"
+		action = "restore"
+	}
+	foreground := th.Colors.OnSurface
+	if disabled {
+		foreground = th.Colors.OnSurfaceVariant
+	}
+	return ui.TooltipElement(
+		fmt.Sprintf("Windows Snap Flyout (%s)", action),
+		ui.WindowMaximizeButtonElement(
+			ui.IconButtonElement(
+				ui.IconElement(icon, ui.IconSize(18), ui.IconUseFont(md3.ID)),
+				ui.IconButtonSize(40),
+				ui.IconButtonForeground(foreground),
+				ui.IconButtonDecoration(docsSystemWindowMaximizeButtonDecoration(th)),
+				ui.IconButtonDisabled(disabled),
+				ui.IconButtonOnClick(func(ctx *ui.Context) {
+					if state.Maximized {
+						if !ui.WindowRestore(ctx) {
+							status.Set("Window restore failed.")
+							return
+						}
+						status.Set("Window restore requested from Snap Flyout button.")
+						return
+					}
+					if !ui.WindowMaximize(ctx) {
+						status.Set("Window maximize failed.")
+						return
+					}
+					status.Set("Window maximize requested from Snap Flyout button.")
+				}),
+			),
+			ui.WindowMaximizeButtonDisabled(disabled),
+		),
+	)
+}
+
+func docsSystemWindowMaximizeButtonDecoration(th *ui.Theme) ui.Decoration {
+	return ui.Bg(th.Colors.SurfaceContainerHigh).
+		WithRad(8).
+		WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}).
+		WithHover(ui.Bg(th.Colors.PrimaryContainer).WithRad(8).WithBorder(ui.Border{Width: 1, Color: th.Colors.Primary})).
+		WithPressed(ui.Bg(th.Colors.SecondaryContainer).WithRad(8).WithBorder(ui.Border{Width: 1, Color: th.Colors.Secondary})).
+		WithDisabled(ui.Bg(th.Colors.SurfaceContainerLow).WithRad(8).WithBorder(ui.Border{Width: 1, Color: th.Colors.OutlineVariant}))
+}
+
+func docsSystemWindowMaximizeAvailable(state ui.WindowState) bool {
+	return state.Resizable &&
+		!state.Minimized &&
+		!state.Fullscreen &&
+		!docsSystemWindowHasMaxSize(state)
+}
+
+func docsSystemWindowHasMaxSize(state ui.WindowState) bool {
+	return state.MaxWidth > 0 && state.MaxHeight > 0
+}
+
+func docsSystemWindowMinMaxLabel(state ui.WindowState) string {
+	if docsSystemWindowHasMaxSize(state) {
+		return "Clear max size"
+	}
+	return "Set min/max"
 }
 
 func docsSystemWindowSummary(state ui.WindowState, nativeHandle uintptr, nativeOK bool) string {

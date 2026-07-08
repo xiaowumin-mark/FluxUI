@@ -461,6 +461,14 @@ func WindowDragAreaElement(child Element, opts ...WindowDragAreaOption) Element 
 	}}
 }
 
+// WindowMaximizeButtonElement creates an Element that exposes its child area as
+// a Windows native maximize button hit-test region.
+func WindowMaximizeButtonElement(child Element, opts ...WindowMaximizeButtonOption) Element {
+	return &singleChildElement{kind: "window-maximize-button", child: child, renderFn: func(child Widget) Widget {
+		return widget.WindowMaximizeButton(child, opts...)
+	}}
+}
+
 // CheckboxElement 创建可参与 reconciler 的复选框 Element。
 func CheckboxElement(label string, checked bool, opts ...CheckboxOption) Element {
 	return FromWidget(widget.Checkbox(label, checked, opts...))

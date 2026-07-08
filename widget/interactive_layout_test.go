@@ -782,6 +782,213 @@ func TestWindowDragAreaDisabledDoesNotRegisterNativeDragArea(t *testing.T) {
 	}
 }
 
+func TestWindowMaximizeButtonRegistersNativeActionRegion(t *testing.T) {
+	var ops op.Ops
+	rt := internal.NewRuntime(nil)
+	gtx := gioLayout.Context{
+		Ops:         &ops,
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: gioLayout.Constraints{Max: image.Pt(800, 600)},
+	}
+	w := WindowMaximizeButton(Spacer(46, 32))
+
+	layoutWindowDragAreaTestFrame(rt, gtx, w)
+
+	regions := rt.NativeWindowActionRegions()
+	if len(regions) != 1 {
+		t.Fatalf("native action regions len = %d, want 1", len(regions))
+	}
+	region := regions[0]
+	if region.Action != internal.NativeWindowActionMaximizeButton {
+		t.Fatalf("native action region action = %v, want %v", region.Action, internal.NativeWindowActionMaximizeButton)
+	}
+	if got, want := region.Rect, image.Rect(0, 0, 46, 32); got != want {
+		t.Fatalf("native action region rect = %v, want %v", got, want)
+	}
+	if !rt.NativeWindowActionRouterActive() {
+		t.Fatal("expected WindowMaximizeButton to keep the native action router active")
+	}
+
+	var router input.Router
+	router.Frame(&ops)
+	action, ok := router.ActionAt(f32.Pt(23, 16))
+	if !ok {
+		t.Fatal("expected WindowMaximizeButton to register a system action")
+	}
+	if action != system.ActionMaximize {
+		t.Fatalf("WindowMaximizeButton action = %v, want %v", action, system.ActionMaximize)
+	}
+}
+
+func TestWindowMaximizeButtonDisabledDoesNotRegisterNativeActionRegion(t *testing.T) {
+	var ops op.Ops
+	rt := internal.NewRuntime(nil)
+	gtx := gioLayout.Context{
+		Ops:         &ops,
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: gioLayout.Constraints{Max: image.Pt(800, 600)},
+	}
+	w := WindowMaximizeButton(Spacer(46, 32), WindowMaximizeButtonDisabled(true))
+
+	layoutWindowDragAreaTestFrame(rt, gtx, w)
+
+	if rt.NativeWindowActionRegionsActive() {
+		t.Fatal("disabled WindowMaximizeButton should not mark a native action region")
+	}
+	if rt.NativeWindowActionRouterActive() {
+		t.Fatal("disabled WindowMaximizeButton should not keep the native action router active")
+	}
+}
+
+func TestWindowMaximizeButtonNativeRegionClipsToViewport(t *testing.T) {
+	var ops op.Ops
+	rt := internal.NewRuntime(nil)
+	gtx := gioLayout.Context{
+		Ops:         &ops,
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: gioLayout.Constraints{Max: image.Pt(800, 600)},
+	}
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gtx, rt).WithViewport(image.Rect(0, 16, 800, 600))
+	WindowMaximizeButton(Spacer(46, 32)).Layout(ctx)
+	rt.EndFrame()
+
+	regions := rt.NativeWindowActionRegions()
+	if len(regions) != 1 {
+		t.Fatalf("native action regions len = %d, want 1", len(regions))
+	}
+	if got, want := regions[0].Rect, image.Rect(0, 16, 46, 32); got != want {
+		t.Fatalf("clipped native action region = %v, want %v", got, want)
+	}
+
+	var router input.Router
+	router.Frame(&ops)
+	if action, ok := router.ActionAt(f32.Pt(23, 8)); ok && action == system.ActionMaximize {
+		t.Fatalf("unexpected maximize action outside clipped viewport: %v", action)
+	}
+	if action, ok := router.ActionAt(f32.Pt(23, 24)); !ok || action != system.ActionMaximize {
+		t.Fatalf("maximize action inside clipped viewport = %v, %v; want %v, true", action, ok, system.ActionMaximize)
+	}
+}
+
+func TestWindowMaximizeButtonActionTracksFlexedRowPosition(t *testing.T) {
+	var ops op.Ops
+	rt := internal.NewRuntime(nil)
+	gtx := gioLayout.Context{
+		Ops:         &ops,
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: gioLayout.Exact(image.Pt(200, 32)),
+	}
+	w := Row(
+		Expanded(Spacer(0, 32)),
+		WindowMaximizeButton(Spacer(46, 32)),
+	)
+
+	layoutWindowDragAreaTestFrame(rt, gtx, w)
+
+	var router input.Router
+	router.Frame(&ops)
+	if action, ok := router.ActionAt(f32.Pt(177, 16)); !ok || action != system.ActionMaximize {
+		t.Fatalf("action at maximize button = %v, %v; want %v, true", action, ok, system.ActionMaximize)
+	}
+	if action, ok := router.ActionAt(f32.Pt(20, 16)); ok && action == system.ActionMaximize {
+		t.Fatalf("unexpected maximize action in flexed title area: %v", action)
+	}
+}
+
+func TestWindowMaximizeButtonActionWorksInsidePopup(t *testing.T) {
+	var ops op.Ops
+	rt := internal.NewRuntime(nil)
+	gtx := gioLayout.Context{
+		Ops:         &ops,
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: gioLayout.Exact(image.Pt(800, 600)),
+	}
+	w := Popup(
+		true,
+		Tooltip("Maximize", WindowMaximizeButton(Spacer(46, 32))),
+		PopupWidth(200),
+		PopupHeight(120),
+		PopupQuick(true),
+		PopupMaskClosable(false),
+	)
+
+	layoutWindowDragAreaTestFrame(rt, gtx, w)
+
+	var router input.Router
+	router.Frame(&ops)
+	if action, ok := router.ActionAt(f32.Pt(330, 270)); !ok || action != system.ActionMaximize {
+		t.Fatalf("popup maximize action = %v, %v; want %v, true", action, ok, system.ActionMaximize)
+	}
+	if action, ok := router.ActionAt(f32.Pt(20, 20)); ok && action == system.ActionMaximize {
+		t.Fatalf("unexpected maximize action outside popup panel: %v", action)
+	}
+}
+
+func TestWindowMaximizeButtonActionWorksInsideFlexedPanelPopup(t *testing.T) {
+	var ops op.Ops
+	rt := internal.NewRuntime(nil)
+	gtx := gioLayout.Context{
+		Ops:         &ops,
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: gioLayout.Exact(image.Pt(1000, 600)),
+	}
+	w := Row(
+		FixedWidth(240, Spacer(0, 0)),
+		Expanded(Stack(
+			Spacer(0, 0),
+			Popup(
+				true,
+				Tooltip("Maximize", WindowMaximizeButton(Spacer(46, 32))),
+				PopupWidth(200),
+				PopupHeight(120),
+				PopupQuick(true),
+				PopupMaskClosable(false),
+			),
+		)),
+	)
+
+	layoutWindowDragAreaTestFrame(rt, gtx, w)
+
+	var router input.Router
+	router.Frame(&ops)
+	if action, ok := router.ActionAt(f32.Pt(550, 270)); !ok || action != system.ActionMaximize {
+		t.Fatalf("flexed panel popup maximize action = %v, %v; want %v, true", action, ok, system.ActionMaximize)
+	}
+	if action, ok := router.ActionAt(f32.Pt(330, 270)); ok && action == system.ActionMaximize {
+		t.Fatalf("unexpected maximize action at root-popup coordinate in flexed panel: %v", action)
+	}
+}
+
+func TestWindowMaximizeButtonActionSurvivesEstimatedViewportMiss(t *testing.T) {
+	var ops op.Ops
+	rt := internal.NewRuntime(nil)
+	gtx := gioLayout.Context{
+		Ops:         &ops,
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: gioLayout.Constraints{Max: image.Pt(800, 600)},
+	}
+
+	rt.BeginFrame()
+	ctx := internal.NewContext(gtx, rt).WithViewport(image.Rect(200, 200, 800, 600))
+	WindowMaximizeButton(Spacer(46, 32)).Layout(ctx)
+	rt.EndFrame()
+
+	if !rt.NativeWindowActionRouterActive() {
+		t.Fatal("expected estimated viewport miss to still keep the native action router active")
+	}
+	if rt.NativeWindowActionRegionsActive() {
+		t.Fatal("estimated viewport miss should not register a native action region")
+	}
+
+	var router input.Router
+	router.Frame(&ops)
+	if action, ok := router.ActionAt(f32.Pt(23, 16)); !ok || action != system.ActionMaximize {
+		t.Fatalf("maximize action after estimated viewport miss = %v, %v; want %v, true", action, ok, system.ActionMaximize)
+	}
+}
+
 func layoutWindowDragAreaTestFrame(rt *internal.Runtime, gtx gioLayout.Context, w Widget) {
 	rt.BeginFrame()
 	ctx := internal.NewContext(gtx, rt)

@@ -397,12 +397,22 @@ func (h WindowHandle) SetResizable(resizable bool) bool {
 
 // SetDecorated controls whether the window uses the OS decoration frame.
 func (h WindowHandle) SetDecorated(decorated bool) bool {
-	return h.apply(func(entry *windowEntry) {
+	ok := h.apply(func(entry *windowEntry) {
 		entry.win.Option(gioApp.Decorated(decorated))
 		entry.updateAndEmit(func(state *WindowState) {
 			state.Decorated = decorated
+			if !decorated {
+				state.WindowsFrameStyle.Mode = WindowsFrameHidden
+			}
 		})
 	})
+	if ok {
+		if entry, live := h.liveEntry(); live {
+			entry.syncNativeChrome()
+			entry.syncNativeCloseHook()
+		}
+	}
+	return ok
 }
 
 // SetWindowsFrameStyle applies Windows-only native frame adornments.
@@ -465,12 +475,18 @@ func (h WindowHandle) SetMinSize(width, height int) bool {
 
 // SetMaxSize 更新窗口最大尺寸（单位为 dp）。
 func (h WindowHandle) SetMaxSize(width, height int) bool {
-	if width <= 0 || height <= 0 {
+	if width < 0 || height < 0 || (width == 0) != (height == 0) {
 		return false
 	}
 	return h.apply(func(entry *windowEntry) {
 		if !entry.snapshot().Fullscreen {
-			entry.win.Option(gioApp.MaxSize(unit.Dp(width), unit.Dp(height)))
+			if width == 0 && height == 0 {
+				entry.win.Option(func(_ unit.Metric, config *gioApp.Config) {
+					config.MaxSize = image.Point{}
+				})
+			} else {
+				entry.win.Option(gioApp.MaxSize(unit.Dp(width), unit.Dp(height)))
+			}
 		}
 		entry.updateAndEmit(func(state *WindowState) {
 			state.MaxWidth = width
@@ -976,6 +992,7 @@ func (a *Application) Run() error {
 			entry.updateFromFrame(evt.Size, evt.Metric)
 			if entry.renderSuspendedSnapshot() {
 				entry.updateNativeActionRouter(nil)
+				entry.updateNativeWindowActionRegions(nil)
 				ops.Reset()
 				entry.releaseHiddenMemoryIfRequested()
 				evt.Frame(&ops)
@@ -997,14 +1014,16 @@ func (a *Application) Run() error {
 				}
 			}
 			rt.EndFrame()
-			if rt.WindowDragAreaActive() {
+			if rt.WindowDragAreaActive() || rt.NativeWindowActionRouterActive() || rt.NativeWindowActionRegionsActive() {
 				entry.updateNativeActionRouter(gtx.Ops)
 			} else {
 				entry.updateNativeActionRouter(nil)
 			}
+			entry.updateNativeWindowActionRegions(rt.NativeWindowActionRegions())
 
 			if entry.renderSuspendedSnapshot() {
 				entry.updateNativeActionRouter(nil)
+				entry.updateNativeWindowActionRegions(nil)
 				ops.Reset()
 				entry.releaseHiddenMemoryIfRequested()
 			}
@@ -1195,28 +1214,31 @@ func (c *windowController) IsAlive() bool {
 }
 
 type windowEntry struct {
-	id                      WindowID
-	win                     *gioApp.Window
-	alive                   atomic.Bool
-	trimHiddenMemoryPending atomic.Bool
-	mu                      sync.RWMutex
-	metric                  unit.Metric
-	nativeHandle            uintptr
-	nativeMaximizeHandle    uintptr
-	nativeMaximizeSynced    bool
-	nativeMaximizeEnabled   bool
-	nativeResizableHandle   uintptr
-	nativeResizableSynced   bool
-	nativeResizableEnabled  bool
-	nativeCloseHookHandle   uintptr
-	nativeCloseHooked       bool
-	nativeCloseOldProc      uintptr
-	nativeActionRouter      *gioInput.Router
-	state                   WindowState
-	closeRequested          func(WindowCloseRequest) bool
-	events                  []WindowEvent
-	eventSubscribers        map[uint64]*windowEventSubscriber
-	nextEventSubscriberID   uint64
+	id                        WindowID
+	win                       *gioApp.Window
+	alive                     atomic.Bool
+	trimHiddenMemoryPending   atomic.Bool
+	mu                        sync.RWMutex
+	metric                    unit.Metric
+	nativeHandle              uintptr
+	nativeMaximizeHandle      uintptr
+	nativeMaximizeSynced      bool
+	nativeMaximizeEnabled     bool
+	nativeResizableHandle     uintptr
+	nativeResizableSynced     bool
+	nativeResizableEnabled    bool
+	nativeCloseHookHandle     uintptr
+	nativeCloseHooked         bool
+	nativeCloseOldProc        uintptr
+	nativeActionRouter        *gioInput.Router
+	nativeActionRegions       []internal.NativeWindowActionRegion
+	nativeMaximizePointerDown bool
+	nativeMaximizeMouseDown   bool
+	state                     WindowState
+	closeRequested            func(WindowCloseRequest) bool
+	events                    []WindowEvent
+	eventSubscribers          map[uint64]*windowEventSubscriber
+	nextEventSubscriberID     uint64
 }
 
 type windowEventSubscriber struct {
@@ -1320,6 +1342,83 @@ func (entry *windowEntry) nativeActionMoveAt(x, y int) bool {
 	return ok && action == gioSystem.ActionMove
 }
 
+func (entry *windowEntry) updateNativeWindowActionRegions(regions []internal.NativeWindowActionRegion) {
+	if entry == nil {
+		return
+	}
+	var next []internal.NativeWindowActionRegion
+	if len(regions) > 0 {
+		next = append([]internal.NativeWindowActionRegion(nil), regions...)
+	}
+	entry.mu.Lock()
+	entry.nativeActionRegions = next
+	entry.mu.Unlock()
+	entry.syncNativeCloseHook()
+}
+
+func (entry *windowEntry) nativeWindowActionAt(x, y int) (internal.NativeWindowAction, bool) {
+	if entry == nil {
+		return 0, false
+	}
+	entry.mu.RLock()
+	regions := append([]internal.NativeWindowActionRegion(nil), entry.nativeActionRegions...)
+	state := entry.state
+	entry.mu.RUnlock()
+	if len(regions) == 0 || state.Fullscreen || state.Minimized {
+		return 0, false
+	}
+	pt := image.Pt(x, y)
+	for i := len(regions) - 1; i >= 0; i-- {
+		region := regions[i]
+		if !pt.In(region.Rect) {
+			continue
+		}
+		switch region.Action {
+		case internal.NativeWindowActionMaximizeButton:
+			if windowMaximizeAvailable(state) {
+				return region.Action, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func (entry *windowEntry) nativeMaximizeButtonAt(x, y int) bool {
+	if entry == nil {
+		return false
+	}
+	entry.mu.RLock()
+	router := entry.nativeActionRouter
+	state := entry.state
+	entry.mu.RUnlock()
+	if state.Fullscreen || state.Minimized || !windowMaximizeAvailable(state) {
+		return false
+	}
+	if router != nil {
+		action, ok := router.ActionAt(f32.Pt(float32(x), float32(y)))
+		if ok && action == gioSystem.ActionMaximize {
+			return true
+		}
+	}
+	action, ok := entry.nativeWindowActionAt(x, y)
+	return ok && action == internal.NativeWindowActionMaximizeButton
+}
+
+func (entry *windowEntry) activateNativeMaximizeButton() bool {
+	if entry == nil {
+		return false
+	}
+	state := entry.snapshot()
+	if state.Fullscreen || state.Minimized || !windowMaximizeAvailable(state) {
+		return false
+	}
+	handle := WindowHandle{id: entry.id}
+	if state.Maximized {
+		return handle.Restore()
+	}
+	return handle.Maximize()
+}
+
 func (entry *windowEntry) maximizeDisabledByConstraints() bool {
 	return !windowMaximizeAvailable(entry.snapshot())
 }
@@ -1391,7 +1490,10 @@ func (entry *windowEntry) syncNativeChrome() {
 func (entry *windowEntry) syncNativeCloseHook() {
 	entry.mu.Lock()
 	handle := entry.nativeHandle
-	enabled := entry.closeRequested != nil || entry.state.WindowsFrameStyle.Mode == WindowsFrameHidden || entry.nativeActionRouter != nil
+	enabled := entry.closeRequested != nil ||
+		entry.state.WindowsFrameStyle.Mode == WindowsFrameHidden ||
+		entry.nativeActionRouter != nil ||
+		len(entry.nativeActionRegions) > 0
 	hooked := entry.nativeCloseHooked
 	if handle == 0 {
 		entry.mu.Unlock()

@@ -6,6 +6,8 @@ import (
 	"image"
 	"testing"
 
+	"github.com/xiaowumin-mark/FluxUI/internal"
+
 	"gioui.org/io/system"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -114,6 +116,220 @@ func TestNativeActionRouterDetectsWindowMoveRegion(t *testing.T) {
 	entry.updateNativeActionRouter(nil)
 	if entry.nativeActionMoveAt(80, 20) {
 		t.Fatal("cleared native action router should not report drag regions")
+	}
+}
+
+func TestNativeWindowActionRegionDetectsMaximizeButton(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:     "Maximize region",
+		Resizable: true,
+		Alive:     true,
+	})
+	entry.updateNativeWindowActionRegions([]internal.NativeWindowActionRegion{
+		{
+			Action: internal.NativeWindowActionMaximizeButton,
+			Rect:   image.Rect(160, 0, 206, 32),
+		},
+	})
+
+	if !entry.nativeMaximizeButtonAt(180, 16) {
+		t.Fatal("expected native action region to detect maximize button")
+	}
+	if entry.nativeMaximizeButtonAt(140, 16) {
+		t.Fatal("did not expect maximize button outside native action region")
+	}
+
+	entry.updateState(func(state *WindowState) {
+		state.Fullscreen = true
+	})
+	if entry.nativeMaximizeButtonAt(180, 16) {
+		t.Fatal("fullscreen windows should not expose maximize button regions")
+	}
+
+	entry.updateState(func(state *WindowState) {
+		state.Fullscreen = false
+		state.Resizable = false
+	})
+	if entry.nativeMaximizeButtonAt(180, 16) {
+		t.Fatal("non-resizable windows should not expose maximize button regions")
+	}
+
+	entry.updateState(func(state *WindowState) {
+		state.Resizable = true
+		state.MaxWidth = 640
+		state.MaxHeight = 480
+	})
+	if entry.nativeMaximizeButtonAt(180, 16) {
+		t.Fatal("max-size constrained windows should not expose maximize button regions")
+	}
+
+	entry.updateState(func(state *WindowState) {
+		state.MaxWidth = 0
+		state.MaxHeight = 0
+	})
+	entry.updateNativeWindowActionRegions(nil)
+	if entry.nativeMaximizeButtonAt(180, 16) {
+		t.Fatal("cleared native action regions should not report maximize buttons")
+	}
+}
+
+func TestNativeActionRouterDetectsWindowMaximizeButton(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:     "Maximize action",
+		Resizable: true,
+		Alive:     true,
+	})
+
+	var ops op.Ops
+	stack := clip.Rect(image.Rect(160, 0, 206, 32)).Push(&ops)
+	system.ActionInputOp(system.ActionMaximize).Add(&ops)
+	stack.Pop()
+
+	entry.updateNativeActionRouter(&ops)
+	if !entry.nativeMaximizeButtonAt(180, 16) {
+		t.Fatal("expected native action router to detect ActionMaximize inside the maximize button")
+	}
+	if entry.nativeMaximizeButtonAt(140, 16) {
+		t.Fatal("did not expect ActionMaximize outside the maximize button")
+	}
+
+	entry.updateState(func(state *WindowState) {
+		state.Resizable = false
+	})
+	if entry.nativeMaximizeButtonAt(180, 16) {
+		t.Fatal("non-resizable windows should not expose ActionMaximize as maximize button")
+	}
+
+	entry.updateNativeActionRouter(nil)
+}
+
+func TestNativeClientInputMessageMapsNonClientPointerForGio(t *testing.T) {
+	tests := []struct {
+		name         string
+		msg          uintptr
+		wparam       uintptr
+		wantMsg      uintptr
+		wantWParam   uintptr
+		clientCoords bool
+	}{
+		{
+			name:       "pointer update",
+			msg:        nativeWMNCPointerUpdate,
+			wparam:     42,
+			wantMsg:    nativeWMPointerUpdate,
+			wantWParam: 42,
+		},
+		{
+			name:       "pointer down",
+			msg:        nativeWMNCPointerDown,
+			wparam:     43,
+			wantMsg:    nativeWMPointerDown,
+			wantWParam: 43,
+		},
+		{
+			name:       "pointer up",
+			msg:        nativeWMNCPointerUp,
+			wparam:     44,
+			wantMsg:    nativeWMPointerUp,
+			wantWParam: 44,
+		},
+		{
+			name:         "legacy mouse move",
+			msg:          nativeWMNCMouseMove,
+			wparam:       nativeHTMaxButton,
+			wantMsg:      nativeWMMouseMove,
+			clientCoords: true,
+		},
+		{
+			name:         "legacy mouse down",
+			msg:          nativeWMNCLButtonDown,
+			wparam:       nativeHTMaxButton,
+			wantMsg:      nativeWMLButtonDown,
+			wantWParam:   nativeMKLButton,
+			clientCoords: true,
+		},
+		{
+			name:         "legacy mouse up",
+			msg:          nativeWMNCLButtonUp,
+			wparam:       nativeHTMaxButton,
+			wantMsg:      nativeWMLButtonUp,
+			clientCoords: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotMsg, gotWParam, gotClientCoords, ok := nativeClientInputMessage(test.msg, test.wparam)
+			if !ok {
+				t.Fatal("expected non-client input message to map to Gio input")
+			}
+			if gotMsg != test.wantMsg || gotWParam != test.wantWParam || gotClientCoords != test.clientCoords {
+				t.Fatalf("mapped message = (%#x, %#x, %v), want (%#x, %#x, %v)",
+					gotMsg, gotWParam, gotClientCoords, test.wantMsg, test.wantWParam, test.clientCoords)
+			}
+		})
+	}
+}
+
+func TestNativeMaximizeInputStateSuppressesLegacyFallback(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:     "Maximize input",
+		Resizable: true,
+		Alive:     true,
+	})
+
+	if nativeMaximizePointerDown(entry) || nativeMaximizeMouseDown(entry) {
+		t.Fatal("new windows should not start with maximize input pressed")
+	}
+
+	nativeSetMaximizeMouseDown(entry, true)
+	if !nativeMaximizeMouseDown(entry) {
+		t.Fatal("expected legacy maximize mouse fallback state to be set")
+	}
+
+	nativeSetMaximizePointerDown(entry, true)
+	if !nativeMaximizePointerDown(entry) {
+		t.Fatal("expected forwarded pointer state to be set")
+	}
+
+	activateFallback := nativeMaximizeMouseDown(entry) && !nativeMaximizePointerDown(entry)
+	if activateFallback {
+		t.Fatal("legacy fallback should be suppressed while pointer input owns the click")
+	}
+
+	nativeSetMaximizePointerDown(entry, false)
+	nativeSetMaximizeMouseDown(entry, false)
+	if nativeMaximizePointerDown(entry) || nativeMaximizeMouseDown(entry) {
+		t.Fatal("maximize input states should clear")
+	}
+}
+
+func TestNativeMaximizeButtonActivationTogglesWindowMode(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{
+		Title:     "Maximize activate",
+		Resizable: true,
+		Alive:     true,
+	})
+
+	if !entry.activateNativeMaximizeButton() {
+		t.Fatal("expected native maximize activation to maximize")
+	}
+	if state := entry.snapshot(); !state.Maximized {
+		t.Fatalf("expected maximized state after native activation: %#v", state)
+	}
+
+	if !entry.activateNativeMaximizeButton() {
+		t.Fatal("expected native maximize activation to restore")
+	}
+	if state := entry.snapshot(); state.Maximized {
+		t.Fatalf("expected restored state after second native activation: %#v", state)
+	}
+
+	entry.updateState(func(state *WindowState) {
+		state.Resizable = false
+	})
+	if entry.activateNativeMaximizeButton() {
+		t.Fatal("non-resizable windows should not activate native maximize")
 	}
 }
 

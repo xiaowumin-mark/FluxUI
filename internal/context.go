@@ -431,6 +431,30 @@ func (c *Context) RegisterWindowDragArea() {
 	c.runtime.RegisterWindowDragArea()
 }
 
+// RegisterWindowMaximizeButton records a native maximize button hit-test region
+// for custom Windows chrome.
+func (c *Context) RegisterWindowMaximizeButton(rect image.Rectangle) {
+	if c == nil || c.runtime == nil {
+		return
+	}
+	if c.hasViewport {
+		rect = rect.Intersect(c.viewport)
+		if rect.Empty() {
+			return
+		}
+	}
+	c.runtime.RegisterNativeWindowActionRegion(NativeWindowActionMaximizeButton, rect)
+}
+
+// RegisterWindowActionInput keeps the Gio system action router available to
+// native window hit testing for the current frame.
+func (c *Context) RegisterWindowActionInput() {
+	if c == nil || c.runtime == nil {
+		return
+	}
+	c.runtime.RegisterNativeWindowActionRouter()
+}
+
 // WindowSetMinSize 更新当前窗口最小尺寸（单位 dp）。
 func (c *Context) WindowSetMinSize(width, height int) bool {
 	if c == nil || c.runtime == nil {

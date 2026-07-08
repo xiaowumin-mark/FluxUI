@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 
+	"github.com/xiaowumin-mark/FluxUI/icons/md3"
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
@@ -22,7 +23,7 @@ func app(ctx *ui.Context) ui.Element {
 	return ui.ContainerDecorationElement(
 		windowShellDecoration(state),
 		ui.ColumnElement(
-			titleBar(status.Value()),
+			titleBar(status.Value(), state),
 			ui.ScrollViewElement(
 				ui.ContainerDecorationElement(
 					ui.Bg(color.NRGBA{R: 244, G: 247, B: 251, A: 255}).WithPad(ui.All(20)),
@@ -36,6 +37,8 @@ func app(ctx *ui.Context) ui.Element {
 							ui.HSpacerElement(14),
 							ui.ExpandedElement(dragPanel()),
 						),
+						ui.VSpacerElement(14),
+						snapFlyoutPanel(state, status),
 						ui.VSpacerElement(14),
 						ui.RowElement(
 							ui.ExpandedElement(runtimePanel(status)),
@@ -55,7 +58,7 @@ func app(ctx *ui.Context) ui.Element {
 	)
 }
 
-func titleBar(status string) ui.Element {
+func titleBar(status string, state ui.WindowState) ui.Element {
 	return ui.ContainerDecorationElement(
 		ui.Bg(color.NRGBA{R: 26, G: 33, B: 45, A: 255}).WithPad(ui.Symmetric(8, 10)),
 		ui.RowElement(
@@ -70,15 +73,65 @@ func titleBar(status string) ui.Element {
 				),
 			)),
 			ui.HSpacerElement(8),
-			ui.OutlinedButtonElement(ui.TextElement("Min", ui.TextSize(12)), ui.ButtonPadding(ui.Symmetric(6, 10)), ui.OnClick(func(ctx *ui.Context) {
+			captionButton("minimize", false, func(ctx *ui.Context) {
 				ui.WindowMinimize(ctx)
-			})),
+			}),
 			ui.HSpacerElement(6),
-			ui.OutlinedButtonElement(ui.TextElement("Close", ui.TextSize(12)), ui.ButtonPadding(ui.Symmetric(6, 10)), ui.OnClick(func(ctx *ui.Context) {
+			maximizeCaptionButton(state),
+			ui.HSpacerElement(6),
+			captionButton("close", false, func(ctx *ui.Context) {
 				ui.WindowClose(ctx)
-			})),
+			}),
 		),
 	)
+}
+
+func maximizeCaptionButton(state ui.WindowState) ui.Element {
+	disabled := !captionMaximizeAvailable(state) || state.Fullscreen || state.Minimized
+	icon := "crop_square"
+	onClick := func(ctx *ui.Context) {
+		ui.WindowMaximize(ctx)
+	}
+	if state.Maximized {
+		icon = "filter_none"
+		onClick = func(ctx *ui.Context) {
+			ui.WindowRestore(ctx)
+		}
+	}
+	return ui.WindowMaximizeButtonElement(
+		captionButton(icon, disabled, onClick),
+		ui.WindowMaximizeButtonDisabled(disabled),
+	)
+}
+
+func captionButton(icon string, disabled bool, onClick func(*ui.Context)) ui.Element {
+	return ui.IconButtonElement(
+		ui.IconElement(icon, ui.IconSize(17), ui.IconUseFont(md3.ID)),
+		ui.IconButtonSize(32),
+		ui.IconButtonForeground(captionButtonForeground(disabled)),
+		ui.IconButtonDecoration(captionButtonDecoration()),
+		ui.IconButtonDisabled(disabled),
+		ui.IconButtonOnClick(onClick),
+	)
+}
+
+func captionButtonDecoration() ui.Decoration {
+	return ui.Bg(color.NRGBA{R: 255, G: 255, B: 255, A: 18}).
+		WithRad(6).
+		WithHover(ui.Bg(color.NRGBA{R: 255, G: 255, B: 255, A: 34}).WithRad(6)).
+		WithPressed(ui.Bg(color.NRGBA{R: 255, G: 255, B: 255, A: 46}).WithRad(6)).
+		WithDisabled(ui.Bg(color.NRGBA{R: 255, G: 255, B: 255, A: 10}).WithRad(6))
+}
+
+func captionButtonForeground(disabled bool) color.NRGBA {
+	if disabled {
+		return color.NRGBA{R: 220, G: 229, B: 238, A: 95}
+	}
+	return color.NRGBA{R: 255, G: 255, B: 255, A: 245}
+}
+
+func captionMaximizeAvailable(state ui.WindowState) bool {
+	return state.Resizable && !(state.MaxWidth > 0 && state.MaxHeight > 0)
 }
 
 func framePanel(state ui.WindowState, status interface {
@@ -185,6 +238,70 @@ func dragPanel() ui.Element {
 			ui.WindowDragAreaDisabled(true),
 		),
 	))
+}
+
+func snapFlyoutPanel(state ui.WindowState, status interface {
+	Set(string)
+}) ui.Element {
+	return section("Snap flyout", ui.RowElement(
+		ui.ExpandedElement(ui.ColumnElement(
+			ui.TextElement("Page-level native maximize region", ui.TextSize(12)),
+			ui.VSpacerElement(4),
+			ui.TextElement("This control is not part of the title bar, but still participates in Windows hit testing.", ui.TextSize(12)),
+		)),
+		ui.HSpacerElement(14),
+		pageMaximizeButton(state, status),
+	))
+}
+
+func pageMaximizeButton(state ui.WindowState, status interface {
+	Set(string)
+}) ui.Element {
+	disabled := !captionMaximizeAvailable(state) || state.Fullscreen || state.Minimized
+	icon := "crop_square"
+	onClick := func(ctx *ui.Context) {
+		if !ui.WindowMaximize(ctx) {
+			status.Set("Page maximize request failed.")
+			return
+		}
+		status.Set("Page maximize requested.")
+	}
+	if state.Maximized {
+		icon = "filter_none"
+		onClick = func(ctx *ui.Context) {
+			if !ui.WindowRestore(ctx) {
+				status.Set("Page restore request failed.")
+				return
+			}
+			status.Set("Page restore requested.")
+		}
+	}
+	return ui.WindowMaximizeButtonElement(
+		ui.IconButtonElement(
+			ui.IconElement(icon, ui.IconSize(20), ui.IconUseFont(md3.ID)),
+			ui.IconButtonSize(40),
+			ui.IconButtonForeground(pageMaximizeButtonForeground(disabled)),
+			ui.IconButtonDecoration(pageMaximizeButtonDecoration()),
+			ui.IconButtonDisabled(disabled),
+			ui.IconButtonOnClick(onClick),
+		),
+		ui.WindowMaximizeButtonDisabled(disabled),
+	)
+}
+
+func pageMaximizeButtonDecoration() ui.Decoration {
+	return ui.Bg(color.NRGBA{R: 226, G: 232, B: 240, A: 255}).
+		WithRad(8).
+		WithHover(ui.Bg(color.NRGBA{R: 203, G: 213, B: 225, A: 255}).WithRad(8)).
+		WithPressed(ui.Bg(color.NRGBA{R: 148, G: 163, B: 184, A: 255}).WithRad(8)).
+		WithDisabled(ui.Bg(color.NRGBA{R: 241, G: 245, B: 249, A: 255}).WithRad(8))
+}
+
+func pageMaximizeButtonForeground(disabled bool) color.NRGBA {
+	if disabled {
+		return color.NRGBA{R: 148, G: 163, B: 184, A: 255}
+	}
+	return color.NRGBA{R: 15, G: 23, B: 42, A: 255}
 }
 
 func runtimePanel(status interface {
