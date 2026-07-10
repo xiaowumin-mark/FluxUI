@@ -1579,6 +1579,9 @@ func TestAcquireSingleInstanceDispatch(t *testing.T) {
 }
 
 func TestLoopbackSingleInstanceForwardsSecondaryLaunch(t *testing.T) {
+	if !singleInstanceForwardingAllowed() {
+		t.Skip("single-instance launch forwarding is disabled for an elevated primary")
+	}
 	id := fmt.Sprintf("com.example.fluxui.test.%d", time.Now().UnixNano())
 	primaryOpts := singleInstanceOptions{id: id}
 	if err := normalizeSingleInstanceOptions(&primaryOpts); err != nil {
@@ -1885,7 +1888,7 @@ func TestOpenFileDialogChecksContextBeforeDriver(t *testing.T) {
 
 	fd := &testFileDialogDriver{
 		testDriver: testDriver{caps: CapabilitySet{CapabilityFileDialog: true}},
-		result:     FileDialogResult{Paths: []string{"C:\\tmp\\demo.txt"}},
+		result:     FileDialogResult{Paths: []string{filepath.Join(t.TempDir(), "demo.txt")}},
 	}
 	withTestDriver(t, fd)
 
@@ -1912,7 +1915,7 @@ func TestFileDialogEntrypointsDispatchModes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expected := FileDialogResult{Paths: []string{"C:\\tmp\\demo.txt"}}
+			expected := FileDialogResult{Paths: []string{filepath.Join(t.TempDir(), "demo.txt")}}
 			fd := &testFileDialogDriver{
 				testDriver: testDriver{caps: CapabilitySet{CapabilityFileDialog: true}},
 				result:     expected,
@@ -1940,19 +1943,20 @@ func TestFileDialogEntrypointsDispatchModes(t *testing.T) {
 }
 
 func TestFileDialogOptions(t *testing.T) {
+	defaultDir := t.TempDir()
 	filters := []FileFilter{{
 		Name:     "Images",
 		Patterns: []string{"*.png", "*.jpg"},
 	}}
 	fd := &testFileDialogDriver{
 		testDriver: testDriver{caps: CapabilitySet{CapabilityFileDialog: true}},
-		result:     FileDialogResult{Paths: []string{"C:\\tmp\\demo.txt"}},
+		result:     FileDialogResult{Paths: []string{filepath.Join(defaultDir, "demo.txt")}},
 	}
 	withTestDriver(t, fd)
 
 	_, err := SaveFileDialog(context.Background(),
 		FileDialogTitle("Save"),
-		FileDialogDefaultDir("C:\\tmp"),
+		FileDialogDefaultDir(defaultDir),
 		FileDialogDefaultName("demo.txt"),
 		FileDialogDefaultExtension("txt"),
 		FileDialogFilters(filters...),
@@ -1972,7 +1976,7 @@ func TestFileDialogOptions(t *testing.T) {
 	if fd.opts.title != "Save" {
 		t.Fatalf("unexpected title: %q", fd.opts.title)
 	}
-	if fd.opts.defaultDir != "C:\\tmp" {
+	if fd.opts.defaultDir != defaultDir {
 		t.Fatalf("unexpected default dir: %q", fd.opts.defaultDir)
 	}
 	if fd.opts.defaultName != "demo.txt" {
@@ -2003,9 +2007,10 @@ func TestFileDialogOptions(t *testing.T) {
 
 func TestFileDialogRemembersSuccessfulDirectory(t *testing.T) {
 	key := "recent-test"
+	dir := t.TempDir()
 	fd := &testFileDialogDriver{
 		testDriver: testDriver{caps: CapabilitySet{CapabilityFileDialog: true}},
-		result:     FileDialogResult{Paths: []string{"C:\\projects\\demo\\first.txt"}},
+		result:     FileDialogResult{Paths: []string{filepath.Join(dir, "first.txt")}},
 	}
 	withTestDriver(t, fd)
 
@@ -2015,21 +2020,22 @@ func TestFileDialogRemembersSuccessfulDirectory(t *testing.T) {
 
 	second := &testFileDialogDriver{
 		testDriver: testDriver{caps: CapabilitySet{CapabilityFileDialog: true}},
-		result:     FileDialogResult{Paths: []string{"C:\\projects\\demo\\second.txt"}},
+		result:     FileDialogResult{Paths: []string{filepath.Join(dir, "second.txt")}},
 	}
 	setDriver(second)
 	if _, err := OpenFileDialog(context.Background(), FileDialogRememberDir(key)); err != nil {
 		t.Fatalf("unexpected second dialog error: %v", err)
 	}
-	if second.opts.defaultDir != "C:\\projects\\demo" {
+	if second.opts.defaultDir != dir {
 		t.Fatalf("expected remembered default dir, got %q", second.opts.defaultDir)
 	}
 }
 
 func TestSaveFileDialogAppendsDefaultExtension(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "report")
 	fd := &testFileDialogDriver{
 		testDriver: testDriver{caps: CapabilitySet{CapabilityFileDialog: true}},
-		result:     FileDialogResult{Paths: []string{"C:\\projects\\demo\\report"}},
+		result:     FileDialogResult{Paths: []string{path}},
 	}
 	withTestDriver(t, fd)
 
@@ -2037,18 +2043,19 @@ func TestSaveFileDialogAppendsDefaultExtension(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected save dialog error: %v", err)
 	}
-	if len(result.Paths) != 1 || result.Paths[0] != "C:\\projects\\demo\\report.txt" {
+	if len(result.Paths) != 1 || result.Paths[0] != path+".txt" {
 		t.Fatalf("expected default extension to be appended, got %#v", result.Paths)
 	}
-	if fd.result.Paths[0] != "C:\\projects\\demo\\report" {
+	if fd.result.Paths[0] != path {
 		t.Fatalf("driver result should not be mutated, got %#v", fd.result.Paths)
 	}
 }
 
 func TestSaveFileDialogKeepsExistingExtension(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "report.md")
 	fd := &testFileDialogDriver{
 		testDriver: testDriver{caps: CapabilitySet{CapabilityFileDialog: true}},
-		result:     FileDialogResult{Paths: []string{"C:\\projects\\demo\\report.md"}},
+		result:     FileDialogResult{Paths: []string{path}},
 	}
 	withTestDriver(t, fd)
 
@@ -2056,7 +2063,7 @@ func TestSaveFileDialogKeepsExistingExtension(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected save dialog error: %v", err)
 	}
-	if len(result.Paths) != 1 || result.Paths[0] != "C:\\projects\\demo\\report.md" {
+	if len(result.Paths) != 1 || result.Paths[0] != path {
 		t.Fatalf("expected existing extension to be preserved, got %#v", result.Paths)
 	}
 }
@@ -2116,7 +2123,7 @@ func TestFileDialogStructuredErrorKind(t *testing.T) {
 func TestFileDialogDefaultOptions(t *testing.T) {
 	fd := &testFileDialogDriver{
 		testDriver: testDriver{caps: CapabilitySet{CapabilityFileDialog: true}},
-		result:     FileDialogResult{Paths: []string{"C:\\tmp\\demo.txt"}},
+		result:     FileDialogResult{Paths: []string{filepath.Join(t.TempDir(), "demo.txt")}},
 	}
 	withTestDriver(t, fd)
 
