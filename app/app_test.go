@@ -156,6 +156,7 @@ func TestWindowSetMaxSizeBlocksFutureMaximize(t *testing.T) {
 		TextScale: 1,
 		DPI:       96,
 		Decorated: true,
+		Resizable: true,
 		Alive:     true,
 	})
 	entry.metric = unit.Metric{PxPerDp: 1, PxPerSp: 1}

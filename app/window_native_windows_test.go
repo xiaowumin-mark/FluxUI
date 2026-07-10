@@ -5,6 +5,7 @@ package app
 import (
 	"image"
 	"testing"
+	"time"
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
 
@@ -12,6 +13,159 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 )
+
+func TestNativeWindowTargetRejectsReusedHandleGeneration(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{Alive: true})
+	const reusedHWND = uintptr(0x46575702)
+	stale := entry.setNativeWindowHandle(reusedHWND)
+	entry.invalidateNativeWindowHandle()
+	current := entry.setNativeWindowHandle(reusedHWND)
+	if stale.generation == current.generation {
+		t.Fatal("reused HWND should have a new lifecycle generation")
+	}
+
+	if stale.valid() {
+		t.Fatal("stale HWND generation should be invalid")
+	}
+	if !current.valid() {
+		t.Fatal("current HWND generation should remain valid")
+	}
+}
+
+func TestNativeWindowTargetIsNotPublishedUntilReady(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{Alive: true})
+	target := entry.stageNativeWindowHandle(0x46575705)
+	if snapshot := entry.nativeWindowTargetSnapshot(); snapshot.handle != 0 {
+		t.Fatalf("unready HWND was published: %#x", snapshot.handle)
+	}
+	if handle, ok := (WindowHandle{id: entry.id}).NativeHandle(); ok || handle != 0 {
+		t.Fatalf("NativeHandle before ready = (%#x, %v)", handle, ok)
+	}
+	if !entry.markNativeWindowTargetReady(target) {
+		t.Fatal("failed to mark current HWND generation ready")
+	}
+	if snapshot := entry.nativeWindowTargetSnapshot(); snapshot != target {
+		t.Fatalf("ready target = %#v, want %#v", snapshot, target)
+	}
+}
+
+func TestNativeWindowOperationRejectsCallbackReentry(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{Alive: true})
+	entry.nativeCallbackDepth.Store(1)
+	ran := false
+	if entry.withNativeWindowOperation(func() bool {
+		ran = true
+		return true
+	}) {
+		t.Fatal("native mutation should fail during a native callback")
+	}
+	if ran {
+		t.Fatal("native mutation ran during a native callback")
+	}
+	if (WindowHandle{id: entry.id}).Maximize() {
+		t.Fatal("Gio window mutation should fail during a native callback")
+	}
+}
+
+func TestNativeWindowOperationSerializesStateCommit(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{Alive: true})
+
+	firstStarted := make(chan struct{})
+	releaseFirstCommit := make(chan struct{})
+	firstDone := make(chan bool, 1)
+	go func() {
+		firstDone <- entry.withNativeWindowOperation(func() bool {
+			close(firstStarted)
+			<-releaseFirstCommit
+			entry.updateState(func(state *WindowState) { state.X = 1 })
+			return true
+		})
+	}()
+	<-firstStarted
+
+	secondCalling := make(chan struct{})
+	secondStarted := make(chan struct{})
+	secondDone := make(chan bool, 1)
+	go func() {
+		close(secondCalling)
+		secondDone <- entry.withNativeWindowOperation(func() bool {
+			close(secondStarted)
+			if entry.snapshot().X != 1 {
+				return false
+			}
+			entry.updateState(func(state *WindowState) { state.X = 2 })
+			return true
+		})
+	}()
+	<-secondCalling
+
+	select {
+	case <-secondStarted:
+		t.Fatal("next operation ran before the prior state commit")
+	case <-time.After(25 * time.Millisecond):
+	}
+	close(releaseFirstCommit)
+	if !<-firstDone || !<-secondDone {
+		t.Fatal("expected both serialized native operations to succeed")
+	}
+	if state := entry.snapshot(); state.X != 2 {
+		t.Fatalf("serialized state = %d, want 2", state.X)
+	}
+}
+
+func TestNativeCloseHookBindingRejectsReusedHWND(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{Alive: true})
+	const reusedHWND = uintptr(0x46575703)
+	stale := entry.setNativeWindowHandle(reusedHWND)
+	nativeCloseHookMu.Lock()
+	nativeCloseHookEntries[reusedHWND] = nativeCloseHookBinding{target: stale, oldProc: 0x1234}
+	nativeCloseHookMu.Unlock()
+	defer forgetNativeWindowCloseHookTarget(stale)
+
+	entry.invalidateNativeWindowHandle()
+	current := entry.setNativeWindowHandle(reusedHWND)
+	if target, ok := nativeCloseHookTarget(reusedHWND); ok || target.entry != nil {
+		t.Fatal("stale close-hook binding must not resolve after HWND reuse")
+	}
+	if binding, ok := nativeCloseHookBindingForHandle(reusedHWND); !ok || binding.oldProc != 0x1234 {
+		t.Fatal("installed hook must retain its old WNDPROC after target invalidation")
+	}
+	if !current.valid() {
+		t.Fatal("current reused HWND target should remain valid")
+	}
+}
+
+func TestForgetNativeCloseHookTargetDoesNotClearNewGeneration(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{Alive: true})
+	oldTarget := entry.setNativeWindowHandle(0x46575706)
+	newTarget := entry.setNativeWindowHandle(0x46575707)
+	entry.mu.Lock()
+	entry.nativeCloseHookHandle = newTarget.handle
+	entry.nativeCloseHookGeneration = newTarget.generation
+	entry.nativeCloseHooked = true
+	entry.nativeCloseOldProc = 0x5678
+	entry.mu.Unlock()
+
+	nativeCloseHookMu.Lock()
+	nativeCloseHookEntries[oldTarget.handle] = nativeCloseHookBinding{target: oldTarget, oldProc: 0x1234}
+	nativeCloseHookEntries[newTarget.handle] = nativeCloseHookBinding{target: newTarget, oldProc: 0x5678}
+	nativeCloseHookMu.Unlock()
+	defer forgetNativeWindowCloseHookTarget(newTarget)
+
+	forgetNativeWindowCloseHookTarget(oldTarget)
+	entry.mu.RLock()
+	hooked := entry.nativeCloseHooked &&
+		entry.nativeCloseHookHandle == newTarget.handle &&
+		entry.nativeCloseHookGeneration == newTarget.generation &&
+		entry.nativeCloseOldProc == 0x5678
+	entry.mu.RUnlock()
+	if !hooked {
+		t.Fatal("forgetting an old HWND generation cleared the current hook")
+	}
+	if binding, ok := nativeCloseHookBindingForHandle(newTarget.handle); !ok || binding.target != newTarget {
+		t.Fatal("forgetting an old HWND generation cleared the current binding")
+	}
+}
 
 func TestNativeWindowProcCloseRequestCanCancelWMClose(t *testing.T) {
 	entry := testRegisterWindow(t, WindowState{
@@ -27,16 +181,20 @@ func TestNativeWindowProcCloseRequestCanCancelWMClose(t *testing.T) {
 		if request.Window.ID() != entry.id {
 			t.Fatalf("unexpected request window: %#v", request.Window)
 		}
+		if request.Window.Maximize() {
+			t.Fatal("window mutation must fail instead of deadlocking inside WM_CLOSE")
+		}
 		return false
 	}) {
 		t.Fatal("expected close requested handler to be set")
 	}
 
 	const fakeHWND = uintptr(0x46575549)
+	target := entry.setNativeWindowHandle(fakeHWND)
 	nativeCloseHookMu.Lock()
-	nativeCloseHookEntries[fakeHWND] = entry
+	nativeCloseHookEntries[fakeHWND] = nativeCloseHookBinding{target: target}
 	nativeCloseHookMu.Unlock()
-	defer forgetNativeWindowCloseHookHandle(fakeHWND, entry)
+	defer forgetNativeWindowCloseHookTarget(target)
 
 	if result := nativeWindowProc(fakeHWND, nativeWMClose, 0, 0); result != 0 {
 		t.Fatalf("expected canceled WM_CLOSE to return 0, got %d", result)
@@ -61,10 +219,11 @@ func TestNativeWindowProcHiddenFrameSuppressesNonClientPaint(t *testing.T) {
 	})
 
 	const fakeHWND = uintptr(0x46575550)
+	target := entry.setNativeWindowHandle(fakeHWND)
 	nativeCloseHookMu.Lock()
-	nativeCloseHookEntries[fakeHWND] = entry
+	nativeCloseHookEntries[fakeHWND] = nativeCloseHookBinding{target: target}
 	nativeCloseHookMu.Unlock()
-	defer forgetNativeWindowCloseHookHandle(fakeHWND, entry)
+	defer forgetNativeWindowCloseHookTarget(target)
 
 	if result := nativeWindowProc(fakeHWND, nativeWMNCPaint, 0, 0); result != 0 {
 		t.Fatalf("expected hidden frame WM_NCPAINT to return 0, got %d", result)

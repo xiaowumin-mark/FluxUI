@@ -72,6 +72,21 @@ func TestWindowsShellResolveFileURL(t *testing.T) {
 		t.Fatalf("expected non-file URL to be ignored, ok=%v err=%v", ok, err)
 	}
 
+	remoteURLs := []string{
+		"file://attacker.example/share/secret.txt",
+		"file:////attacker.example/share/secret.txt",
+		"file:///%5C%5Cattacker.example%5Cshare%5Csecret.txt",
+	}
+	for _, remoteURL := range remoteURLs {
+		_, ok, err = windowsShellResolveFileURL(remoteURL)
+		if !ok {
+			t.Fatalf("expected remote file URL to be handled and rejected: %q", remoteURL)
+		}
+		if !errors.Is(err, ErrInvalidTarget) {
+			t.Fatalf("expected remote file URL to return ErrInvalidTarget: url=%q err=%v", remoteURL, err)
+		}
+	}
+
 	missingURL := "file:///" + strings.TrimPrefix(filepath.ToSlash(filepath.Join(dir, "missing.txt")), "/")
 	_, ok, err = windowsShellResolveFileURL(missingURL)
 	if !ok {

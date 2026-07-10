@@ -2,23 +2,23 @@
 
 package app
 
-func setNativeWindowAlwaysOnTop(uintptr, bool) bool {
+func setNativeWindowAlwaysOnTop(nativeWindowTarget, bool) bool {
 	return false
 }
 
-func setNativeWindowVisible(uintptr, bool) bool {
+func setNativeWindowVisible(nativeWindowTarget, bool) bool {
 	return false
 }
 
-func requestNativeWindowFocus(uintptr) bool {
+func requestNativeWindowFocus(nativeWindowTarget) bool {
 	return false
 }
 
-func startNativeWindowDragMove(uintptr) bool {
+func startNativeWindowDragMove(nativeWindowTarget) bool {
 	return false
 }
 
-func setNativeWindowFrameStyle(uintptr, WindowsFrameStyle, bool, bool) bool {
+func setNativeWindowFrameStyle(nativeWindowTarget, WindowsFrameStyle, bool, bool) bool {
 	return false
 }
 
@@ -26,15 +26,15 @@ func probeNativeWindowsChrome() WindowsChromeAvailability {
 	return WindowsChromeAvailability{}
 }
 
-func setNativeWindowPosition(uintptr, int, int) bool {
+func setNativeWindowPosition(nativeWindowTarget, int, int) bool {
 	return false
 }
 
-func setNativeWindowResizable(uintptr, bool) bool {
+func setNativeWindowResizable(nativeWindowTarget, bool) bool {
 	return false
 }
 
-func setNativeWindowMaximizeEnabled(uintptr, bool) bool {
+func setNativeWindowMaximizeEnabled(nativeWindowTarget, bool) bool {
 	return false
 }
 

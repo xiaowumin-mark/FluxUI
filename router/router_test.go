@@ -1,6 +1,8 @@
 package router
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -268,6 +270,107 @@ func TestTransitionProgressUsesEaseOut(t *testing.T) {
 	}
 }
 
+func TestSameRouteQueryNavigationDoesNotDuplicateStableScopeTransition(t *testing.T) {
+	_, ctx := newRouterTestContext()
+	state := &routerState{
+		routes: []Route{{Path: "/search"}},
+		config: routerConfig{
+			transition:         TransitionFade,
+			transitionDuration: time.Second,
+		},
+		stack: []stackEntry{{path: "/search?q=first", routeIndex: 0}},
+		transition: transitionState{
+			active: true,
+			from:   "/old?token=secret",
+			to:     "/search?q=first",
+		},
+	}
+
+	state.navigate(ctx, "/search?q=second", navPush, navigateOpts{})
+	if state.transition.active {
+		t.Fatal("same-route query update must not render two pages with the same stable scope")
+	}
+	if state.transition != (transitionState{}) {
+		t.Fatalf("same-route navigation retained stale transition data: %#v", state.transition)
+	}
+}
+
+func TestRouteScopeIDSeparatesDuplicateNames(t *testing.T) {
+	first := routeScopeID(Route{Path: "/first/:id", Name: "duplicate"})
+	second := routeScopeID(Route{Path: "/second/:id", Name: "duplicate"})
+	if first == second {
+		t.Fatalf("duplicate route names shared scope %q", first)
+	}
+	if first != routeScopeID(Route{Path: "/first/:id", Name: "duplicate"}) {
+		t.Fatal("route scope ID must remain stable for the same declaration")
+	}
+}
+
+func TestNavigationWithoutTransitionClearsRetainedQueryPaths(t *testing.T) {
+	_, ctx := newRouterTestContext()
+	state := &routerState{
+		routes: []Route{
+			{Path: "/from"},
+			{Path: "/to"},
+		},
+		config: routerConfig{transition: TransitionFade},
+		stack:  []stackEntry{{path: "/from?token=stack-secret", routeIndex: 0}},
+		transition: transitionState{
+			active:     true,
+			from:       "/before?token=from-secret",
+			to:         "/from?token=to-secret",
+			transition: TransitionFade,
+			duration:   time.Second,
+		},
+	}
+
+	state.navigate(ctx, "/to?token=next-secret", navPush, navigateOpts{
+		hasTransition: true,
+		transition:    TransitionNone,
+	})
+	if state.transition != (transitionState{}) {
+		t.Fatalf("canceled transition retained path data: %#v", state.transition)
+	}
+}
+
+func TestCompletedTransitionClearsRetainedQueryPaths(t *testing.T) {
+	runtime := internal.NewRuntime(nil)
+	var ops op.Ops
+	now := time.Unix(100, 0)
+	routes := []Route{
+		{Path: "/from", Builder: func(*internal.Context) widget.Widget { return countLayoutWidget{} }},
+		{Path: "/to", Builder: func(*internal.Context) widget.Widget { return countLayoutWidget{} }},
+	}
+	routerWidget := New(nil, routes)
+
+	runtime.BeginFrame()
+	ctx := internal.NewContext(gioLayout.Context{Ops: &ops, Now: now}, runtime)
+	routerWidget.Layout(ctx)
+	state := getRouterState(ctx.Scope("router").Scope("content"))
+	if state == nil {
+		t.Fatal("expected router state")
+	}
+	state.stack = []stackEntry{{path: "/to?token=current-secret", routeIndex: 1}}
+	state.transition = transitionState{
+		active:     true,
+		from:       "/from?token=from-secret",
+		to:         "/to?token=to-secret",
+		transition: TransitionFade,
+		startTime:  now.Add(-2 * time.Second),
+		duration:   time.Second,
+	}
+	runtime.EndFrame()
+
+	ops.Reset()
+	runtime.BeginFrame()
+	ctx = internal.NewContext(gioLayout.Context{Ops: &ops, Now: now}, runtime)
+	routerWidget.Layout(ctx)
+	runtime.EndFrame()
+	if state.transition != (transitionState{}) {
+		t.Fatalf("completed transition retained path data: %#v", state.transition)
+	}
+}
+
 func TestNormalizePathForGuard(t *testing.T) {
 	if got := normalizePathForGuard("/users/42?tab=posts&sort=asc"); got != "/users/42" {
 		t.Fatalf("expected /users/42, got %s", got)
@@ -498,6 +601,10 @@ func TestTransitionLayoutsFromAndToUntilDurationEnds(t *testing.T) {
 	if homeLayouts != 3 || settingsLayouts != 3 {
 		t.Fatalf("expected completed transition to layout only destination, got home=%d settings=%d", homeLayouts, settingsLayouts)
 	}
+	state := getRouterState(ctx.Scope("router").Scope("content"))
+	if state == nil || state.transition != (transitionState{}) {
+		t.Fatalf("completed transition retained route data: %#v", state)
+	}
 }
 
 func TestRouteBeforeEnterBlocksNavigation(t *testing.T) {
@@ -584,6 +691,163 @@ func TestUseRouteReturnsMatchedMetadata(t *testing.T) {
 	if routes[1].Meta["layout"] != "workspace" {
 		t.Fatal("expected UseRoute metadata to be cloned")
 	}
+}
+
+func TestRouteScopesExcludeDynamicPathAndQueryData(t *testing.T) {
+	runtime := internal.NewRuntime(nil)
+	var ops op.Ops
+	var builderPaths []internal.PathID
+	var layoutPaths []internal.PathID
+	var locations []string
+
+	routes := []Route{{
+		Path: "/search/:category",
+		Name: "search",
+		Builder: func(ctx *internal.Context) widget.Widget {
+			builderPaths = append(builderPaths, ctx.PathID())
+			locations = append(locations, UseLocation(ctx).Path)
+			return routePathWidget{paths: &layoutPaths}
+		},
+	}}
+	routerWidget := New(nil, routes)
+
+	render := func(target string) {
+		runtime.BeginFrame()
+		ctx := internal.NewContext(gioLayout.Context{Ops: &ops}, runtime)
+		if target != "" {
+			Navigate(ctx.Scope("router").Scope("content"), target)
+		}
+		routerWidget.Layout(ctx)
+		runtime.EndFrame()
+	}
+
+	render("")
+	render("/search/private?token=first-secret")
+	render("/search/other?token=second-secret")
+
+	if len(builderPaths) != 3 || len(layoutPaths) != 3 {
+		t.Fatalf("expected three route renders, got builders=%d layouts=%d", len(builderPaths), len(layoutPaths))
+	}
+	for _, id := range builderPaths[1:] {
+		if id != builderPaths[0] {
+			t.Fatalf("builder scope changed with route data: %#v", builderPaths)
+		}
+	}
+	for _, id := range layoutPaths[1:] {
+		if id != layoutPaths[0] {
+			t.Fatalf("layout scope changed with route data: %#v", layoutPaths)
+		}
+	}
+	for _, id := range []internal.PathID{builderPaths[0], layoutPaths[0]} {
+		debugPath := runtime.DebugPath(id)
+		if strings.Contains(debugPath, "private") || strings.Contains(debugPath, "token") || strings.Contains(debugPath, "secret") {
+			t.Fatalf("route debug path retained dynamic or query data: %q", debugPath)
+		}
+	}
+	if locations[1] != "/search/private?token=first-secret" || locations[2] != "/search/other?token=second-secret" {
+		t.Fatalf("route location data was not preserved for consumers: %#v", locations)
+	}
+}
+
+func TestDuplicateRouteNamesUseDistinctStableScopes(t *testing.T) {
+	runtime := internal.NewRuntime(nil)
+	var ops op.Ops
+	var firstBuilderPaths, secondBuilderPaths []internal.PathID
+	var firstLayoutPaths, secondLayoutPaths []internal.PathID
+	routes := []Route{
+		{
+			Path: "/first",
+			Name: "duplicate",
+			Builder: func(ctx *internal.Context) widget.Widget {
+				firstBuilderPaths = append(firstBuilderPaths, ctx.PathID())
+				return routePathWidget{paths: &firstLayoutPaths}
+			},
+		},
+		{
+			Path: "/second",
+			Name: "duplicate",
+			Builder: func(ctx *internal.Context) widget.Widget {
+				secondBuilderPaths = append(secondBuilderPaths, ctx.PathID())
+				return routePathWidget{paths: &secondLayoutPaths}
+			},
+		},
+	}
+	routerWidget := New(nil, routes)
+
+	render := func(target string) {
+		runtime.BeginFrame()
+		ctx := internal.NewContext(gioLayout.Context{Ops: &ops}, runtime)
+		if target != "" {
+			Navigate(ctx.Scope("router").Scope("content"), target)
+		}
+		routerWidget.Layout(ctx)
+		runtime.EndFrame()
+		ops.Reset()
+	}
+	render("")
+	render("/second")
+
+	if len(firstBuilderPaths) != 1 || len(secondBuilderPaths) != 1 ||
+		len(firstLayoutPaths) != 1 || len(secondLayoutPaths) != 1 {
+		t.Fatalf("unexpected duplicate-name render counts: builders=(%d,%d) layouts=(%d,%d)",
+			len(firstBuilderPaths), len(secondBuilderPaths), len(firstLayoutPaths), len(secondLayoutPaths))
+	}
+	if firstBuilderPaths[0] == secondBuilderPaths[0] {
+		t.Fatalf("duplicate route names shared builder scope %v", firstBuilderPaths[0])
+	}
+	if firstLayoutPaths[0] == secondLayoutPaths[0] {
+		t.Fatalf("duplicate route names shared layout scope %v", firstLayoutPaths[0])
+	}
+}
+
+func TestRouterStackBoundsUniqueQueryHistory(t *testing.T) {
+	_, ctx := newRouterTestContext()
+	state := &routerState{
+		routes: []Route{{Path: "/search"}},
+		stack:  []stackEntry{{path: "/search", routeIndex: 0}},
+	}
+
+	for i := 0; i < maxRouterStackEntries*2; i++ {
+		path := "/search?token=" + strconv.Itoa(i) + strings.Repeat("x", 8<<10)
+		state.navigate(ctx, path, navPush, navigateOpts{})
+	}
+
+	if len(state.stack) > maxRouterStackEntries {
+		t.Fatalf("router stack entry limit exceeded: %d", len(state.stack))
+	}
+	totalBytes := 0
+	for _, entry := range state.stack {
+		totalBytes += retainedStackEntryBytes(entry)
+	}
+	if totalBytes > maxRouterStackBytes {
+		t.Fatalf("router stack byte limit exceeded: %d", totalBytes)
+	}
+	latest := state.stack[len(state.stack)-1].path
+	if !strings.Contains(latest, "token="+strconv.Itoa(maxRouterStackEntries*2-1)) {
+		t.Fatalf("expected newest navigation to be retained, got %q", latest)
+	}
+	for _, entry := range state.stack {
+		if strings.Contains(entry.path, "token=0x") {
+			t.Fatalf("oldest sensitive query was retained: %q", entry.path)
+		}
+	}
+
+	before := len(state.stack)
+	state.navigate(ctx, "/search?token="+strings.Repeat("z", maxRouterPathBytes), navPush, navigateOpts{})
+	if len(state.stack) != before {
+		t.Fatal("oversized route path should be ignored")
+	}
+}
+
+type routePathWidget struct {
+	paths *[]internal.PathID
+}
+
+func (w routePathWidget) Layout(ctx *internal.Context) layout.Dimensions {
+	if w.paths != nil {
+		*w.paths = append(*w.paths, ctx.PathID())
+	}
+	return layout.Dimensions{}
 }
 
 type countLayoutWidget struct {

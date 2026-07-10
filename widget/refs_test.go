@@ -1,6 +1,8 @@
 package widget
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
@@ -21,6 +23,104 @@ func TestButtonRefQueuesCommands(t *testing.T) {
 	}
 	if next := ref.drainCommands(); len(next) != 0 {
 		t.Fatalf("expected queue to drain cleanly, got %d commands", len(next))
+	}
+}
+
+func TestCommandRefQueueIsBounded(t *testing.T) {
+	var queue commandQueue[int]
+	for i := 0; i < maxPendingRefCommands+10; i++ {
+		queue.enqueue(i)
+	}
+
+	commands := queue.drainCommands()
+	if len(commands) != maxPendingRefCommands {
+		t.Fatalf("expected bounded queue length %d, got %d", maxPendingRefCommands, len(commands))
+	}
+	if commands[0] != 10 || commands[len(commands)-1] != maxPendingRefCommands+9 {
+		t.Fatalf("expected newest commands to be retained, got first=%d last=%d", commands[0], commands[len(commands)-1])
+	}
+}
+
+func TestCommandRefQueueIsBoundedByPayloadBytes(t *testing.T) {
+	var queue commandQueue[string]
+	chunk := strings.Repeat("x", maxPendingRefCommandBytes/3)
+	for i := 0; i < 6; i++ {
+		queue.enqueue(strconv.Itoa(i) + chunk)
+	}
+
+	commands := queue.drainCommands()
+	total := 0
+	for _, command := range commands {
+		total += len(command)
+	}
+	if total > maxPendingRefCommandBytes {
+		t.Fatalf("expected bounded command payload, got %d bytes", total)
+	}
+	if len(commands) == 0 || !strings.HasPrefix(commands[len(commands)-1], "5") {
+		t.Fatal("expected newest command to be retained")
+	}
+
+	queue.enqueue(strings.Repeat("z", maxPendingRefCommandBytes+1))
+	if commands := queue.drainCommands(); len(commands) != 0 {
+		t.Fatalf("expected oversized command to be dropped, got %d commands", len(commands))
+	}
+}
+
+func TestCommandRefRebindDropsStaleCommands(t *testing.T) {
+	var queue commandQueue[int]
+	first := commandRefOwner{path: 1, binding: "test"}
+	second := commandRefOwner{path: 2, binding: "test"}
+	queue.bind(first, nil)
+	queue.enqueue(1)
+	queue.bind(second, nil)
+	if commands := queue.drainCommands(); len(commands) != 0 {
+		t.Fatalf("expected stale commands to be dropped on rebind, got %#v", commands)
+	}
+}
+
+func TestCommandRefUnmountedCommandsDoNotMoveToDifferentOwner(t *testing.T) {
+	var queue commandQueue[int]
+	first := commandRefOwner{path: 1, binding: "test"}
+	second := commandRefOwner{path: 2, binding: "test"}
+	unbind := queue.bind(first, nil)
+	unbind()
+	queue.enqueue(1)
+	queue.bind(second, nil)
+	if commands := queue.drainCommands(); len(commands) != 0 {
+		t.Fatalf("expected unmounted commands to stay with their prior owner, got %#v", commands)
+	}
+}
+
+func TestCommandRefCountsLargeComparableValues(t *testing.T) {
+	type largeValue [maxPendingRefCommandBytes]byte
+	var queue commandQueue[selectCommand[largeValue]]
+	queue.enqueue(selectCommand[largeValue]{kind: selectCmdSetValue})
+	if commands := queue.drainCommands(); len(commands) != 0 {
+		t.Fatalf("expected oversized comparable command to be dropped, got %d", len(commands))
+	}
+}
+
+func TestCommandRefUnmountUnbindsAndClears(t *testing.T) {
+	runtime := internal.NewRuntime(nil)
+	ref := NewButtonRef()
+	var ops op.Ops
+
+	runtime.BeginFrame()
+	ctx := internal.NewContext(gioLayout.Context{Ops: &ops}, runtime)
+	bindCommandRef(ctx, "button", ref, &ref.queue)
+	ref.Click()
+	runtime.EndFrame()
+
+	runtime.BeginFrame()
+	runtime.EndFrame()
+
+	ref.queue.mu.Lock()
+	bound := ref.queue.bound
+	invalidator := ref.queue.invalidator
+	queued := len(ref.queue.commands)
+	ref.queue.mu.Unlock()
+	if bound || invalidator != nil || queued != 0 {
+		t.Fatalf("expected unmounted ref to release its binding, bound=%v invalidator=%v queued=%d", bound, invalidator != nil, queued)
 	}
 }
 

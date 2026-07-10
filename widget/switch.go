@@ -163,7 +163,7 @@ func (s *switchWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 	registerClickableFocusAction(ctx, s.config.disabled, activate)
 	if s.config.ref != nil {
-		s.config.ref.bindInvalidator(redrawInvalidator(ctx))
+		bindCommandRef(ctx, "switch", s.config.ref, &s.config.ref.queue)
 		for _, cmd := range s.config.ref.drainCommands() {
 			if s.config.disabled {
 				continue

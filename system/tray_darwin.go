@@ -14,20 +14,27 @@ import (
 )
 
 const darwinTrayProviderCommand = "osascript"
+const maxTrayMenuResolutionRetries = 8
 
 type darwinTrayHandle struct {
-	mu             sync.Mutex
-	opts           trayOptions
-	tempDir        string
-	eventPath      string
-	iconDataPath   string
-	cmd            *exec.Cmd
-	cmdDone        chan error
-	stopListener   chan struct{}
-	eventOffset    int64
-	eventRemainder string
-	closed         bool
-	visible        bool
+	mu                   sync.Mutex
+	opts                 trayOptions
+	activeMenu           TrayMenu
+	menuVersion          uint64
+	resolvingMenu        bool
+	menuRefreshPending   bool
+	menuRefreshScheduled bool
+	menuRefreshFollowup  bool
+	tempDir              string
+	eventPath            string
+	iconDataPath         string
+	cmd                  *exec.Cmd
+	cmdDone              chan error
+	stopListener         chan struct{}
+	eventOffset          int64
+	eventRemainder       string
+	closed               bool
+	visible              bool
 }
 
 func unixProbeTrayCapability(cap Capability) CapabilityAvailability {
@@ -126,33 +133,81 @@ func (h *darwinTrayHandle) setMenu(menu TrayMenu) error {
 	}
 	h.opts.menu = cloneTrayMenu(menu)
 	h.opts.menuProvider = nil
+	h.activeMenu = cloneTrayMenu(h.opts.menu)
+	h.menuVersion++
 	return h.restartIfVisibleLocked()
 }
 
 func (h *darwinTrayHandle) setMenuProvider(fn func() TrayMenu) error {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	if err := h.ensureOpenLocked(); err != nil {
+		h.mu.Unlock()
 		return err
 	}
+	resolving := h.resolvingMenu
 	h.opts.menuProvider = fn
-	return h.restartIfVisibleLocked()
+	if resolving {
+		h.menuRefreshPending = true
+	} else {
+		h.menuVersion++
+	}
+	visible := h.visible
+	h.mu.Unlock()
+	if !visible || resolving {
+		return nil
+	}
+	return h.refreshMenu()
 }
 
 func (h *darwinTrayHandle) show() error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if err := h.ensureOpenLocked(); err != nil {
-		return err
-	}
-	if h.visible && h.processRunningLocked() {
+	retries := 0
+	for {
+		h.mu.Lock()
+		if err := h.ensureOpenLocked(); err != nil {
+			h.mu.Unlock()
+			return err
+		}
+		if h.visible && h.processRunningLocked() {
+			h.mu.Unlock()
+			return nil
+		}
+		menu, provider, version, ownsResolution := h.menuSnapshotForResolutionLocked()
+		if !ownsResolution {
+			h.mu.Unlock()
+			return fmt.Errorf("system: %s: menu provider resolution is already in progress", CapabilityTray)
+		}
+		h.mu.Unlock()
+
+		menu = resolveTrayMenu(menu, provider)
+
+		h.mu.Lock()
+		h.finishMenuResolutionLocked(ownsResolution)
+		if err := h.ensureOpenLocked(); err != nil {
+			h.mu.Unlock()
+			return err
+		}
+		if h.menuVersion != version {
+			if retries < maxTrayMenuResolutionRetries {
+				retries++
+				h.mu.Unlock()
+				continue
+			}
+			h.mu.Unlock()
+			return fmt.Errorf("system: %s: menu provider did not stabilize", CapabilityTray)
+		}
+		if h.visible && h.processRunningLocked() {
+			h.mu.Unlock()
+			return nil
+		}
+		if err := h.startLocked(menu); err != nil {
+			h.mu.Unlock()
+			return err
+		}
+		h.activeMenu = cloneTrayMenu(menu)
+		h.visible = true
+		h.mu.Unlock()
 		return nil
 	}
-	if err := h.startLocked(); err != nil {
-		return err
-	}
-	h.visible = true
-	return nil
 }
 
 func (h *darwinTrayHandle) hide() error {
@@ -191,7 +246,7 @@ func (h *darwinTrayHandle) restartIfVisibleLocked() error {
 		return nil
 	}
 	h.stopProcessLocked()
-	return h.startLocked()
+	return h.startLocked(h.activeMenu)
 }
 
 func (h *darwinTrayHandle) processRunningLocked() bool {
@@ -211,8 +266,8 @@ func (h *darwinTrayHandle) processRunningLocked() bool {
 	}
 }
 
-func (h *darwinTrayHandle) startLocked() error {
-	scriptPath, err := h.writeScriptLocked()
+func (h *darwinTrayHandle) startLocked(menu TrayMenu) error {
+	scriptPath, err := h.writeScriptLocked(menu)
 	if err != nil {
 		return err
 	}
@@ -253,9 +308,12 @@ func (h *darwinTrayHandle) stopProcessLocked() {
 	h.cmdDone = nil
 }
 
-func (h *darwinTrayHandle) writeScriptLocked() (string, error) {
+func (h *darwinTrayHandle) writeScriptLocked(menu TrayMenu) (string, error) {
 	path := filepath.Join(h.tempDir, "tray.applescript")
-	script := darwinTrayScript(h.opts, h.eventPath, h.iconPathLocked())
+	opts := h.opts
+	opts.menu = cloneTrayMenu(menu)
+	opts.menuProvider = nil
+	script := darwinTrayScript(opts, h.eventPath, h.iconPathLocked())
 	if err := os.WriteFile(path, []byte(script), 0o600); err != nil {
 		return "", fmt.Errorf("system: %s: write AppleScript: %w", CapabilityTray, err)
 	}
@@ -350,19 +408,179 @@ func (h *darwinTrayHandle) dispatchLine(line string) {
 }
 
 func (h *darwinTrayHandle) dispatchMenuItem(id string) {
-	h.mu.Lock()
-	menu := cloneTrayMenu(h.currentMenuLocked())
-	h.mu.Unlock()
+	menu := h.currentMenu()
 	if item, ok := findTrayMenuItem(menu, id); ok && item.OnClick != nil && !item.Disabled {
 		item.OnClick(TrayEvent{Kind: TrayEventMenuItem, ItemID: id})
 	}
 }
 
-func (h *darwinTrayHandle) currentMenuLocked() TrayMenu {
-	if h.opts.menuProvider != nil {
-		return cloneTrayMenu(h.opts.menuProvider())
+func (h *darwinTrayHandle) currentMenu() TrayMenu {
+	retries := 0
+	refreshNeeded := false
+	for {
+		h.mu.Lock()
+		if h.closed {
+			h.mu.Unlock()
+			return nil
+		}
+		menu, provider, version, ownsResolution := h.menuSnapshotForResolutionLocked()
+		if !ownsResolution {
+			h.mu.Unlock()
+			return menu
+		}
+		h.mu.Unlock()
+
+		menu = resolveTrayMenu(menu, provider)
+
+		h.mu.Lock()
+		refreshNeeded = h.finishMenuResolutionLocked(ownsResolution) || refreshNeeded
+		closed := h.closed
+		current := !closed && h.menuVersion == version
+		if current {
+			if refreshNeeded {
+				h.scheduleMenuRefreshLocked()
+			}
+			h.mu.Unlock()
+			return menu
+		}
+		if closed {
+			h.mu.Unlock()
+			return nil
+		}
+		refreshNeeded = refreshNeeded || h.visible
+		if retries >= maxTrayMenuResolutionRetries {
+			if refreshNeeded {
+				h.scheduleMenuRefreshLocked()
+			}
+			menu = cloneTrayMenu(h.activeMenu)
+			if len(menu) == 0 {
+				menu = cloneTrayMenu(h.opts.menu)
+			}
+			h.mu.Unlock()
+			return menu
+		}
+		retries++
+		h.mu.Unlock()
 	}
-	return cloneTrayMenu(h.opts.menu)
+}
+
+func (h *darwinTrayHandle) menuSnapshotLocked() (TrayMenu, func() TrayMenu, uint64) {
+	return cloneTrayMenu(h.opts.menu), h.opts.menuProvider, h.menuVersion
+}
+
+func (h *darwinTrayHandle) menuSnapshotForResolutionLocked() (TrayMenu, func() TrayMenu, uint64, bool) {
+	if h.resolvingMenu {
+		menu := h.activeMenu
+		if len(menu) == 0 {
+			menu = h.opts.menu
+		}
+		return cloneTrayMenu(menu), nil, h.menuVersion, false
+	}
+	h.resolvingMenu = true
+	menu, provider, version := h.menuSnapshotLocked()
+	return menu, provider, version, true
+}
+
+func (h *darwinTrayHandle) finishMenuResolutionLocked(owned bool) bool {
+	if owned {
+		h.resolvingMenu = false
+		if h.menuRefreshPending {
+			h.menuRefreshPending = false
+			h.menuVersion++
+			return true
+		}
+	}
+	return false
+}
+
+func (h *darwinTrayHandle) refreshMenu() error {
+	return h.refreshMenuWithFollowup(true)
+}
+
+func (h *darwinTrayHandle) refreshMenuWithFollowup(allowFollowup bool) error {
+	retries := 0
+	for {
+		h.mu.Lock()
+		if err := h.ensureOpenLocked(); err != nil {
+			h.mu.Unlock()
+			return err
+		}
+		if !h.visible {
+			h.mu.Unlock()
+			return nil
+		}
+		menu, provider, version, ownsResolution := h.menuSnapshotForResolutionLocked()
+		if !ownsResolution {
+			h.menuRefreshPending = true
+			h.mu.Unlock()
+			return nil
+		}
+		h.mu.Unlock()
+
+		menu = resolveTrayMenu(menu, provider)
+
+		h.mu.Lock()
+		h.finishMenuResolutionLocked(ownsResolution)
+		if err := h.ensureOpenLocked(); err != nil {
+			h.mu.Unlock()
+			return err
+		}
+		if !h.visible {
+			h.mu.Unlock()
+			return nil
+		}
+		if h.menuVersion != version {
+			if retries < maxTrayMenuResolutionRetries {
+				retries++
+				h.mu.Unlock()
+				continue
+			}
+			if allowFollowup {
+				h.scheduleMenuRefreshLocked()
+			}
+			h.mu.Unlock()
+			return nil
+		}
+		h.stopProcessLocked()
+		err := h.startLocked(menu)
+		if err == nil {
+			h.activeMenu = cloneTrayMenu(menu)
+		}
+		h.mu.Unlock()
+		return err
+	}
+}
+
+func (h *darwinTrayHandle) scheduleMenuRefreshLocked() {
+	if h.closed || !h.visible || h.cmd == nil {
+		return
+	}
+	if h.menuRefreshScheduled {
+		h.menuRefreshFollowup = true
+		return
+	}
+	h.menuRefreshScheduled = true
+	go func() {
+		for {
+			_ = h.refreshMenuWithFollowup(false)
+			h.mu.Lock()
+			followup := h.continueScheduledMenuRefreshLocked()
+			h.mu.Unlock()
+			if !followup {
+				return
+			}
+		}
+	}()
+}
+
+func (h *darwinTrayHandle) continueScheduledMenuRefreshLocked() bool {
+	if h.menuRefreshFollowup && !h.closed && h.visible && h.cmd != nil {
+		h.menuRefreshFollowup = false
+		return true
+	}
+	h.menuRefreshScheduled = false
+	h.menuRefreshFollowup = false
+	return false
 }
 
 func darwinTrayScript(opts trayOptions, eventPath string, iconPath string) string {
@@ -371,9 +589,6 @@ func darwinTrayScript(opts trayOptions, eventPath string, iconPath string) strin
 		tooltip = "FluxUI"
 	}
 	menu := opts.menu
-	if opts.menuProvider != nil {
-		menu = opts.menuProvider()
-	}
 
 	var b strings.Builder
 	b.WriteString("use framework \"AppKit\"\n")

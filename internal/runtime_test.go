@@ -82,6 +82,86 @@ func TestUseEffectMount(t *testing.T) {
 	}
 }
 
+func TestUseEffectSameKeySameFrameRunsLatestSetupOnce(t *testing.T) {
+	rt := NewRuntime(nil)
+	runs := []string{}
+	cleanupCount := 0
+
+	rt.BeginFrame()
+	rt.UseEffect("same-key", true, []any{1}, func() func() {
+		runs = append(runs, "first")
+		return func() { cleanupCount++ }
+	})
+	rt.UseEffect("same-key", true, []any{1}, func() func() {
+		runs = append(runs, "second")
+		return func() { cleanupCount++ }
+	})
+	rt.EndFrame()
+
+	if len(runs) != 1 || runs[0] != "second" {
+		t.Fatalf("expected only the latest setup to run, got %#v", runs)
+	}
+	if cleanupCount != 0 {
+		t.Fatalf("effect was cleaned up during its mount frame: %d", cleanupCount)
+	}
+
+	rt.BeginFrame()
+	rt.EndFrame()
+	if cleanupCount != 1 {
+		t.Fatalf("expected one cleanup on unmount, got %d", cleanupCount)
+	}
+}
+
+func TestUseEffectSameKeyChangedThenRevertedDoesNotRestart(t *testing.T) {
+	rt := NewRuntime(nil)
+	runCount := 0
+	cleanupCount := 0
+	setup := func() func() {
+		runCount++
+		return func() { cleanupCount++ }
+	}
+
+	rt.BeginFrame()
+	rt.UseEffect("reverted-key", true, []any{1}, setup)
+	rt.EndFrame()
+
+	rt.BeginFrame()
+	rt.UseEffect("reverted-key", true, []any{2}, setup)
+	rt.UseEffect("reverted-key", true, []any{1}, setup)
+	rt.EndFrame()
+
+	if runCount != 1 || cleanupCount != 0 {
+		t.Fatalf("reverted deps restarted effect: runs=%d cleanups=%d", runCount, cleanupCount)
+	}
+
+	rt.BeginFrame()
+	rt.EndFrame()
+	if cleanupCount != 1 {
+		t.Fatalf("expected committed effect cleanup on unmount, got %d", cleanupCount)
+	}
+}
+
+func TestUseEffectRecoversAfterInterruptedFrame(t *testing.T) {
+	rt := NewRuntime(nil)
+	runs := 0
+	setup := func() func() {
+		runs++
+		return nil
+	}
+
+	rt.BeginFrame()
+	rt.UseEffect("interrupted", true, []any{1}, setup)
+	// Simulate a render that never reached EndFrame. BeginFrame must discard both
+	// the runner and its slot-level pending marker.
+	rt.BeginFrame()
+	rt.UseEffect("interrupted", true, []any{1}, setup)
+	rt.EndFrame()
+
+	if runs != 1 {
+		t.Fatalf("effect runs after interrupted frame = %d, want 1", runs)
+	}
+}
+
 func TestUseEffectCleanup(t *testing.T) {
 	rt := NewRuntime(nil)
 	var cleanupCalled bool

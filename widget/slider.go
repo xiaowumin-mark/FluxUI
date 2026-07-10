@@ -233,7 +233,7 @@ func (s *sliderWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	state := sliderStateFor(ctx)
 	cfg := normalizeSliderConfig(s.config)
 	if cfg.ref != nil {
-		cfg.ref.bindInvalidator(redrawInvalidator(ctx))
+		bindCommandRef(ctx, "slider", cfg.ref, &cfg.ref.queue)
 		current := cfg.value
 		if cfg.rangeSlider {
 			current = cfg.valueEnd

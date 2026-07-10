@@ -711,10 +711,10 @@ func TestAPIIndexElementsBuild(t *testing.T) {
 	if docsAPIIndexRow(apis[0], state, th) == nil {
 		t.Fatal("expected API index row")
 	}
-	if got := apiCountLabel(1); got != "1 API" {
+	if got := apiCountLabel(1); got != "1 个 API" {
 		t.Fatalf("apiCountLabel(1) = %q", got)
 	}
-	if got := apiCountLabel(2); got != "2 APIs" {
+	if got := apiCountLabel(2); got != "2 个 API" {
 		t.Fatalf("apiCountLabel(2) = %q", got)
 	}
 }
@@ -847,7 +847,7 @@ func TestDocsCategoryFiltering(t *testing.T) {
 	if len(filtered) != 1 || filtered[0].Meta.ID != "system" {
 		t.Fatalf("unexpected category filter result: %#v", filtered)
 	}
-	uncategorized := filterDocsByCategory(docs, "Uncategorized")
+	uncategorized := filterDocsByCategory(docs, "未分类")
 	if len(uncategorized) != 1 || uncategorized[0].Meta.ID != "misc" {
 		t.Fatalf("unexpected uncategorized filter result: %#v", uncategorized)
 	}
@@ -856,7 +856,7 @@ func TestDocsCategoryFiltering(t *testing.T) {
 		t.Fatalf("all category should keep docs, got %d", len(all))
 	}
 	counts := docsCategoryCounts(docs)
-	if counts["Components"] != 1 || counts["Guides"] != 1 || counts["Uncategorized"] != 1 {
+	if counts["Components"] != 1 || counts["Guides"] != 1 || counts["未分类"] != 1 {
 		t.Fatalf("unexpected category counts: %#v", counts)
 	}
 	if got := docsCategoryLabel("Guides", 12); got != "Guides 12" {

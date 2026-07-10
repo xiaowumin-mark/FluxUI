@@ -3,9 +3,11 @@
 package system
 
 import (
+	"context"
 	"encoding/base64"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestWindowsClipboardPowerShellScripts(t *testing.T) {
@@ -17,21 +19,21 @@ func TestWindowsClipboardPowerShellScripts(t *testing.T) {
 	}
 
 	text := "hello ' clipboard"
-	writeScript := windowsClipboardWritePowerShellScript(text)
+	writeScript := windowsClipboardWritePowerShellScript()
 	if !strings.Contains(writeScript, "Set-Clipboard") {
 		t.Fatalf("unexpected write script: %s", writeScript)
 	}
 	if !strings.Contains(writeScript, "Clipboard]::Clear()") {
 		t.Fatalf("write script should handle empty text by clearing clipboard: %s", writeScript)
 	}
-	if strings.Contains(writeScript, text) {
-		t.Fatal("write script should embed clipboard text as base64, not raw text")
+	if !strings.Contains(writeScript, "OpenStandardInput") || !strings.Contains(writeScript, "ReadToEnd") {
+		t.Fatal("write script should read clipboard text from standard input")
 	}
-	if !strings.Contains(writeScript, base64.StdEncoding.EncodeToString([]byte(text))) {
-		t.Fatal("write script should contain base64 encoded text")
+	if strings.Contains(writeScript, text) || strings.Contains(writeScript, base64.StdEncoding.EncodeToString([]byte(text))) {
+		t.Fatal("write script must not embed clipboard text in the command line")
 	}
 
-	emptyWriteScript := windowsClipboardWritePowerShellScript("")
+	emptyWriteScript := windowsClipboardWritePowerShellScript()
 	if !strings.Contains(emptyWriteScript, "Clipboard]::Clear()") ||
 		!strings.Contains(emptyWriteScript, "return;") {
 		t.Fatalf("empty write script should clear clipboard: %s", emptyWriteScript)
@@ -49,15 +51,12 @@ func TestWindowsClipboardPowerShellScripts(t *testing.T) {
 	}
 
 	paths := []string{`C:\tmp\a.txt`, `C:\tmp\b.txt`}
-	writeFilesScript, err := windowsClipboardWriteFilesPowerShellScript(paths)
-	if err != nil {
-		t.Fatalf("unexpected write files script error: %v", err)
-	}
+	writeFilesScript := windowsClipboardWriteFilesPowerShellScript()
 	if !strings.Contains(writeFilesScript, "SetFileDropList") {
 		t.Fatalf("unexpected write files script: %s", writeFilesScript)
 	}
-	if strings.Contains(writeFilesScript, paths[0]) {
-		t.Fatal("write files script should embed paths as base64 json, not raw paths")
+	if !strings.Contains(writeFilesScript, "OpenStandardInput") || strings.Contains(writeFilesScript, paths[0]) {
+		t.Fatal("write files script should read paths from standard input")
 	}
 
 	readImageScript := windowsClipboardReadImagePowerShellScript()
@@ -68,15 +67,57 @@ func TestWindowsClipboardPowerShellScripts(t *testing.T) {
 	}
 
 	imageData := []byte{1, 2, 3, 4}
-	writeImageScript := windowsClipboardWriteImagePowerShellScript(imageData)
+	writeImageScript := windowsClipboardWriteImagePowerShellScript()
 	if !strings.Contains(writeImageScript, "SetImage") {
 		t.Fatalf("unexpected write image script: %s", writeImageScript)
 	}
 	if strings.Contains(writeImageScript, string(imageData)) {
 		t.Fatal("write image script should embed image data as base64, not raw bytes")
 	}
-	if !strings.Contains(writeImageScript, base64.StdEncoding.EncodeToString(imageData)) {
-		t.Fatal("write image script should contain base64 encoded image data")
+	if !strings.Contains(writeImageScript, "OpenStandardInput") || strings.Contains(writeImageScript, base64.StdEncoding.EncodeToString(imageData)) {
+		t.Fatal("write image script should read image data from standard input")
+	}
+}
+
+func TestWindowsClipboardOutputBufferIsBounded(t *testing.T) {
+	limitHit := make(chan struct{}, 1)
+	buffer := &windowsClipboardOutputBuffer{
+		limit: 4,
+		onLimit: func() {
+			limitHit <- struct{}{}
+		},
+	}
+	written, err := buffer.Write([]byte("abcdefgh"))
+	if err != nil || written != 8 {
+		t.Fatalf("unexpected bounded write result: written=%d err=%v", written, err)
+	}
+	data, truncated := buffer.snapshot()
+	if string(data) != "abcd" || !truncated {
+		t.Fatalf("expected bounded output and truncation marker, got %q truncated=%v", data, truncated)
+	}
+	select {
+	case <-limitHit:
+	default:
+		t.Fatal("expected output limit callback")
+	}
+}
+
+func TestWindowsClipboardPowerShellStopsAfterOutputLimit(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	start := time.Now()
+	_, err := runWindowsClipboardPowerShellWithLimit(
+		ctx,
+		false,
+		`[Console]::Out.Write(('x'*4096));Start-Sleep -Seconds 30;`,
+		nil,
+		64,
+	)
+	if err == nil || !strings.Contains(err.Error(), "output exceeds") {
+		t.Fatalf("expected output limit error, got %v", err)
+	}
+	if elapsed := time.Since(start); elapsed >= 5*time.Second {
+		t.Fatalf("PowerShell was not stopped after exceeding output limit: %s", elapsed)
 	}
 }
 

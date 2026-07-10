@@ -15,19 +15,26 @@ import (
 )
 
 const linuxTrayProviderCommand = "yad"
+const maxTrayMenuResolutionRetries = 8
 
 type linuxTrayHandle struct {
-	mu             sync.Mutex
-	opts           trayOptions
-	tempDir        string
-	fifoPath       string
-	fifo           *os.File
-	stopListener   chan struct{}
-	cmd            *exec.Cmd
-	iconDataPath   string
-	scriptSequence int
-	closed         bool
-	visible        bool
+	mu                   sync.Mutex
+	opts                 trayOptions
+	activeMenu           TrayMenu
+	menuVersion          uint64
+	resolvingMenu        bool
+	menuRefreshPending   bool
+	menuRefreshScheduled bool
+	menuRefreshFollowup  bool
+	tempDir              string
+	fifoPath             string
+	fifo                 *os.File
+	stopListener         chan struct{}
+	cmd                  *exec.Cmd
+	iconDataPath         string
+	scriptSequence       int
+	closed               bool
+	visible              bool
 }
 
 func unixPlatformCapabilities() CapabilitySet {
@@ -143,33 +150,81 @@ func (h *linuxTrayHandle) setMenu(menu TrayMenu) error {
 	}
 	h.opts.menu = cloneTrayMenu(menu)
 	h.opts.menuProvider = nil
+	h.activeMenu = cloneTrayMenu(h.opts.menu)
+	h.menuVersion++
 	return h.restartIfVisibleLocked()
 }
 
 func (h *linuxTrayHandle) setMenuProvider(fn func() TrayMenu) error {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	if err := h.ensureOpenLocked(); err != nil {
+		h.mu.Unlock()
 		return err
 	}
+	resolving := h.resolvingMenu
 	h.opts.menuProvider = fn
-	return h.restartIfVisibleLocked()
+	if resolving {
+		h.menuRefreshPending = true
+	} else {
+		h.menuVersion++
+	}
+	visible := h.visible
+	h.mu.Unlock()
+	if !visible || resolving {
+		return nil
+	}
+	return h.refreshMenu()
 }
 
 func (h *linuxTrayHandle) show() error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if err := h.ensureOpenLocked(); err != nil {
-		return err
-	}
-	if h.visible && h.cmd != nil {
+	retries := 0
+	for {
+		h.mu.Lock()
+		if err := h.ensureOpenLocked(); err != nil {
+			h.mu.Unlock()
+			return err
+		}
+		if h.visible && h.cmd != nil {
+			h.mu.Unlock()
+			return nil
+		}
+		menu, provider, version, ownsResolution := h.menuSnapshotForResolutionLocked()
+		if !ownsResolution {
+			h.mu.Unlock()
+			return fmt.Errorf("system: %s: menu provider resolution is already in progress", CapabilityTray)
+		}
+		h.mu.Unlock()
+
+		menu = resolveTrayMenu(menu, provider)
+
+		h.mu.Lock()
+		h.finishMenuResolutionLocked(ownsResolution)
+		if err := h.ensureOpenLocked(); err != nil {
+			h.mu.Unlock()
+			return err
+		}
+		if h.menuVersion != version {
+			if retries < maxTrayMenuResolutionRetries {
+				retries++
+				h.mu.Unlock()
+				continue
+			}
+			h.mu.Unlock()
+			return fmt.Errorf("system: %s: menu provider did not stabilize", CapabilityTray)
+		}
+		if h.visible && h.cmd != nil {
+			h.mu.Unlock()
+			return nil
+		}
+		if err := h.startLocked(menu); err != nil {
+			h.mu.Unlock()
+			return err
+		}
+		h.activeMenu = cloneTrayMenu(menu)
+		h.visible = true
+		h.mu.Unlock()
 		return nil
 	}
-	if err := h.startLocked(); err != nil {
-		return err
-	}
-	h.visible = true
-	return nil
 }
 
 func (h *linuxTrayHandle) hide() error {
@@ -212,11 +267,11 @@ func (h *linuxTrayHandle) restartIfVisibleLocked() error {
 		return nil
 	}
 	h.stopProcessLocked()
-	return h.startLocked()
+	return h.startLocked(h.activeMenu)
 }
 
-func (h *linuxTrayHandle) startLocked() error {
-	args, err := h.commandArgsLocked()
+func (h *linuxTrayHandle) startLocked(menu TrayMenu) error {
+	args, err := h.commandArgsLocked(menu)
 	if err != nil {
 		return err
 	}
@@ -285,22 +340,182 @@ func (h *linuxTrayHandle) dispatchLine(line string) {
 }
 
 func (h *linuxTrayHandle) dispatchMenuItem(id string) {
-	h.mu.Lock()
-	menu := cloneTrayMenu(h.currentMenuLocked())
-	h.mu.Unlock()
+	menu := h.currentMenu()
 	if item, ok := findTrayMenuItem(menu, id); ok && item.OnClick != nil && !item.Disabled {
 		item.OnClick(TrayEvent{Kind: TrayEventMenuItem, ItemID: id})
 	}
 }
 
-func (h *linuxTrayHandle) currentMenuLocked() TrayMenu {
-	if h.opts.menuProvider != nil {
-		return cloneTrayMenu(h.opts.menuProvider())
+func (h *linuxTrayHandle) currentMenu() TrayMenu {
+	retries := 0
+	refreshNeeded := false
+	for {
+		h.mu.Lock()
+		if h.closed {
+			h.mu.Unlock()
+			return nil
+		}
+		menu, provider, version, ownsResolution := h.menuSnapshotForResolutionLocked()
+		if !ownsResolution {
+			h.mu.Unlock()
+			return menu
+		}
+		h.mu.Unlock()
+
+		menu = resolveTrayMenu(menu, provider)
+
+		h.mu.Lock()
+		refreshNeeded = h.finishMenuResolutionLocked(ownsResolution) || refreshNeeded
+		closed := h.closed
+		current := !closed && h.menuVersion == version
+		if current {
+			if refreshNeeded {
+				h.scheduleMenuRefreshLocked()
+			}
+			h.mu.Unlock()
+			return menu
+		}
+		if closed {
+			h.mu.Unlock()
+			return nil
+		}
+		refreshNeeded = refreshNeeded || h.visible
+		if retries >= maxTrayMenuResolutionRetries {
+			if refreshNeeded {
+				h.scheduleMenuRefreshLocked()
+			}
+			menu = cloneTrayMenu(h.activeMenu)
+			if len(menu) == 0 {
+				menu = cloneTrayMenu(h.opts.menu)
+			}
+			h.mu.Unlock()
+			return menu
+		}
+		retries++
+		h.mu.Unlock()
 	}
-	return cloneTrayMenu(h.opts.menu)
 }
 
-func (h *linuxTrayHandle) commandArgsLocked() ([]string, error) {
+func (h *linuxTrayHandle) menuSnapshotLocked() (TrayMenu, func() TrayMenu, uint64) {
+	return cloneTrayMenu(h.opts.menu), h.opts.menuProvider, h.menuVersion
+}
+
+func (h *linuxTrayHandle) menuSnapshotForResolutionLocked() (TrayMenu, func() TrayMenu, uint64, bool) {
+	if h.resolvingMenu {
+		menu := h.activeMenu
+		if len(menu) == 0 {
+			menu = h.opts.menu
+		}
+		return cloneTrayMenu(menu), nil, h.menuVersion, false
+	}
+	h.resolvingMenu = true
+	menu, provider, version := h.menuSnapshotLocked()
+	return menu, provider, version, true
+}
+
+func (h *linuxTrayHandle) finishMenuResolutionLocked(owned bool) bool {
+	if owned {
+		h.resolvingMenu = false
+		if h.menuRefreshPending {
+			h.menuRefreshPending = false
+			h.menuVersion++
+			return true
+		}
+	}
+	return false
+}
+
+func (h *linuxTrayHandle) refreshMenu() error {
+	return h.refreshMenuWithFollowup(true)
+}
+
+func (h *linuxTrayHandle) refreshMenuWithFollowup(allowFollowup bool) error {
+	retries := 0
+	for {
+		h.mu.Lock()
+		if err := h.ensureOpenLocked(); err != nil {
+			h.mu.Unlock()
+			return err
+		}
+		if !h.visible {
+			h.mu.Unlock()
+			return nil
+		}
+		menu, provider, version, ownsResolution := h.menuSnapshotForResolutionLocked()
+		if !ownsResolution {
+			h.menuRefreshPending = true
+			h.mu.Unlock()
+			return nil
+		}
+		h.mu.Unlock()
+
+		menu = resolveTrayMenu(menu, provider)
+
+		h.mu.Lock()
+		h.finishMenuResolutionLocked(ownsResolution)
+		if err := h.ensureOpenLocked(); err != nil {
+			h.mu.Unlock()
+			return err
+		}
+		if !h.visible {
+			h.mu.Unlock()
+			return nil
+		}
+		if h.menuVersion != version {
+			if retries < maxTrayMenuResolutionRetries {
+				retries++
+				h.mu.Unlock()
+				continue
+			}
+			if allowFollowup {
+				h.scheduleMenuRefreshLocked()
+			}
+			h.mu.Unlock()
+			return nil
+		}
+		h.stopProcessLocked()
+		err := h.startLocked(menu)
+		if err == nil {
+			h.activeMenu = cloneTrayMenu(menu)
+		}
+		h.mu.Unlock()
+		return err
+	}
+}
+
+func (h *linuxTrayHandle) scheduleMenuRefreshLocked() {
+	if h.closed || !h.visible || h.cmd == nil {
+		return
+	}
+	if h.menuRefreshScheduled {
+		h.menuRefreshFollowup = true
+		return
+	}
+	h.menuRefreshScheduled = true
+	go func() {
+		for {
+			_ = h.refreshMenuWithFollowup(false)
+			h.mu.Lock()
+			followup := h.continueScheduledMenuRefreshLocked()
+			h.mu.Unlock()
+			if !followup {
+				return
+			}
+		}
+	}()
+}
+
+func (h *linuxTrayHandle) continueScheduledMenuRefreshLocked() bool {
+	if h.menuRefreshFollowup && !h.closed && h.visible && h.cmd != nil {
+		h.menuRefreshFollowup = false
+		return true
+	}
+	h.menuRefreshScheduled = false
+	h.menuRefreshFollowup = false
+	return false
+}
+
+func (h *linuxTrayHandle) commandArgsLocked(menu TrayMenu) ([]string, error) {
 	args := []string{"--notification"}
 	args = append(args, "--image="+h.iconPathLocked())
 	if h.opts.tooltip != "" {
@@ -313,7 +528,7 @@ func (h *linuxTrayHandle) commandArgsLocked() ([]string, error) {
 		return nil, err
 	}
 	args = append(args, "--command="+clickScript)
-	if menu := h.currentMenuLocked(); len(menu) > 0 {
+	if len(menu) > 0 {
 		menuSpec, err := h.menuSpecLocked(menu)
 		if err != nil {
 			return nil, err

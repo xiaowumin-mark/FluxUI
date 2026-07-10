@@ -293,7 +293,7 @@ func iconFontIDEqual(a, b string) bool {
 func iconGlyphsFromFaces(faces []FontFace) map[string]rune {
 	var out map[string]rune
 	for _, face := range faces {
-		data := face.Data()
+		data := face.data()
 		if len(data) == 0 {
 			continue
 		}

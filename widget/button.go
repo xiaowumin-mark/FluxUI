@@ -171,7 +171,7 @@ func (b *buttonWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	disabled := b.config.disabled || b.config.loading
 	registerClickableFocusAction(ctx, disabled, b.config.dispatcher.Click)
 	if b.config.ref != nil {
-		b.config.ref.bindInvalidator(redrawInvalidator(ctx))
+		bindCommandRef(ctx, "button", b.config.ref, &b.config.ref.queue)
 		commands := b.config.ref.drainCommands()
 		if !disabled {
 			for range commands {

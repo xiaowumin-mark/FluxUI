@@ -14,6 +14,12 @@ import (
 	"gioui.org/op/paint"
 )
 
+const (
+	maxRouterPathBytes    = 64 << 10
+	maxRouterStackEntries = 128
+	maxRouterStackBytes   = 1 << 20
+)
+
 // NavigateFunc 是实验性路由导航函数签名。
 type NavigateFunc func(path string, opts ...NavigateOption)
 
@@ -224,6 +230,9 @@ func (s *routerState) currentEntry() *stackEntry {
 
 // navigate 执行导航操作。
 func (s *routerState) navigate(ctx *internal.Context, fullPath string, action navAction, opts navigateOpts) {
+	if len(fullPath) > maxRouterPathBytes {
+		return
+	}
 	current := s.currentEntry()
 	currentPath := ""
 	if current != nil {
@@ -265,8 +274,9 @@ func (s *routerState) navigate(ctx *internal.Context, fullPath string, action na
 		trans = reverseTransition(trans)
 	}
 
-	// 启动过渡
-	if trans != TransitionNone && currentPath != fullPath {
+	// 同一路由声明内的参数/query 更新复用同一稳定 scope，不同时布局两份共享状态。
+	sameRoute := current != nil && current.routeIndex == idx
+	if trans != TransitionNone && currentPath != fullPath && !sameRoute {
 		s.transition = transitionState{
 			active:     true,
 			from:       currentPath,
@@ -276,11 +286,14 @@ func (s *routerState) navigate(ctx *internal.Context, fullPath string, action na
 			duration:   s.config.transitionDuration,
 			progress:   0,
 		}
+	} else {
+		s.transition = transitionState{}
 	}
 
 	switch action {
 	case navPush:
 		s.stack = append(s.stack, entry)
+		s.trimStack()
 	case navReplace:
 		if len(s.stack) > 0 {
 			s.stack[len(s.stack)-1] = entry
@@ -289,11 +302,47 @@ func (s *routerState) navigate(ctx *internal.Context, fullPath string, action na
 		}
 	case navPop:
 		if len(s.stack) > 1 {
-			s.stack = s.stack[:len(s.stack)-1]
+			last := len(s.stack) - 1
+			s.stack[last] = stackEntry{}
+			s.stack = s.stack[:last]
 		}
 	}
 
 	ctx.RequestFrameRedrawReason("router.navigate")
+}
+
+func (s *routerState) trimStack() {
+	if s == nil || len(s.stack) <= 1 {
+		return
+	}
+	totalBytes := 0
+	for i := range s.stack {
+		totalBytes += retainedStackEntryBytes(s.stack[i])
+	}
+	drop := 0
+	for len(s.stack)-drop > 1 && (len(s.stack)-drop > maxRouterStackEntries || totalBytes > maxRouterStackBytes) {
+		totalBytes -= retainedStackEntryBytes(s.stack[drop])
+		s.stack[drop] = stackEntry{}
+		drop++
+	}
+	if drop == 0 {
+		return
+	}
+	copy(s.stack, s.stack[drop:])
+	newLen := len(s.stack) - drop
+	clear(s.stack[newLen:])
+	s.stack = s.stack[:newLen]
+}
+
+func retainedStackEntryBytes(entry stackEntry) int {
+	total := len(entry.path)
+	for key, value := range entry.params.pathParams {
+		total += len(key) + len(value)
+	}
+	for key, value := range entry.params.queryParams {
+		total += len(key) + len(value)
+	}
+	return total
 }
 
 func normalizePathForGuard(fullPath string) string {
@@ -331,6 +380,8 @@ func (w *routerWidget) Layout(ctx *internal.Context) layout.Dimensions {
 				rt.RecordFrameSection(internal.PerfAnimation, 1)
 			}
 			next.RequestFrameRedrawReason("animation.router")
+		} else {
+			st.transition = transitionState{}
 		}
 	}
 
@@ -386,10 +437,11 @@ func resolvePageForPath(
 	}
 
 	if idx >= 0 && idx < len(routes) {
+		view.scopeID = routeScopeID(routes[idx])
 		view.route = routeInfoFromRoute(routes[idx], true)
 		var page widget.Widget
 		withRouteView(ctx, view, func() {
-			scopeCtx := ctx.Scope(fullPath)
+			scopeCtx := ctx.Scope("route-builder:" + view.scopeID)
 			page = routes[idx].Builder(scopeCtx)
 		})
 		if page != nil {
@@ -398,6 +450,7 @@ func resolvePageForPath(
 	}
 
 	if notFound != nil {
+		view.scopeID = "not-found"
 		var page widget.Widget
 		withRouteView(ctx, view, func() {
 			page = notFound(ctx.Scope("not-found"))
@@ -434,11 +487,22 @@ func withRouteView(ctx *internal.Context, view *routeView, fn func()) {
 	fn()
 }
 
-func routeLayoutScope(path string) string {
+func routeScopeID(route Route) string {
+	path, _ := extractQueryParams(route.Path)
 	if path == "" {
-		return "route:__empty__"
+		path = "__empty__"
 	}
-	return "route:" + path
+	if route.Name == "" {
+		return "path:" + path
+	}
+	return "path:" + path + "|name:" + route.Name
+}
+
+func routeLayoutScope(scopeID string) string {
+	if scopeID == "" {
+		return "route:default"
+	}
+	return "route-layout:" + scopeID
 }
 
 func layoutPageWithRouteView(ctx *internal.Context, page widget.Widget, view *routeView) layout.Dimensions {
@@ -451,7 +515,7 @@ func layoutPageWithRouteView(ctx *internal.Context, page widget.Widget, view *ro
 		if ctx != nil {
 			scopeName := "route:default"
 			if view != nil {
-				scopeName = routeLayoutScope(view.path)
+				scopeName = routeLayoutScope(view.scopeID)
 			}
 			pageCtx = ctx.Scope(scopeName)
 		}
@@ -610,6 +674,7 @@ type routerStateHolder struct {
 
 type routeView struct {
 	path       string
+	scopeID    string
 	params     Params
 	canGoBack  bool
 	stackDepth int
@@ -648,7 +713,7 @@ func getRouteView(ctx *internal.Context) *routeView {
 // Navigate 导航到指定路径（push 到栈）。
 func Navigate(ctx *internal.Context, path string, opts ...NavigateOption) {
 	st := getRouterState(ctx)
-	if st == nil {
+	if st == nil || len(path) > maxRouterPathBytes {
 		return
 	}
 	var navOpts navigateOpts
@@ -666,7 +731,7 @@ func Navigate(ctx *internal.Context, path string, opts ...NavigateOption) {
 // NavigateReplace 替换当前路径（不增加栈深度）。
 func NavigateReplace(ctx *internal.Context, path string, opts ...NavigateOption) {
 	st := getRouterState(ctx)
-	if st == nil {
+	if st == nil || len(path) > maxRouterPathBytes {
 		return
 	}
 	var navOpts navigateOpts

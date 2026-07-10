@@ -541,16 +541,17 @@ func (d *testTrayDriver) newTray(opts trayOptions) (trayHandle, error) {
 }
 
 type testTrayHandle struct {
-	icon         string
-	iconData     []byte
-	iconResource uint16
-	tooltip      string
-	menu         TrayMenu
-	menuProvider func() TrayMenu
-	showCount    int
-	hideCount    int
-	closeCount   int
-	err          error
+	icon                   string
+	iconData               []byte
+	iconResource           uint16
+	tooltip                string
+	menu                   TrayMenu
+	menuProvider           func() TrayMenu
+	evaluateProviderOnShow bool
+	showCount              int
+	hideCount              int
+	closeCount             int
+	err                    error
 }
 
 type testSingleInstanceHandle struct {
@@ -640,6 +641,9 @@ func (h *testTrayHandle) setMenuProvider(fn func() TrayMenu) error {
 func (h *testTrayHandle) show() error {
 	if h.err != nil {
 		return h.err
+	}
+	if h.evaluateProviderOnShow && h.menuProvider != nil {
+		h.menuProvider()
 	}
 	h.showCount++
 	return nil
@@ -2987,6 +2991,72 @@ func TestTrayVisibleClosedAndMenuProvider(t *testing.T) {
 	}
 	if tray.Visible() {
 		t.Fatal("tray should not be visible after Hide")
+	}
+}
+
+func TestTrayMenuProviderCanReenterPublicMethods(t *testing.T) {
+	handle := &testTrayHandle{evaluateProviderOnShow: true}
+	tray := &Tray{handle: handle}
+	providerErr := make(chan error, 1)
+	handle.menuProvider = asyncTrayMenuProvider(func() TrayMenu {
+		providerErr <- tray.SetTooltip("from provider")
+		return TrayMenu{{ID: "open", Label: "Open"}}
+	})
+
+	showDone := make(chan error, 1)
+	go func() {
+		showDone <- tray.Show()
+	}()
+
+	select {
+	case err := <-showDone:
+		if err != nil {
+			t.Fatalf("unexpected Show error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("tray menu provider deadlocked while reentering SetTooltip")
+	}
+	if err := <-providerErr; err != nil {
+		t.Fatalf("unexpected provider SetTooltip error: %v", err)
+	}
+	if handle.tooltip != "from provider" {
+		t.Fatalf("unexpected tooltip after provider reentry: %q", handle.tooltip)
+	}
+	if !tray.Visible() {
+		t.Fatal("tray should be visible after Show")
+	}
+}
+
+func TestTrayCloseFromMenuProviderKeepsStateConsistent(t *testing.T) {
+	handle := &testTrayHandle{evaluateProviderOnShow: true}
+	tray := &Tray{handle: handle}
+	closeErr := make(chan error, 1)
+	handle.menuProvider = asyncTrayMenuProvider(func() TrayMenu {
+		closeErr <- tray.Close()
+		return nil
+	})
+
+	showDone := make(chan error, 1)
+	go func() {
+		showDone <- tray.Show()
+	}()
+
+	select {
+	case err := <-showDone:
+		if !IsClosed(err) {
+			t.Fatalf("expected Show to report the reentrant Close, got %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("tray menu provider deadlocked while closing the tray")
+	}
+	if err := <-closeErr; err != nil {
+		t.Fatalf("unexpected provider Close error: %v", err)
+	}
+	if !tray.Closed() || tray.Visible() {
+		t.Fatalf("unexpected tray state after provider Close: closed=%v visible=%v", tray.Closed(), tray.Visible())
+	}
+	if handle.closeCount != 1 {
+		t.Fatalf("expected one driver Close call, got %d", handle.closeCount)
 	}
 }
 

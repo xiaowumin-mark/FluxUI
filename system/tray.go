@@ -231,24 +231,40 @@ func (t *Tray) SetMenuProvider(fn func() TrayMenu) error {
 
 // Show displays the tray icon.
 func (t *Tray) Show() error {
-	return t.withHandle(func(handle trayHandle) error {
-		if err := handle.show(); err != nil {
-			return err
-		}
-		t.visible = true
-		return nil
-	})
+	handle, err := t.handleSnapshot()
+	if err != nil {
+		return err
+	}
+	if err := handle.show(); err != nil {
+		return err
+	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.closed {
+		return trayClosedError()
+	}
+	t.visible = true
+	return nil
 }
 
 // Hide hides the tray icon.
 func (t *Tray) Hide() error {
-	return t.withHandle(func(handle trayHandle) error {
-		if err := handle.hide(); err != nil {
-			return err
-		}
-		t.visible = false
-		return nil
-	})
+	handle, err := t.handleSnapshot()
+	if err != nil {
+		return err
+	}
+	if err := handle.hide(); err != nil {
+		return err
+	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.closed {
+		return trayClosedError()
+	}
+	t.visible = false
+	return nil
 }
 
 // Visible reports whether the tray icon has been shown and not hidden or closed.
@@ -277,34 +293,44 @@ func (t *Tray) Close() error {
 		return trayClosedError()
 	}
 	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	if t.closed {
+		t.mu.Unlock()
 		return trayClosedError()
 	}
 	t.closed = true
 	t.visible = false
+	handle := t.handle
+	t.mu.Unlock()
+
 	unregisterTray(t)
-	if t.handle == nil {
+	if handle == nil {
 		return fmt.Errorf("system: %s: close: %w", CapabilityTray, ErrUnavailable)
 	}
-	return t.handle.close()
+	return handle.close()
 }
 
 func (t *Tray) withHandle(fn func(trayHandle) error) error {
+	handle, err := t.handleSnapshot()
+	if err != nil {
+		return err
+	}
+	return fn(handle)
+}
+
+func (t *Tray) handleSnapshot() (trayHandle, error) {
 	if t == nil {
-		return trayClosedError()
+		return nil, trayClosedError()
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	if t.closed {
-		return trayClosedError()
+		return nil, trayClosedError()
 	}
 	if t.handle == nil {
-		return fmt.Errorf("system: %s: %w", CapabilityTray, ErrUnavailable)
+		return nil, fmt.Errorf("system: %s: %w", CapabilityTray, ErrUnavailable)
 	}
-	return fn(t.handle)
+	return t.handle, nil
 }
 
 func defaultTrayOptions() trayOptions {
@@ -339,18 +365,6 @@ func cloneTrayMenu(menu TrayMenu) TrayMenu {
 		cloned[i].Children = cloneTrayMenu(item.Children)
 	}
 	return cloned
-}
-
-func findTrayMenuItem(menu TrayMenu, id string) (TrayMenuItem, bool) {
-	for _, item := range menu {
-		if item.ID == id {
-			return item, true
-		}
-		if child, ok := findTrayMenuItem(item.Children, id); ok {
-			return child, true
-		}
-	}
-	return TrayMenuItem{}, false
 }
 
 func asyncTrayMenuProvider(fn func() TrayMenu) func() TrayMenu {

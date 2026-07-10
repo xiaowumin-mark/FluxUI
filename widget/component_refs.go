@@ -1,27 +1,52 @@
 package widget
 
-import "sync"
+import (
+	"sync"
+	"unsafe"
+
+	"github.com/xiaowumin-mark/FluxUI/internal"
+)
+
+// Command refs retain only the newest commands while unmounted. Moving a ref to
+// a different component drops commands owned by the previous binding.
+const (
+	maxPendingRefCommands     = 64
+	maxPendingRefCommandBytes = 4 << 20
+)
+
+type commandRefOwner struct {
+	runtime *internal.Runtime
+	path    internal.PathID
+	binding string
+}
 
 type commandQueue[T any] struct {
-	mu          sync.Mutex
-	commands    []T
-	invalidator func()
+	mu           sync.Mutex
+	commands     []T
+	commandBytes int
+	invalidator  func()
+	owner        commandRefOwner
+	bound        bool
+	everBound    bool
 }
 
 func (q *commandQueue[T]) enqueue(cmd T) {
+	size := pendingRefCommandBytes(cmd)
 	q.mu.Lock()
+	if size > maxPendingRefCommandBytes {
+		q.mu.Unlock()
+		return
+	}
+	for len(q.commands) > 0 && (len(q.commands) >= maxPendingRefCommands || q.commandBytes+size > maxPendingRefCommandBytes) {
+		q.dropOldestCommandLocked()
+	}
 	q.commands = append(q.commands, cmd)
+	q.commandBytes += size
 	invalidator := q.invalidator
 	q.mu.Unlock()
 	if invalidator != nil {
 		invalidator()
 	}
-}
-
-func (q *commandQueue[T]) bindInvalidator(fn func()) {
-	q.mu.Lock()
-	q.invalidator = fn
-	q.mu.Unlock()
 }
 
 func (q *commandQueue[T]) drainCommands() []T {
@@ -30,11 +55,92 @@ func (q *commandQueue[T]) drainCommands() []T {
 		q.mu.Unlock()
 		return nil
 	}
-	out := make([]T, len(q.commands))
-	copy(out, q.commands)
-	q.commands = q.commands[:0]
+	out := q.commands
+	q.commands = nil
+	q.commandBytes = 0
 	q.mu.Unlock()
 	return out
+}
+
+func (q *commandQueue[T]) bind(owner commandRefOwner, fn func()) func() {
+	q.mu.Lock()
+	if q.everBound && q.owner != owner {
+		q.clearCommandsLocked()
+	}
+	q.owner = owner
+	q.bound = true
+	q.everBound = true
+	q.invalidator = fn
+	q.mu.Unlock()
+	return func() {
+		q.unbind(owner)
+	}
+}
+
+func (q *commandQueue[T]) unbind(owner commandRefOwner) {
+	q.mu.Lock()
+	if q.bound && q.owner == owner {
+		q.clearCommandsLocked()
+		q.invalidator = nil
+		q.bound = false
+	}
+	q.mu.Unlock()
+}
+
+func (q *commandQueue[T]) clearCommandsLocked() {
+	clear(q.commands)
+	q.commands = nil
+	q.commandBytes = 0
+}
+
+func (q *commandQueue[T]) dropOldestCommandLocked() {
+	if len(q.commands) == 0 {
+		return
+	}
+	q.commandBytes -= pendingRefCommandBytes(q.commands[0])
+	copy(q.commands, q.commands[1:])
+	var zero T
+	q.commands[len(q.commands)-1] = zero
+	q.commands = q.commands[:len(q.commands)-1]
+}
+
+func pendingRefCommandBytes[T any](cmd T) int {
+	size := int(unsafe.Sizeof(cmd))
+	switch value := any(cmd).(type) {
+	case string:
+		size += len(value)
+	case interface{ pendingRefBytes() int }:
+		if payload := value.pendingRefBytes(); payload > 0 {
+			size += payload
+		}
+	}
+	if size < 1 {
+		return 1
+	}
+	return size
+}
+
+func bindCommandRef[T any](ctx *internal.Context, binding string, identity any, queue *commandQueue[T]) {
+	if ctx == nil || queue == nil {
+		return
+	}
+	owner := commandRefOwner{
+		runtime: ctx.Runtime(),
+		path:    ctx.PathID(),
+		binding: binding,
+	}
+	cleanup := queue.bind(owner, redrawInvalidator(ctx))
+	if owner.runtime == nil {
+		return
+	}
+	key := internal.MemoryKey{
+		Path:      owner.path,
+		Namespace: "widget.ref." + binding,
+		NoSlot:    true,
+	}
+	owner.runtime.UseEffectKey(key, true, []any{identity}, func() func() {
+		return cleanup
+	})
 }
 
 type ButtonRef struct {
@@ -50,13 +156,6 @@ func (r *ButtonRef) Click() {
 		return
 	}
 	r.queue.enqueue(struct{}{})
-}
-
-func (r *ButtonRef) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.queue.bindInvalidator(fn)
 }
 
 func (r *ButtonRef) drainCommands() []struct{} {
@@ -87,13 +186,6 @@ func (r *ClickAreaRef) Click() {
 	r.queue.enqueue(struct{}{})
 }
 
-func (r *ClickAreaRef) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.queue.bindInvalidator(fn)
-}
-
 func (r *ClickAreaRef) drainCommands() []struct{} {
 	if r == nil {
 		return nil
@@ -114,6 +206,10 @@ const (
 type inputCommand struct {
 	kind inputCommandKind
 	text string
+}
+
+func (c inputCommand) pendingRefBytes() int {
+	return len(c.text) + 1
 }
 
 type InputRef struct {
@@ -165,13 +261,6 @@ func (r *InputRef) Blur() {
 	r.queue.enqueue(inputCommand{kind: inputCmdBlur})
 }
 
-func (r *InputRef) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.queue.bindInvalidator(fn)
-}
-
 func (r *InputRef) drainCommands() []inputCommand {
 	if r == nil {
 		return nil
@@ -216,13 +305,6 @@ func (r *CheckboxRef) Toggle() {
 	r.queue.enqueue(boolCommand{kind: boolCmdToggle})
 }
 
-func (r *CheckboxRef) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.queue.bindInvalidator(fn)
-}
-
 func (r *CheckboxRef) drainCommands() []boolCommand {
 	if r == nil {
 		return nil
@@ -253,13 +335,6 @@ func (r *SwitchRef) Toggle() {
 		return
 	}
 	r.queue.enqueue(boolCommand{kind: boolCmdToggle})
-}
-
-func (r *SwitchRef) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.queue.bindInvalidator(fn)
 }
 
 func (r *SwitchRef) drainCommands() []boolCommand {
@@ -310,13 +385,6 @@ func (r *SliderRef) StepBy(delta float32) {
 	})
 }
 
-func (r *SliderRef) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.queue.bindInvalidator(fn)
-}
-
 func (r *SliderRef) drainCommands() []sliderCommand {
 	if r == nil {
 		return nil
@@ -339,13 +407,6 @@ func (r *RadioGroupRef) SetValue(value string) {
 	r.queue.enqueue(value)
 }
 
-func (r *RadioGroupRef) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.queue.bindInvalidator(fn)
-}
-
 func (r *RadioGroupRef) drainCommands() []string {
 	if r == nil {
 		return nil
@@ -365,6 +426,13 @@ const (
 type selectCommand[T comparable] struct {
 	kind  selectCommandKind
 	value T
+}
+
+func (c selectCommand[T]) pendingRefBytes() int {
+	if value, ok := any(c.value).(string); ok {
+		return len(value) + 1
+	}
+	return 1
 }
 
 type SelectRef[T comparable] struct {
@@ -406,13 +474,6 @@ func (r *SelectRef[T]) Toggle() {
 	r.queue.enqueue(selectCommand[T]{kind: selectCmdToggle})
 }
 
-func (r *SelectRef[T]) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.queue.bindInvalidator(fn)
-}
-
 func (r *SelectRef[T]) drainCommands() []selectCommand[T] {
 	if r == nil {
 		return nil
@@ -433,13 +494,6 @@ func (r *TabsRef) SetActive(key string) {
 		return
 	}
 	r.queue.enqueue(key)
-}
-
-func (r *TabsRef) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.queue.bindInvalidator(fn)
 }
 
 func (r *TabsRef) drainCommands() []string {
@@ -484,13 +538,6 @@ func (r *DialogRef) Toggle() {
 	r.queue.enqueue(boolCommand{kind: boolCmdToggle})
 }
 
-func (r *DialogRef) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.queue.bindInvalidator(fn)
-}
-
 func (r *DialogRef) drainCommands() []boolCommand {
 	if r == nil {
 		return nil
@@ -533,13 +580,6 @@ func (r *PopupRef) Toggle() {
 	r.queue.enqueue(boolCommand{kind: boolCmdToggle})
 }
 
-func (r *PopupRef) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.queue.bindInvalidator(fn)
-}
-
 func (r *PopupRef) drainCommands() []boolCommand {
 	if r == nil {
 		return nil
@@ -560,13 +600,6 @@ func (r *BottomNavRef) SetActive(key string) {
 		return
 	}
 	r.queue.enqueue(key)
-}
-
-func (r *BottomNavRef) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.queue.bindInvalidator(fn)
 }
 
 func (r *BottomNavRef) drainCommands() []string {

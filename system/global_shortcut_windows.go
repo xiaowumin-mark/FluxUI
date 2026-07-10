@@ -26,10 +26,11 @@ const (
 )
 
 var (
-	procRegisterHotKey   = user32.NewProc("RegisterHotKey")
-	procUnregisterHotKey = user32.NewProc("UnregisterHotKey")
-	windowsShortcutState = newWindowsGlobalShortcutState()
-	windowsShortcutProc  = syscall.NewCallback(windowsGlobalShortcutWindowProc)
+	procRegisterHotKey              = user32.NewProc("RegisterHotKey")
+	procUnregisterHotKey            = user32.NewProc("UnregisterHotKey")
+	windowsShortcutState            = newWindowsGlobalShortcutState()
+	windowsShortcutProc             = syscall.NewCallback(windowsGlobalShortcutWindowProc)
+	unregisterWindowsGlobalShortcut = windowsUnregisterHotKey
 )
 
 type windowsGlobalShortcutStateData struct {
@@ -239,11 +240,9 @@ func (h *windowsGlobalShortcutHandle) close() error {
 	}
 	h.closed = true
 	windowsShortcutState.removeEntry(h.id)
-	if err := windowsUnregisterHotKey(windowsShortcutState.hWndSnapshot(), h.id); err != nil {
-		return err
-	}
+	err := unregisterWindowsGlobalShortcut(windowsShortcutState.hWndSnapshot(), h.id)
 	close(h.ch)
-	return nil
+	return err
 }
 
 func (h *windowsGlobalShortcutHandle) dispatch() {
@@ -258,13 +257,13 @@ func (h *windowsGlobalShortcutHandle) dispatch() {
 		Modifiers: h.spec.Modifiers,
 	}
 	callback := h.callback
-	h.mu.Unlock()
-	if callback != nil {
-		go callback(event)
-	}
 	select {
 	case h.ch <- event:
 	default:
+	}
+	h.mu.Unlock()
+	if callback != nil {
+		go callback(event)
 	}
 }
 

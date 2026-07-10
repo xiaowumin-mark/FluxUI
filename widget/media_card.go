@@ -250,14 +250,7 @@ func (i *imageWidget) refreshImageState(state *decodedImageState) {
 		return
 	}
 
-	file, err := os.Open(resolvedPath)
-	if err != nil {
-		state.err = err
-		return
-	}
-	defer file.Close()
-
-	decoded, _, err := image.Decode(file)
+	decoded, err := style.DecodeImageFile(resolvedPath)
 	if err != nil {
 		state.err = err
 		return
@@ -678,7 +671,7 @@ func (c *cardWidget) Layout(ctx *internal.Context) layout.Dimensions {
 
 	if c.config.onClick != nil || c.config.ref != nil {
 		if c.config.ref != nil {
-			c.config.ref.bindInvalidator(redrawInvalidator(ctx))
+			bindCommandRef(ctx, "card", c.config.ref, &c.config.ref.queue)
 			for range c.config.ref.drainCommands() {
 				if c.config.onClick != nil {
 					c.config.onClick(ctx)

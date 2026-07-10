@@ -181,8 +181,12 @@ func (h WindowHandle) NativeHandle() (uintptr, bool) {
 	}
 	entry.mu.RLock()
 	handle := entry.nativeHandle
+	ready := handle != 0 && entry.nativeHandleReadyGeneration == entry.nativeHandleGeneration
 	entry.mu.RUnlock()
-	return handle, handle != 0
+	if !ready {
+		return 0, false
+	}
+	return handle, true
 }
 
 // IsAlive 返回窗口是否仍在运行。
@@ -307,14 +311,16 @@ func (h WindowHandle) SetAlwaysOnTop(always bool) bool {
 	if !ok {
 		return false
 	}
-	if !setNativeWindowAlwaysOnTop(entry.nativeHandleSnapshot(), always) {
-		return false
-	}
-	entry.updateAndEmit(func(state *WindowState) {
-		state.AlwaysOnTop = always
+	return entry.withNativeWindowOperation(func() bool {
+		if !setNativeWindowAlwaysOnTop(entry.nativeWindowTargetSnapshot(), always) {
+			return false
+		}
+		entry.updateAndEmit(func(state *WindowState) {
+			state.AlwaysOnTop = always
+		})
+		entry.win.Invalidate()
+		return true
 	})
-	entry.win.Invalidate()
-	return true
 }
 
 // Center 请求将窗口居中。
@@ -328,7 +334,9 @@ func (h WindowHandle) RequestFocus() bool {
 	if !ok {
 		return false
 	}
-	if requestNativeWindowFocus(entry.nativeHandleSnapshot()) {
+	if entry.withNativeWindowOperation(func() bool {
+		return requestNativeWindowFocus(entry.nativeWindowTargetSnapshot())
+	}) {
 		return true
 	}
 	return h.perform(gioSystem.ActionRaise)
@@ -351,15 +359,17 @@ func (h WindowHandle) SetPosition(x, y int) bool {
 	if !ok {
 		return false
 	}
-	metric := entry.metricSnapshot()
-	if !setNativeWindowPosition(entry.nativeHandleSnapshot(), metric.Dp(unit.Dp(x)), metric.Dp(unit.Dp(y))) {
-		return false
-	}
-	entry.updateAndEmit(func(state *WindowState) {
-		state.X = x
-		state.Y = y
+	return entry.withNativeWindowOperation(func() bool {
+		metric := entry.metricSnapshot()
+		if !setNativeWindowPosition(entry.nativeWindowTargetSnapshot(), metric.Dp(unit.Dp(x)), metric.Dp(unit.Dp(y))) {
+			return false
+		}
+		entry.updateAndEmit(func(state *WindowState) {
+			state.X = x
+			state.Y = y
+		})
+		return true
 	})
-	return true
 }
 
 // SetSize 更新窗口尺寸（单位为 dp）。
@@ -385,19 +395,28 @@ func (h WindowHandle) SetResizable(resizable bool) bool {
 	if !ok {
 		return false
 	}
-	if !setNativeWindowResizable(entry.nativeHandleSnapshot(), resizable) {
+	if !entry.withNativeWindowOperation(func() bool {
+		if !setNativeWindowResizable(entry.nativeWindowTargetSnapshot(), resizable) {
+			return false
+		}
+		entry.updateAndEmit(func(state *WindowState) {
+			state.Resizable = resizable
+		})
+		return true
+	}) {
 		return false
 	}
-	entry.updateAndEmit(func(state *WindowState) {
-		state.Resizable = resizable
-	})
 	entry.syncNativeMaximizeAvailability()
 	return true
 }
 
 // SetDecorated controls whether the window uses the OS decoration frame.
 func (h WindowHandle) SetDecorated(decorated bool) bool {
-	ok := h.apply(func(entry *windowEntry) {
+	entry, ok := h.liveEntry()
+	if !ok {
+		return false
+	}
+	ok = entry.withNativeWindowOperation(func() bool {
 		entry.win.Option(gioApp.Decorated(decorated))
 		entry.updateAndEmit(func(state *WindowState) {
 			state.Decorated = decorated
@@ -405,9 +424,10 @@ func (h WindowHandle) SetDecorated(decorated bool) bool {
 				state.WindowsFrameStyle.Mode = WindowsFrameHidden
 			}
 		})
+		return true
 	})
 	if ok {
-		if entry, live := h.liveEntry(); live {
+		if _, live := h.liveEntry(); live {
 			entry.syncNativeChrome()
 			entry.syncNativeCloseHook()
 		}
@@ -423,15 +443,21 @@ func (h WindowHandle) SetWindowsFrameStyle(style WindowsFrameStyle) bool {
 	}
 	style = normalizeWindowsFrameStyle(style)
 	decorated := style.Mode != WindowsFrameHidden
-	entry.win.Option(gioApp.Decorated(decorated))
-	state := entry.snapshot()
-	if !setNativeWindowFrameStyle(entry.nativeHandleSnapshot(), style, state.Resizable, windowMaximizeAvailable(state)) {
+	if !entry.withNativeWindowOperation(func() bool {
+		state := entry.snapshot()
+		entry.win.Option(gioApp.Decorated(decorated))
+		if !setNativeWindowFrameStyle(entry.nativeWindowTargetSnapshot(), style, state.Resizable, windowMaximizeAvailable(state)) {
+			entry.win.Option(gioApp.Decorated(state.Decorated))
+			return false
+		}
+		entry.updateAndEmit(func(state *WindowState) {
+			state.WindowsFrameStyle = style
+			state.Decorated = decorated
+		})
+		return true
+	}) {
 		return false
 	}
-	entry.updateAndEmit(func(state *WindowState) {
-		state.WindowsFrameStyle = style
-		state.Decorated = decorated
-	})
 	entry.syncNativeCloseHook()
 	entry.syncNativeMaximizeAvailability()
 	entry.syncNativeResizable()
@@ -445,11 +471,13 @@ func (h WindowHandle) StartDragMove() bool {
 	if !ok {
 		return false
 	}
-	state := entry.snapshot()
-	if state.Fullscreen || state.Minimized {
-		return false
-	}
-	return startNativeWindowDragMove(entry.nativeHandleSnapshot())
+	return entry.withNativeWindowOperation(func() bool {
+		state := entry.snapshot()
+		if state.Fullscreen || state.Minimized {
+			return false
+		}
+		return startNativeWindowDragMove(entry.nativeWindowTargetSnapshot())
+	})
 }
 
 // ProbeWindowsChrome returns Windows native chrome capability information.
@@ -517,7 +545,7 @@ func (h WindowHandle) applyOption(opts ...gioApp.Option) bool {
 
 func (h WindowHandle) applyMode(mode gioApp.WindowMode) bool {
 	entry, ok := h.liveEntry()
-	if !ok {
+	if !ok || entry.nativeCallbackDepth.Load() != 0 {
 		return false
 	}
 	if mode == gioApp.Maximized && entry.maximizeDisabledByConstraints() {
@@ -535,16 +563,21 @@ func (h WindowHandle) setVisible(visible bool) bool {
 	if !ok {
 		return false
 	}
-	if !setNativeWindowVisible(entry.nativeHandleSnapshot(), visible) {
+	trim := false
+	if !entry.withNativeWindowOperation(func() bool {
+		if !setNativeWindowVisible(entry.nativeWindowTargetSnapshot(), visible) {
+			return false
+		}
+		entry.updateAndEmit(func(state *WindowState) {
+			before := state.RenderSuspended
+			state.Visible = visible
+			applyWindowRenderSuspendedState(state)
+			trim = !before && state.RenderSuspended
+		})
+		return true
+	}) {
 		return false
 	}
-	trim := false
-	entry.updateAndEmit(func(state *WindowState) {
-		before := state.RenderSuspended
-		state.Visible = visible
-		applyWindowRenderSuspendedState(state)
-		trim = !before && state.RenderSuspended
-	})
 	if trim {
 		entry.requestHiddenMemoryTrim()
 	}
@@ -568,7 +601,7 @@ func (h WindowHandle) apply(fn func(entry *windowEntry)) bool {
 		return false
 	}
 	entry, ok := h.liveEntry()
-	if !ok {
+	if !ok || entry.nativeCallbackDepth.Load() != 0 {
 		return false
 	}
 	fn(entry)
@@ -977,6 +1010,7 @@ func (a *Application) Run() error {
 		switch evt := w.Event().(type) {
 		case gioApp.DestroyEvent:
 			entry.alive.Store(false)
+			entry.invalidateNativeWindowHandle()
 			entry.pushEvent(WindowEventClosed, func(state *WindowState) {
 				state.Alive = false
 				state.Visible = false
@@ -1214,31 +1248,39 @@ func (c *windowController) IsAlive() bool {
 }
 
 type windowEntry struct {
-	id                        WindowID
-	win                       *gioApp.Window
-	alive                     atomic.Bool
-	trimHiddenMemoryPending   atomic.Bool
-	mu                        sync.RWMutex
-	metric                    unit.Metric
-	nativeHandle              uintptr
-	nativeMaximizeHandle      uintptr
-	nativeMaximizeSynced      bool
-	nativeMaximizeEnabled     bool
-	nativeResizableHandle     uintptr
-	nativeResizableSynced     bool
-	nativeResizableEnabled    bool
-	nativeCloseHookHandle     uintptr
-	nativeCloseHooked         bool
-	nativeCloseOldProc        uintptr
-	nativeActionRouter        *gioInput.Router
-	nativeActionRegions       []internal.NativeWindowActionRegion
-	nativeMaximizePointerDown bool
-	nativeMaximizeMouseDown   bool
-	state                     WindowState
-	closeRequested            func(WindowCloseRequest) bool
-	events                    []WindowEvent
-	eventSubscribers          map[uint64]*windowEventSubscriber
-	nextEventSubscriberID     uint64
+	id                          WindowID
+	win                         *gioApp.Window
+	alive                       atomic.Bool
+	trimHiddenMemoryPending     atomic.Bool
+	nativeOperationMu           sync.Mutex
+	nativeCallbackDepth         atomic.Int32
+	nativeWindowThreadID        atomic.Uint32
+	mu                          sync.RWMutex
+	metric                      unit.Metric
+	nativeHandle                uintptr
+	nativeHandleGeneration      uint64
+	nativeHandleReadyGeneration uint64
+	nativeMaximizeHandle        uintptr
+	nativeMaximizeGeneration    uint64
+	nativeMaximizeSynced        bool
+	nativeMaximizeEnabled       bool
+	nativeResizableHandle       uintptr
+	nativeResizableGeneration   uint64
+	nativeResizableSynced       bool
+	nativeResizableEnabled      bool
+	nativeCloseHookHandle       uintptr
+	nativeCloseHookGeneration   uint64
+	nativeCloseHooked           bool
+	nativeCloseOldProc          uintptr
+	nativeActionRouter          *gioInput.Router
+	nativeActionRegions         []internal.NativeWindowActionRegion
+	nativeMaximizePointerDown   bool
+	nativeMaximizeMouseDown     bool
+	state                       WindowState
+	closeRequested              func(WindowCloseRequest) bool
+	events                      []WindowEvent
+	eventSubscribers            map[uint64]*windowEventSubscriber
+	nextEventSubscriberID       uint64
 }
 
 type windowEventSubscriber struct {
@@ -1271,6 +1313,7 @@ func unregisterWindow(id WindowID) {
 	delete(windowRegistry, id)
 	windowRegistryMu.Unlock()
 	if entry != nil {
+		entry.invalidateNativeWindowHandle()
 		entry.closeEventSubscribers()
 	}
 	forgetNativeWindowCloseHook(entry)
@@ -1289,13 +1332,6 @@ func (entry *windowEntry) snapshot() WindowState {
 	entry.mu.RUnlock()
 	state.Alive = entry.alive.Load()
 	return state
-}
-
-func (entry *windowEntry) nativeHandleSnapshot() uintptr {
-	entry.mu.RLock()
-	handle := entry.nativeHandle
-	entry.mu.RUnlock()
-	return handle
 }
 
 func (entry *windowEntry) renderSuspendedSnapshot() bool {
@@ -1424,98 +1460,186 @@ func (entry *windowEntry) maximizeDisabledByConstraints() bool {
 }
 
 func (entry *windowEntry) syncNativeMaximizeAvailability() {
+	if entry == nil || entry.nativeCallbackDepth.Load() != 0 {
+		return
+	}
+	entry.nativeOperationMu.Lock()
+	defer entry.nativeOperationMu.Unlock()
+	if entry.nativeCallbackDepth.Load() != 0 {
+		return
+	}
+
 	entry.mu.Lock()
-	handle := entry.nativeHandle
-	if handle == 0 {
+	if entry.nativeHandleReadyGeneration != entry.nativeHandleGeneration {
+		entry.mu.Unlock()
+		return
+	}
+	target := nativeWindowTarget{
+		entry:      entry,
+		handle:     entry.nativeHandle,
+		generation: entry.nativeHandleGeneration,
+	}
+	if target.handle == 0 {
 		entry.mu.Unlock()
 		return
 	}
 	enabled := windowMaximizeAvailable(entry.state)
-	if enabled && !entry.nativeMaximizeSynced {
+	syncedForTarget := entry.nativeMaximizeSynced &&
+		entry.nativeMaximizeHandle == target.handle &&
+		entry.nativeMaximizeGeneration == target.generation
+	if enabled && !syncedForTarget {
 		entry.mu.Unlock()
 		return
 	}
-	if entry.nativeMaximizeSynced &&
-		entry.nativeMaximizeHandle == handle &&
-		entry.nativeMaximizeEnabled == enabled {
+	if syncedForTarget && entry.nativeMaximizeEnabled == enabled {
 		entry.mu.Unlock()
 		return
 	}
-	entry.nativeMaximizeHandle = handle
-	entry.nativeMaximizeSynced = true
-	entry.nativeMaximizeEnabled = enabled
 	entry.mu.Unlock()
 
-	setNativeWindowMaximizeEnabled(handle, enabled)
+	if !setNativeWindowMaximizeEnabled(target, enabled) {
+		return
+	}
+	entry.mu.Lock()
+	if target.matchesEntryLocked() && windowMaximizeAvailable(entry.state) == enabled {
+		entry.nativeMaximizeHandle = target.handle
+		entry.nativeMaximizeGeneration = target.generation
+		entry.nativeMaximizeSynced = true
+		entry.nativeMaximizeEnabled = enabled
+	}
+	entry.mu.Unlock()
 }
 
 func (entry *windowEntry) syncNativeResizable() {
+	if entry == nil || entry.nativeCallbackDepth.Load() != 0 {
+		return
+	}
+	entry.nativeOperationMu.Lock()
+	defer entry.nativeOperationMu.Unlock()
+	if entry.nativeCallbackDepth.Load() != 0 {
+		return
+	}
+
 	entry.mu.Lock()
-	handle := entry.nativeHandle
-	if handle == 0 {
+	if entry.nativeHandleReadyGeneration != entry.nativeHandleGeneration {
+		entry.mu.Unlock()
+		return
+	}
+	target := nativeWindowTarget{
+		entry:      entry,
+		handle:     entry.nativeHandle,
+		generation: entry.nativeHandleGeneration,
+	}
+	if target.handle == 0 {
 		entry.mu.Unlock()
 		return
 	}
 	enabled := entry.state.Resizable
 	if entry.nativeResizableSynced &&
-		entry.nativeResizableHandle == handle &&
+		entry.nativeResizableHandle == target.handle &&
+		entry.nativeResizableGeneration == target.generation &&
 		entry.nativeResizableEnabled == enabled {
 		entry.mu.Unlock()
 		return
 	}
-	entry.nativeResizableHandle = handle
-	entry.nativeResizableSynced = true
-	entry.nativeResizableEnabled = enabled
 	entry.mu.Unlock()
 
-	setNativeWindowResizable(handle, enabled)
+	if !setNativeWindowResizable(target, enabled) {
+		return
+	}
+	entry.mu.Lock()
+	if target.matchesEntryLocked() && entry.state.Resizable == enabled {
+		entry.nativeResizableHandle = target.handle
+		entry.nativeResizableGeneration = target.generation
+		entry.nativeResizableSynced = true
+		entry.nativeResizableEnabled = enabled
+	}
+	entry.mu.Unlock()
 }
 
 func (entry *windowEntry) syncNativeChrome() {
-	if entry == nil {
+	if entry == nil || entry.nativeCallbackDepth.Load() != 0 {
 		return
 	}
+	entry.nativeOperationMu.Lock()
+	defer entry.nativeOperationMu.Unlock()
+	if entry.nativeCallbackDepth.Load() != 0 {
+		return
+	}
+
 	entry.mu.RLock()
-	handle := entry.nativeHandle
+	if entry.nativeHandleReadyGeneration != entry.nativeHandleGeneration {
+		entry.mu.RUnlock()
+		return
+	}
+	target := nativeWindowTarget{
+		entry:      entry,
+		handle:     entry.nativeHandle,
+		generation: entry.nativeHandleGeneration,
+	}
 	frame := normalizeWindowsFrameStyle(entry.state.WindowsFrameStyle)
 	resizable := entry.state.Resizable
 	maximizeEnabled := windowMaximizeAvailable(entry.state)
 	entry.mu.RUnlock()
-	if handle == 0 {
+	if target.handle == 0 {
 		return
 	}
-	setNativeWindowFrameStyle(handle, frame, resizable, maximizeEnabled)
+	setNativeWindowFrameStyle(target, frame, resizable, maximizeEnabled)
 }
 
 func (entry *windowEntry) syncNativeCloseHook() {
+	if entry == nil {
+		return
+	}
+	if entry.nativeCallbackDepth.Load() != 0 {
+		return
+	}
+	entry.nativeOperationMu.Lock()
+	defer entry.nativeOperationMu.Unlock()
+	if entry.nativeCallbackDepth.Load() != 0 {
+		return
+	}
+	entry.syncNativeCloseHookLocked()
+}
+
+func (entry *windowEntry) syncNativeCloseHookLocked() bool {
+	// Every live HWND is subclassed so WM_NCDESTROY can invalidate its
+	// generation before Windows is able to recycle the numeric handle.
 	entry.mu.Lock()
 	handle := entry.nativeHandle
-	enabled := entry.closeRequested != nil ||
-		entry.state.WindowsFrameStyle.Mode == WindowsFrameHidden ||
-		entry.nativeActionRouter != nil ||
-		len(entry.nativeActionRegions) > 0
+	generation := entry.nativeHandleGeneration
 	hooked := entry.nativeCloseHooked
 	if handle == 0 {
 		entry.mu.Unlock()
 		if hooked {
 			uninstallNativeWindowCloseHook(entry)
 		}
-		return
+		return true
 	}
-	if !enabled {
+	if entry.nativeCloseHooked &&
+		entry.nativeCloseHookHandle == handle &&
+		entry.nativeCloseHookGeneration == generation {
 		entry.mu.Unlock()
-		if hooked {
-			uninstallNativeWindowCloseHook(entry)
+		target := nativeWindowTarget{
+			entry:      entry,
+			handle:     handle,
+			generation: generation,
 		}
-		return
-	}
-	if entry.nativeCloseHooked && entry.nativeCloseHookHandle == handle {
-		entry.mu.Unlock()
-		return
+		if installNativeWindowCloseHook(entry) {
+			return entry.markNativeWindowTargetReady(target)
+		}
+		return false
 	}
 	entry.mu.Unlock()
 
-	installNativeWindowCloseHook(entry)
+	if installNativeWindowCloseHook(entry) {
+		return entry.markNativeWindowTargetReady(nativeWindowTarget{
+			entry:      entry,
+			handle:     handle,
+			generation: generation,
+		})
+	}
+	return false
 }
 
 func (entry *windowEntry) handleCloseRequested() bool {

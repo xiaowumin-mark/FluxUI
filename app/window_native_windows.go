@@ -4,7 +4,6 @@ package app
 
 import (
 	"image/color"
-	"runtime"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -16,7 +15,6 @@ const (
 	nativeSWPNoZOrder   = 0x0004
 	nativeSWPNoActivate = 0x0010
 	nativeSWPFrame      = 0x0020
-	nativeSWPAsync      = 0x4000
 
 	nativeSWHide   = 0
 	nativeSWShowNA = 8
@@ -93,7 +91,10 @@ var (
 	nativeDrawMenuBar      = nativeUser32.NewProc("DrawMenuBar")
 	nativeEnableMenuItem   = nativeUser32.NewProc("EnableMenuItem")
 	nativeGetSystemMenu    = nativeUser32.NewProc("GetSystemMenu")
+	nativeGetCapture       = nativeUser32.NewProc("GetCapture")
 	nativeGetWindowLong    = nativeUser32.NewProc("GetWindowLongW")
+	nativeIsWindow         = nativeUser32.NewProc("IsWindow")
+	nativeIsWindowVisible  = nativeUser32.NewProc("IsWindowVisible")
 	nativeSetWindowPos     = nativeUser32.NewProc("SetWindowPos")
 	nativeSetWindowLong    = nativeUser32.NewProc("SetWindowLongW")
 	nativeSetWindowLongPtr = nativeUser32.NewProc("SetWindowLongPtrW")
@@ -104,16 +105,21 @@ var (
 	nativeRedrawWindow     = nativeUser32.NewProc("RedrawWindow")
 	nativeClientToScreen   = nativeUser32.NewProc("ClientToScreen")
 	nativeScreenToClient   = nativeUser32.NewProc("ScreenToClient")
-	nativeShowWindowAsync  = nativeUser32.NewProc("ShowWindowAsync")
+	nativeShowWindow       = nativeUser32.NewProc("ShowWindow")
+
+	nativeKernel32           = syscall.NewLazyDLL("kernel32.dll")
+	nativeGetCurrentThreadID = nativeKernel32.NewProc("GetCurrentThreadId")
+	nativeSetLastError       = nativeKernel32.NewProc("SetLastError")
 
 	nativeDwm              = syscall.NewLazyDLL("dwmapi.dll")
+	nativeDwmGetWindowAttr = nativeDwm.NewProc("DwmGetWindowAttribute")
 	nativeDwmSetWindowAttr = nativeDwm.NewProc("DwmSetWindowAttribute")
 	nativeDwmExtendFrame   = nativeDwm.NewProc("DwmExtendFrameIntoClientArea")
 	nativeDwmFlush         = nativeDwm.NewProc("DwmFlush")
 
 	nativeCloseHookCallback = syscall.NewCallback(nativeWindowProc)
 	nativeCloseHookMu       sync.RWMutex
-	nativeCloseHookEntries  = make(map[uintptr]*windowEntry)
+	nativeCloseHookEntries  = make(map[uintptr]nativeCloseHookBinding)
 )
 
 type nativeMargins struct {
@@ -128,97 +134,207 @@ type nativePoint struct {
 	Y int32
 }
 
-func setNativeWindowAlwaysOnTop(handle uintptr, always bool) bool {
-	if handle == 0 {
+type nativeCloseHookBinding struct {
+	target  nativeWindowTarget
+	oldProc uintptr
+}
+
+func runOnNativeWindowThread(entry *windowEntry, run func()) bool {
+	if entry == nil || entry.win == nil || run == nil || !entry.alive.Load() {
 		return false
 	}
+	current, _, _ := nativeGetCurrentThreadID.Call()
+	if owner := entry.nativeWindowThreadID.Load(); owner != 0 && owner == uint32(current) {
+		run()
+		return true
+	}
+
+	completed := false
+	entry.win.Run(func() {
+		threadID, _, _ := nativeGetCurrentThreadID.Call()
+		entry.nativeWindowThreadID.Store(uint32(threadID))
+		run()
+		completed = true
+	})
+	return completed
+}
+
+func runNativeWindowCommand(target nativeWindowTarget, run func(uintptr) bool) bool {
+	if run == nil || !target.valid() {
+		return false
+	}
+	succeeded := false
+	if !runOnNativeWindowThread(target.entry, func() {
+		if !target.valid() {
+			return
+		}
+		result, _, _ := nativeIsWindow.Call(target.handle)
+		if result == 0 {
+			return
+		}
+		succeeded = run(target.handle) && target.valid()
+	}) {
+		return false
+	}
+	return succeeded
+}
+
+func nativeBoolCall(proc *syscall.LazyProc, args ...uintptr) bool {
+	result, _, _ := proc.Call(args...)
+	return result != 0
+}
+
+func nativeZeroValueCall(proc *syscall.LazyProc, args ...uintptr) (uintptr, bool) {
+	// GetWindowLong/SetWindowLong use zero both as a valid value and as their
+	// failure sentinel, so clear and inspect the thread's last-error value.
+	nativeSetLastError.Call(0)
+	result, _, callErr := proc.Call(args...)
+	return result, result != 0 || callErr == syscall.Errno(0)
+}
+
+func nativeHRESULTCall(proc *syscall.LazyProc, args ...uintptr) bool {
+	result, _, _ := proc.Call(args...)
+	return int32(result) == 0
+}
+
+func setNativeWindowAlwaysOnTop(target nativeWindowTarget, always bool) bool {
 	insertAfter := nativeHWNDNotopmost
 	if always {
 		insertAfter = nativeHWNDTopmost
 	}
-	go func() {
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		nativeSetWindowPos.Call(
+	return runNativeWindowCommand(target, func(handle uintptr) bool {
+		return nativeBoolCall(
+			nativeSetWindowPos,
 			handle,
 			insertAfter,
 			0,
 			0,
 			0,
 			0,
-			nativeSWPNoMove|nativeSWPNoSize|nativeSWPNoActivate|nativeSWPAsync,
+			nativeSWPNoMove|nativeSWPNoSize|nativeSWPNoActivate,
 		)
-	}()
-	return true
+	})
 }
 
-func setNativeWindowVisible(handle uintptr, visible bool) bool {
-	if handle == 0 {
-		return false
-	}
+func setNativeWindowVisible(target nativeWindowTarget, visible bool) bool {
 	cmd := uintptr(nativeSWHide)
 	if visible {
 		cmd = nativeSWShowNA
 	}
-	go func() {
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		nativeShowWindowAsync.Call(handle, cmd)
-	}()
-	return true
+	return runNativeWindowCommand(target, func(handle uintptr) bool {
+		// ShowWindow reports the previous visibility, not success. Verify the
+		// resulting state after the synchronous call instead.
+		nativeShowWindow.Call(handle, cmd)
+		shown, _, _ := nativeIsWindowVisible.Call(handle)
+		return (shown != 0) == visible
+	})
 }
 
-func requestNativeWindowFocus(handle uintptr) bool {
-	if handle == 0 {
-		return false
-	}
-	go func() {
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		nativeSetForeground.Call(handle)
-	}()
-	return true
+func requestNativeWindowFocus(target nativeWindowTarget) bool {
+	return runNativeWindowCommand(target, func(handle uintptr) bool {
+		return nativeBoolCall(nativeSetForeground, handle)
+	})
 }
 
-func startNativeWindowDragMove(handle uintptr) bool {
-	if handle == 0 {
-		return false
-	}
-	go func() {
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		nativeReleaseCapture.Call()
-		nativePostMessage.Call(handle, nativeWMNCLButtonDown, nativeHTCaption, 0)
-	}()
-	return true
-}
-
-func setNativeWindowFrameStyle(handle uintptr, style WindowsFrameStyle, resizable, maximizeEnabled bool) bool {
-	if handle == 0 {
-		return false
-	}
-	style = normalizeWindowsFrameStyle(style)
-	go func() {
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-
-		styleValue, _, err := nativeGetWindowLong.Call(handle, nativeGWLStyle)
-		if styleValue != 0 || err == syscall.Errno(0) {
-			nextStyle := nativeWindowChromeStyle(styleValue, style.Mode, resizable, maximizeEnabled)
-			if nextStyle != styleValue {
-				nativeSetWindowLong.Call(handle, nativeGWLStyle, nextStyle)
-			}
+func startNativeWindowDragMove(target nativeWindowTarget) bool {
+	return runNativeWindowCommand(target, func(handle uintptr) bool {
+		capture, _, _ := nativeGetCapture.Call()
+		if capture != 0 && !nativeBoolCall(nativeReleaseCapture) {
+			return false
 		}
+		return nativeBoolCall(nativePostMessage, handle, nativeWMNCLButtonDown, nativeHTCaption, 0)
+	})
+}
 
-		enableNativeNonClientDPI(handle)
-		setDwmIntAttribute(handle, nativeDWMWANCRenderingPolicy, nativeDWMNCRenderingPolicyEnabled)
-		setDwmIntAttribute(handle, nativeDWMWAWindowCornerPreference, int32(windowsCornerPreferenceValue(style.Corner)))
-		setDwmColorAttribute(handle, nativeDWMWABorderColor, windowsFrameBorderColor(style))
-		setDwmColorAttribute(handle, nativeDWMWACaptionColor, windowsFrameCaptionColor(style))
-		setDwmColorAttribute(handle, nativeDWMWATextColor, windowsFrameTextColor(style))
-		extendNativeFrame(handle, nativeFrameMargins(style))
-		setNativeMaximizeMenuEnabled(handle, maximizeEnabled)
-		nativeSetWindowPos.Call(
+func setNativeWindowFrameStyle(target nativeWindowTarget, style WindowsFrameStyle, resizable, maximizeEnabled bool) bool {
+	style = normalizeWindowsFrameStyle(style)
+	return runNativeWindowCommand(target, func(handle uintptr) bool {
+		styleValue, ok := nativeZeroValueCall(nativeGetWindowLong, handle, nativeGWLStyle)
+		if !ok {
+			return false
+		}
+		nextStyle := nativeWindowChromeStyle(styleValue, style.Mode, resizable, maximizeEnabled)
+		oldMaximizeEnabled := styleValue&nativeWSMaximizeBox != 0
+		type dwmSnapshot struct {
+			attr  uintptr
+			value uint32
+		}
+		var dwmSnapshots []dwmSnapshot
+		styleChanged := false
+		menuChanged := false
+		committed := false
+		defer func() {
+			if committed {
+				return
+			}
+			if styleChanged {
+				_, _ = nativeZeroValueCall(nativeSetWindowLong, handle, nativeGWLStyle, styleValue)
+			}
+			if menuChanged {
+				_ = setNativeMaximizeMenuEnabledHandle(handle, oldMaximizeEnabled)
+			}
+			for i := len(dwmSnapshots) - 1; i >= 0; i-- {
+				snapshot := dwmSnapshots[i]
+				_ = setDwmUint32Attribute(handle, snapshot.attr, snapshot.value)
+			}
+			if styleChanged || menuChanged {
+				_ = nativeBoolCall(
+					nativeSetWindowPos,
+					handle,
+					0,
+					0,
+					0,
+					0,
+					0,
+					nativeSWPNoMove|nativeSWPNoSize|nativeSWPNoZOrder|nativeSWPNoActivate|nativeSWPFrame,
+				)
+				_ = nativeBoolCall(nativeDrawMenuBar, handle)
+				_ = nativeBoolCall(nativeRedrawWindow, handle, 0, 0, nativeRDWInvalidate|nativeRDWFrame|nativeRDWAllChildren)
+			}
+		}()
+
+		applyDwm := func(attr uintptr, value uint32, required bool) bool {
+			previous, available := getDwmUint32Attribute(handle, attr)
+			if !available {
+				return !required
+			}
+			if previous == value {
+				return true
+			}
+			if !setDwmUint32Attribute(handle, attr, value) {
+				return !required
+			}
+			dwmSnapshots = append(dwmSnapshots, dwmSnapshot{attr: attr, value: previous})
+			return true
+		}
+		_ = enableNativeNonClientDPI(handle)
+		if !applyDwm(nativeDWMWANCRenderingPolicy, nativeDWMNCRenderingPolicyEnabled, false) {
+			return false
+		}
+		if !applyDwm(nativeDWMWAWindowCornerPreference, uint32(windowsCornerPreferenceValue(style.Corner)), style.Corner != WindowsCornerDefault) {
+			return false
+		}
+		if !applyDwm(nativeDWMWABorderColor, windowsFrameBorderColor(style), style.Border != WindowsFrameBorderDefault) {
+			return false
+		}
+		if !applyDwm(nativeDWMWACaptionColor, windowsFrameCaptionColor(style), style.CaptionColor.A > 0) {
+			return false
+		}
+		if !applyDwm(nativeDWMWATextColor, windowsFrameTextColor(style), style.TextColor.A > 0) {
+			return false
+		}
+		if !setNativeMaximizeMenuEnabledHandle(handle, maximizeEnabled) {
+			return false
+		}
+		menuChanged = true
+		if nextStyle != styleValue {
+			if _, ok := nativeZeroValueCall(nativeSetWindowLong, handle, nativeGWLStyle, nextStyle); !ok {
+				return false
+			}
+			styleChanged = true
+		}
+		if !nativeBoolCall(
+			nativeSetWindowPos,
 			handle,
 			0,
 			0,
@@ -226,12 +342,23 @@ func setNativeWindowFrameStyle(handle uintptr, style WindowsFrameStyle, resizabl
 			0,
 			0,
 			nativeSWPNoMove|nativeSWPNoSize|nativeSWPNoZOrder|nativeSWPNoActivate|nativeSWPFrame,
-		)
-		nativeDrawMenuBar.Call(handle)
-		nativeRedrawWindow.Call(handle, 0, 0, nativeRDWInvalidate|nativeRDWFrame|nativeRDWAllChildren)
-		flushNativeDwm()
-	}()
-	return true
+		) {
+			return false
+		}
+		if !nativeBoolCall(nativeDrawMenuBar, handle) {
+			return false
+		}
+		if !nativeBoolCall(nativeRedrawWindow, handle, 0, 0, nativeRDWInvalidate|nativeRDWFrame|nativeRDWAllChildren) {
+			return false
+		}
+		frameApplied := extendNativeFrame(handle, nativeFrameMargins(style))
+		if style.Mode == WindowsFrameHidden && style.Shadow && !frameApplied {
+			return false
+		}
+		_ = flushNativeDwm()
+		committed = true
+		return true
+	})
 }
 
 func probeNativeWindowsChrome() WindowsChromeAvailability {
@@ -242,37 +369,26 @@ func probeNativeWindowsChrome() WindowsChromeAvailability {
 	}
 }
 
-func setNativeWindowPosition(handle uintptr, x, y int) bool {
-	if handle == 0 {
-		return false
-	}
-	go func() {
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		nativeSetWindowPos.Call(
+func setNativeWindowPosition(target nativeWindowTarget, x, y int) bool {
+	return runNativeWindowCommand(target, func(handle uintptr) bool {
+		return nativeBoolCall(
+			nativeSetWindowPos,
 			handle,
 			0,
 			uintptr(x),
 			uintptr(y),
 			0,
 			0,
-			nativeSWPNoSize|nativeSWPNoZOrder|nativeSWPNoActivate|nativeSWPAsync,
+			nativeSWPNoSize|nativeSWPNoZOrder|nativeSWPNoActivate,
 		)
-	}()
-	return true
+	})
 }
 
-func setNativeWindowResizable(handle uintptr, resizable bool) bool {
-	if handle == 0 {
-		return false
-	}
-	go func() {
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-
-		style, _, err := nativeGetWindowLong.Call(handle, nativeGWLStyle)
-		if style == 0 && err != syscall.Errno(0) {
-			return
+func setNativeWindowResizable(target nativeWindowTarget, resizable bool) bool {
+	return runNativeWindowCommand(target, func(handle uintptr) bool {
+		style, ok := nativeZeroValueCall(nativeGetWindowLong, handle, nativeGWLStyle)
+		if !ok {
+			return false
 		}
 		nextStyle := style
 		if resizable {
@@ -281,73 +397,125 @@ func setNativeWindowResizable(handle uintptr, resizable bool) bool {
 			nextStyle &^= nativeWSSizeBox
 		}
 		if nextStyle == style {
-			return
+			return true
 		}
-		nativeSetWindowLong.Call(handle, nativeGWLStyle, nextStyle)
-		nativeSetWindowPos.Call(
+		if _, ok := nativeZeroValueCall(nativeSetWindowLong, handle, nativeGWLStyle, nextStyle); !ok {
+			return false
+		}
+		committed := false
+		defer func() {
+			if committed {
+				return
+			}
+			_, _ = nativeZeroValueCall(nativeSetWindowLong, handle, nativeGWLStyle, style)
+			_ = nativeBoolCall(
+				nativeSetWindowPos,
+				handle,
+				0,
+				0,
+				0,
+				0,
+				0,
+				nativeSWPNoMove|nativeSWPNoSize|nativeSWPNoZOrder|nativeSWPNoActivate|nativeSWPFrame,
+			)
+			_ = nativeBoolCall(nativeDrawMenuBar, handle)
+		}()
+		if !nativeBoolCall(
+			nativeSetWindowPos,
 			handle,
 			0,
 			0,
 			0,
 			0,
 			0,
-			nativeSWPNoMove|nativeSWPNoSize|nativeSWPNoZOrder|nativeSWPNoActivate|nativeSWPFrame|nativeSWPAsync,
-		)
-		nativeDrawMenuBar.Call(handle)
-	}()
-	return true
+			nativeSWPNoMove|nativeSWPNoSize|nativeSWPNoZOrder|nativeSWPNoActivate|nativeSWPFrame,
+		) {
+			return false
+		}
+		if !nativeBoolCall(nativeDrawMenuBar, handle) {
+			return false
+		}
+		committed = true
+		return true
+	})
 }
 
-func setNativeWindowMaximizeEnabled(handle uintptr, enabled bool) bool {
-	if handle == 0 {
-		return false
-	}
-	go func() {
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-
-		style, _, err := nativeGetWindowLong.Call(handle, nativeGWLStyle)
-		if style == 0 && err != syscall.Errno(0) {
-			return
+func setNativeWindowMaximizeEnabled(target nativeWindowTarget, enabled bool) bool {
+	return runNativeWindowCommand(target, func(handle uintptr) bool {
+		style, ok := nativeZeroValueCall(nativeGetWindowLong, handle, nativeGWLStyle)
+		if !ok {
+			return false
 		}
 		nextStyle := style
+		oldEnabled := style&nativeWSMaximizeBox != 0
 		if enabled {
 			nextStyle |= nativeWSMaximizeBox
 		} else {
 			nextStyle &^= nativeWSMaximizeBox
 		}
-		if nextStyle == style {
-			return
+		if nextStyle != style {
+			if _, ok := nativeZeroValueCall(nativeSetWindowLong, handle, nativeGWLStyle, nextStyle); !ok {
+				return false
+			}
 		}
-		nativeSetWindowLong.Call(handle, nativeGWLStyle, nextStyle)
-
-		setNativeMaximizeMenuEnabled(handle, enabled)
-
-		nativeSetWindowPos.Call(
+		committed := false
+		defer func() {
+			if committed {
+				return
+			}
+			if nextStyle != style {
+				_, _ = nativeZeroValueCall(nativeSetWindowLong, handle, nativeGWLStyle, style)
+			}
+			_ = setNativeMaximizeMenuEnabledHandle(handle, oldEnabled)
+			_ = nativeBoolCall(
+				nativeSetWindowPos,
+				handle,
+				0,
+				0,
+				0,
+				0,
+				0,
+				nativeSWPNoMove|nativeSWPNoSize|nativeSWPNoZOrder|nativeSWPNoActivate|nativeSWPFrame,
+			)
+			_ = nativeBoolCall(nativeDrawMenuBar, handle)
+		}()
+		if !setNativeMaximizeMenuEnabledHandle(handle, enabled) {
+			return false
+		}
+		if !nativeBoolCall(
+			nativeSetWindowPos,
 			handle,
 			0,
 			0,
 			0,
 			0,
 			0,
-			nativeSWPNoMove|nativeSWPNoSize|nativeSWPNoZOrder|nativeSWPNoActivate|nativeSWPFrame|nativeSWPAsync,
-		)
-		nativeDrawMenuBar.Call(handle)
-	}()
-	return true
+			nativeSWPNoMove|nativeSWPNoSize|nativeSWPNoZOrder|nativeSWPNoActivate|nativeSWPFrame,
+		) {
+			return false
+		}
+		if !nativeBoolCall(nativeDrawMenuBar, handle) {
+			return false
+		}
+		committed = true
+		return true
+	})
 }
 
-func setNativeMaximizeMenuEnabled(handle uintptr, enabled bool) {
+func setNativeMaximizeMenuEnabledHandle(handle uintptr, enabled bool) bool {
 	if handle == 0 {
-		return
+		return false
 	}
-	if menu, _, _ := nativeGetSystemMenu.Call(handle, 0); menu != 0 {
-		flags := uintptr(nativeMFByCommand | nativeMFGrayed)
-		if enabled {
-			flags = nativeMFByCommand | nativeMFEnabled
-		}
-		nativeEnableMenuItem.Call(menu, nativeSCMaximize, flags)
+	menu, _, _ := nativeGetSystemMenu.Call(handle, 0)
+	if menu == 0 {
+		return false
 	}
+	flags := uintptr(nativeMFByCommand | nativeMFGrayed)
+	if enabled {
+		flags = nativeMFByCommand | nativeMFEnabled
+	}
+	result, _, _ := nativeEnableMenuItem.Call(menu, nativeSCMaximize, flags)
+	return uint32(result) != ^uint32(0)
 }
 
 func nativeWindowChromeStyle(current uintptr, mode WindowsFrameMode, resizable, maximizeEnabled bool) uintptr {
@@ -419,50 +587,51 @@ func enableNativeNonClientDPI(handle uintptr) bool {
 	if handle == 0 || nativeEnableNCDpi.Find() != nil {
 		return false
 	}
-	result, _, _ := nativeEnableNCDpi.Call(handle)
-	return result != 0
+	return nativeBoolCall(nativeEnableNCDpi, handle)
 }
 
-func setDwmIntAttribute(handle uintptr, attr uintptr, value int32) bool {
+func getDwmUint32Attribute(handle uintptr, attr uintptr) (uint32, bool) {
+	if handle == 0 || nativeDwmGetWindowAttr.Find() != nil {
+		return 0, false
+	}
+	var value uint32
+	if !nativeHRESULTCall(
+		nativeDwmGetWindowAttr,
+		handle,
+		attr,
+		uintptr(unsafe.Pointer(&value)),
+		unsafe.Sizeof(value),
+	) {
+		return 0, false
+	}
+	return value, true
+}
+
+func setDwmUint32Attribute(handle uintptr, attr uintptr, value uint32) bool {
 	if handle == 0 || nativeDwmSetWindowAttr.Find() != nil {
 		return false
 	}
-	nativeDwmSetWindowAttr.Call(
+	return nativeHRESULTCall(
+		nativeDwmSetWindowAttr,
 		handle,
 		attr,
 		uintptr(unsafe.Pointer(&value)),
 		unsafe.Sizeof(value),
 	)
-	return true
-}
-
-func setDwmColorAttribute(handle uintptr, attr uintptr, value uint32) bool {
-	if handle == 0 || nativeDwmSetWindowAttr.Find() != nil {
-		return false
-	}
-	nativeDwmSetWindowAttr.Call(
-		handle,
-		attr,
-		uintptr(unsafe.Pointer(&value)),
-		unsafe.Sizeof(value),
-	)
-	return true
 }
 
 func extendNativeFrame(handle uintptr, margins nativeMargins) bool {
 	if handle == 0 || nativeDwmExtendFrame.Find() != nil {
 		return false
 	}
-	nativeDwmExtendFrame.Call(handle, uintptr(unsafe.Pointer(&margins)))
-	return true
+	return nativeHRESULTCall(nativeDwmExtendFrame, handle, uintptr(unsafe.Pointer(&margins)))
 }
 
 func flushNativeDwm() bool {
 	if nativeDwmFlush.Find() != nil {
 		return false
 	}
-	nativeDwmFlush.Call()
-	return true
+	return nativeHRESULTCall(nativeDwmFlush)
 }
 
 func installNativeWindowCloseHook(entry *windowEntry) bool {
@@ -470,43 +639,81 @@ func installNativeWindowCloseHook(entry *windowEntry) bool {
 		return false
 	}
 
-	entry.mu.Lock()
-	handle := entry.nativeHandle
-	if handle == 0 {
-		entry.mu.Unlock()
+	target := entry.nativeRawWindowTargetSnapshot()
+	if !target.valid() {
 		return false
 	}
-	if entry.nativeCloseHooked && entry.nativeCloseHookHandle == handle {
-		entry.mu.Unlock()
-		return true
+	entry.mu.Lock()
+	alreadyHooked := entry.nativeCloseHooked &&
+		entry.nativeCloseHookHandle == target.handle &&
+		entry.nativeCloseHookGeneration == target.generation
+	oldTarget := nativeWindowTarget{
+		entry:      entry,
+		handle:     entry.nativeCloseHookHandle,
+		generation: entry.nativeCloseHookGeneration,
 	}
-	oldHookHandle := entry.nativeCloseHookHandle
 	oldHookProc := entry.nativeCloseOldProc
 	oldHooked := entry.nativeCloseHooked
 	entry.mu.Unlock()
-
-	if oldHooked && oldHookHandle != 0 && oldHookHandle != handle {
-		forgetNativeWindowCloseHookHandle(oldHookHandle, entry)
-		if oldHookProc != 0 {
-			nativeSetWindowLongPtr.Call(oldHookHandle, nativeGWLPWndProc, oldHookProc)
+	if alreadyHooked {
+		if binding, ok := nativeCloseHookBindingForHandle(target.handle); ok && binding.target == target {
+			return true
 		}
+		if !restoreNativeWindowCloseHook(target, oldHookProc) {
+			return false
+		}
+		oldHooked = false
 	}
 
-	oldProc, _, err := nativeSetWindowLongPtr.Call(handle, nativeGWLPWndProc, nativeCloseHookCallback)
-	if oldProc == 0 && err != syscall.Errno(0) {
-		return false
+	if oldHooked && oldTarget != target {
+		restoreNativeWindowCloseHook(oldTarget, oldHookProc)
 	}
 
-	entry.mu.Lock()
-	entry.nativeCloseHookHandle = handle
-	entry.nativeCloseHooked = true
-	entry.nativeCloseOldProc = oldProc
-	entry.mu.Unlock()
+	return runNativeWindowCommand(target, func(handle uintptr) bool {
+		nativeCloseHookMu.Lock()
+		if current, ok := nativeCloseHookEntries[handle]; ok {
+			if current.target != target {
+				nativeCloseHookMu.Unlock()
+				return false
+			}
+			entry.mu.Lock()
+			if target.matchesEntryLocked() {
+				entry.nativeCloseHookHandle = handle
+				entry.nativeCloseHookGeneration = target.generation
+				entry.nativeCloseHooked = true
+				entry.nativeCloseOldProc = current.oldProc
+			}
+			entry.mu.Unlock()
+			nativeCloseHookMu.Unlock()
+			return true
+		}
 
-	nativeCloseHookMu.Lock()
-	nativeCloseHookEntries[handle] = entry
-	nativeCloseHookMu.Unlock()
-	return true
+		oldProc, ok := nativeZeroValueCall(nativeSetWindowLongPtr, handle, nativeGWLPWndProc, nativeCloseHookCallback)
+		if !ok {
+			nativeCloseHookMu.Unlock()
+			return false
+		}
+		binding := nativeCloseHookBinding{target: target, oldProc: oldProc}
+
+		entry.mu.Lock()
+		if !target.matchesEntryLocked() {
+			entry.mu.Unlock()
+			if _, restored := nativeZeroValueCall(nativeSetWindowLongPtr, handle, nativeGWLPWndProc, oldProc); !restored {
+				nativeCloseHookEntries[handle] = binding
+			}
+			nativeCloseHookMu.Unlock()
+			return false
+		}
+		entry.nativeCloseHookHandle = handle
+		entry.nativeCloseHookGeneration = target.generation
+		entry.nativeCloseHooked = true
+		entry.nativeCloseOldProc = oldProc
+		entry.mu.Unlock()
+
+		nativeCloseHookEntries[handle] = binding
+		nativeCloseHookMu.Unlock()
+		return true
+	})
 }
 
 func uninstallNativeWindowCloseHook(entry *windowEntry) {
@@ -515,20 +722,20 @@ func uninstallNativeWindowCloseHook(entry *windowEntry) {
 	}
 
 	entry.mu.Lock()
-	handle := entry.nativeCloseHookHandle
+	target := nativeWindowTarget{
+		entry:      entry,
+		handle:     entry.nativeCloseHookHandle,
+		generation: entry.nativeCloseHookGeneration,
+	}
 	oldProc := entry.nativeCloseOldProc
 	hooked := entry.nativeCloseHooked
-	entry.nativeCloseHookHandle = 0
-	entry.nativeCloseOldProc = 0
-	entry.nativeCloseHooked = false
 	entry.mu.Unlock()
 
-	if handle != 0 {
-		forgetNativeWindowCloseHookHandle(handle, entry)
+	if !hooked || target.handle == 0 {
+		clearNativeWindowCloseHookTarget(target)
+		return
 	}
-	if hooked && handle != 0 && oldProc != 0 {
-		nativeSetWindowLongPtr.Call(handle, nativeGWLPWndProc, oldProc)
-	}
+	restoreNativeWindowCloseHook(target, oldProc)
 }
 
 func forgetNativeWindowCloseHook(entry *windowEntry) {
@@ -536,41 +743,124 @@ func forgetNativeWindowCloseHook(entry *windowEntry) {
 		return
 	}
 
-	entry.mu.Lock()
-	handle := entry.nativeCloseHookHandle
-	entry.nativeCloseHookHandle = 0
-	entry.nativeCloseOldProc = 0
-	entry.nativeCloseHooked = false
-	entry.mu.Unlock()
-
-	if handle != 0 {
-		forgetNativeWindowCloseHookHandle(handle, entry)
+	entry.mu.RLock()
+	target := nativeWindowTarget{
+		entry:      entry,
+		handle:     entry.nativeCloseHookHandle,
+		generation: entry.nativeCloseHookGeneration,
 	}
-}
+	entry.mu.RUnlock()
+	clearNativeWindowCloseHookTarget(target)
 
-func forgetNativeWindowCloseHookHandle(handle uintptr, entry *windowEntry) {
+	if target.handle == 0 {
+		return
+	}
 	nativeCloseHookMu.Lock()
-	if current := nativeCloseHookEntries[handle]; current == entry {
-		delete(nativeCloseHookEntries, handle)
+	if current, ok := nativeCloseHookEntries[target.handle]; ok && current.target == target {
+		isWindow, _, _ := nativeIsWindow.Call(target.handle)
+		if isWindow == 0 {
+			delete(nativeCloseHookEntries, target.handle)
+		}
 	}
 	nativeCloseHookMu.Unlock()
 }
 
+func forgetNativeWindowCloseHookTarget(target nativeWindowTarget) {
+	if target.handle == 0 {
+		return
+	}
+	nativeCloseHookMu.Lock()
+	if current, ok := nativeCloseHookEntries[target.handle]; ok && current.target == target {
+		delete(nativeCloseHookEntries, target.handle)
+	}
+	nativeCloseHookMu.Unlock()
+	clearNativeWindowCloseHookTarget(target)
+}
+
+func clearNativeWindowCloseHookTarget(target nativeWindowTarget) {
+	if target.entry == nil || target.handle == 0 {
+		return
+	}
+	target.entry.mu.Lock()
+	if target.entry.nativeCloseHookHandle == target.handle &&
+		target.entry.nativeCloseHookGeneration == target.generation {
+		target.entry.nativeCloseHookHandle = 0
+		target.entry.nativeCloseHookGeneration = 0
+		target.entry.nativeCloseOldProc = 0
+		target.entry.nativeCloseHooked = false
+	}
+	target.entry.mu.Unlock()
+}
+
+func restoreNativeWindowCloseHook(target nativeWindowTarget, fallbackOldProc uintptr) bool {
+	if target.entry == nil || target.handle == 0 {
+		return true
+	}
+	restored := false
+	if !runOnNativeWindowThread(target.entry, func() {
+		nativeCloseHookMu.Lock()
+		binding, ok := nativeCloseHookEntries[target.handle]
+		if ok && binding.target != target {
+			nativeCloseHookMu.Unlock()
+			return
+		}
+		if !ok {
+			if fallbackOldProc == 0 {
+				restored = true
+				nativeCloseHookMu.Unlock()
+				return
+			}
+			binding = nativeCloseHookBinding{target: target, oldProc: fallbackOldProc}
+			nativeCloseHookEntries[target.handle] = binding
+		}
+
+		isWindow, _, _ := nativeIsWindow.Call(target.handle)
+		if isWindow == 0 {
+			delete(nativeCloseHookEntries, target.handle)
+			restored = true
+			nativeCloseHookMu.Unlock()
+			return
+		}
+		_, restored = nativeZeroValueCall(nativeSetWindowLongPtr, target.handle, nativeGWLPWndProc, binding.oldProc)
+		if restored {
+			delete(nativeCloseHookEntries, target.handle)
+		}
+		nativeCloseHookMu.Unlock()
+	}) {
+		return false
+	}
+	if restored {
+		clearNativeWindowCloseHookTarget(target)
+	}
+	return restored
+}
+
 func nativeWindowProc(hwnd, msg, wparam, lparam uintptr) uintptr {
-	entry := nativeCloseHookEntry(hwnd)
+	binding, hooked := nativeCloseHookBindingForHandle(hwnd)
+	target := binding.target
+	oldProc := binding.oldProc
+	var entry *windowEntry
+	if hooked && target.valid() {
+		entry = target.entry
+		entry.nativeCallbackDepth.Add(1)
+		defer entry.nativeCallbackDepth.Add(-1)
+	}
+
+	if msg == nativeWMNCDestroy {
+		if target.entry != nil {
+			target.entry.invalidateNativeWindowTarget(target)
+		}
+		result := nativeCallDefaultWindowProc(oldProc, hwnd, msg, wparam, lparam)
+		if hooked {
+			forgetNativeWindowCloseHookTarget(target)
+		}
+		return result
+	}
+
 	if msg == nativeWMClose && entry != nil {
 		if !entry.handleCloseRequested() {
 			return 0
 		}
-	}
-
-	oldProc := uintptr(0)
-	if entry != nil {
-		entry.mu.RLock()
-		if entry.nativeCloseHooked && entry.nativeCloseHookHandle == hwnd {
-			oldProc = entry.nativeCloseOldProc
-		}
-		entry.mu.RUnlock()
 	}
 
 	if msg == nativeWMNCHitTest {
@@ -665,13 +955,7 @@ func nativeWindowProc(hwnd, msg, wparam, lparam uintptr) uintptr {
 		}
 	}
 
-	result := uintptr(0)
-	result = nativeCallDefaultWindowProc(oldProc, hwnd, msg, wparam, lparam)
-
-	if msg == nativeWMNCDestroy && entry != nil {
-		forgetNativeWindowCloseHook(entry)
-	}
-	return result
+	return nativeCallDefaultWindowProc(oldProc, hwnd, msg, wparam, lparam)
 }
 
 func nativeCallDefaultWindowProc(oldProc, hwnd, msg, wparam, lparam uintptr) uintptr {
@@ -854,9 +1138,20 @@ func nativeHiddenFrameNonClientResult(msg uintptr) uintptr {
 	return 0
 }
 
-func nativeCloseHookEntry(hwnd uintptr) *windowEntry {
+func nativeCloseHookBindingForHandle(hwnd uintptr) (nativeCloseHookBinding, bool) {
 	nativeCloseHookMu.RLock()
-	entry := nativeCloseHookEntries[hwnd]
+	binding, ok := nativeCloseHookEntries[hwnd]
 	nativeCloseHookMu.RUnlock()
-	return entry
+	if !ok || binding.target.handle != hwnd {
+		return nativeCloseHookBinding{}, false
+	}
+	return binding, true
+}
+
+func nativeCloseHookTarget(hwnd uintptr) (nativeWindowTarget, bool) {
+	binding, ok := nativeCloseHookBindingForHandle(hwnd)
+	if !ok || !binding.target.valid() {
+		return nativeWindowTarget{}, false
+	}
+	return binding.target, true
 }

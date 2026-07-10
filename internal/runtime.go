@@ -52,10 +52,14 @@ type Runtime struct {
 }
 
 type effectSlot struct {
-	initialized bool
-	hasDeps     bool
-	deps        []any
-	cleanup     func()
+	initialized    bool
+	hasDeps        bool
+	deps           []any
+	cleanup        func()
+	pending        bool
+	pendingHasDeps bool
+	pendingDeps    []any
+	pendingSetup   EffectSetup
 }
 
 // EffectSetup defines post-frame side effects with an optional cleanup.
@@ -163,6 +167,16 @@ func (r *Runtime) BeginFrame() {
 	r.hookCountIDs, r.prevHookCountIDs = r.prevHookCountIDs, r.hookCountIDs
 	clear(r.hookCountIDs)
 	clear(r.activeFx)
+	for _, slot := range r.effects {
+		if slot == nil || !slot.pending {
+			continue
+		}
+		slot.pending = false
+		slot.pendingHasDeps = false
+		slot.pendingDeps = nil
+		slot.pendingSetup = nil
+	}
+	clear(r.pendingFx)
 	r.pendingFx = r.pendingFx[:0]
 	r.windowDragAreaActive = false
 	r.nativeWindowActionRouter = false
@@ -223,6 +237,7 @@ func (r *Runtime) EndFrame() {
 			run()
 		}
 	}
+	clear(r.pendingFx)
 	r.pendingFx = r.pendingFx[:0]
 
 	r.sweepInactiveMemory()
@@ -283,20 +298,40 @@ func (r *Runtime) UseEffectKey(key MemoryKey, hasDeps bool, deps []any, setup Ef
 	r.activeFx[key] = struct{}{}
 
 	nextDeps := CloneDeps(deps)
+	if slot.pending {
+		slot.pendingHasDeps = hasDeps
+		slot.pendingDeps = nextDeps
+		slot.pendingSetup = setup
+		return
+	}
 	shouldRun := shouldRunEffect(slot, hasDeps, nextDeps)
 	if !shouldRun {
 		return
 	}
 
+	slot.pending = true
+	slot.pendingHasDeps = hasDeps
+	slot.pendingDeps = nextDeps
+	slot.pendingSetup = setup
 	r.pendingFx = append(r.pendingFx, func() {
+		pendingHasDeps := slot.pendingHasDeps
+		pendingDeps := slot.pendingDeps
+		pendingSetup := slot.pendingSetup
+		slot.pending = false
+		slot.pendingHasDeps = false
+		slot.pendingDeps = nil
+		slot.pendingSetup = nil
+		if !shouldRunEffect(slot, pendingHasDeps, pendingDeps) {
+			return
+		}
 		if slot.cleanup != nil {
 			slot.cleanup()
 			slot.cleanup = nil
 		}
 		slot.initialized = true
-		slot.hasDeps = hasDeps
-		slot.deps = nextDeps
-		slot.cleanup = setup()
+		slot.hasDeps = pendingHasDeps
+		slot.deps = pendingDeps
+		slot.cleanup = pendingSetup()
 	})
 }
 

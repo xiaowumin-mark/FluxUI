@@ -86,19 +86,27 @@ type inputWidget struct {
 	config inputConfig
 }
 
+const (
+	inputHistoryMaxEntries = 64
+	inputHistoryMaxBytes   = 256 << 10
+)
+
 type inputState struct {
-	editor       *gioWidget.Editor
-	initialized  bool
-	focused      bool
-	syncedValue  string
-	blurTag      any
-	fieldSize    image.Point
-	valueHistory []string
-	historyIndex int
+	editor         *gioWidget.Editor
+	initialized    bool
+	focused        bool
+	syncedValue    string
+	blurTag        any
+	fieldSize      image.Point
+	valueHistory   []string
+	historyIndex   int
+	historyBytes   int
+	historyEnabled bool
 }
 
 func inputStateFor(ctx *internal.Context) *inputState {
-	value := ctx.Memo("input", func() any {
+	key := ctx.NextMemoryKey("input")
+	value := ctx.PersistentKey(key, func() any {
 		return &inputState{
 			editor: &gioWidget.Editor{
 				SingleLine: true,
@@ -110,6 +118,11 @@ func inputStateFor(ctx *internal.Context) *inputState {
 	state, ok := value.(*inputState)
 	if !ok {
 		panic("github.com/xiaowumin-mark/FluxUIwidget: input state type mismatch")
+	}
+	if runtime := ctx.Runtime(); runtime != nil {
+		runtime.UseEffectKey(key, true, []any{state}, func() func() {
+			return state.dispose
+		})
 	}
 	return state
 }
@@ -376,24 +389,30 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	t.registerInputEventListeners(ctx)
 
 	controlled := t.config.onChange != nil
+	historyReset := false
 
 	if !state.initialized {
 		editor.SetText(t.value)
 		state.syncedValue = t.value
-		state.resetInputHistory(t.value)
 		state.initialized = true
+		historyReset = true
 	} else if controlled && t.value != state.syncedValue {
-		if shouldRecreateEditorForMemory(state.syncedValue, t.value) {
+		if t.config.password {
+			editor = t.rebuildPasswordEditor(ctx, state, editor, t.value, false)
+		} else if shouldRecreateEditorForMemory(state.syncedValue, t.value) {
 			state.editor = &gioWidget.Editor{
 				SingleLine: t.config.singleLine,
 			}
 			editor = state.editor
 			state.focused = false
 		}
-		editor.SetText(t.value)
+		if !t.config.password {
+			editor.SetText(t.value)
+		}
 		state.syncedValue = t.value
-		state.resetInputHistory(t.value)
+		historyReset = true
 	}
+	state.configureInputHistory(!t.config.password, state.syncedValue, historyReset)
 
 	editor.SingleLine = t.config.singleLine
 	editor.ReadOnly = t.config.disabled
@@ -404,17 +423,18 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	} else {
 		editor.Mask = 0
 	}
+	t.constrainEditorHistory(editor)
 
 	if t.config.ref != nil {
-		t.config.ref.bindInvalidator(redrawInvalidator(ctx))
+		bindCommandRef(ctx, "input", t.config.ref, &t.config.ref.queue)
 		for _, cmd := range t.config.ref.drainCommands() {
 			switch cmd.kind {
 			case inputCmdSetText:
-				t.commitProgrammaticInput(ctx, state, editor, cmd.text, cmd.text, fluxevent.InputTypeProgrammaticSetText)
+				editor = t.commitProgrammaticInput(ctx, state, editor, cmd.text, cmd.text, fluxevent.InputTypeProgrammaticSetText)
 			case inputCmdAppend:
-				t.commitProgrammaticInput(ctx, state, editor, editor.Text()+cmd.text, cmd.text, fluxevent.InputTypeProgrammaticAppend)
+				editor = t.commitProgrammaticInput(ctx, state, editor, editor.Text()+cmd.text, cmd.text, fluxevent.InputTypeProgrammaticAppend)
 			case inputCmdClear:
-				t.commitProgrammaticInput(ctx, state, editor, "", "", fluxevent.InputTypeProgrammaticClear)
+				editor = t.commitProgrammaticInput(ctx, state, editor, "", "", fluxevent.InputTypeProgrammaticClear)
 			case inputCmdFocus:
 				ctx.Gtx.Execute(key.FocusCmd{Tag: editor})
 			case inputCmdBlur:
@@ -422,7 +442,12 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			}
 		}
 	}
+	t.constrainEditorHistory(editor)
+	if t.config.password {
+		t.discardPasswordUndoRedo(ctx, editor)
+	}
 
+	passwordEditorDirty := false
 	for {
 		ev, ok := editor.Update(ctx.Gtx)
 		if !ok {
@@ -432,11 +457,16 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 		case gioWidget.ChangeEvent:
 			text := editor.Text()
 			if text != state.syncedValue {
-				t.commitUserInput(ctx, state, editor, text, ev)
+				passwordEditorDirty = passwordEditorDirty || t.config.password
+				editor = t.commitUserInput(ctx, state, editor, text, ev)
 			}
 		case gioWidget.SubmitEvent:
 			t.dispatchSubmit(ctx, state, ev.Text, ev)
 		}
+		t.constrainEditorHistory(editor)
+	}
+	if passwordEditorDirty {
+		editor = t.rebuildPasswordEditor(ctx, state, editor, state.syncedValue, true)
 	}
 
 	focused := ctx.Gtx.Focused(editor)
@@ -553,6 +583,76 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	return layout.Dimensions{Size: size}
 }
 
+func (t *inputWidget) constrainEditorHistory(editor *gioWidget.Editor) {
+	maxEntries := inputHistoryMaxEntries
+	maxBytes := inputHistoryMaxBytes
+	if t.config.password {
+		maxEntries = 0
+		maxBytes = 0
+	}
+	if !limitEditorUndoHistory(editor, maxEntries, maxBytes) {
+		panic("FluxUI/widget: incompatible Gio Editor undo history layout")
+	}
+}
+
+func (t *inputWidget) discardPasswordUndoRedo(ctx *internal.Context, editor *gioWidget.Editor) {
+	if ctx == nil || editor == nil {
+		return
+	}
+	for {
+		_, ok := ctx.Gtx.Event(key.Filter{
+			Focus:    editor,
+			Name:     "Z",
+			Required: key.ModShortcut,
+			Optional: key.ModShift,
+		})
+		if !ok {
+			return
+		}
+	}
+}
+
+func (t *inputWidget) rebuildPasswordEditor(ctx *internal.Context, state *inputState, editor *gioWidget.Editor, value string, preserveSelection bool) *gioWidget.Editor {
+	if state == nil || editor == nil || !t.config.password {
+		return editor
+	}
+
+	selectionStart, selectionEnd := 0, 0
+	if preserveSelection {
+		selectionStart, selectionEnd = editor.Selection()
+	}
+	focused := ctx != nil && ctx.Gtx.Focused(editor)
+	next := &gioWidget.Editor{
+		Alignment:       editor.Alignment,
+		LineHeight:      editor.LineHeight,
+		LineHeightScale: editor.LineHeightScale,
+		SingleLine:      editor.SingleLine,
+		ReadOnly:        editor.ReadOnly,
+		Submit:          editor.Submit,
+		Mask:            editor.Mask,
+		InputHint:       editor.InputHint,
+		MaxLen:          editor.MaxLen,
+		Filter:          editor.Filter,
+		WrapPolicy:      editor.WrapPolicy,
+	}
+	next.SetText(value)
+	if preserveSelection {
+		next.SetCaret(selectionStart, selectionEnd)
+	}
+	t.constrainEditorHistory(next)
+
+	// Gio keeps deleted text in several private backing buffers. Detach all of
+	// them immediately; the router may retain the old tag until the next frame.
+	// Replacing the editor also terminates any in-progress IME composition, which
+	// is preferable to retaining password fragments in the composition buffers.
+	*editor = gioWidget.Editor{}
+	state.editor = next
+	if focused {
+		ctx.Gtx.Execute(key.FocusCmd{Tag: next})
+	}
+	return next
+}
+
 func (t *inputWidget) registerInputEventListeners(ctx *internal.Context) {
 	if ctx == nil || ctx.Runtime() == nil {
 		return
@@ -568,45 +668,56 @@ func (t *inputWidget) registerInputEventListeners(ctx *internal.Context) {
 	}
 }
 
-func (t *inputWidget) commitProgrammaticInput(ctx *internal.Context, state *inputState, editor *gioWidget.Editor, next string, data string, inputType string) {
+func (t *inputWidget) commitProgrammaticInput(ctx *internal.Context, state *inputState, editor *gioWidget.Editor, next string, data string, inputType string) *gioWidget.Editor {
 	if state == nil || editor == nil {
-		return
+		return editor
 	}
 	previous := state.syncedValue
 	if next == previous {
-		return
+		return editor
 	}
 	before := t.newInputEvent(ctx, fluxevent.BeforeInput, previous, next, data, inputType, fluxevent.InputSourceProgrammatic, false, nil, false)
 	if !t.dispatchInputEvent(ctx, before) {
-		return
+		return editor
 	}
-	editor.SetText(next)
+	if t.config.password {
+		editor = t.rebuildPasswordEditor(ctx, state, editor, next, false)
+	} else {
+		editor.SetText(next)
+		t.constrainEditorHistory(editor)
+	}
 	value := editor.Text()
 	if value == previous {
-		return
+		return editor
 	}
 	if value != next {
 		_, data = inputTextDiff(previous, value)
 	}
 	t.finishInputMutation(ctx, state, previous, value, data, inputType, fluxevent.InputSourceProgrammatic, false, nil)
+	return editor
 }
 
-func (t *inputWidget) commitUserInput(ctx *internal.Context, state *inputState, editor *gioWidget.Editor, value string, native any) {
+func (t *inputWidget) commitUserInput(ctx *internal.Context, state *inputState, editor *gioWidget.Editor, value string, native any) *gioWidget.Editor {
 	if state == nil || editor == nil {
-		return
+		return editor
 	}
+	// Editor.Update has already applied this mutation. Drop password history
+	// before invoking callbacks so re-entrant code cannot observe or undo it.
+	t.constrainEditorHistory(editor)
 	previous := state.syncedValue
 	if value == previous {
-		return
+		return editor
 	}
 	mutation := state.classifyUserInput(previous, value)
 	before := t.newInputEvent(ctx, fluxevent.BeforeInput, previous, value, mutation.data, mutation.inputType, mutation.source, true, native, true)
 	if !t.dispatchInputEvent(ctx, before) {
 		editor.SetText(previous)
+		t.constrainEditorHistory(editor)
 		state.syncedValue = previous
-		return
+		return editor
 	}
 	t.finishInputMutation(ctx, state, previous, value, mutation.data, mutation.inputType, mutation.source, true, native)
+	return editor
 }
 
 func (t *inputWidget) finishInputMutation(ctx *internal.Context, state *inputState, previous string, value string, data string, inputType string, source fluxevent.InputSource, bestEffort bool, native any) {
@@ -717,12 +828,21 @@ func (s *inputState) resetInputHistory(value string) {
 	if s == nil {
 		return
 	}
-	s.valueHistory = append(s.valueHistory[:0], value)
+	s.clearInputHistory()
+	if len(value) > inputHistoryMaxBytes {
+		return
+	}
+	s.valueHistory = append(s.valueHistory, value)
 	s.historyIndex = 0
+	s.historyBytes = len(value)
 }
 
 func (s *inputState) recordInputHistory(value string, source fluxevent.InputSource) {
-	if s == nil {
+	if s == nil || !s.historyEnabled {
+		return
+	}
+	if len(value) > inputHistoryMaxBytes {
+		s.clearInputHistory()
 		return
 	}
 	if len(s.valueHistory) == 0 {
@@ -745,10 +865,81 @@ func (s *inputState) recordInputHistory(value string, source fluxevent.InputSour
 		return
 	}
 	if s.historyIndex+1 < len(s.valueHistory) {
+		for i := s.historyIndex + 1; i < len(s.valueHistory); i++ {
+			s.historyBytes -= len(s.valueHistory[i])
+			s.valueHistory[i] = ""
+		}
 		s.valueHistory = s.valueHistory[:s.historyIndex+1]
 	}
 	s.valueHistory = append(s.valueHistory, value)
+	s.historyBytes += len(value)
 	s.historyIndex = len(s.valueHistory) - 1
+	s.trimInputHistory()
+}
+
+func (s *inputState) configureInputHistory(enabled bool, value string, reset bool) {
+	if s == nil {
+		return
+	}
+	if !enabled {
+		s.historyEnabled = false
+		s.clearInputHistory()
+		return
+	}
+	if !s.historyEnabled || reset {
+		s.historyEnabled = true
+		s.resetInputHistory(value)
+	}
+}
+
+func (s *inputState) trimInputHistory() {
+	if s == nil {
+		return
+	}
+	drop := 0
+	for len(s.valueHistory)-drop > inputHistoryMaxEntries || s.historyBytes > inputHistoryMaxBytes {
+		s.historyBytes -= len(s.valueHistory[drop])
+		s.valueHistory[drop] = ""
+		drop++
+	}
+	if drop == 0 {
+		return
+	}
+	copy(s.valueHistory, s.valueHistory[drop:])
+	newLen := len(s.valueHistory) - drop
+	clear(s.valueHistory[newLen:])
+	s.valueHistory = s.valueHistory[:newLen]
+	s.historyIndex -= drop
+	if s.historyIndex < 0 && len(s.valueHistory) > 0 {
+		s.historyIndex = 0
+	}
+}
+
+func (s *inputState) clearInputHistory() {
+	if s == nil {
+		return
+	}
+	clear(s.valueHistory)
+	s.valueHistory = nil
+	s.historyIndex = -1
+	s.historyBytes = 0
+}
+
+func (s *inputState) dispose() {
+	if s == nil {
+		return
+	}
+	s.clearInputHistory()
+	s.historyEnabled = false
+	s.syncedValue = ""
+	if s.editor != nil {
+		*s.editor = gioWidget.Editor{}
+	}
+	s.editor = nil
+	s.blurTag = nil
+	s.fieldSize = image.Point{}
+	s.focused = false
+	s.initialized = false
 }
 
 func inputTypeForDiff(removed, inserted string) string {

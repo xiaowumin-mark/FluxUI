@@ -111,11 +111,15 @@ func windowsShellResolveFileURL(target string) (string, bool, error) {
 	}
 
 	if parsed.Host != "" && !strings.EqualFold(parsed.Host, "localhost") {
-		path = `\\` + parsed.Host + filepath.FromSlash(path)
-	} else if strings.HasPrefix(path, "/") && len(path) >= 3 && path[2] == ':' {
+		return "", true, fmt.Errorf("system: shell open URL %q uses a remote file host: %w", target, ErrInvalidTarget)
+	}
+	if strings.HasPrefix(path, "/") && len(path) >= 3 && path[2] == ':' {
 		path = path[1:]
 	}
 	path = filepath.FromSlash(path)
+	if strings.HasPrefix(path, `\\`) {
+		return "", true, fmt.Errorf("system: shell open URL %q resolves to a remote or device path: %w", target, ErrInvalidTarget)
+	}
 	resolved, err := windowsShellResolveExistingPath(path, "open URL")
 	return resolved, true, err
 }

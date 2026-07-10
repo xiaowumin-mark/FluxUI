@@ -189,7 +189,7 @@ func TabsTabDecoration(d style.Decoration) TabsOption {
 func (t *tabsWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	activeKey := t.active
 	if t.config.ref != nil {
-		t.config.ref.bindInvalidator(redrawInvalidator(ctx))
+		bindCommandRef(ctx, "tabs", t.config.ref, &t.config.ref.queue)
 		for _, key := range t.config.ref.drainCommands() {
 			if key == activeKey {
 				continue
@@ -993,7 +993,7 @@ func dialogRestoreFocus(ctx *internal.Context, state *dialogState) {
 func (d *dialogWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	open := d.open
 	if d.config.ref != nil {
-		d.config.ref.bindInvalidator(redrawInvalidator(ctx))
+		bindCommandRef(ctx, "dialog", d.config.ref, &d.config.ref.queue)
 		for _, cmd := range d.config.ref.drainCommands() {
 			next := open
 			switch cmd.kind {
@@ -1922,7 +1922,7 @@ func PopupMaskAlpha(alpha uint8) PopupOption {
 func (p *popupWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	open := p.open
 	if p.config.ref != nil {
-		p.config.ref.bindInvalidator(redrawInvalidator(ctx))
+		bindCommandRef(ctx, "popup", p.config.ref, &p.config.ref.queue)
 		for _, cmd := range p.config.ref.drainCommands() {
 			next := open
 			switch cmd.kind {

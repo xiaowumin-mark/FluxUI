@@ -49,7 +49,7 @@ func linuxNotifySendCommand(opts notificationOptions, replaceID string) (unixNot
 			args = append(args, "--replace-id", replaceID)
 		}
 	}
-	args = append(args, title)
+	args = append(args, "--", title)
 	if opts.body != "" {
 		args = append(args, opts.body)
 	}

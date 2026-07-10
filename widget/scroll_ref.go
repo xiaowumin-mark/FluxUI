@@ -1,7 +1,5 @@
 package widget
 
-import "sync"
-
 type scrollCommandKind uint8
 
 const (
@@ -18,11 +16,9 @@ type scrollCommand struct {
 }
 
 // ScrollRef 是 ScrollView 的命令型引用，用于外部主动控制滚动位置。
-// 所有命令都在下一帧由 ScrollView 消费执行。
+// 命令在下一帧由 ScrollView 消费；未挂载时只保留最近的有界队列。
 type ScrollRef struct {
-	mu          sync.Mutex
-	commands    []scrollCommand
-	invalidator func()
+	queue commandQueue[scrollCommand]
 }
 
 // NewScrollRef 创建一个可复用的 ScrollRef。
@@ -76,36 +72,12 @@ func (r *ScrollRef) enqueue(cmd scrollCommand) {
 	if r == nil {
 		return
 	}
-	r.mu.Lock()
-	r.commands = append(r.commands, cmd)
-	invalidator := r.invalidator
-	r.mu.Unlock()
-	if invalidator != nil {
-		invalidator()
-	}
-}
-
-func (r *ScrollRef) bindInvalidator(fn func()) {
-	if r == nil {
-		return
-	}
-	r.mu.Lock()
-	r.invalidator = fn
-	r.mu.Unlock()
+	r.queue.enqueue(cmd)
 }
 
 func (r *ScrollRef) drainCommands() []scrollCommand {
 	if r == nil {
 		return nil
 	}
-	r.mu.Lock()
-	if len(r.commands) == 0 {
-		r.mu.Unlock()
-		return nil
-	}
-	out := make([]scrollCommand, len(r.commands))
-	copy(out, r.commands)
-	r.commands = r.commands[:0]
-	r.mu.Unlock()
-	return out
+	return r.queue.drainCommands()
 }

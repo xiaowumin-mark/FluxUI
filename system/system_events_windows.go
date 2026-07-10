@@ -133,11 +133,10 @@ func (s *windowsSystemEventStateData) remove(id uint64) {
 	s.mu.Lock()
 	sub := s.subscribers[id]
 	delete(s.subscribers, id)
-	s.mu.Unlock()
-
 	if sub != nil {
 		close(sub.ch)
 	}
+	s.mu.Unlock()
 }
 
 func (s *windowsSystemEventStateData) broadcast(event SystemEvent) {
@@ -149,13 +148,8 @@ func (s *windowsSystemEventStateData) broadcast(event SystemEvent) {
 	}
 
 	s.mu.Lock()
-	subscribers := make([]*windowsSystemEventSubscription, 0, len(s.subscribers))
+	defer s.mu.Unlock()
 	for _, sub := range s.subscribers {
-		subscribers = append(subscribers, sub)
-	}
-	s.mu.Unlock()
-
-	for _, sub := range subscribers {
 		if !sub.accepts(event.Kind) {
 			continue
 		}

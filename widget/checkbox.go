@@ -100,7 +100,7 @@ func (c *checkboxWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	}
 	registerClickableFocusAction(ctx, c.config.disabled, activate)
 	if c.config.ref != nil {
-		c.config.ref.bindInvalidator(redrawInvalidator(ctx))
+		bindCommandRef(ctx, "checkbox", c.config.ref, &c.config.ref.queue)
 		for _, cmd := range c.config.ref.drainCommands() {
 			if c.config.disabled {
 				continue

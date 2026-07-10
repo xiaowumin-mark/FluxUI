@@ -61,7 +61,7 @@ func (c *clickAreaWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	clickable := event.UseClickable(ctx)
 	registerClickableFocusAction(ctx, false, c.onClick)
 	if c.config.ref != nil {
-		c.config.ref.bindInvalidator(redrawInvalidator(ctx))
+		bindCommandRef(ctx, "click-area", c.config.ref, &c.config.ref.queue)
 		for range c.config.ref.drainCommands() {
 			runClickableDefaultAction(ctx, nil, false, c.onClick)
 		}

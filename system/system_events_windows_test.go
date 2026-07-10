@@ -2,7 +2,10 @@
 
 package system
 
-import "testing"
+import (
+	"sync"
+	"testing"
+)
 
 func TestWindowsSystemEventFromMessage(t *testing.T) {
 	tests := []struct {
@@ -85,5 +88,32 @@ func TestSystemEventFilter(t *testing.T) {
 	}
 	if filtered.accepts(SystemEventDisplayChanged) {
 		t.Fatal("filtered subscription should reject display events")
+	}
+}
+
+func TestWindowsSystemEventBroadcastConcurrentWithRemove(t *testing.T) {
+	const broadcasters = 8
+	state := newWindowsSystemEventState()
+	sub := state.add(nil)
+	event := SystemEvent{Kind: SystemEventThemeChanged}
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range broadcasters {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for range 1_000 {
+				state.broadcast(event)
+			}
+		}()
+	}
+
+	close(start)
+	state.remove(sub.id)
+	wg.Wait()
+
+	for range sub.ch {
 	}
 }

@@ -347,8 +347,15 @@ func DiscoverSystemFontFamilies() ([]string, error) {
 	return ListFontFamilies(faces), nil
 }
 
-// Data 返回字体二进制数据。
+// Data 返回字体二进制数据的独立副本。
 func (f FontFace) Data() []byte {
+	if f.source == nil {
+		return nil
+	}
+	return append([]byte(nil), f.source.data...)
+}
+
+func (f FontFace) data() []byte {
 	if f.source == nil {
 		return nil
 	}

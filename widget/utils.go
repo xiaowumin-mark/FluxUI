@@ -32,8 +32,9 @@ func redrawInvalidator(ctx *internal.Context) func() {
 	if ctx == nil || ctx.Runtime() == nil {
 		return nil
 	}
+	runtime := ctx.Runtime()
 	return func() {
-		ctx.RequestRedrawReason("widget.redraw")
+		runtime.RequestRedrawReason("widget.redraw")
 	}
 }
 

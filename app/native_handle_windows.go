@@ -12,11 +12,14 @@ func (entry *windowEntry) updateNativeHandle(event gioApp.ViewEvent) {
 		}
 	}
 
-	entry.mu.Lock()
-	entry.nativeHandle = handle
-	entry.mu.Unlock()
+	ready := entry.withNativeWindowOperation(func() bool {
+		entry.stageNativeWindowHandle(handle)
+		return entry.syncNativeCloseHookLocked()
+	})
+	if !ready || handle == 0 {
+		return
+	}
 	entry.syncNativeMaximizeAvailability()
 	entry.syncNativeResizable()
 	entry.syncNativeChrome()
-	entry.syncNativeCloseHook()
 }
