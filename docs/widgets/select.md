@@ -21,13 +21,10 @@
     "SelectRequired[T comparable](required bool) SelectOption[T]",
     "SelectNoAsterisk[T comparable](noAsterisk bool) SelectOption[T]",
     "SelectDisabled[T comparable](disabled bool) SelectOption[T]",
-    "SelectSearchable[T comparable](searchable bool) SelectOption[T]",
     "SelectMaxHeight[T comparable](height float32) SelectOption[T]",
     "SelectWidth[T comparable](width float32) SelectOption[T]",
     "SelectXOffset[T comparable](offset float32) SelectOption[T]",
     "SelectYOffset[T comparable](offset float32) SelectOption[T]",
-    "SelectQuick[T comparable](quick bool) SelectOption[T]",
-    "SelectTypeaheadDelay[T comparable](delay time.Duration) SelectOption[T]",
     "SelectFilled[T comparable](filled bool) SelectOption[T]",
     "SelectLeading[T comparable](leading Widget) SelectOption[T]",
     "SelectTrailing[T comparable](trailing Widget) SelectOption[T]",
@@ -53,10 +50,15 @@ Select 适用于枚举值选择，默认使用 Material 3 outlined select。Flux
 ## 使用方法
 - 组件是受控模式，`value` 由状态驱动。
 - 候选项建议直接定义成固定 `[]SelectOptionItem[T]`。
-- `SelectOptionItem` 支持 `Disabled`、`Leading`、`Trailing` 和 `TypeaheadText` 字段。
+- `SelectOptionItem` 支持 `Disabled`、`Leading`、`Trailing` 和未来组件可复用的 `TypeaheadText` 元数据字段；当前 Select 不执行 typeahead。
 - `SelectLabel`、`SelectSupportingText`、`SelectError`、`SelectErrorText`、`SelectRequired` 对齐官方表单字段 API。
 - 展开动画使用高度 reveal：内容先按完整尺寸布局，再通过 mask 展开，避免展开过程中重新布局子项。
 - 需要外部打开/关闭或切换值时，使用 `SelectAttachRef` 绑定 `SelectRef[T]`。
+- Select 只用于从既有选项中选择，当前不提供搜索输入、查询过滤或 typeahead。需要这些能力时等待 R1 的 Combobox / Autocomplete 合同；不要以 `SelectSearchable` 推断已有搜索能力。
+
+## 兼容性 no-op
+
+`SelectSearchable`、`SelectQuick` 和 `SelectTypeaheadDelay` 仅为旧调用方保留编译兼容，均已弃用且没有运行时效果。它们不在推荐 API 中，也不应在示例或新代码中使用。具体替代与版本窗口见 `docs/deprecation-ledger.md`。
 
 ## React-style Element
 

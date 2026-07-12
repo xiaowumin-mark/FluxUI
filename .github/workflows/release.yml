@@ -5,10 +5,52 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: read
+
 jobs:
-  release:
-    permissions:
-      contents: write
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.25.12"
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxrandr-dev libxkbcommon-dev libwayland-dev libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev mesa-vulkan-drivers libxkbcommon-x11-dev libx11-xcb-dev libxcursor-dev libxfixes-dev
+
+      - name: Install release quality tools
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+          go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
+
+      - name: Verify release metadata and quality gates
+        run: |
+          test -f CHANGELOG.md
+          test -f docs/production-governance.md
+          test -f docs/release-checklist.md
+          go run ./tools/gofmtcheck
+          go run ./tools/api-snapshot -check
+          go mod verify
+          go build ./...
+          go test ./...
+          go vet ./...
+          golangci-lint run
+          make race
+          make coverage
+
+      - name: Scan known Go vulnerabilities
+        run: govulncheck ./...
+
+  build:
+    needs: validate
     strategy:
       fail-fast: false
       matrix:
@@ -37,15 +79,49 @@ jobs:
           for dir in examples/*/; do
             name=$(basename "$dir")
             if [ -f "${dir}main.go" ]; then
-              echo "Building $name..."
               ext=""
               [ "$RUNNER_OS" = "Windows" ] && ext=".exe"
-              go build -o "dist/${name}${ext}" "./${dir}"
+              go build -o "dist/${name}-${RUNNER_OS}${ext}" "./${dir}"
             fi
           done
         shell: bash
 
-      - name: Upload artifacts
+      - name: Upload platform artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-${{ matrix.os }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.25.12"
+
+      - name: Download platform artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Write and verify artifact checksums
+        run: |
+          go run ./tools/release-artifacts -dir dist -write
+          go run ./tools/release-artifacts -dir dist -verify
+          test -s dist/SHA256SUMS
+
+      - name: Publish release assets
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           token: ${{ github.token }}

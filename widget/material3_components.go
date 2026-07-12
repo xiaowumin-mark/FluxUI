@@ -7,6 +7,7 @@ import (
 
 	"github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/internal/overlay"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
 	"github.com/xiaowumin-mark/FluxUI/theme"
@@ -927,7 +928,7 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			triggerRect := image.Rectangle{Min: origin, Max: origin.Add(triggerDims)}
 			popupOrigin := origin.Add(image.Point{X: offsetX, Y: offsetY})
 			popupRect := image.Rectangle{Min: popupOrigin, Max: popupOrigin.Add(popupSize)}
-			md3DismissOnOutsidePress(ctx, state.outsideTag, []image.Rectangle{triggerRect, popupRect}, func(dismissCtx *internal.Context) {
+			md3DismissOnOutsidePress(ctx, state.outsideTag, overlay.AnchoredRegion{Anchor: triggerRect, Content: popupRect}, func(dismissCtx *internal.Context) {
 				d.config.onOpenChange(dismissCtx, false)
 				if !menuCfg.skipRestoreFocus {
 					md3ClearFocusIfInside(dismissCtx, ctx.PathID())

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### 兼容性与弃用
+
+- 建立 [`docs/deprecation-ledger.md`](docs/deprecation-ledger.md) 作为弃用、兼容 shim 与迁移窗口的权威记录；本 CHANGELOG 仅提供发布摘要。
+- `SelectSearchable`、`SelectQuick`、`SelectTypeaheadDelay` 标记为 Deprecated 的编译兼容 no-op。它们从未提供搜索、typeahead 或 quick-animation，不应在新代码或示例中使用；真实搜索能力留待 R1 Combobox / Autocomplete。
+- `Widget`、`Run`、`App`、`Window`、`RunMulti` 仍为 Deprecated **兼容保留**入口：现有项目继续可编译，小版本不会静默移除。
+
 ## v0.1.0 (2026-05-23)
 
 ### 新增
@@ -89,7 +97,7 @@
 ### 废弃标记
 
 - `Widget` 类型标记为 Deprecated：推荐使用 React-style `Element` API (`RunElement`)
-- `Run` / `App` / `Window` / `RunMulti` 标记为 Deprecated：不再维护，使用 `RunElement`
+- `Run` / `App` / `Window` / `RunMulti` 标记为 Deprecated：新项目使用 `RunElement`，旧入口继续作为兼容路径保留
 
 ### 2D 变换（Phase 9）
 

@@ -550,7 +550,6 @@ func TestDocsBrowserDemosUseRepresentativeReactAPIs(t *testing.T) {
 		"NewRadioGroupRef(":                   "RadioGroupRef command demo",
 		"RadioGroupAttachRef(":                "RadioGroupAttachRef demo",
 		"NewSelectRef[string](":               "SelectRef command demo",
-		"SelectSearchable[string](":           "SelectSearchable demo",
 		"SelectOnOpenChange[string](":         "SelectOnOpenChange demo",
 		"MenuElement(":                        "MenuElement static menu demo",
 		"MenuWidth(":                          "MenuWidth static menu demo",
@@ -694,6 +693,15 @@ func TestDocsBrowserDemosUseRepresentativeReactAPIs(t *testing.T) {
 	for token, label := range required {
 		if !strings.Contains(text, token) {
 			t.Fatalf("missing %s in docs browser demo source; expected token %q", label, token)
+		}
+	}
+	for token, label := range map[string]string{
+		"SelectSearchable[string](":     "SelectSearchable compatibility no-op",
+		"SelectQuick[string](":          "SelectQuick compatibility no-op",
+		"SelectTypeaheadDelay[string](": "SelectTypeaheadDelay compatibility no-op",
+	} {
+		if strings.Contains(text, token) {
+			t.Fatalf("docs browser demo must not advertise %s; found token %q", label, token)
 		}
 	}
 }

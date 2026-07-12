@@ -357,7 +357,7 @@
 - 修复说明：
   - Dialog / Popup 的视觉遮罩不再使用全屏 `Pressable` 承担关闭逻辑，改为 pass-through outside-press guard，并用居中面板矩形保护内部按钮、空白和组件点击。
   - Dialog 继续在 portal root 注册 modal boundary；Popup 继续通过 portal 冒泡到 owner，不额外截断内部事件。
-  - `SelectQuick(true)` 现在真正跳过下拉动画，避免测试和快速交互中 popup 命中区滞后。
+  - 历史上的 `SelectQuick(true)` 动画说明已由 R0 的 API 收敛决策取代：该 option 现为 Deprecated 的编译兼容 no-op，不能再用它承诺或依赖跳过下拉动画；见 `docs/deprecation-ledger.md`。
   - Select / DropdownMenu 继续复用 R1 的 ListView 滚动后重绘刷新机制，并补齐“滚动后不移动鼠标直接点击”的回归测试。
 - 手工验收：对应 P5 打开 Dialog/Popup 不再未响应；点击弹窗内部按钮、空白、组件不误关闭；点击遮罩仍可关闭；Select / DropdownMenu 选项滚动后不移动鼠标也能点击当前指向项。
 - 自动测试：新增 `TestMaskClosableOverlayInternalComponentDoesNotClose`、`TestOpeningMaskClosableOverlayDoesNotCloseFromOpeningClick`、`TestSelectPopupWheelThenClickWithoutMoveUsesUpdatedOption`、`TestDropdownMenuWheelThenClickWithoutMoveUsesUpdatedItem`，并复跑 `TestModalInternalPressDoesNotCloseMaskClosableOverlay`。

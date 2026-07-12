@@ -1,0 +1,20 @@
+version: "2"
+
+run:
+  timeout: 5m
+  relative-path-mode: gomod
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+# R0 establishes a non-regression lint gate. Existing findings remain visible
+# debt but do not block unrelated changes; new or modified Go code must pass
+# the configured linters.
+issues:
+  new: true

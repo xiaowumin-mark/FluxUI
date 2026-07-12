@@ -256,7 +256,6 @@ func docsSelectDemo(value docsStringState) ui.Element {
 					ui.SelectPlaceholder[string]("选择水果"),
 					ui.SelectSupportingText[string]("Material 3 Outlined 字段"),
 					ui.SelectLeading[string](ui.Icon("restaurant")),
-					ui.SelectSearchable[string](true),
 					ui.SelectMaxHeight[string](180),
 					ui.SelectAttachRef[string](ref.Current),
 					ui.SelectOnOpenChange[string](func(ctx *ui.Context, open bool) {

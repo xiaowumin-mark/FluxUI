@@ -13,6 +13,8 @@ func docsDemoPresentationFor(exampleID string) docsDemoPresentation {
 	switch exampleID {
 	case "docs_overview":
 		presentation.Height = 310
+	case "advanced_component_template":
+		presentation.Height = 360
 	case "animation_basic":
 		presentation.Height = 300
 		presentation.Scroll = true
@@ -64,6 +66,7 @@ func docsDemoViewport(exampleID string, content ui.Element) ui.Element {
 func isDocsDemoKnown(exampleID string) bool {
 	switch exampleID {
 	case "docs_overview",
+		"advanced_component_template",
 		"row_basic",
 		"column_basic",
 		"stack_basic",

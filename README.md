@@ -47,8 +47,8 @@ FluxUI 是一个基于 [Gio](https://gioui.org/) 的声明式 Go UI 框架。
 
 ## 环境要求
 
-- Go `1.25+`
-- 支持 Gio 的桌面运行环境（Windows/macOS/Linux）
+- Go `1.25+`（CI、benchmark 与 release candidate 固定为 `1.25.12`）
+- 支持 Gio 的桌面运行环境（Windows/macOS/Linux）；X11/Wayland 与 native smoke 边界见 `docs/production-governance.md`
 
 ## 快速开始
 
@@ -164,6 +164,7 @@ gogio -target windows -o example.exe ./examples/counter
 - 组件文档目录：`docs/widgets`
 - 文档系统说明：`docs/README.md`
 - 示例文档浏览器：`examples/docs_browser`
+- 生产 API、支持矩阵与弃用事实来源：`docs/production-governance.md`
 
 ## 项目结构
 

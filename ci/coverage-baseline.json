@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "scope": "event, runtime, advanced-component contracts, state, ui and widget; examples excluded",
+  "packages": {
+    "event": {
+      "profile": "event.out",
+      "minimum": 70.9
+    },
+    "internal": {
+      "profile": "internal.out",
+      "minimum": 65.97
+    },
+    "internal/collection": {
+      "profile": "internal-collection.out",
+      "minimum": 88
+    },
+    "internal/fieldstate": {
+      "profile": "internal-fieldstate.out",
+      "minimum": 84.62
+    },
+    "internal/overlay": {
+      "profile": "internal-overlay.out",
+      "minimum": 100
+    },
+    "internal/testkit": {
+      "profile": "internal-testkit.out",
+      "minimum": 96
+    },
+    "state": {
+      "profile": "state.out",
+      "minimum": 73.12
+    },
+    "ui": {
+      "profile": "ui.out",
+      "minimum": 50.14
+    },
+    "widget": {
+      "profile": "widget.out",
+      "minimum": 60.38
+    }
+  },
+  "total_minimum": 61.33,
+  "target": 60,
+  "tolerance": 0.05
+}

@@ -20,5 +20,10 @@ saga.db-wal
 /dist
 /build
 /out
+/coverage
+/reports
+/bench-base.txt
+/bench-candidate.txt
+/benchstat.txt
 /.tmp
 /.codegraph

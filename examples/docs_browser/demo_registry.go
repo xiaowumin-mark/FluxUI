@@ -62,6 +62,8 @@ func buildDocsDemo(ctx *ui.Context, doc *widgetDoc, state docsDemoState) ui.Elem
 	switch demoID {
 	case "docs_overview":
 		return buildDocsOverviewDemo(th)
+	case "advanced_component_template":
+		return ui.Key("docs-demo-advanced-component-template", ui.ComponentElement(docsAdvancedComponentTemplateDemo))
 	case "row_basic":
 		return docsRowDemo()
 	case "column_basic":

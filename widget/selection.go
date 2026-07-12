@@ -8,6 +8,7 @@ import (
 
 	event "github.com/xiaowumin-mark/FluxUI/event"
 	internal "github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/internal/overlay"
 	layout "github.com/xiaowumin-mark/FluxUI/layout"
 	style "github.com/xiaowumin-mark/FluxUI/style"
 
@@ -263,13 +264,10 @@ type selectConfig[T comparable] struct {
 	required       bool
 	noAsterisk     bool
 	disabled       bool
-	searchable     bool
-	quick          bool
 	maxHeight      float32
 	width          float32
 	xOffset        float32
 	yOffset        float32
-	typeaheadDelay time.Duration
 	onChange       func(ctx *internal.Context, value T)
 	onOpen         func(ctx *internal.Context, opened bool)
 	ref            *SelectRef[T]
@@ -369,11 +367,13 @@ func SelectDisabled[T comparable](disabled bool) SelectOption[T] {
 	}
 }
 
-// SelectSearchable 设置可搜索（预留参数）。
+// SelectSearchable is retained for source compatibility only.
+//
+// Deprecated: Select does not provide query input or result filtering, so this
+// option has no effect. Use a future R1 Combobox or Autocomplete API when that
+// capability is available.
 func SelectSearchable[T comparable](searchable bool) SelectOption[T] {
-	return func(cfg *selectConfig[T]) {
-		cfg.searchable = searchable
-	}
+	return func(*selectConfig[T]) {}
 }
 
 // SelectMaxHeight 设置下拉面板最大高度。
@@ -401,16 +401,20 @@ func SelectYOffset[T comparable](offset float32) SelectOption[T] {
 	}
 }
 
+// SelectQuick is retained for source compatibility only.
+//
+// Deprecated: Select has no quick-animation contract, so this option has no
+// effect. Use the component's documented animation behavior instead.
 func SelectQuick[T comparable](quick bool) SelectOption[T] {
-	return func(cfg *selectConfig[T]) {
-		cfg.quick = quick
-	}
+	return func(*selectConfig[T]) {}
 }
 
+// SelectTypeaheadDelay is retained for source compatibility only.
+//
+// Deprecated: Select has no typeahead contract, so this option has no effect.
+// A future R1 searchable control will define query and keyboard semantics.
 func SelectTypeaheadDelay[T comparable](delay time.Duration) SelectOption[T] {
-	return func(cfg *selectConfig[T]) {
-		cfg.typeaheadDelay = delay
-	}
+	return func(*selectConfig[T]) {}
 }
 
 func SelectFilled[T comparable](filled bool) SelectOption[T] {
@@ -695,7 +699,7 @@ func (s *selectWidget[T]) Layout(ctx *internal.Context) layout.Dimensions {
 		fieldRect := image.Rectangle{Min: origin, Max: origin.Add(toggleDims.Size)}
 		popupOrigin := origin.Add(offsetPoint)
 		popupRect := image.Rectangle{Min: popupOrigin, Max: popupOrigin.Add(popupSize)}
-		md3DismissOnOutsidePress(ctx, state.outsideTag, []image.Rectangle{fieldRect, popupRect}, func(dismissCtx *internal.Context) {
+		md3DismissOnOutsidePress(ctx, state.outsideTag, overlay.AnchoredRegion{Anchor: fieldRect, Content: popupRect}, func(dismissCtx *internal.Context) {
 			if state.opened {
 				state.opened = false
 				if s.config.onOpen != nil {

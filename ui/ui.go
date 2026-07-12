@@ -17,7 +17,8 @@ import (
 
 // Widget 是对外暴露的统一组件接口。
 //
-// Deprecated: Widget 已不再维护，推荐使用 React-style Element API (RunElement + Element)。
+// Deprecated: 新代码请使用 React-style Element API (RunElement + Element)。Widget
+// 作为兼容入口保留，详情见 docs/deprecation-ledger.md。
 type Widget = widget.Widget
 
 // DropEvent describes data dropped onto a DropTarget.
@@ -281,7 +282,7 @@ const (
 
 // App 创建应用对象。
 //
-// Deprecated: App 已不再维护。请使用 RunElement 配合组件函数 (Component)。
+// Deprecated: 新代码请使用 RunElement 配合组件函数 (Component)。App 作为兼容入口保留。
 func App(root func(ctx *Context) Widget, opts ...AppOption) *fluxapp.Application {
 	return fluxapp.New(func(ctx *internal.Context) widget.Widget {
 		return root(ctx)
@@ -290,7 +291,7 @@ func App(root func(ctx *Context) Widget, opts ...AppOption) *fluxapp.Application
 
 // Run 启动应用。
 //
-// Deprecated: Run 已不再维护。请使用 RunElement 配合组件函数 (Component)。
+// Deprecated: 新代码请使用 RunElement 配合组件函数 (Component)。Run 作为兼容入口保留。
 func Run(root func(ctx *Context) Widget, opts ...AppOption) error {
 	return fluxapp.Run(func(ctx *internal.Context) widget.Widget {
 		return root(ctx)
@@ -299,7 +300,7 @@ func Run(root func(ctx *Context) Widget, opts ...AppOption) error {
 
 // Window 创建多窗口启动中的单个窗口定义。
 //
-// Deprecated: Window 已不再维护。请使用 RunElement。
+// Deprecated: 新代码请使用 WindowElement / RunElement。Window 作为兼容入口保留。
 func Window(root func(ctx *Context) Widget, opts ...AppOption) WindowSpec {
 	return fluxapp.Window(func(ctx *internal.Context) widget.Widget {
 		return root(ctx)
@@ -308,7 +309,7 @@ func Window(root func(ctx *Context) Widget, opts ...AppOption) WindowSpec {
 
 // RunMulti 同时启动多个窗口（桌面端）。
 //
-// Deprecated: RunMulti 已不再维护。请使用 RunElement。
+// Deprecated: 新代码请使用 RunElementMulti。RunMulti 作为兼容入口保留。
 func RunMulti(windows ...WindowSpec) error {
 	return fluxapp.RunMulti(windows...)
 }

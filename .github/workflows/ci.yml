@@ -42,6 +42,79 @@ jobs:
       - name: Vet
         run: make vet
 
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.25.12"
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxrandr-dev libxkbcommon-dev libwayland-dev libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev mesa-vulkan-drivers libxkbcommon-x11-dev libx11-xcb-dev libxcursor-dev libxfixes-dev
+
+      - name: Verify gofmt
+        run: go run ./tools/gofmtcheck
+
+      - name: Verify public API snapshot
+        run: go run ./tools/api-snapshot -check
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+
+      - name: Run core race tests
+        run: make race
+
+      - name: Verify modules and capture dependency inventory
+        run: |
+          mkdir -p reports
+          go mod verify
+          go list -m -json all > reports/dependencies.json
+
+      - name: Run core coverage gate
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mkdir -p coverage
+          while IFS= read -r package; do
+            case "$package" in
+              \#*|'') continue ;;
+            esac
+            name=$(printf '%s' "$package" | sed 's|^\./||; s|/|-|g')
+            go test -covermode atomic -coverprofile "coverage/${name}.out" "$package"
+          done < ci/core-packages.txt
+          args=( -profiles coverage -baseline ci/coverage-baseline.json -report coverage/summary.json -changed-minimum 80 )
+          if [ -n "$BASE_REVISION" ]; then
+            args+=( -base "$BASE_REVISION" )
+          fi
+          go run ./tools/coveragecheck "${args[@]}"
+
+      - name: Scan known Go vulnerabilities
+        run: |
+          mkdir -p reports
+          go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
+          govulncheck -json ./... > reports/govulncheck.json
+
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: quality-reports
+          path: |
+            coverage
+            reports
+          if-no-files-found: error
+          retention-days: 14
+
   visual-regression:
     runs-on: ubuntu-latest
     steps:
@@ -60,7 +133,9 @@ jobs:
           sudo apt-get install -y libx11-dev libxrandr-dev libxkbcommon-dev libwayland-dev libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev mesa-vulkan-drivers libxkbcommon-x11-dev libx11-xcb-dev libxcursor-dev libxfixes-dev
 
       - name: Generate Material 3 screenshots
-        run: make visual
+        run: |
+          make visual
+          test -s out/material3-screenshots/manifest.json
 
       - name: Upload Material 3 screenshots
         if: always()
@@ -68,5 +143,65 @@ jobs:
         with:
           name: material3-screenshots
           path: out/material3-screenshots
-          if-no-files-found: warn
+          if-no-files-found: error
+          retention-days: 14
+
+  benchmark:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.25.12"
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxrandr-dev libxkbcommon-dev libwayland-dev libegl1-mesa-dev libgles2-mesa-dev libvulkan-dev mesa-vulkan-drivers libxkbcommon-x11-dev libx11-xcb-dev libxcursor-dev libxfixes-dev
+
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@v0.0.0-20260709024250-82a0b07e230d
+
+      - name: Benchmark base revision
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git worktree add --detach ../fluxui-benchmark-base "$BASE_REVISION"
+          (
+            cd ../fluxui-benchmark-base
+            go test ./widget ./internal/perf -run '^$' -bench . -benchmem -benchtime=1s -count=5
+          ) > bench-base.txt
+          git worktree remove --force ../fluxui-benchmark-base
+
+      - name: Benchmark candidate revision
+        run: go test ./widget ./internal/perf -run '^$' -bench . -benchmem -benchtime=1s -count=5 > bench-candidate.txt
+
+      - name: Compare with benchstat
+        run: benchstat bench-base.txt bench-candidate.txt | tee benchstat.txt
+
+      - name: Enforce hotspot regression and frame budgets
+        id: gate
+        continue-on-error: ${{ contains(github.event.pull_request.labels.*.name, 'performance-approved') }}
+        run: go run ./tools/benchgate -config ci/benchmark-gate.json -base bench-base.txt -candidate bench-candidate.txt
+
+      - name: Record approved performance exception
+        if: steps.gate.outcome == 'failure' && contains(github.event.pull_request.labels.*.name, 'performance-approved')
+        run: echo "Performance exception approved with the performance-approved PR label."
+
+      - name: Upload benchmark comparison
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: benchmark-comparison
+          path: |
+            bench-base.txt
+            bench-candidate.txt
+            benchstat.txt
+          if-no-files-found: error
           retention-days: 14

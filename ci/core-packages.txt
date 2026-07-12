@@ -1,0 +1,11 @@
+# Runtime, interaction, shared advanced-component contracts, and the public facade.
+# Examples are intentionally excluded so their zero coverage cannot dilute this gate.
+./event
+./internal
+./internal/collection
+./internal/fieldstate
+./internal/overlay
+./internal/testkit
+./state
+./ui
+./widget

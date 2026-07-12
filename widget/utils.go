@@ -8,6 +8,7 @@ import (
 	"github.com/xiaowumin-mark/FluxUI/anim"
 	fluxevent "github.com/xiaowumin-mark/FluxUI/event"
 	"github.com/xiaowumin-mark/FluxUI/internal"
+	"github.com/xiaowumin-mark/FluxUI/internal/overlay"
 	"github.com/xiaowumin-mark/FluxUI/layout"
 	"github.com/xiaowumin-mark/FluxUI/style"
 	"github.com/xiaowumin-mark/FluxUI/theme"
@@ -48,7 +49,7 @@ func clampFloat32(v, min, max float32) float32 {
 	return v
 }
 
-func md3DismissOnOutsidePress(ctx *internal.Context, tag any, protected []image.Rectangle, onDismiss func(*internal.Context)) {
+func md3DismissOnOutsidePress(ctx *internal.Context, tag any, protected overlay.AnchoredRegion, onDismiss func(*internal.Context)) {
 	if ctx == nil || tag == nil || onDismiss == nil {
 		return
 	}
@@ -78,14 +79,7 @@ func md3DismissOnOutsidePress(ctx *internal.Context, tag any, protected []image.
 			continue
 		}
 		point := image.Pt(int(pe.Position.X+0.5), int(pe.Position.Y+0.5))
-		inside := false
-		for _, rect := range protected {
-			if point.In(rect) {
-				inside = true
-				break
-			}
-		}
-		if !inside {
+		if !protected.Contains(point) {
 			pointerEvent := fluxevent.PointerEventFromGio(ctx, fluxevent.PointerDown, pe)
 			pointerEvent.Position = f32.Pt(float32(point.X), float32(point.Y))
 			if fluxevent.DispatchPointerEvent(ctx, ctx.PathID(), &pointerEvent) {

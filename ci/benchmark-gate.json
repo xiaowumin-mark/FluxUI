@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "maximum_regression_percent": 10,
+  "benchmarks": {
+    "BenchmarkHorizontalWheelDelta/horizontal-consumed": {
+      "metric": "ns/op",
+      "frame_budget_ns": 8000000
+    },
+    "BenchmarkHorizontalWheelDelta/vertical-ignored": {
+      "metric": "ns/op",
+      "frame_budget_ns": 8000000
+    },
+    "BenchmarkListVirtualized_10k": {
+      "metric": "frame-ns/frame",
+      "frame_budget_ns": 8000000
+    },
+    "BenchmarkMenuOpenLargeOptions": {
+      "metric": "frame-ns/frame",
+      "frame_budget_ns": 8000000
+    },
+    "BenchmarkSelectMenuOpenLargeOptions": {
+      "metric": "frame-ns/frame",
+      "frame_budget_ns": 8000000
+    },
+    "BenchmarkWheelScrollViewVertical": {
+      "metric": "ns/op",
+      "frame_budget_ns": 8000000
+    }
+  }
+}

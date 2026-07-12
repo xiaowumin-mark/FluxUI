@@ -5,7 +5,7 @@ This document is the current status page for the React-style runtime and docs/ex
 ## Current status
 
 - The React-style runtime work is complete: `RunElement`, `Element`, function components, hook slots, effects, providers, reconciler identity, keyed reuse, unmount cleanup, router hooks, stable Element wrappers, and `FromWidget` are implemented and tested.
-- Legacy `Run` / `Widget` remains a stable compatibility path. It is not deprecated in code and should not be removed during docs/example cleanup.
+- Legacy `Run` / `Widget` remains a stable compatibility path. It has Go `Deprecated:` markers for new-code guidance, but must not be removed during docs/example cleanup or a minor release.
 - `FromWidget` remains a long-term escape hatch for mixing legacy widgets into Element trees.
 - Docs/examples rollout Batches 1-6 are complete. The rollout updated low-risk widget docs with React-style snippets, consolidated redundant standalone examples into the full React-style workspace, and recorded compatibility notes for complex examples.
 - Widget docs have been audited for React runtime coverage. Stable wrappers are documented with React-style snippets; host-state/lifecycle-heavy controls still document which state remains owned by the underlying widget host.
@@ -54,7 +54,7 @@ This document is the current status page for the React-style runtime and docs/ex
 
 - `docs/legacy-api-positioning.md` records the stable legacy compatibility stance.
 - `docs/escape-hatch-strategy.md` records the long-term `FromWidget` bridge strategy.
-- `docs/deprecation-and-versioning.md` records why Go `Deprecated:` comments are not added yet.
+- `docs/deprecation-ledger.md` is the current authority for Go `Deprecated:` markers, compatibility shims and migration windows; `docs/deprecation-and-versioning.md` records the version policy.
 - `docs/examples-inventory.md` records each example's current role and cleanup status.
 
 ## Historical planning records

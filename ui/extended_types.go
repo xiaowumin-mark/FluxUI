@@ -1963,6 +1963,10 @@ func SelectDisabled[T comparable](disabled bool) SelectOption[T] {
 	return widget.SelectDisabled[T](disabled)
 }
 
+// SelectSearchable is a compatibility no-op.
+//
+// Deprecated: Select does not implement search. Use a future R1 Combobox or
+// Autocomplete API when that capability is available.
 func SelectSearchable[T comparable](searchable bool) SelectOption[T] {
 	return widget.SelectSearchable[T](searchable)
 }
@@ -1983,10 +1987,16 @@ func SelectYOffset[T comparable](offset float32) SelectOption[T] {
 	return widget.SelectYOffset[T](offset)
 }
 
+// SelectQuick is a compatibility no-op.
+//
+// Deprecated: Select has no quick-animation contract.
 func SelectQuick[T comparable](quick bool) SelectOption[T] {
 	return widget.SelectQuick[T](quick)
 }
 
+// SelectTypeaheadDelay is a compatibility no-op.
+//
+// Deprecated: Select has no typeahead contract.
 func SelectTypeaheadDelay[T comparable](delay time.Duration) SelectOption[T] {
 	return widget.SelectTypeaheadDelay[T](delay)
 }

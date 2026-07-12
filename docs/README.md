@@ -4,6 +4,11 @@
 
 - `docs/material3-design-plan.md`: Material Design 3 默认样式规范、FluxUI 当前差距和分阶段实施计划。
 - `docs/material3-roadmap.md`: Material Design 3 长期路线图，记录当前融合进展、组件覆盖矩阵、交互反馈计划和长期验收标准。
+- `docs/advanced-components-production-roadmap.md`: 高级组件补全与生产级演进路线图，规划复杂表单、数据密集、工作台组件以及质量、发布与兼容门槛。
+- `docs/advanced-component-template.md`: Docs Browser 中可构建的高级组件交付模板入口。
+- `docs/production-governance.md`: R0 的 API snapshot、支持矩阵、弃用 ledger 与发布门权威索引。
+- `docs/deprecation-ledger.md`: 当前弃用、兼容 shim 与迁移窗口的权威账本。
+- `docs/release-checklist.md`: tag/release candidate 的可审计质量、平台与制品检查清单。
 - `docs/performance-optimization-roadmap.md`: 性能优化路线图，规划大型项目、密集组件和高频鼠标交互场景下的性能治理路线。
 - `docs/project-audit-roadmap.md`: 大项目逻辑审查路线图，按功能、控件和底层能力的关联关系审查运行时、布局、事件、状态、样式、测试和文档。
 - `docs/project-audit-task-breakdown.md`: 大项目逻辑审查任务拆分，按批次、阶段、依赖、产出、点数和验收关卡拆分执行工作量。

@@ -2,15 +2,15 @@
 
 ## 目标
 
-本文记录 Phase 7.1 的 legacy API 定位。legacy 在当前阶段表示“兼容入口”，不表示立即废弃、删除或停止维护。
+本文记录 Phase 7.1 的 legacy API 定位。legacy 在当前阶段表示“兼容入口”，不表示立即删除或停止维护；当前弃用状态、替代项和版本窗口以 [`docs/deprecation-ledger.md`](deprecation-ledger.md) 为准。
 
 ## 结论
 
-- `Widget` / `Run` / `App` / `Window` / `RunMulti` 继续作为稳定兼容入口。
+- `Widget` / `Run` / `App` / `Window` / `RunMulti` 已标记为 Deprecated，但继续作为稳定兼容入口。
 - `RunElement` / `Element` / `Component` 是新项目推荐入口。
 - `FromWidget` 是新旧 API 混用的长期桥接能力，细则见 `docs/escape-hatch-strategy.md`。
 - 旧 Router API 继续保留，React-style Router hooks 和 `RouterElement` 是新写法。
-- 当前阶段不添加 deprecated 代码注释；deprecation 文案和版本节奏见 `docs/deprecation-and-versioning.md`。
+- deprecation 文案和版本节奏见 `docs/deprecation-and-versioning.md`；新增标记必须同步更新 ledger、API snapshot 与 CHANGELOG。
 
 ## 推荐使用边界
 
@@ -29,7 +29,7 @@
 - 不删除旧 API。
 - 不修改 `Run` / `App` / `Window` / `RunMulti` 签名。
 - 不把所有 examples 立即迁移到 `RunElement`。
-- 当前阶段不添加 deprecated 注释。
+- 不在小版本中删除已弃用的兼容入口。
 
 ## 迁移建议
 

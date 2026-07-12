@@ -449,6 +449,7 @@ ListItemElement(...)
 3. 评估是否引入可维护的 golden image 比较，不作为当前默认要求。
 4. 继续通过 showcase 和 `make visual` 人工检查 Light/Dark、导航、输入、Overlay、Ripple 和动画状态。
 5. 发布前整理正式 changelog，将 `docs/guides/material3-compatibility.md` 的 release notes 摘要同步到版本说明。
+6. 高级表单、数据密集和工作台组件的后续实施，统一参见 docs/advanced-components-production-roadmap.md；新增组件继续遵守 Token first、Element first、Compatibility first 和 Visual regression first。
 
 ## 验收命令
 
