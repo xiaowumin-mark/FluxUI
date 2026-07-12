@@ -81,6 +81,12 @@ const EventPointerOver EventType
 const EventPointerUp EventType
 const EventSubmit EventType
 const EventWheel EventType
+const FieldInvalid
+const FieldPending
+const FieldStatusInvalid
+const FieldStatusPending
+const FieldStatusValid
+const FieldValid
 const FocusBackward FocusDirection
 const FocusForward FocusDirection
 const FontStyleItalic
@@ -223,6 +229,28 @@ func AssistChip(label string, opts ...ChipOption) Widget
 func AssistChipElement(label string, opts ...ChipOption) Element
 func AssistChipElementWithSlots(label Element, opts ...ChipOption) Element
 func AssistChipWithSlots(label Widget, opts ...ChipOption) Widget
+func AutocompleteAttachRef[T comparable](ref *AutocompleteRef[T]) AutocompleteOption[T]
+func AutocompleteDisabled[T comparable](disabled bool) AutocompleteOption[T]
+func AutocompleteElement[T comparable](query string, items []AutocompleteItem[T], opts ...AutocompleteOption[T]) Element
+func AutocompleteErrorText[T comparable](text string) AutocompleteOption[T]
+func AutocompleteFilterOptions[T comparable](filter bool) AutocompleteOption[T]
+func AutocompleteInputOptions[T comparable](opts ...InputOption) AutocompleteOption[T]
+func AutocompleteLabel[T comparable](text string) AutocompleteOption[T]
+func AutocompleteMaxHeight[T comparable](height float32) AutocompleteOption[T]
+func AutocompleteOnActiveChange[T comparable](fn func(ctx *Context, key string)) AutocompleteOption[T]
+func AutocompleteOnBeforeInput[T comparable](fn fluxevent.InputHandler) AutocompleteOption[T]
+func AutocompleteOnInputEvent[T comparable](fn fluxevent.InputHandler) AutocompleteOption[T]
+func AutocompleteOnOpenChange[T comparable](fn func(ctx *Context, opened bool)) AutocompleteOption[T]
+func AutocompleteOnQueryChange[T comparable](fn func(ctx *Context, query string)) AutocompleteOption[T]
+func AutocompleteOnSelect[T comparable](fn func(ctx *Context, item AutocompleteItem[T])) AutocompleteOption[T]
+func AutocompleteOnSubmit[T comparable](fn fluxevent.InputHandler) AutocompleteOption[T]
+func AutocompleteOpened[T comparable](opened bool) AutocompleteOption[T]
+func AutocompletePending[T comparable](pending bool) AutocompleteOption[T]
+func AutocompletePlaceholder[T comparable](text string) AutocompleteOption[T]
+func AutocompleteRequired[T comparable](required bool) AutocompleteOption[T]
+func AutocompleteSelectedKey[T comparable](key string) AutocompleteOption[T]
+func AutocompleteSupportingText[T comparable](text string) AutocompleteOption[T]
+func Autocomplete[T comparable](query string, items []AutocompleteItem[T], opts ...AutocompleteOption[T]) Widget
 func Badge(child Widget, label string, opts ...BadgeOption) Widget
 func BadgeBackground(col color.NRGBA) BadgeOption
 func BadgeDecoration(d Decoration) BadgeOption
@@ -301,6 +329,30 @@ func ClickAreaElement(child Element, onClick func(ctx *Context), opts ...ClickAr
 func ColorSchemeFromSeed(seed color.NRGBA, opts ...ColorOption) ColorScheme
 func Column(children ...Widget) Widget
 func ColumnElement(children ...Element) Element
+func ComboboxAllowCustomValue[T comparable](allow bool) ComboboxOption[T]
+func ComboboxAttachRef[T comparable](ref *ComboboxRef[T]) ComboboxOption[T]
+func ComboboxDisabled[T comparable](disabled bool) ComboboxOption[T]
+func ComboboxElement[T comparable](query string, items []ComboboxItem[T], opts ...ComboboxOption[T]) Element
+func ComboboxErrorText[T comparable](text string) ComboboxOption[T]
+func ComboboxFilterOptions[T comparable](filter bool) ComboboxOption[T]
+func ComboboxInputOptions[T comparable](opts ...InputOption) ComboboxOption[T]
+func ComboboxLabel[T comparable](text string) ComboboxOption[T]
+func ComboboxMaxHeight[T comparable](height float32) ComboboxOption[T]
+func ComboboxOnActiveChange[T comparable](fn func(ctx *Context, key string)) ComboboxOption[T]
+func ComboboxOnBeforeInput[T comparable](fn fluxevent.InputHandler) ComboboxOption[T]
+func ComboboxOnCustomValue[T comparable](fn func(ctx *Context, value string)) ComboboxOption[T]
+func ComboboxOnInputEvent[T comparable](fn fluxevent.InputHandler) ComboboxOption[T]
+func ComboboxOnOpenChange[T comparable](fn func(ctx *Context, opened bool)) ComboboxOption[T]
+func ComboboxOnQueryChange[T comparable](fn func(ctx *Context, query string)) ComboboxOption[T]
+func ComboboxOnSelect[T comparable](fn func(ctx *Context, item ComboboxItem[T])) ComboboxOption[T]
+func ComboboxOnSubmit[T comparable](fn fluxevent.InputHandler) ComboboxOption[T]
+func ComboboxOpened[T comparable](opened bool) ComboboxOption[T]
+func ComboboxPending[T comparable](pending bool) ComboboxOption[T]
+func ComboboxPlaceholder[T comparable](text string) ComboboxOption[T]
+func ComboboxRequired[T comparable](required bool) ComboboxOption[T]
+func ComboboxSelectedKey[T comparable](key string) ComboboxOption[T]
+func ComboboxSupportingText[T comparable](text string) ComboboxOption[T]
+func Combobox[T comparable](query string, items []ComboboxItem[T], opts ...ComboboxOption[T]) Widget
 func CompactDensityScale() DensityScale
 func ComponentElement(component Component) Element
 func Container(st Style, child Widget) Widget // Deprecated
@@ -494,6 +546,24 @@ func FocusTabIndex(index int) FocusTargetOption
 func Focused(d Decoration) style.Decoration
 func FocusedTarget(ctx *Context) TargetID
 func FontFamily(family string) FontSpec
+func Form(child Widget, opts ...FormOption) Widget
+func FormAttachRef(ref *FormRef) FormOption
+func FormDisabled(disabled bool) FormOption
+func FormElement(child Element, opts ...FormOption) Element
+func FormField(key string, child Widget, opts ...FormFieldOption) Widget
+func FormFieldAttachRef(ref *FormFieldRef) FormFieldOption
+func FormFieldDisabled(disabled bool) FormFieldOption
+func FormFieldElement(key string, child Element, opts ...FormFieldOption) Element
+func FormFieldErrorText(text string) FormFieldOption
+func FormFieldLabel(label string) FormFieldOption
+func FormFieldPending(pending bool) FormFieldOption
+func FormFieldPendingText(text string) FormFieldOption
+func FormFieldReadOnly(readOnly bool) FormFieldOption
+func FormFieldRequired(required bool) FormFieldOption
+func FormFieldState(state FieldState) FormFieldOption
+func FormFieldSupportingText(text string) FormFieldOption
+func FormOnSubmit(fn func(ctx *Context, event *FormSubmitEvent)) FormOption
+func FormPending(pending bool) FormOption
 func FormatFrameStats(stats FrameStats) string
 func Fragment(children ...Element) Element
 func From(value float32) anim.Option // Deprecated
@@ -662,6 +732,34 @@ func MenuXOffset(offset float32) MenuOption
 func MenuYOffset(offset float32) MenuOption
 func MinSize(width, height int) AppOption
 func MoveFocus(ctx *Context, direction FocusDirection) bool
+func MultiSelectAttachRef[T comparable](ref *MultiSelectRef[T]) MultiSelectOption[T]
+func MultiSelectDisabled[T comparable](disabled bool) MultiSelectOption[T]
+func MultiSelectElement[T comparable](selected []T, options []ChoiceItem[T], opts ...MultiSelectOption[T]) Element
+func MultiSelectErrorText[T comparable](text string) MultiSelectOption[T]
+func MultiSelectError[T comparable](invalid bool) MultiSelectOption[T]
+func MultiSelectFilterOptions[T comparable](filter bool) MultiSelectOption[T]
+func MultiSelectInputOptions[T comparable](opts ...InputOption) MultiSelectOption[T]
+func MultiSelectLabel[T comparable](text string) MultiSelectOption[T]
+func MultiSelectMaxHeight[T comparable](height float32) MultiSelectOption[T]
+func MultiSelectOnActiveChange[T comparable](fn func(ctx *Context, key string)) MultiSelectOption[T]
+func MultiSelectOnBeforeInput[T comparable](fn fluxevent.InputHandler) MultiSelectOption[T]
+func MultiSelectOnChange[T comparable](fn func(ctx *Context, selected []T)) MultiSelectOption[T]
+func MultiSelectOnInputEvent[T comparable](fn fluxevent.InputHandler) MultiSelectOption[T]
+func MultiSelectOnOpenChange[T comparable](fn func(ctx *Context, opened bool)) MultiSelectOption[T]
+func MultiSelectOnQueryChange[T comparable](fn func(ctx *Context, query string)) MultiSelectOption[T]
+func MultiSelectOnRemove[T comparable](fn func(ctx *Context, item ChoiceItem[T])) MultiSelectOption[T]
+func MultiSelectOnSelect[T comparable](fn func(ctx *Context, item ChoiceItem[T])) MultiSelectOption[T]
+func MultiSelectOnSelectedKeysChange[T comparable](fn func(ctx *Context, selectedKeys []string)) MultiSelectOption[T]
+func MultiSelectOnSubmit[T comparable](fn fluxevent.InputHandler) MultiSelectOption[T]
+func MultiSelectOnToggle[T comparable](fn func(ctx *Context, item ChoiceItem[T], selected bool)) MultiSelectOption[T]
+func MultiSelectOpened[T comparable](opened bool) MultiSelectOption[T]
+func MultiSelectPending[T comparable](pending bool) MultiSelectOption[T]
+func MultiSelectPlaceholder[T comparable](text string) MultiSelectOption[T]
+func MultiSelectQuery[T comparable](query string) MultiSelectOption[T]
+func MultiSelectRequired[T comparable](required bool) MultiSelectOption[T]
+func MultiSelectSelectedKeys[T comparable](keys []string) MultiSelectOption[T]
+func MultiSelectSupportingText[T comparable](text string) MultiSelectOption[T]
+func MultiSelect[T comparable](selected []T, options []ChoiceItem[T], opts ...MultiSelectOption[T]) Widget
 func NRGBA(r, g, b, a uint8) color.NRGBA
 func Navigate(ctx *Context, path string, opts ...NavigateOption)
 func NavigateBack(ctx *Context, opts ...NavigateOption)
@@ -684,23 +782,51 @@ func NavigationRailHeader(header Widget) NavigationRailOption
 func NavigationRailInactiveColor(col color.NRGBA) NavigationRailOption
 func NavigationRailOnChange(fn func(ctx *Context, key string)) NavigationRailOption
 func NavigationRailWidth(width float32) NavigationRailOption
+func NewAutocompleteRef[T comparable]() *AutocompleteRef[T]
 func NewBottomNavRef() *BottomNavRef
 func NewButtonRef() *ButtonRef
 func NewCheckboxRef() *CheckboxRef
 func NewClickAreaRef() *ClickAreaRef
+func NewComboboxRef[T comparable]() *ComboboxRef[T]
 func NewContextKey[T any](defaultValue T) ContextKey[T]
 func NewCustomEvent(eventType EventType, detail any, opts ...CustomEventOption) Event
 func NewDialogRef() *DialogRef
+func NewFormFieldRef() *FormFieldRef
+func NewFormRef() *FormRef
 func NewInputRef() *InputRef
+func NewMultiSelectRef[T comparable]() *MultiSelectRef[T]
+func NewNumericFieldRef() *NumericFieldRef
 func NewPopupRef() *PopupRef
 func NewPressableRef() *PressableRef
 func NewRadioGroupRef() *RadioGroupRef
 func NewScrollRef() *ScrollRef
+func NewSearchSelectRef[T comparable]() *SearchSelectRef[T]
 func NewSelectRef[T comparable]() *SelectRef[T]
 func NewSliderRef() *SliderRef
 func NewSwitchRef() *SwitchRef
 func NewTabsRef() *TabsRef
+func NewTagInputRef() *TagInputRef
+func NewTagPickerRef() *TagPickerRef
 func NewTheme(cs ColorScheme, opts ...ThemeOption) *Theme
+func NumericField(value string, opts ...NumericFieldOption) Widget
+func NumericFieldAttachRef(ref *NumericFieldRef) NumericFieldOption
+func NumericFieldDisabled(disabled bool) NumericFieldOption
+func NumericFieldElement(value string, opts ...NumericFieldOption) Element
+func NumericFieldError(err bool) NumericFieldOption
+func NumericFieldErrorText(text string) NumericFieldOption
+func NumericFieldInputOptions(opts ...InputOption) NumericFieldOption
+func NumericFieldInteger(integer bool) NumericFieldOption
+func NumericFieldLabel(text string) NumericFieldOption
+func NumericFieldMax(value string) NumericFieldOption
+func NumericFieldMin(value string) NumericFieldOption
+func NumericFieldNoAsterisk(noAsterisk bool) NumericFieldOption
+func NumericFieldOnChange(fn func(ctx *Context, value string)) NumericFieldOption
+func NumericFieldOnParsedChange(fn func(ctx *Context, value NumericValue)) NumericFieldOption
+func NumericFieldPending(pending bool) NumericFieldOption
+func NumericFieldPlaceholder(text string) NumericFieldOption
+func NumericFieldRequired(required bool) NumericFieldOption
+func NumericFieldStep(value string) NumericFieldOption
+func NumericFieldSupportingText(text string) NumericFieldOption
 func OnActivate(ctx *Context, fn func(ctx *Context, ev *ActivationEvent), opts ...ListenerOption)
 func OnClick(fn func(ctx *Context)) ButtonOption
 func OnCloseRequested(fn func(WindowCloseRequest) bool) AppOption
@@ -734,6 +860,7 @@ func Padding(insets Insets, child Widget) Widget
 func PaddingElement(insets Insets, child Element) Element
 func ParseFontBytes(name string, data []byte) ([]FontFace, error)
 func ParseFontFile(path string) ([]FontFace, error)
+func ParseNumericValue(text string) NumericValue
 func Passive() ListenerOption
 func PerfDiagnosticsWriter(w io.Writer) AppOption
 func PickFolderDialog(ctx *Context, opts ...system.FileDialogOption) (system.FileDialogResult, error)
@@ -866,6 +993,32 @@ func SearchBarLeading(leading Widget) SearchBarOption
 func SearchBarOnChange(fn func(ctx *Context, value string)) SearchBarOption
 func SearchBarPlaceholder(text string) SearchBarOption
 func SearchBarTrailing(trailing Widget) SearchBarOption
+func SearchSelectAttachRef[T comparable](ref *SearchSelectRef[T]) SearchSelectOption[T]
+func SearchSelectDisabled[T comparable](disabled bool) SearchSelectOption[T]
+func SearchSelectElement[T comparable](value T, query string, items []SearchSelectItem[T], opts ...SearchSelectOption[T]) Element
+func SearchSelectErrorText[T comparable](text string) SearchSelectOption[T]
+func SearchSelectFilterOptions[T comparable](filter bool) SearchSelectOption[T]
+func SearchSelectInputOptions[T comparable](opts ...InputOption) SearchSelectOption[T]
+func SearchSelectLabel[T comparable](text string) SearchSelectOption[T]
+func SearchSelectMaxHeight[T comparable](height float32) SearchSelectOption[T]
+func SearchSelectOnActiveChange[T comparable](fn func(ctx *Context, key string)) SearchSelectOption[T]
+func SearchSelectOnBeforeInput[T comparable](fn fluxevent.InputHandler) SearchSelectOption[T]
+func SearchSelectOnChange[T comparable](fn func(ctx *Context, value T)) SearchSelectOption[T]
+func SearchSelectOnInputEvent[T comparable](fn fluxevent.InputHandler) SearchSelectOption[T]
+func SearchSelectOnOpenChange[T comparable](fn func(ctx *Context, opened bool)) SearchSelectOption[T]
+func SearchSelectOnQueryChange[T comparable](fn func(ctx *Context, query string)) SearchSelectOption[T]
+func SearchSelectOnSelect[T comparable](fn func(ctx *Context, item SearchSelectItem[T])) SearchSelectOption[T]
+func SearchSelectOnSubmit[T comparable](fn fluxevent.InputHandler) SearchSelectOption[T]
+func SearchSelectOpened[T comparable](opened bool) SearchSelectOption[T]
+func SearchSelectPending[T comparable](pending bool) SearchSelectOption[T]
+func SearchSelectPlaceholder[T comparable](text string) SearchSelectOption[T]
+func SearchSelectRequired[T comparable](required bool) SearchSelectOption[T]
+func SearchSelectSelectedKey[T comparable](key string) SearchSelectOption[T]
+func SearchSelectSupportingText[T comparable](text string) SearchSelectOption[T]
+func SearchSelect[T comparable](value T, query string, items []SearchSelectItem[T], opts ...SearchSelectOption[T]) Widget
+func SearchableSelectElement[T comparable](value T, query string, items []SearchSelectItem[T], opts ...SearchSelectOption[T]) Element
+func SearchableSelectSelectedKey[T comparable](key string) SearchSelectOption[T]
+func SearchableSelect[T comparable](value T, query string, items []SearchSelectItem[T], opts ...SearchSelectOption[T]) Widget
 func SelectAttachRef[T comparable](ref *SelectRef[T]) SelectOption[T]
 func SelectDecoration[T comparable](d Decoration) SelectOption[T]
 func SelectDisabled[T comparable](disabled bool) SelectOption[T]
@@ -934,6 +1087,8 @@ func SnackbarAction(label string, fn func(ctx *Context)) SnackbarOption
 func SnackbarElement(message string, opts ...SnackbarOption) Element
 func Spacer(width, height float32) Widget
 func SpacerElement(width, height float32) Element
+func SpinBox(value string, opts ...NumericFieldOption) Widget
+func SpinBoxElement(value string, opts ...NumericFieldOption) Element
 func Stack(children ...Widget) Widget
 func StackDepth(ctx *Context) int
 func StackElement(children ...Element) Element
@@ -977,6 +1132,57 @@ func TabsScrollable(scrollable bool) TabsOption
 func TabsSecondary(secondary bool) TabsOption
 func TabsTabDecoration(d Decoration) TabsOption
 func TabsTextColor(col color.NRGBA) TabsOption
+func TagInput(tags []string, query string, opts ...TagInputOption) Widget
+func TagInputAttachRef(ref *TagInputRef) TagInputOption
+func TagInputDisabled(disabled bool) TagInputOption
+func TagInputElement(tags []string, query string, opts ...TagInputOption) Element
+func TagInputError(invalid bool) TagInputOption
+func TagInputErrorText(text string) TagInputOption
+func TagInputInputOptions(opts ...InputOption) TagInputOption
+func TagInputLabel(text string) TagInputOption
+func TagInputMaxHeight(height float32) TagInputOption
+func TagInputOnActiveChange(fn func(ctx *Context, key string)) TagInputOption
+func TagInputOnAdd(fn func(ctx *Context, tag string)) TagInputOption
+func TagInputOnBeforeInput(fn fluxevent.InputHandler) TagInputOption
+func TagInputOnChange(fn func(ctx *Context, tags []string)) TagInputOption
+func TagInputOnInputEvent(fn fluxevent.InputHandler) TagInputOption
+func TagInputOnOpenChange(fn func(ctx *Context, opened bool)) TagInputOption
+func TagInputOnQueryChange(fn func(ctx *Context, query string)) TagInputOption
+func TagInputOnRemove(fn func(ctx *Context, tag string)) TagInputOption
+func TagInputOnSubmit(fn fluxevent.InputHandler) TagInputOption
+func TagInputOnTagAdd(fn func(ctx *Context, tag string)) TagInputOption
+func TagInputOnTagRemove(fn func(ctx *Context, tag string)) TagInputOption
+func TagInputOpened(opened bool) TagInputOption
+func TagInputPending(pending bool) TagInputOption
+func TagInputPlaceholder(text string) TagInputOption
+func TagInputRequired(required bool) TagInputOption
+func TagInputSupportingText(text string) TagInputOption
+func TagPicker(selectedKeys []string, query string, options []TagOptionItem, opts ...TagPickerOption) Widget
+func TagPickerAttachRef(ref *TagPickerRef) TagPickerOption
+func TagPickerDisabled(disabled bool) TagPickerOption
+func TagPickerElement(selectedKeys []string, query string, options []TagOptionItem, opts ...TagPickerOption) Element
+func TagPickerError(invalid bool) TagPickerOption
+func TagPickerErrorText(text string) TagPickerOption
+func TagPickerFilterOptions(filter bool) TagPickerOption
+func TagPickerInputOptions(opts ...InputOption) TagPickerOption
+func TagPickerLabel(text string) TagPickerOption
+func TagPickerMaxHeight(height float32) TagPickerOption
+func TagPickerOnActiveChange(fn func(ctx *Context, key string)) TagPickerOption
+func TagPickerOnBeforeInput(fn fluxevent.InputHandler) TagPickerOption
+func TagPickerOnChange(fn func(ctx *Context, selectedKeys []string)) TagPickerOption
+func TagPickerOnInputEvent(fn fluxevent.InputHandler) TagPickerOption
+func TagPickerOnOpenChange(fn func(ctx *Context, opened bool)) TagPickerOption
+func TagPickerOnQueryChange(fn func(ctx *Context, query string)) TagPickerOption
+func TagPickerOnRemove(fn func(ctx *Context, key string)) TagPickerOption
+func TagPickerOnSelect(fn func(ctx *Context, item TagOptionItem)) TagPickerOption
+func TagPickerOnSelectedKeysChange(fn func(ctx *Context, selectedKeys []string)) TagPickerOption
+func TagPickerOnSubmit(fn fluxevent.InputHandler) TagPickerOption
+func TagPickerOnToggle(fn func(ctx *Context, item TagOptionItem, selected bool)) TagPickerOption
+func TagPickerOpened(opened bool) TagPickerOption
+func TagPickerPending(pending bool) TagPickerOption
+func TagPickerPlaceholder(text string) TagPickerOption
+func TagPickerRequired(required bool) TagPickerOption
+func TagPickerSupportingText(text string) TagPickerOption
 func Text(content string, opts ...TextOption) Widget
 func TextAlign(alignment TextAlignment) TextOption
 func TextButton(child Widget, opts ...ButtonOption) Widget
@@ -1035,6 +1241,12 @@ func UseState[T any](ctx *Context, initial T) *state.State[T]
 func UseTheme(ctx *Context) *Theme
 func VSpacer(height float32) Widget
 func VSpacerElement(height float32) Element
+func ValidationSummary(fields []FieldState, opts ...ValidationSummaryOption) Widget
+func ValidationSummaryDisabled(disabled bool) ValidationSummaryOption
+func ValidationSummaryElement(fields []FieldState, opts ...ValidationSummaryOption) Element
+func ValidationSummaryEmptyText(text string) ValidationSummaryOption
+func ValidationSummaryOnFocus(fn func(ctx *Context, key string)) ValidationSummaryOption
+func ValidationSummaryTitle(title string) ValidationSummaryOption
 func VisualRootBuilder(root Component) func(ctx *Context) Widget
 func Window(root func(ctx *Context) Widget, opts ...AppOption) WindowSpec // Deprecated
 func WindowCenter(ctx *Context) bool
@@ -1093,6 +1305,9 @@ type AppBarOption = widget.AppBarOption
 type AppOption = fluxapp.Option
 type AsyncHandle[T any] = state.AsyncHandle[T]
 type AsyncStatus = state.AsyncStatus
+type AutocompleteItem[T comparable] = widget.AutocompleteItem[T]
+type AutocompleteOption[T comparable] = widget.AutocompleteOption[T]
+type AutocompleteRef[T comparable] = widget.AutocompleteRef[T]
 type Axis = widget.Axis
 type BadgeOption = widget.BadgeOption
 type BeforeEachFunc = router.BeforeEachFunc
@@ -1110,10 +1325,14 @@ type CardOption = widget.CardOption
 type CheckboxOption = widget.CheckboxOption
 type CheckboxRef = widget.CheckboxRef
 type ChipOption = widget.ChipOption
+type ChoiceItem[T comparable] = widget.ChoiceItem[T]
 type ClickAreaOption = widget.ClickAreaOption
 type ClickAreaRef = widget.ClickAreaRef
 type ColorOption = theme.ColorOption
 type ColorScheme = theme.ColorScheme
+type ComboboxItem[T comparable] = widget.ComboboxItem[T]
+type ComboboxOption[T comparable] = widget.ComboboxOption[T]
+type ComboboxRef[T comparable] = widget.ComboboxRef[T]
 type Component func(ctx *Context) Element
 type CompositionEvent = fluxevent.CompositionEvent
 type ContainerDecorationOption = widget.ContainerDecorationOption
@@ -1166,6 +1385,8 @@ type EventBoundaryOption = widget.EventBoundaryOption
 type EventHandler = fluxevent.Handler
 type EventPhase = fluxevent.Phase
 type EventType = fluxevent.Type
+type FieldState = widget.FieldState
+type FieldStatus = widget.FieldStatus
 type FloatingActionButtonOption = widget.FloatingActionButtonOption
 type FocusActivation = fluxevent.FocusActivation
 type FocusDirection = fluxevent.FocusDirection
@@ -1176,6 +1397,11 @@ type FontFace = theme.FontFace
 type FontSpec = theme.FontSpec
 type FontStyle = theme.FontStyle
 type FontWeight = theme.FontWeight
+type FormFieldOption = widget.FormFieldOption
+type FormFieldRef = widget.FormFieldRef
+type FormOption = widget.FormOption
+type FormRef = widget.FormRef
+type FormSubmitEvent = widget.FormSubmitEvent
 type FrameSectionStats = internal.FrameSectionStats
 type FrameStats = internal.FrameStats
 type GridOption = widget.GridOption
@@ -1208,11 +1434,16 @@ type MenuItem = widget.MenuItem
 type MenuOption = widget.MenuOption
 type MenuPositioning = widget.MenuPositioning
 type Modifiers = fluxevent.Modifiers
+type MultiSelectOption[T comparable] = widget.MultiSelectOption[T]
+type MultiSelectRef[T comparable] = widget.MultiSelectRef[T]
 type NavItem = widget.NavItem
 type NavigateFunc = router.NavigateFunc
 type NavigateOption = router.NavigateOption
 type NavigationDrawerOption = widget.NavigationDrawerOption
 type NavigationRailOption = widget.NavigationRailOption
+type NumericFieldOption = widget.NumericFieldOption
+type NumericFieldRef = widget.NumericFieldRef
+type NumericValue = widget.NumericValue
 type PerfDiagnostics = internal.PerfDiagnostics
 type PerfSection = internal.PerfSection
 type PointerAreaOption = widget.PointerAreaOption
@@ -1258,6 +1489,9 @@ type RouterOption = router.Option
 type ScrollOption = widget.ScrollOption
 type ScrollRef = widget.ScrollRef
 type SearchBarOption = widget.SearchBarOption
+type SearchSelectItem[T comparable] = widget.SearchSelectItem[T]
+type SearchSelectOption[T comparable] = widget.SearchSelectOption[T]
+type SearchSelectRef[T comparable] = widget.SearchSelectRef[T]
 type SelectOptionItem[T comparable] = widget.SelectOptionItem[T]
 type SelectOption[T comparable] = widget.SelectOption[T]
 type SelectRef[T comparable] = widget.SelectRef[T]
@@ -1272,6 +1506,11 @@ type SwitchRef = widget.SwitchRef
 type TabItem = widget.TabItem
 type TabsOption = widget.TabsOption
 type TabsRef = widget.TabsRef
+type TagInputOption = widget.TagInputOption
+type TagInputRef = widget.TagInputRef
+type TagOptionItem = widget.TagOptionItem
+type TagPickerOption = widget.TagPickerOption
+type TagPickerRef = widget.TagPickerRef
 type TargetID = fluxevent.TargetID
 type TextAlignment = widget.TextAlignment
 type TextOption = widget.TextOption
@@ -1286,6 +1525,7 @@ type Transform2D = style.Transform2D
 type TransformOrigin = style.TransformOrigin
 type Transition = router.Transition
 type TypeScale = theme.TypeScale
+type ValidationSummaryOption = widget.ValidationSummaryOption
 type WheelEvent = fluxevent.WheelEvent
 type Widget = widget.Widget // Deprecated
 type WindowCloseRequest = fluxapp.WindowCloseRequest

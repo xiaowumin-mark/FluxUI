@@ -1,387 +1,230 @@
 package main
 
 import (
-	"fmt"
-	"image/color"
 	"strings"
 
 	ui "github.com/xiaowumin-mark/FluxUI/ui"
 )
 
-type FormData struct {
-	username    string
-	email       string
-	password    string
-	confirmPass string
+type formData struct {
+	username string
+	email    string
+	password string
+	confirm  string
 }
 
-type ValidationResult struct {
-	isValid bool
-	errors  map[string]string
+type validationResult struct {
+	errors map[string]string
 }
 
-func validateEmail(email string) bool {
-	return strings.Contains(email, "@") && strings.Contains(email, ".")
+func (r validationResult) valid() bool {
+	return len(r.errors) == 0
 }
 
-func validatePassword(password string) bool {
-	return len(password) >= 8
-}
-
-func validateForm(data FormData) ValidationResult {
-	result := ValidationResult{
-		isValid: true,
-		errors:  make(map[string]string),
-	}
-
+func validateForm(data formData) validationResult {
+	errors := make(map[string]string)
 	if strings.TrimSpace(data.username) == "" {
-		result.errors["username"] = "用户名不能为空"
-		result.isValid = false
-	} else if len(data.username) < 3 {
-		result.errors["username"] = "用户名至少需要 3 个字符"
-		result.isValid = false
+		errors["username"] = "用户名不能为空"
+	} else if len([]rune(data.username)) < 3 {
+		errors["username"] = "用户名至少需要 3 个字符"
 	}
-
 	if strings.TrimSpace(data.email) == "" {
-		result.errors["email"] = "邮箱不能为空"
-		result.isValid = false
-	} else if !validateEmail(data.email) {
-		result.errors["email"] = "请输入有效的邮箱地址"
-		result.isValid = false
+		errors["email"] = "邮箱不能为空"
+	} else if !strings.Contains(data.email, "@") || !strings.Contains(data.email, ".") {
+		errors["email"] = "请输入有效的邮箱地址"
 	}
-
-	if strings.TrimSpace(data.password) == "" {
-		result.errors["password"] = "密码不能为空"
-		result.isValid = false
-	} else if !validatePassword(data.password) {
-		result.errors["password"] = "密码至少需要 8 个字符"
-		result.isValid = false
+	if len(data.password) < 8 {
+		errors["password"] = "密码至少需要 8 个字符"
 	}
-
-	if data.confirmPass != data.password {
-		result.errors["confirmPass"] = "两次输入的密码不一致"
-		result.isValid = false
+	if data.confirm != data.password {
+		errors["confirm"] = "两次输入的密码不一致"
 	}
-
-	return result
+	return validationResult{errors: errors}
 }
 
-var (
-	red   = ui.NRGBA(220, 53, 69, 255)
-	green = ui.NRGBA(40, 167, 69, 255)
-)
+func fieldState(key, label string, result validationResult, required, pending bool, hostError string) ui.FieldState {
+	state := ui.FieldState{
+		Key:         key,
+		Label:       label,
+		Required:    required,
+		Pending:     pending,
+		PendingText: "宿主正在进行异步校验…",
+		Status:      ui.FieldValid,
+	}
+	if pending {
+		state.Status = ui.FieldPending
+	}
+	if message := result.errors[key]; message != "" {
+		state.Status = ui.FieldInvalid
+		state.ErrorText = message
+	}
+	if hostError != "" {
+		state.Status = ui.FieldInvalid
+		state.ErrorText = hostError
+	}
+	return state
+}
 
+// App is intentionally a host-driven Form example. It demonstrates synchronous
+// validation, an externally represented async-pending phase, cancelable submit,
+// and ValidationSummary focus routing without a component goroutine or I/O.
 func App(ctx *ui.Context) ui.Element {
 	th := ui.UseTheme(ctx)
-
 	username := ui.UseState(ctx, "")
 	email := ui.UseState(ctx, "")
 	password := ui.UseState(ctx, "")
-	confirmPass := ui.UseState(ctx, "")
-	formResult := ui.UseState(ctx, ValidationResult{isValid: true, errors: make(map[string]string)})
-	isSubmitted := ui.UseState(ctx, false)
+	confirm := ui.UseState(ctx, "")
+	result := ui.UseState(ctx, validationResult{errors: map[string]string{}})
+	pending := ui.UseState(ctx, false)
+	asyncEmailError := ui.UseState(ctx, "")
+	cancelNext := ui.UseState(ctx, false)
+	status := ui.UseState(ctx, "填写字段后提交。")
 
-	return ui.ContainerDecorationElement(
-		ui.Bg(th.Surface).WithPad(ui.All(20)),
+	formRef := ui.UseRef(ctx, ui.NewFormRef())
+	usernameRef := ui.UseRef(ctx, ui.NewFormFieldRef())
+	emailRef := ui.UseRef(ctx, ui.NewFormFieldRef())
+	passwordRef := ui.UseRef(ctx, ui.NewFormFieldRef())
+	confirmRef := ui.UseRef(ctx, ui.NewFormFieldRef())
+	if formRef.Current == nil {
+		formRef.Current = ui.NewFormRef()
+		usernameRef.Current = ui.NewFormFieldRef()
+		emailRef.Current = ui.NewFormFieldRef()
+		passwordRef.Current = ui.NewFormFieldRef()
+		confirmRef.Current = ui.NewFormFieldRef()
+	}
+
+	data := formData{username: username.Value(), email: email.Value(), password: password.Value(), confirm: confirm.Value()}
+	fields := []ui.FieldState{
+		fieldState("username", "用户名", result.Value(), true, false, ""),
+		fieldState("email", "邮箱", result.Value(), true, pending.Value(), asyncEmailError.Value()),
+		fieldState("password", "密码", result.Value(), true, false, ""),
+		fieldState("confirm", "确认密码", result.Value(), true, false, ""),
+	}
+
+	clearResult := func() {
+		result.Set(validationResult{errors: map[string]string{}})
+		pending.Set(false)
+		asyncEmailError.Set("")
+		status.Set("字段已修改，等待下一次宿主校验。")
+	}
+	fieldOptions := func(state ui.FieldState, ref *ui.FormFieldRef) []ui.FormFieldOption {
+		return []ui.FormFieldOption{ui.FormFieldState(state), ui.FormFieldAttachRef(ref)}
+	}
+
+	form := ui.FormElement(
 		ui.ColumnElement(
-			ui.PaddingElement(
-				ui.All(8),
-				ui.TextElement("表单验证示例", ui.TextSize(24), ui.TextAlign(ui.AlignCenter)),
+			ui.ValidationSummaryElement(fields,
+				ui.ValidationSummaryTitle("请先修正以下字段"),
+				ui.ValidationSummaryEmptyText("当前没有同步校验错误。"),
+				ui.ValidationSummaryOnFocus(func(_ *ui.Context, key string) {
+					switch key {
+					case "username":
+						usernameRef.Current.Focus()
+					case "email":
+						emailRef.Current.Focus()
+					case "password":
+						passwordRef.Current.Focus()
+					case "confirm":
+						confirmRef.Current.Focus()
+					}
+				}),
 			),
-			ui.PaddingElement(
-				ui.All(8),
-				ui.TextElement("用户注册表单 - 包含完整的验证逻辑", ui.TextSize(14), ui.TextColor(th.SurfaceMuted)),
+			ui.VSpacerElement(12),
+			ui.FormFieldElement("username",
+				ui.TextFieldElement(username.Value(), ui.InputPlaceholder("至少 3 个字符"), ui.InputOnChange(func(_ *ui.Context, value string) {
+					username.Set(value)
+					clearResult()
+				})),
+				fieldOptions(fields[0], usernameRef.Current)...,
 			),
-			ui.PaddingElement(
-				ui.All(8),
-				ui.TextElement("用户名", ui.TextSize(14), ui.TextColor(th.TextColor)),
+			ui.VSpacerElement(10),
+			ui.FormFieldElement("email",
+				ui.TextFieldElement(email.Value(), ui.InputPlaceholder("name@example.com"), ui.InputOnChange(func(_ *ui.Context, value string) {
+					email.Set(value)
+					clearResult()
+				})),
+				fieldOptions(fields[1], emailRef.Current)...,
 			),
-			ui.PaddingElement(
-				ui.All(4),
-				ui.TextFieldElement(
-					username.Value(),
-					ui.InputPlaceholder("请输入用户名"),
-					ui.InputBorder(th.SurfaceMuted),
-					ui.InputBorderFocus(th.Primary),
-					ui.InputOnChange(func(ctx *ui.Context, value string) {
-						username.Set(value)
-						isSubmitted.Set(false)
-					}),
-				),
+			ui.VSpacerElement(10),
+			ui.FormFieldElement("password",
+				ui.TextFieldElement(password.Value(), ui.InputPassword(true), ui.InputPlaceholder("至少 8 个字符"), ui.InputOnChange(func(_ *ui.Context, value string) {
+					password.Set(value)
+					clearResult()
+				})),
+				fieldOptions(fields[2], passwordRef.Current)...,
 			),
-			ui.ContainerDecorationElement(
-				ui.Bg(th.SurfaceMuted).WithPad(ui.All(8)).WithRad(4),
-				ui.TextElement("当前输入: "+username.Value(), ui.TextSize(12)),
+			ui.VSpacerElement(10),
+			ui.FormFieldElement("confirm",
+				ui.TextFieldElement(confirm.Value(), ui.InputPassword(true), ui.InputPlaceholder("再次输入密码"), ui.InputOnChange(func(_ *ui.Context, value string) {
+					confirm.Set(value)
+					clearResult()
+				})),
+				fieldOptions(fields[3], confirmRef.Current)...,
 			),
+			ui.VSpacerElement(14),
 			ui.RowElement(
-				ui.PaddingElement(
-					ui.All(4),
-					ui.ButtonElement(
-						ui.TextElement("设置: Alice"),
-						ui.OnClick(func(ctx *ui.Context) {
-							username.Set("Alice")
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				ui.PaddingElement(
-					ui.All(4),
-					ui.ButtonElement(
-						ui.TextElement("设置: Bo"),
-						ui.OnClick(func(ctx *ui.Context) {
-							username.Set("Bo")
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				ui.PaddingElement(
-					ui.All(4),
-					ui.ButtonElement(
-						ui.TextElement("清空"),
-						ui.OnClick(func(ctx *ui.Context) {
-							username.Set("")
-							isSubmitted.Set(false)
-						}),
-					),
-				),
+				ui.FilledButtonElement(ui.TextElement("提交"), ui.ButtonLoading(pending.Value()), ui.OnClick(func(_ *ui.Context) {
+					formRef.Current.Submit()
+				})),
+				ui.HSpacerElement(8),
+				ui.OutlinedButtonElement(ui.TextElement("下次提交取消"), ui.OnClick(func(_ *ui.Context) {
+					cancelNext.Set(true)
+					status.Set("下一个 submit intention 将被宿主取消。")
+				})),
+				ui.HSpacerElement(8),
+				ui.TextButtonElement(ui.TextElement("完成异步校验"), ui.OnClick(func(_ *ui.Context) {
+					pending.Set(false)
+					asyncEmailError.Set("")
+					status.Set("宿主异步校验已完成。")
+				})),
+				ui.HSpacerElement(8),
+				ui.OutlinedButtonElement(ui.TextElement("返回宿主异步错误"), ui.OnClick(func(_ *ui.Context) {
+					pending.Set(false)
+					asyncEmailError.Set("宿主异步校验发现该邮箱已注册。")
+					status.Set("宿主已回写异步错误；摘要可定位邮箱字段。")
+				})),
 			),
-			ui.PaddingElement(
-				ui.All(8),
-				ui.TextElement("邮箱", ui.TextSize(14), ui.TextColor(th.TextColor)),
-			),
-			ui.PaddingElement(
-				ui.All(4),
-				ui.TextFieldElement(
-					email.Value(),
-					ui.InputPlaceholder("请输入邮箱"),
-					ui.InputBorder(th.SurfaceMuted),
-					ui.InputBorderFocus(th.Primary),
-					ui.InputOnChange(func(ctx *ui.Context, value string) {
-						email.Set(value)
-						isSubmitted.Set(false)
-					}),
-				),
-			),
-			ui.ContainerDecorationElement(
-				ui.Bg(th.SurfaceMuted).WithPad(ui.All(8)).WithRad(4),
-				ui.TextElement("当前输入: "+email.Value(), ui.TextSize(12)),
-			),
-			ui.RowElement(
-				ui.PaddingElement(
-					ui.All(4),
-					ui.ButtonElement(
-						ui.TextElement("有效邮箱"),
-						ui.OnClick(func(ctx *ui.Context) {
-							email.Set("user@example.com")
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				ui.PaddingElement(
-					ui.All(4),
-					ui.ButtonElement(
-						ui.TextElement("无效邮箱"),
-						ui.OnClick(func(ctx *ui.Context) {
-							email.Set("invalid-email")
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				ui.PaddingElement(
-					ui.All(4),
-					ui.ButtonElement(
-						ui.TextElement("清空"),
-						ui.OnClick(func(ctx *ui.Context) {
-							email.Set("")
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-			),
-			ui.PaddingElement(
-				ui.All(8),
-				ui.TextElement("密码", ui.TextSize(14), ui.TextColor(th.TextColor)),
-			),
-			ui.PaddingElement(
-				ui.All(4),
-				ui.TextFieldElement(
-					password.Value(),
-					ui.InputPlaceholder("请输入密码"),
-					ui.InputPassword(true),
-					ui.InputBorder(th.SurfaceMuted),
-					ui.InputBorderFocus(th.Primary),
-					ui.InputOnChange(func(ctx *ui.Context, value string) {
-						password.Set(value)
-						isSubmitted.Set(false)
-					}),
-				),
-			),
-			ui.ContainerDecorationElement(
-				ui.Bg(th.SurfaceMuted).WithPad(ui.All(8)).WithRad(4),
-				ui.TextElement("当前输入: "+strings.Repeat("*", len(password.Value())), ui.TextSize(12)),
-			),
-			ui.RowElement(
-				ui.PaddingElement(
-					ui.All(4),
-					ui.ButtonElement(
-						ui.TextElement("有效密码"),
-						ui.OnClick(func(ctx *ui.Context) {
-							password.Set("password123")
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				ui.PaddingElement(
-					ui.All(4),
-					ui.ButtonElement(
-						ui.TextElement("短密码"),
-						ui.OnClick(func(ctx *ui.Context) {
-							password.Set("short")
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				ui.PaddingElement(
-					ui.All(4),
-					ui.ButtonElement(
-						ui.TextElement("清空"),
-						ui.OnClick(func(ctx *ui.Context) {
-							password.Set("")
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-			),
-			ui.PaddingElement(
-				ui.All(8),
-				ui.TextElement("确认密码", ui.TextSize(14), ui.TextColor(th.TextColor)),
-			),
-			ui.PaddingElement(
-				ui.All(4),
-				ui.TextFieldElement(
-					confirmPass.Value(),
-					ui.InputPlaceholder("请再次输入密码"),
-					ui.InputPassword(true),
-					ui.InputBorder(th.SurfaceMuted),
-					ui.InputBorderFocus(th.Primary),
-					ui.InputOnChange(func(ctx *ui.Context, value string) {
-						confirmPass.Set(value)
-						isSubmitted.Set(false)
-					}),
-				),
-			),
-			ui.ContainerDecorationElement(
-				ui.Bg(th.SurfaceMuted).WithPad(ui.All(8)).WithRad(4),
-				ui.TextElement("当前输入: "+strings.Repeat("*", len(confirmPass.Value())), ui.TextSize(12)),
-			),
-			ui.RowElement(
-				ui.PaddingElement(
-					ui.All(4),
-					ui.ButtonElement(
-						ui.TextElement("匹配密码"),
-						ui.OnClick(func(ctx *ui.Context) {
-							confirmPass.Set(password.Value())
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				ui.PaddingElement(
-					ui.All(4),
-					ui.ButtonElement(
-						ui.TextElement("不匹配"),
-						ui.OnClick(func(ctx *ui.Context) {
-							confirmPass.Set("different")
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-				ui.PaddingElement(
-					ui.All(4),
-					ui.ButtonElement(
-						ui.TextElement("清空"),
-						ui.OnClick(func(ctx *ui.Context) {
-							confirmPass.Set("")
-							isSubmitted.Set(false)
-						}),
-					),
-				),
-			),
-			ui.PaddingElement(
-				ui.All(12),
-				ui.ButtonElement(
-					ui.TextElement("提交表单"),
-					ui.ButtonBackground(th.Primary),
-					ui.ButtonForeground(th.TextOnPrimary),
-					ui.ButtonRadius(8),
-					ui.OnClick(func(ctx *ui.Context) {
-						data := FormData{
-							username:    username.Value(),
-							email:       email.Value(),
-							password:    password.Value(),
-							confirmPass: confirmPass.Value(),
-						}
-						result := validateForm(data)
-						formResult.Set(result)
-						isSubmitted.Set(true)
-					}),
-				),
-			),
-			ui.PaddingElement(
-				ui.All(4),
-				ui.ButtonElement(
-					ui.TextElement("重置表单"),
-					ui.ButtonBackground(red),
-					ui.ButtonForeground(ui.NRGBA(255, 255, 255, 255)),
-					ui.OnClick(func(ctx *ui.Context) {
-						username.Set("")
-						email.Set("")
-						password.Set("")
-						confirmPass.Set("")
-						formResult.Set(ValidationResult{isValid: true, errors: make(map[string]string)})
-						isSubmitted.Set(false)
-					}),
-				),
-			),
-			FormResultElement(isSubmitted.Value(), formResult.Value(), th.SurfaceMuted),
-			ui.PaddingElement(
-				ui.All(8),
-				ui.TextElement("表单验证示例完成", ui.TextSize(14), ui.TextColor(th.SurfaceMuted)),
-			),
+			ui.VSpacerElement(10),
+			ui.TextElement(status.Value(), ui.TextType(th.Types.BodySmall), ui.TextColor(th.Colors.OnSurfaceVariant)),
 		),
+		ui.FormPending(pending.Value()),
+		ui.FormAttachRef(formRef.Current),
+		ui.FormOnSubmit(func(_ *ui.Context, event *ui.FormSubmitEvent) {
+			if cancelNext.Value() {
+				event.PreventDefault()
+				cancelNext.Set(false)
+				status.Set("宿主取消了本次 submit intention。")
+				return
+			}
+			next := validateForm(data)
+			result.Set(next)
+			asyncEmailError.Set("")
+			if !next.valid() {
+				pending.Set(false)
+				event.PreventDefault()
+				status.Set("同步校验失败；可从摘要定位字段。")
+				return
+			}
+			// A real host would begin asynchronous work outside Layout, then render
+			// a later pending/error snapshot. This demo exposes that transition
+			// explicitly so it remains deterministic and goroutine-free.
+			pending.Set(true)
+			status.Set("同步校验通过；宿主异步校验处于 pending。")
+		}),
 	)
-}
-
-func FormResultElement(submitted bool, result ValidationResult, mutedColor color.NRGBA) ui.Element {
-	if !submitted {
-		return ui.PaddingElement(
-			ui.All(8),
-			ui.TextElement("请填写并提交表单", ui.TextSize(14), ui.TextColor(mutedColor)),
-		)
-	}
-
-	if result.isValid {
-		return ui.ContainerDecorationElement(
-			ui.Bg(green).WithPad(ui.All(12)).WithRad(8),
-			ui.TextElement("表单验证通过", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(16)),
-		)
-	}
-
-	errorElements := []ui.Element{
-		ui.PaddingElement(ui.All(2), ui.TextElement("表单验证失败:", ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(14))),
-	}
-	for field, errMsg := range result.errors {
-		errorElements = append(errorElements, ui.PaddingElement(
-			ui.All(2),
-			ui.TextElement(fmt.Sprintf("- %s: %s", field, errMsg), ui.TextColor(ui.NRGBA(255, 255, 255, 255)), ui.TextSize(12)),
-		))
-	}
 
 	return ui.ContainerDecorationElement(
-		ui.Bg(red).WithPad(ui.All(12)).WithRad(8),
-		ui.ColumnElement(errorElements...),
+		ui.Bg(th.Colors.Surface).WithPad(ui.All(20)),
+		ui.FixedWidthElement(520, ui.ColumnElement(
+			ui.TextElement("R1 Form：受控校验与提交", ui.TextType(th.Types.HeadlineSmall), ui.TextColor(th.Colors.OnSurface)),
+			ui.VSpacerElement(6),
+			ui.TextElement("校验、pending 与提交均由宿主状态驱动。", ui.TextType(th.Types.BodyMedium), ui.TextColor(th.Colors.OnSurfaceVariant)),
+			ui.VSpacerElement(18),
+			form,
+		)),
 	)
 }
 
 func main() {
-	_ = ui.RunElement(App, ui.Title("表单验证示例"), ui.Size(480, 1200))
+	_ = ui.RunElement(App, ui.Title("FluxUI Form Validation"), ui.Size(620, 860))
 }

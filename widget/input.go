@@ -77,8 +77,14 @@ type inputConfig struct {
 	onBeforeInput  fluxevent.InputHandler
 	onInputEvent   fluxevent.InputHandler
 	onSubmit       fluxevent.InputHandler
-	ref            *InputRef
-	decoration     style.Decoration
+	// captureKeys are reserved for a composite control that needs to handle
+	// these specific keys before the Gio Editor consumes its built-in editing
+	// shortcuts. This is deliberately internal: it preserves Input's public
+	// editing API while allowing components such as Combobox to reuse the
+	// normal Flux keyboard event path for roving focus.
+	captureKeys []key.Name
+	ref         *InputRef
+	decoration  style.Decoration
 }
 
 type inputWidget struct {
@@ -92,16 +98,17 @@ const (
 )
 
 type inputState struct {
-	editor         *gioWidget.Editor
-	initialized    bool
-	focused        bool
-	syncedValue    string
-	blurTag        any
-	fieldSize      image.Point
-	valueHistory   []string
-	historyIndex   int
-	historyBytes   int
-	historyEnabled bool
+	editor            *gioWidget.Editor
+	initialized       bool
+	focused           bool
+	syncedValue       string
+	blurTag           any
+	fieldSize         image.Point
+	valueHistory      []string
+	historyIndex      int
+	historyBytes      int
+	historyEnabled    bool
+	suppressNextSpace bool
 }
 
 func inputStateFor(ctx *internal.Context) *inputState {
@@ -365,6 +372,30 @@ func InputOnSubmit(fn fluxevent.InputHandler) InputOption {
 	}
 }
 
+// inputCaptureKeys reserves named physical keys for an enclosing composite
+// control. The captured events are dispatched through Flux before Editor.Update
+// so the editor cannot consume Arrow/Home/End navigation first. Callers must
+// only reserve keys whose native editor behavior they intentionally replace.
+func inputCaptureKeys(keys ...key.Name) InputOption {
+	return func(cfg *inputConfig) {
+		for _, name := range keys {
+			if name == "" {
+				continue
+			}
+			duplicate := false
+			for _, existing := range cfg.captureKeys {
+				if existing == name {
+					duplicate = true
+					break
+				}
+			}
+			if !duplicate {
+				cfg.captureKeys = append(cfg.captureKeys, name)
+			}
+		}
+	}
+}
+
 // InputAttachRef 绑定命令型引用，用于外部主动操作输入框。
 func InputAttachRef(ref *InputRef) InputOption {
 	return func(cfg *inputConfig) {
@@ -446,6 +477,7 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if t.config.password {
 		t.discardPasswordUndoRedo(ctx, editor)
 	}
+	t.dispatchCapturedKeys(ctx, state, editor)
 
 	passwordEditorDirty := false
 	for {
@@ -583,6 +615,39 @@ func (t *inputWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	return layout.Dimensions{Size: size}
 }
 
+func (t *inputWidget) dispatchCapturedKeys(ctx *internal.Context, state *inputState, editor *gioWidget.Editor) {
+	if t == nil || ctx == nil || ctx.Runtime() == nil || state == nil || editor == nil || len(t.config.captureKeys) == 0 {
+		return
+	}
+	filters := make([]gioEvent.Filter, 0, len(t.config.captureKeys))
+	for _, name := range t.config.captureKeys {
+		filters = append(filters, key.Filter{Focus: editor, Name: name})
+	}
+	for {
+		raw, ok := ctx.Gtx.Event(filters...)
+		if !ok {
+			return
+		}
+		keyEvent, ok := raw.(key.Event)
+		if !ok {
+			continue
+		}
+		ev := fluxevent.KeyboardEventFromGio(ctx, keyEvent)
+		target := ctx.Runtime().FocusedTarget()
+		if target == 0 {
+			target = ctx.PathID()
+		}
+		fluxevent.DispatchKeyboardEvent(ctx, target, &ev)
+		if keyEvent.State == key.Press && keyEvent.Name == key.NameSpace {
+			// A picker may intentionally use Space as an activation key. Gio emits
+			// the textual space separately as an EditEvent, so remember the
+			// captured key long enough to suppress that matching insertion while
+			// preserving the normal beforeinput observation path below.
+			state.suppressNextSpace = true
+		}
+	}
+}
+
 func (t *inputWidget) constrainEditorHistory(editor *gioWidget.Editor) {
 	maxEntries := inputHistoryMaxEntries
 	maxBytes := inputHistoryMaxBytes
@@ -709,6 +774,17 @@ func (t *inputWidget) commitUserInput(ctx *internal.Context, state *inputState, 
 		return editor
 	}
 	mutation := state.classifyUserInput(previous, value)
+	if state.suppressNextSpace {
+		state.suppressNextSpace = false
+		if mutation.data == " " && mutation.inputType == fluxevent.InputTypeInsertText {
+			before := t.newInputEvent(ctx, fluxevent.BeforeInput, previous, value, mutation.data, mutation.inputType, mutation.source, true, native, true)
+			t.dispatchInputEvent(ctx, before)
+			editor.SetText(previous)
+			t.constrainEditorHistory(editor)
+			state.syncedValue = previous
+			return editor
+		}
+	}
 	before := t.newInputEvent(ctx, fluxevent.BeforeInput, previous, value, mutation.data, mutation.inputType, mutation.source, true, native, true)
 	if !t.dispatchInputEvent(ctx, before) {
 		editor.SetText(previous)

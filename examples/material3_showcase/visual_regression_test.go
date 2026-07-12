@@ -29,9 +29,10 @@ import (
 )
 
 type visualViewport struct {
-	Name   string `json:"name"`
-	Width  int    `json:"width"`
-	Height int    `json:"height"`
+	Name   string  `json:"name"`
+	Width  int     `json:"width"`
+	Height int     `json:"height"`
+	Scale  float32 `json:"scale,omitempty"`
 }
 
 type visualTheme struct {
@@ -127,9 +128,39 @@ func visualCaptureSpecs() []visualCaptureSpec {
 
 	for _, themeCase := range themes {
 		specs = append(specs, componentRegionSpecs(themeCase)...)
+		specs = append(specs, advancedFormRegionSpecs(themeCase)...)
 		specs = append(specs, interactionStateSpecs(themeCase)...)
 	}
 	return specs
+}
+
+func advancedFormRegionSpecs(themeCase visualTheme) []visualCaptureSpec {
+	return []visualCaptureSpec{
+		{
+			Name:     fmt.Sprintf("r1-forms-%s-standard", themeCase.Name),
+			Category: "advanced-forms",
+			Theme:    themeCase,
+			Viewport: visualViewport{Name: "r1-forms-standard", Width: 980, Height: 760},
+			Root:     advancedFormVisualRoot,
+			Events:   steadyFrames(2),
+		},
+		{
+			Name:     fmt.Sprintf("r1-forms-%s-narrow", themeCase.Name),
+			Category: "advanced-forms",
+			Theme:    themeCase,
+			Viewport: visualViewport{Name: "r1-forms-narrow", Width: 480, Height: 900},
+			Root:     advancedFormVisualRoot,
+			Events:   steadyFrames(2),
+		},
+		{
+			Name:     fmt.Sprintf("r1-forms-%s-dpi200", themeCase.Name),
+			Category: "advanced-forms",
+			Theme:    themeCase,
+			Viewport: visualViewport{Name: "r1-forms-dpi200", Width: 960, Height: 1200, Scale: 2},
+			Root:     advancedFormVisualRoot,
+			Events:   steadyFrames(2),
+		},
+	}
 }
 
 func componentRegionSpecs(themeCase visualTheme) []visualCaptureSpec {
@@ -360,9 +391,13 @@ func renderVisualScreenshot(t *testing.T, spec visualCaptureSpec) *image.RGBA {
 		}
 
 		ops.Reset()
+		scale := spec.Viewport.Scale
+		if scale <= 0 {
+			scale = 1
+		}
 		gtx := gioLayout.Context{
 			Constraints: gioLayout.Exact(image.Pt(spec.Viewport.Width, spec.Viewport.Height)),
-			Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+			Metric:      unit.Metric{PxPerDp: scale, PxPerSp: scale},
 			Now:         baseTime.Add(time.Duration(frame) * 16 * time.Millisecond),
 			Source:      router.Source(),
 			Ops:         &ops,
@@ -538,6 +573,61 @@ func chipsProgressRegionRoot(ctx *ui.Context) ui.Element {
 			ui.SpacerElement(24, 0),
 			ui.FilledTonalButtonElement(ui.TextElement("Loading"), ui.ButtonLoading(true)),
 		),
+	)
+}
+
+func advancedFormVisualRoot(ctx *ui.Context) ui.Element {
+	th := ui.UseTheme(ctx)
+	choices := []ui.ChoiceItem[string]{
+		{Key: "apple", Label: "Apple", Value: "apple"},
+		{Key: "apricot", Label: "Apricot with an intentionally long label", Value: "apricot"},
+		{Key: "tomato", Label: "Tomato", Value: "tomato", Disabled: true},
+	}
+	tags := []ui.TagOptionItem{
+		{Key: "design", Label: "Design"},
+		{Key: "urgent", Label: "Urgent"},
+		{Key: "waiting", Label: "Waiting for a very long downstream review"},
+	}
+	fields := []ui.FieldState{
+		{Key: "title", Label: "A deliberately long required field label for narrow layouts", Required: true, Status: ui.FieldInvalid, ErrorText: "A concise validation error must remain visible.", Pending: true, PendingText: "Host retry is still pending…"},
+		{Key: "amount", Label: "Exact amount", Required: true, Status: ui.FieldPending, PendingText: "Host validation is pending…"},
+	}
+	return fixtureShell(ctx, "R1 Advanced Forms",
+		ui.FixedWidthElement(420, ui.ColumnElement(
+			ui.SearchSelectElement("apricot", "ap", choices,
+				ui.SearchSelectOpened[string](true),
+				ui.SearchSelectLabel[string]("Searchable Select"),
+				ui.SearchSelectRequired[string](true),
+				ui.SearchSelectPending[string](true),
+			),
+			ui.VSpacerElement(12),
+			ui.MultiSelectElement([]string{"apple", "apricot"}, choices,
+				ui.MultiSelectQuery[string](""),
+				ui.MultiSelectLabel[string]("Multi-select with stable keys"),
+				ui.MultiSelectRequired[string](true),
+			),
+			ui.VSpacerElement(12),
+			ui.TagPickerElement([]string{"design", "waiting"}, "", tags,
+				ui.TagPickerLabel("Tag picker"),
+				ui.TagPickerPending(true),
+			),
+			ui.VSpacerElement(12),
+			ui.SpinBoxElement("12.50",
+				ui.NumericFieldLabel("Exact decimal SpinBox"),
+				ui.NumericFieldStep("0.25"),
+				ui.NumericFieldMin("0"),
+				ui.NumericFieldPending(true),
+			),
+			ui.VSpacerElement(16),
+			ui.FormElement(ui.ColumnElement(
+				ui.ValidationSummaryElement(fields, ui.ValidationSummaryTitle("Correct these fields")),
+				ui.VSpacerElement(8),
+				ui.FormFieldElement("title", ui.TextFieldElement("", ui.InputPlaceholder("Required")), ui.FormFieldState(fields[0])),
+				ui.VSpacerElement(8),
+				ui.FormFieldElement("amount", ui.NumericFieldElement("12.50", ui.NumericFieldRequired(true)), ui.FormFieldState(fields[1])),
+			), ui.FormPending(true)),
+		)),
+		ui.TextElement("Error / required / loading / long-label matrix", ui.TextType(th.Types.BodySmall), ui.TextColor(th.Colors.OnSurfaceVariant)),
 	)
 }
 

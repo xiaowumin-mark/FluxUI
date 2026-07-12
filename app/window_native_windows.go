@@ -29,12 +29,14 @@ const (
 	nativeWSMaximizeBox = 0x00010000
 	nativeWSSizeBox     = 0x00040000
 
+	nativeSCRestore   = 0xF120
 	nativeSCMaximize  = 0xF030
 	nativeMFByCommand = 0x0000
 	nativeMFEnabled   = 0x0000
 	nativeMFGrayed    = 0x0001
 
 	nativeWMClose                 = 0x0010
+	nativeWMSysCommand            = 0x0112
 	nativeWMNCHitTest             = 0x0084
 	nativeWMNCCalcSize            = 0x0083
 	nativeWMNCPaint               = 0x0085
@@ -909,7 +911,11 @@ func nativeWindowProc(hwnd, msg, wparam, lparam uintptr) uintptr {
 			}
 			nativeForwardNonClientInputToGio(oldProc, hwnd, msg, wparam, lparam)
 			if msg == nativeWMNCPointerUp {
+				activate := active && inside
 				nativeSetMaximizePointerDown(entry, false)
+				if activate {
+					nativePostMaximizeButtonCommand(entry, hwnd)
+				}
 			}
 			nativeInvalidateHiddenFrame(entry, hwnd)
 			return 0
@@ -929,7 +935,7 @@ func nativeWindowProc(hwnd, msg, wparam, lparam uintptr) uintptr {
 			activate := nativeMaximizeMouseDown(entry) && !nativeMaximizePointerDown(entry)
 			nativeSetMaximizeMouseDown(entry, false)
 			if activate && entry != nil {
-				entry.activateNativeMaximizeButton()
+				nativePostMaximizeButtonCommand(entry, hwnd)
 			}
 			return 0
 		case nativeWMNCLDblClk:
@@ -965,6 +971,37 @@ func nativeCallDefaultWindowProc(oldProc, hwnd, msg, wparam, lparam uintptr) uin
 	}
 	result, _, _ := nativeDefWindowProc.Call(hwnd, msg, wparam, lparam)
 	return result
+}
+
+// nativePostMaximizeButtonCommand defers the system maximize/restore operation
+// until after the active window-procedure callback has returned. Calling
+// WindowHandle.Maximize from nativeWindowProc is intentionally rejected by the
+// reentry guard, so doing that here would make a native caption button a no-op.
+func nativePostMaximizeButtonCommand(entry *windowEntry, hwnd uintptr) bool {
+	return nativePostMaximizeButtonCommandWith(entry, hwnd, func(hwnd, msg, wparam, lparam uintptr) bool {
+		return nativeBoolCall(nativePostMessage, hwnd, msg, wparam, lparam)
+	})
+}
+
+func nativePostMaximizeButtonCommandWith(entry *windowEntry, hwnd uintptr, post func(hwnd, msg, wparam, lparam uintptr) bool) bool {
+	if entry == nil || hwnd == 0 || post == nil {
+		return false
+	}
+	command, ok := nativeMaximizeButtonSystemCommand(entry.snapshot())
+	if !ok {
+		return false
+	}
+	return post(hwnd, nativeWMSysCommand, command, 0)
+}
+
+func nativeMaximizeButtonSystemCommand(state WindowState) (uintptr, bool) {
+	if state.Fullscreen || state.Minimized || !windowMaximizeAvailable(state) {
+		return 0, false
+	}
+	if state.Maximized {
+		return nativeSCRestore, true
+	}
+	return nativeSCMaximize, true
 }
 
 func nativeDragActionHitTest(entry *windowEntry, hwnd, lparam uintptr) bool {

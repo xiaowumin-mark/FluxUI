@@ -214,6 +214,36 @@ FluxUI 已具备 MD3 token、主题/密度、Element API、滚动与虚拟 List/
 - Form 示例覆盖同步校验、宿主异步 pending/error、提交取消与 ValidationSummary 定位。
 - Light/Dark、错误、required、loading、长标签、窄宽度和 200% DPI 进入视觉矩阵。
 
+### 完成状态（2026-07-12）
+
+**Done（Beta）**。R1 的高级表单组件、公开 `ui` API、受控状态/Ref 合同、行为测试、Docs Browser 演示、表单示例和视觉矩阵已进入仓库。关联 issue/PR：本次 R1 实现任务（未提供外部编号）。
+
+### 完成日志（2026-07-12）
+
+#### 实现范围与复用合同
+
+- 新增 `SearchSelect` / `SearchableSelect`、`Combobox`、`Autocomplete`、`MultiSelect`、`TagPicker`、`TagInput`、`NumericField` / `SpinBox`、`Form`、`FormField` 与 `ValidationSummary`，并在 `ui` 提供对应 Widget、Element、option，以及适用组件的 Ref 入口。
+- 搜索选择、Autocomplete 和 Combobox 使用受控 `query`、`opened`、`selectedKey`、`pending`、`error` 快照；`Combobox` 的自定义文本只经宿主 `OnCustomValue` 报告，Autocomplete 不隐式提交业务查询，`SearchSelect` 只能从当前 options 选择。旧 `SelectSearchable`、`SelectQuick`、`SelectTypeaheadDelay` 仍保持 Deprecated 编译兼容 no-op。
+- 复用 `internal/collection` 的稳定 key / roving-focus 合同、`internal/fieldstate` 的字段状态合同、既有 Input 的 beforeinput/input/submit/IME/history 路径、既有有界 Ref 队列，以及 Dropdown/anchored Overlay 的 placement、outside-click、Escape 和焦点恢复路径。空或重复 option key 会进入不可交互错误状态，不退化为 index 身份。
+- `MultiSelectSelectedKeys` / `MultiSelectOnSelectedKeysChange` 提供 key 权威的多选路径；`TagPicker` 始终按 key 选择。兼容的 `[]T` 多选路径仅适用于业务 value 唯一的集合。重排、过滤、删除和同帧 Ref 命令均按 key/reconciliation 处理。
+- NumericField 保留受控 raw text，并以 `math/big.Rat` 产生精确规范化解析结果和 SpinBox 步进；pending 与 error 可同时呈现。FormField 的 `FieldState.Pending` 同样可与 invalid/error 并存，ValidationSummary 仍只定位 invalid 字段。
+
+#### 文档、示例与视觉矩阵
+
+- 新增 `docs/widgets/advanced-forms.md` 与 Docs Browser `advanced_forms` 演示；`examples/form_validation` 已迁移为同步校验、宿主 pending/error 快照、可取消 submit intention 与 ValidationSummary 稳定 key 定位示例。
+- `examples/material3_showcase` 新增 R1 Advanced Forms visual capture：Light/Dark、normal/error/required/loading、长标签、标准/窄视口与 200% DPI（`Scale: 2`）均纳入 manifest。
+
+#### 自动验证与未覆盖风险
+
+- 通过：`go test ./... -count=1`、`go test -race ./widget ./ui ./app -count=1`、`go vet ./...`、`go run ./tools/gofmtcheck`、`go run ./tools/api-snapshot -check`、`go test -tags visual ./examples/material3_showcase -run TestMaterial3ShowcaseScreenshots -count=1`。
+- 已覆盖的行为测试包括：受控 query/value 与外部快照改变、稳定 key 重排与删除、duplicate-value 的 key 多选、用户输入后的 overlay 关闭；真实 Editor 焦点路径中的 Arrow/Home/End、Enter/Space、Escape 焦点恢复、Tab/Shift+Tab、typeahead 与 disabled；同帧 Ref Open/Toggle/selection、TagInput no-popup open no-op、NumericField 的 beforeinput/paste/IME/undo/redo/Ref 顺序、精确数值解析/步进、Form submit cancel 和 error+pending 共存。Autocomplete 复用受控 suggestion 路径，只报告 query / suggestion selection，不隐式提交业务查询或接受自定义值。
+- 未覆盖风险：本地 headless/Windows 验证不替代 macOS/Linux、真实窗口 compositor、原生 IME、读屏或长时业务网络请求 smoke；这些仍须在每个候选发布的 `docs/release-checklist.md` 中留下平台证据。
+
+#### 兼容与回滚
+
+- 公开新增 API 已更新 `api/ui.snapshot` 和 CHANGELOG；不改变既有 Select/Input 的弃用或 callback 合同。
+- 可按组件族局部回滚 `widget/choice.go` + `widget/tags.go`、`widget/numeric_field.go`、`widget/form.go`、其 `ui` adapter、Docs Browser/demo/visual fixture；共享 `MenuItem.Active` 仅提供 roving 视觉态，可独立回滚，不影响既有选中标记。
+
 ## R2：日期、文件与状态反馈 Beta
 
 ### 组件范围
@@ -321,7 +351,7 @@ FluxUI 已具备 MD3 token、主题/密度、Element API、滚动与虚拟 List/
 1. [R0 完成] 建立集合 identity、受控选择、锚定 Overlay、字段状态和支持矩阵的 ADR/治理记录；日期值类型留给 R2 的公开 API 设计。
 2. [R0 完成] 将格式、lint、核心包 race、覆盖率报告、API snapshot 和漏洞扫描接入 CI，并确立防回退阈值。
 3. [R0 完成] 将 `SelectSearchable` 等预留 option 收敛为 Deprecated 兼容 no-op；R1 再以 Combobox/Autocomplete 试点验证真实搜索、共享 Overlay 与 roving focus。
-4. [R1] 使用已经落地的高级表单/DataGrid benchmark、行为和视觉模板，避免先写大组件、后补不可测基础设施。
+4. [R1 完成] 使用已经落地的高级表单/DataGrid benchmark、行为和视觉模板，避免先写大组件、后补不可测基础设施。
 5. [R4] 以一个工作台示例作为集成验收目标，而不是分别宣布 Tree、Table、SplitPane 已完成。
 
 ## 状态维护规则

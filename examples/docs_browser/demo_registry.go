@@ -64,6 +64,8 @@ func buildDocsDemo(ctx *ui.Context, doc *widgetDoc, state docsDemoState) ui.Elem
 		return buildDocsOverviewDemo(th)
 	case "advanced_component_template":
 		return ui.Key("docs-demo-advanced-component-template", ui.ComponentElement(docsAdvancedComponentTemplateDemo))
+	case "advanced_forms":
+		return ui.Key("docs-demo-advanced-forms", ui.ComponentElement(docsAdvancedFormsDemo))
 	case "row_basic":
 		return docsRowDemo()
 	case "column_basic":

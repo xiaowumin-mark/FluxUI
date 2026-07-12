@@ -300,6 +300,18 @@ func keyNameForEvent(ev key.Event) string {
 	switch ev.Name {
 	case key.NameReturn, key.NameEnter:
 		return "Enter"
+	case key.NameLeftArrow:
+		return "ArrowLeft"
+	case key.NameRightArrow:
+		return "ArrowRight"
+	case key.NameUpArrow:
+		return "ArrowUp"
+	case key.NameDownArrow:
+		return "ArrowDown"
+	case key.NameHome:
+		return "Home"
+	case key.NameEnd:
+		return "End"
 	case key.NameSpace:
 		return "Space"
 	case key.NameEscape:

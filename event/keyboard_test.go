@@ -6,8 +6,32 @@ import (
 
 	"github.com/xiaowumin-mark/FluxUI/internal"
 
+	"gioui.org/io/key"
 	gioLayout "gioui.org/layout"
 )
+
+func TestKeyboardEventFromGioUsesStableNavigationNames(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  key.Name
+		want string
+	}{
+		{name: "left", raw: key.NameLeftArrow, want: "ArrowLeft"},
+		{name: "right", raw: key.NameRightArrow, want: "ArrowRight"},
+		{name: "up", raw: key.NameUpArrow, want: "ArrowUp"},
+		{name: "down", raw: key.NameDownArrow, want: "ArrowDown"},
+		{name: "home", raw: key.NameHome, want: "Home"},
+		{name: "end", raw: key.NameEnd, want: "End"},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			got := KeyboardEventFromGio(nil, key.Event{Name: test.raw, State: key.Press})
+			if got.Key != test.want {
+				t.Fatalf("key = %q, want %q", got.Key, test.want)
+			}
+		})
+	}
+}
 
 func TestFocusMoveDispatchesFocusEventOrder(t *testing.T) {
 	_, _, parent, first := newEventTestTree(t)

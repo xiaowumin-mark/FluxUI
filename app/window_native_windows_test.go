@@ -492,6 +492,76 @@ func TestNativeMaximizeButtonActivationTogglesWindowMode(t *testing.T) {
 	}
 }
 
+func TestNativeMaximizeButtonSystemCommandDefersWithoutCallbackReentry(t *testing.T) {
+	tests := []struct {
+		name  string
+		state WindowState
+		want  uintptr
+		ok    bool
+	}{
+		{
+			name:  "maximize",
+			state: WindowState{Resizable: true},
+			want:  nativeSCMaximize,
+			ok:    true,
+		},
+		{
+			name:  "restore",
+			state: WindowState{Resizable: true, Maximized: true},
+			want:  nativeSCRestore,
+			ok:    true,
+		},
+		{
+			name:  "non-resizable",
+			state: WindowState{Resizable: false},
+			ok:    false,
+		},
+		{
+			name:  "fullscreen",
+			state: WindowState{Resizable: true, Fullscreen: true},
+			ok:    false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, ok := nativeMaximizeButtonSystemCommand(test.state)
+			if ok != test.ok || got != test.want {
+				t.Fatalf("native maximize command = (%#x, %v), want (%#x, %v)", got, ok, test.want, test.ok)
+			}
+		})
+	}
+}
+
+func TestNativeMaximizeButtonPostsSystemCommandDuringNativeCallback(t *testing.T) {
+	entry := testRegisterWindow(t, WindowState{Resizable: true, Alive: true})
+	entry.nativeCallbackDepth.Store(1)
+	defer entry.nativeCallbackDepth.Store(0)
+
+	var got struct {
+		hwnd   uintptr
+		msg    uintptr
+		wparam uintptr
+		lparam uintptr
+	}
+	posted := nativePostMaximizeButtonCommandWith(entry, 0x46575577, func(hwnd, msg, wparam, lparam uintptr) bool {
+		got.hwnd = hwnd
+		got.msg = msg
+		got.wparam = wparam
+		got.lparam = lparam
+		return true
+	})
+	if !posted {
+		t.Fatal("expected native maximize callback to post a deferred system command")
+	}
+	if got.hwnd != 0x46575577 || got.msg != nativeWMSysCommand || got.wparam != nativeSCMaximize || got.lparam != 0 {
+		t.Fatalf("posted command = %#v, want hwnd=%#x WM_SYSCOMMAND/SC_MAXIMIZE", got, 0x46575577)
+	}
+	if state := entry.snapshot(); state.Maximized {
+		t.Fatalf("posting during native callback mutated state synchronously: %#v", state)
+	}
+}
+
 func TestNativeWindowChromeStyleDefaultKeepsSystemSemantics(t *testing.T) {
 	current := uintptr(nativeWSVisible | nativeWSDisabled | nativeWSMinimize | nativeWSMaximize)
 	style := nativeWindowChromeStyle(current, WindowsFrameDefault, true, true)

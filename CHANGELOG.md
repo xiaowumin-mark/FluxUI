@@ -2,10 +2,20 @@
 
 ## Unreleased
 
+### R1 高级表单 Beta
+
+- 新增受控的 `SearchSelect`、`Combobox`、`Autocomplete`、`MultiSelect`、`TagPicker` 与 `TagInput`；选项焦点和多选交互以稳定 key 建模，异步建议仍完全由宿主提供。
+- 新增精确十进制 `NumericField` / `SpinBox`：保留原始文本，使用精确有理数解析与步进，不以 `float64` 表达业务金额。
+- 新增 `Form`、`FormField`、`ValidationSummary` 及受控 pending/error、可取消 submit、Ref 和 Docs Browser/示例入口。
+
+### 修复
+
+- Windows 原生/自定义标题栏的最大化按钮现在在窗口过程回调结束后投递系统最大化或还原命令，不再因回调重入保护而失效；pointer 输入路径也会执行同一动作。
+
 ### 兼容性与弃用
 
 - 建立 [`docs/deprecation-ledger.md`](docs/deprecation-ledger.md) 作为弃用、兼容 shim 与迁移窗口的权威记录；本 CHANGELOG 仅提供发布摘要。
-- `SelectSearchable`、`SelectQuick`、`SelectTypeaheadDelay` 标记为 Deprecated 的编译兼容 no-op。它们从未提供搜索、typeahead 或 quick-animation，不应在新代码或示例中使用；真实搜索能力留待 R1 Combobox / Autocomplete。
+- `SelectSearchable`、`SelectQuick`、`SelectTypeaheadDelay` 标记为 Deprecated 的编译兼容 no-op。它们从未提供搜索、typeahead 或 quick-animation，不应在新代码或示例中使用；真实搜索/建议能力现由 R1 的 `SearchSelect`（仅选择既有项）、`Combobox`（可由宿主接受自由文本）和 `Autocomplete`（仅建议与匹配，不隐式提交业务查询）提供。
 - `Widget`、`Run`、`App`、`Window`、`RunMulti` 仍为 Deprecated **兼容保留**入口：现有项目继续可编译，小版本不会静默移除。
 
 ## v0.1.0 (2026-05-23)

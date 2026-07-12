@@ -293,12 +293,16 @@ func md3ApplyOuterCornerShape(ctx *internal.Context, deco, source style.Decorati
 
 // MenuItem describes a Material 3 menu row.
 type MenuItem struct {
-	Key           string
-	Label         string
-	Leading       Widget
-	Trailing      Widget
-	Disabled      bool
-	Selected      bool
+	Key      string
+	Label    string
+	Leading  Widget
+	Trailing Widget
+	Disabled bool
+	Selected bool
+	// Active marks the roving keyboard item. It changes the row's visual state
+	// but deliberately does not add a selection checkmark or alter business
+	// selection.
+	Active        bool
 	Divider       bool
 	Children      []MenuItem
 	Type          string
@@ -484,7 +488,7 @@ func (m *menuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 			return Padding(style.Insets{Top: 4, Bottom: 4}, Divider(DividerColor(rowCtx.Theme().Colors.OutlineVariant)))
 		}
 		selected := item.Selected || (m.config.selectedKey != "" && item.Key == m.config.selectedKey)
-		return m.menuRow(item, selected, showSelection, state)
+		return m.menuRow(item, selected, item.Active, showSelection, state)
 	}
 
 	var body Widget
@@ -540,7 +544,7 @@ func menuItemStateKey(item MenuItem) string {
 	return item.Label
 }
 
-func (m *menuWidget) menuRow(item MenuItem, selected bool, showSelection bool, state *menuRuntimeState) Widget {
+func (m *menuWidget) menuRow(item MenuItem, selected, active bool, showSelection bool, state *menuRuntimeState) Widget {
 	return layoutWidgetFunc(func(rowCtx *internal.Context) layout.Dimensions {
 		clickable := event.UseClickable(rowCtx)
 		hasSubmenu := len(item.Children) > 0
@@ -572,6 +576,8 @@ func (m *menuWidget) menuRow(item MenuItem, selected bool, showSelection bool, s
 		if selected {
 			bg = cs.SecondaryContainer
 			fg = cs.OnSecondaryContainer
+		} else if active {
+			bg = style.StateLayer(bg, cs.Primary, style.StateLayerFocusOpacity)
 		}
 		fg = md3AnimateColor(rowCtx, "menu-row-fg", fg, style.InteractionSelectedDuration, style.InteractionStandardEasing)
 
@@ -661,6 +667,7 @@ type DropdownMenuOption func(*dropdownMenuConfig)
 type dropdownMenuConfig struct {
 	menu         menuConfig
 	onOpenChange func(ctx *internal.Context, open bool)
+	disabled     bool
 }
 
 type dropdownMenuWidget struct {
@@ -697,6 +704,13 @@ func DropdownMenuOnSelect(fn func(ctx *internal.Context, key string)) DropdownMe
 
 func DropdownMenuOnOpenChange(fn func(ctx *internal.Context, open bool)) DropdownMenuOption {
 	return func(cfg *dropdownMenuConfig) { cfg.onOpenChange = fn }
+}
+
+// dropdownMenuDisabled keeps DropdownMenu's render path intact while blocking
+// trigger activation, focus registration, and popup rendering. It is internal
+// because advanced input components own the public disabled contract.
+func dropdownMenuDisabled(disabled bool) DropdownMenuOption {
+	return func(cfg *dropdownMenuConfig) { cfg.disabled = disabled }
 }
 
 func DropdownMenuWidth(width float32) DropdownMenuOption {
@@ -803,29 +817,39 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	if trigger == nil {
 		trigger = Text("Menu")
 	}
-	open := d.open
+	open := d.open && !d.config.disabled
 	clickable := event.UseClickable(ctx)
-	event.RegisterFocusTarget(ctx, event.FocusActivate(func(ctx *internal.Context) {
-		dispatchClickDefault(ctx, nil, func() {
-			event.RequestFocus(ctx)
-			open = !open
-			if d.config.onOpenChange != nil {
-				d.config.onOpenChange(ctx, open)
+	if d.config.disabled {
+		// Keep the clickable hook/region stable across a disabled transition, but
+		// consume any stale click without producing an activation callback.
+		for {
+			if _, ok := clickable.ClickedEvent(ctx); !ok {
+				break
 			}
-		})
-	}))
-	for {
-		click, ok := clickable.ClickedEvent(ctx)
-		if !ok {
-			break
 		}
-		dispatchClickDefault(ctx, click, func() {
-			event.RequestFocus(ctx)
-			open = !open
-			if d.config.onOpenChange != nil {
-				d.config.onOpenChange(ctx, open)
+	} else {
+		event.RegisterFocusTarget(ctx, event.FocusActivate(func(ctx *internal.Context) {
+			dispatchClickDefault(ctx, nil, func() {
+				event.RequestFocus(ctx)
+				open = !open
+				if d.config.onOpenChange != nil {
+					d.config.onOpenChange(ctx, open)
+				}
+			})
+		}))
+		for {
+			click, ok := clickable.ClickedEvent(ctx)
+			if !ok {
+				break
 			}
-		})
+			dispatchClickDefault(ctx, click, func() {
+				event.RequestFocus(ctx)
+				open = !open
+				if d.config.onOpenChange != nil {
+					d.config.onOpenChange(ctx, open)
+				}
+			})
+		}
 	}
 	triggerDims := ctx.LayoutRippleArea(clickable.Handle(), internal.RippleSpec{
 		Color:   ctx.Theme().Colors.Primary,
@@ -837,7 +861,7 @@ func (d *dropdownMenuWidget) Layout(ctx *internal.Context) layout.Dimensions {
 	md3DrawFocusIndicator(ctx, triggerDims, internal.FocusIndicatorSpec{
 		Color:  ctx.Theme().Colors.Primary,
 		Radius: ctx.Theme().Shapes.ExtraSmall,
-	}, clickable.Focused(ctx), false)
+	}, !d.config.disabled && clickable.Focused(ctx), d.config.disabled)
 
 	enterDuration := style.InteractionMenuEnterDuration
 	exitDuration := style.InteractionMenuExitDuration
