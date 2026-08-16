@@ -18,7 +18,7 @@ require (
 	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/worldiety/material-color-utilities v0.0.0-20250324124753-a84b74640c16
 	golang.org/x/exp/shiny v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
-	golang.org/x/image v0.43.0
-	golang.org/x/sys v0.33.0
-	golang.org/x/text v0.38.0 // indirect
+	golang.org/x/image v0.45.0
+	golang.org/x/sys v0.47.0
+	golang.org/x/text v0.41.0 // indirect
 )
